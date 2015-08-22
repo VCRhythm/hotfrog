@@ -17,14 +17,14 @@ public class LevelManager : MonoBehaviour
         }
     }
 
+    [ReadOnly] public bool isPlaying = false;
     public int levelCount = 0;
     public Level[] levels;
 
     public Step pullUpStepTransform;
     private PullStep pullUpStep;
 
-    [HideInInspector]
-    public bool canEndAnimation = false;
+    [HideInInspector] public bool canEndAnimation = false;
     public bool isInvincibleLevel { get { return !currentLevel.canDie; } }
 
     private Animator anim;
@@ -94,13 +94,7 @@ public class LevelManager : MonoBehaviour
         StartCoroutine(ShowIntro());
     }
 
-    public void PullFrogY(float yMultiplier = 1f)
-    {
-        SpawnManager.Instance.SpawnDirection = -Vector2.up;
-        SpawnManager.Instance.PullStep(pullUpStep.step, false, yMultiplier);
-        pullUpStep.Reset();
-    }
-
+    
     public void TrackStep(Transform stepTransform)
     {
         stepTransforms.Add(stepTransform);
@@ -123,7 +117,7 @@ public class LevelManager : MonoBehaviour
 
     public void ResetInvincibleLevel()
     {
-        PullFrogY(-3f);
+        PullY(-3f);
         speckManager.MoveSpecks(stepTransforms[0]);
     }
 
@@ -131,6 +125,7 @@ public class LevelManager : MonoBehaviour
     public void EndLevel(bool hasDied, bool canLoadNextLevel)
     {
         StopCoroutine("NextTimedEvent");
+        isPlaying = false;
         Debug.Log("Disable spawners");
         SpawnManager.Instance.DisableSpawners(hasDied);
         VariableManager.Instance.SaveStats(HUD.Instance.BugsCaught, HUD.Instance.StepsClimbed);
@@ -138,7 +133,7 @@ public class LevelManager : MonoBehaviour
 
         if (hasDied)
         {
-            lava.FrogFallSplash();
+            lava.FallSplash();
             lava.LiftHeat(false);
         }
 
@@ -202,7 +197,7 @@ public class LevelManager : MonoBehaviour
         if (timedLevelEvents.Count > 0) StartCoroutine("NextTimedEvent");
     }
 
-    private void FrogRelease()
+    private void ReleaseY()
     {
         SpawnManager.Instance.ReleasePullingStep(pullUpStep.step);
     }
@@ -268,16 +263,14 @@ public class LevelManager : MonoBehaviour
                 timedLevelEvents.Add(new LevelEvent(true, 1f, () => { speckManager.ActivateSpecks(Vector2.zero); }));
                 timedLevelEvents.Add(new LevelEvent(true, 2f, () => { speckManager.MoveSpecks(stepTransforms[0]); }));
 
-                stepLevelEvents.Add(new LevelEvent(false, 1, () => { TouchManager.Instance.frog.SlowlyLower(); }));
                 stepLevelEvents.Add(new LevelEvent(false, 3, () =>
                 {
                     StartCoroutine(Flash());
-                    TouchManager.Instance.EndGame(false, true);
                     AudioManager.Instance.PlayIn(1f, AudioManager.Instance.splashSound);
                 }));
                 break;
             case 1:
-                timedLevelEvents.Add(new LevelEvent(true, 2f, () => { StartClimb(); }));
+                timedLevelEvents.Add(new LevelEvent(true, 1f, () => { StartClimb(); }));
                 //stepLevelEvents.Add(new LevelEvent(false, 2f, () => { SpawnManager.Instance.SpawnFromAll(Spawner.Type.Scenery, Vector2.up, 0); SpawnManager.Instance.ActivateScenerySpawners(); }));
                 /*stepLevelEvents.Add(new LevelEvent(false, 20f, () =>
               {
@@ -328,9 +321,6 @@ public class LevelManager : MonoBehaviour
     private void StartClimb()
     {
         lava.LiftHeat(true);
-
-        TouchManager.Instance.frog.SlowlyLower();
-
         MenuManager.Instance.IsShowingReturnPanel = false;
         SpawnManager.Instance.StartClimb();
     }
@@ -368,6 +358,13 @@ public class LevelManager : MonoBehaviour
             speckManager.MoveSpecks(Vector2.right * 100f);
         }
     }
-}
 
-#endregion
+    private void PullY(float yMultiplier = 1f)
+    {
+        SpawnManager.Instance.SpawnDirection = -Vector2.up;
+        SpawnManager.Instance.PullStep(pullUpStep.step, false, yMultiplier);
+        pullUpStep.Reset();
+    }
+    
+    #endregion
+}

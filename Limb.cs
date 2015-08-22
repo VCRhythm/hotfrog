@@ -39,9 +39,8 @@ public class Limb : MonoBehaviour {
 	{
 		IsMoving = false;
 
-		frog = GameObject.FindObjectOfType<Frog>();
-
 		_transform = transform;
+		frog = _transform.parent.GetComponent<Frog>();
 		string handName = _transform.name.Replace("Limb", "Hand");
 
 		handRenderer = _transform.FindChild(handName).GetComponent<SpriteRenderer>();

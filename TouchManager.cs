@@ -3,18 +3,8 @@ using System.Collections.Generic;
 
 public class TouchManager : MonoBehaviour {
 
-	// A singleton instance of this class
-	private static TouchManager instance;
-	public static TouchManager Instance {
-		get {
-			if (instance == null) instance = GameObject.FindObjectOfType<TouchManager>();
-			return instance;
-		}
-	}
-
 	#region Fields
     
-	[HideInInspector] public bool canDie = false;
 	[HideInInspector] public bool isPlaying = false;
 
 	//HUD Counters
@@ -123,13 +113,13 @@ public class TouchManager : MonoBehaviour {
                 }
             }
                 
-			if(!frog.IsDead && canDie && !HasStep)
+			if(!HasStep && !frog.IsDead && frog.canDie )
 			{
                 if (LevelManager.Instance.isInvincibleLevel)
                 {
+                    frog.canDie = false;
                     LevelManager.Instance.ResetInvincibleLevel();
                     AudioManager.Instance.Play(AudioManager.Instance.fallSound);
-                    SetCanDie(false);
                 }
                 else
                 {
@@ -147,6 +137,7 @@ public class TouchManager : MonoBehaviour {
 	public void StartLevel()
 	{
 		ResetGame();
+        frog.SlowlyLower();
 	}
 	
 	public void ReleaseStep(Transform step)
@@ -166,8 +157,7 @@ public class TouchManager : MonoBehaviour {
 	public void EndGame(bool hasDied = true, bool canAdvanceLevel = false)
 	{
         if (hasDied) canTouch = false;
-        isPlaying = false;
-        SetCanDie(false);
+        frog.canDie = false;
 
         HideTouchIndicators();
 		MenuManager.Instance.SetGrabStats(grabStats);
@@ -434,7 +424,6 @@ public class TouchManager : MonoBehaviour {
 	private void ResetGame()
 	{
 		canTouch = true;
-		isPlaying = true;
 		HUD.Instance.SetInitialStats();
 		grabStats = Vector4i.zero;
 		frog.Reset();
@@ -450,12 +439,6 @@ public class TouchManager : MonoBehaviour {
 #endif
 		isTouchInput = UserInput.IsTouchInput;
 	}
-
-    private void SetCanDie(bool isSet)
-    {
-        Debug.Log("Can die" + isSet);
-        canDie = isSet;
-    }
 
     /*	
 	// Never called

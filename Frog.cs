@@ -28,7 +28,11 @@ public class Frog : MonoBehaviour {
 		Arisen,
 		Unlocked
 	}
-	public AudioClip audioIntroduction;
+	[HideInInspector] public bool isFalling = false;
+	[HideInInspector] public bool isDead = false;
+    [HideInInspector] public bool canDie = false;
+    
+    public AudioClip audioIntroduction;
 	public List<SpriteLoad> spriteLoads = new List<SpriteLoad>();
 	private Sprite RightHandGrabSprite;
 	private Sprite LeftHandGrabSprite;
@@ -125,13 +129,8 @@ public class Frog : MonoBehaviour {
 	private Step bobStep;
 	private Step BobStep { get { return bobStep; } set { bobStep = value;}}
 		
-	private bool isMoving = false;
-	public bool IsMoving { get { return isMoving; } set { isMoving = value; } }
-	private bool isFalling = false;
-	public bool IsFalling { get { return isFalling; } set { isFalling = value; } }
-	private bool isDead = false;
-	public bool IsDead { get { return isDead; } set { isDead = value; if(value) StartCoroutine(Fall()); } }
-	private RiseState riseState = RiseState.Lowered;
+    private bool isMoving = false;
+		private RiseState riseState = RiseState.Lowered;
 
 	public Vector2 BodyPosition { get { return _transform.position; } set { _transform.position = new Vector2(value.x, value.y);}}
 	public Vector2 HeadPosition { get { return headTransform.localPosition; } set { headTransform.localPosition = new Vector2(value.x, value.y); } }
@@ -185,16 +184,16 @@ public class Frog : MonoBehaviour {
 	public void Reset()
 	{
 		ResetLook();
-		IsDead = false;
-		IsFalling = false;
-		IsMoving = false;
+		isDead = false;
+		isFalling = false;
+		isMoving = false;
 	}
 
 	public void EndGame(bool hasDied)
 	{
 		if(hasDied)
 		{
-			IsDead = true;
+            Die();
 		}
 		else
 		{
@@ -270,7 +269,7 @@ public class Frog : MonoBehaviour {
 		if(Mathf.Sign(xDest) == Mathf.Sign(xVal))
 		{
 			DOTween.Kill ("X");
-			DOTween.Kill("XRock");
+			//DOTween.Kill("XRock");
 			headTransform.DOPunchRotation(new Vector3(0, 0, -0.5f * (headTransform.position.x - xDest)), 1f, 1, 1f).SetId("XRock").OnComplete(() => { headTransform.DORotate(Vector3.zero, 1f); } );
 			headTransform.DOMoveX(xDest, xDestTime).SetEase(Ease.OutSine).SetId("X");
 		}
@@ -289,7 +288,7 @@ public class Frog : MonoBehaviour {
 			IsMoving = false;
 			DOTween.Kill("Y");
 		}
-	}
+    }	
 
 	public void ExpandTongue(Transform target)
 	{
@@ -472,6 +471,12 @@ public class Frog : MonoBehaviour {
 	{
 		hasLookTarget = false;
 	}
+
+    private void Die()
+    {
+        isDead = true;
+        StartCoroutine(Fall());
+    }
 	
 	#endregion Private Functions
 }

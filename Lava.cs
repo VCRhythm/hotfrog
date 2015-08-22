@@ -22,7 +22,7 @@ public class Lava : MonoBehaviour {
 
 	#region Public Functions
 
-	public void FrogFallSplash()
+	public void FallSplash()
 	{
 		AudioManager.Instance.Play(AudioManager.Instance.hurtSound);
 
