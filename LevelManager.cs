@@ -25,7 +25,6 @@ public class LevelManager : MonoBehaviour
     private PullStep pullUpStep;
 
     [HideInInspector] public bool canEndAnimation = false;
-    public bool isInvincibleLevel { get { return !currentLevel.canDie; } }
 
     private Animator anim;
     private Lava lava;
@@ -44,6 +43,7 @@ public class LevelManager : MonoBehaviour
     private float startTime;
     private List<Transform> stepTransforms = new List<Transform>();
     private SpeckManager speckManager;
+    private List<IController> controllers = new List<IController>();
 
     private struct PullStep
     {
@@ -115,20 +115,33 @@ public class LevelManager : MonoBehaviour
         }
     }
 
-    public void ResetInvincibleLevel()
+    public void ResetTutorial()
     {
         PullY(-3f);
         speckManager.MoveSpecks(stepTransforms[0]);
+        AudioManager.Instance.Play(AudioManager.Instance.fallSound); 
+    }
+
+    public bool ReportFall(IController controller)
+    {
+        controllers.Remove(controller);
+
+        if(controllers.Count == 0)
+        {
+            EndLevel(true, false);
+            return true;
+        }
+
+        return false;
     }
 
     //Ends the level
-    public void EndLevel(bool hasDied, bool canLoadNextLevel)
+    private void EndLevel(bool hasDied, bool canLoadNextLevel)
     {
         StopCoroutine("NextTimedEvent");
         isPlaying = false;
         Debug.Log("Disable spawners");
         SpawnManager.Instance.DisableSpawners(hasDied);
-        VariableManager.Instance.SaveStats(HUD.Instance.BugsCaught, HUD.Instance.StepsClimbed);
         AudioManager.Instance.FadeOutMusic();
 
         if (hasDied)
@@ -259,7 +272,7 @@ public class LevelManager : MonoBehaviour
         {
             case 0:
                 speckManager = Instantiate(currentLevel.GetObject("SpeckManager")).GetComponent<SpeckManager>();
-                timedLevelEvents.Add(new LevelEvent(true, 0, () => { SpawnManager.Instance.ActivateScenerySpawners(); TouchManager.Instance.StartLevel(); }));
+                timedLevelEvents.Add(new LevelEvent(true, 0, () => { SpawnManager.Instance.ActivateScenerySpawners(); }));
                 timedLevelEvents.Add(new LevelEvent(true, 1f, () => { speckManager.ActivateSpecks(Vector2.zero); }));
                 timedLevelEvents.Add(new LevelEvent(true, 2f, () => { speckManager.MoveSpecks(stepTransforms[0]); }));
 

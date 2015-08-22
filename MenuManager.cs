@@ -6,15 +6,6 @@ using DG.Tweening;
 
 public class MenuManager : MonoBehaviour {
 
-	// A singleton instance of this class
-	private static MenuManager instance;
-	public static MenuManager Instance {
-		get {
-			if (instance == null) instance = GameObject.FindObjectOfType<MenuManager>();
-			return instance;
-		}
-	}
-	
 	public bool IsShowingFrogName
 	{
 		set

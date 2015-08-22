@@ -4,15 +4,6 @@ using UnityEngine.SocialPlatforms;
 
 public class VariableManager : MonoBehaviour {
 
-	// A singleton instance of this class
-	private static VariableManager instance;
-	public static VariableManager Instance {
-		get {
-			if (instance == null) instance = GameObject.FindObjectOfType<VariableManager>();
-			return instance;
-		}
-	}
-	
 	private int highScore = 0;
 	public int HighScore { get { return highScore; } set { highScore = value; highScoreText.SetText("TOP: {0}", value); } }
 

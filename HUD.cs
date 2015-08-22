@@ -4,15 +4,6 @@ using TMPro;
 
 public class HUD : MonoBehaviour {
 
-	// A singleton instance of this class
-	private static HUD instance;
-	public static HUD Instance {
-		get {
-			if (instance == null) instance = GameObject.FindObjectOfType<HUD>();
-			return instance;
-		}
-	}
-
 	public int BugsCaught { get { return bugsCaught;} set { bugsCaught = value; if(canChangeFlyCount) UpdateFlyCount();} }
 	public int StepsClimbed { get { return stepsClimbed; } set { 
 			stepsClimbed = value;

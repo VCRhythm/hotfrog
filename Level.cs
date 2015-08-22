@@ -3,7 +3,6 @@ using System.Collections.Generic;
 
 [System.Serializable]
 public class Level {
-    public bool canDie = true;
     public int musicIndex = 1;
     public Material backgroundMaterial;
     public Material overlayMaterial;

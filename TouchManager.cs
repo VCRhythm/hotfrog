@@ -1,18 +1,16 @@
 using UnityEngine;
 using System.Collections.Generic;
 
-public class TouchManager : MonoBehaviour {
+public class TouchManager : MonoBehaviour, IController {
 
 	#region Fields
-    
-	[HideInInspector] public bool isPlaying = false;
-
+	
 	//HUD Counters
 	Vector4i grabStats;
 	
 	//Limbs
-	Limb[] limbs = new Limb[2];
 	public int FreeLimbCount { get { return (limbs[0].IsFree ? 1 : 0) + (limbs[1].IsFree ? 1 : 0); } }
+	Limb[] limbs = new Limb[2];
 	bool HasFreeLimb { get { return limbs[0].IsFree || limbs[1].IsFree; } }
 	bool HasStep { get { return !(limbs[0].IsFree && limbs[1].IsFree); } }
 	Vector2[] limbReturnPos = new Vector2[2]{new Vector2(20, -40), new Vector2(-20, -40)};
@@ -23,10 +21,9 @@ public class TouchManager : MonoBehaviour {
 	bool isTouchInput = false;
 	[HideInInspector] public bool canTouch = false;
 	TouchIndicator[] touchIndicators = new TouchIndicator[2];
-	delegate void TouchStepAction(Transform touched, int touchIndex, Vector2 worldPos);
-	TouchStepAction touchStepAction;
 	IUserInput UserInput;
     LayerMask touchableLayerMask;
+    bool isPlaying = false;
 
     //Guidance
     public TouchIndicator touchIndicatorPrefab;
@@ -36,6 +33,9 @@ public class TouchManager : MonoBehaviour {
     [HideInInspector] public Frog frog;
     CanvasGroup endGameCanvas;
     ObjectPool qualityText;
+    HUD hud;
+    VariableManager variableManager;
+    MenuManager menuManager;
         
     #endregion Fields
 
@@ -43,11 +43,12 @@ public class TouchManager : MonoBehaviour {
 
     void Awake()
 	{
+        hud = GetComponent<HUD>();
+        variableManager = GetComponent<VariableManager>();
+        menuManager = GetComponent<MenuManager>();
         touchableLayerMask = LayerMask.GetMask("Touchable");
 		SetUpInput();
 		SetUpTouchIndicators();
-
-		touchStepAction = TouchStep;
 
 		qualityText = GetComponent<ObjectPool>();
     }
@@ -60,14 +61,11 @@ public class TouchManager : MonoBehaviour {
 
             if (Input.GetKeyDown(KeyCode.Z))
             {
-                //Debug.Log ((limbs[0].GetStepScript() ? limbs[0].GetStepScript().transform.name : "None") + ", " + (limbs[1].GetStepScript() ? limbs[1].GetStepScript().transform.name : "None"));
-                //Debug.Break();
-                Application.CaptureScreenshot("test.png", 4);
+                Application.CaptureScreenshot("hfScreenShot"+Time.time+".png", 4);
             }
 
             for (int i = 0; i < UserInput.InputCount; i++)
             {
-
                 if (UserInput.HasInputStarted(i))
                 {
                     Vector2 worldPosition = Camera.main.ScreenToWorldPoint(UserInput.GetPosition(i));
@@ -115,15 +113,10 @@ public class TouchManager : MonoBehaviour {
                 
 			if(!HasStep && !frog.IsDead && frog.canDie )
 			{
-                if (LevelManager.Instance.isInvincibleLevel)
+                if(LevelManager.Instance.ReportFall(this))
                 {
                     frog.canDie = false;
-                    LevelManager.Instance.ResetInvincibleLevel();
-                    AudioManager.Instance.Play(AudioManager.Instance.fallSound);
-                }
-                else
-                {
-                    EndGame();
+                    EndLevel();
                 }
 			}
 		}
@@ -134,10 +127,11 @@ public class TouchManager : MonoBehaviour {
 
 	#region Functions
 	
-	public void StartLevel()
+	public void PlayLevel()
 	{
 		ResetGame();
         frog.SlowlyLower();
+        isPlaying = true;
 	}
 	
 	public void ReleaseStep(Transform step)
@@ -154,17 +148,14 @@ public class TouchManager : MonoBehaviour {
 		limbs = newFrog.GetComponentsInChildren<Limb>();
 	}
 	
-	public void EndGame(bool hasDied = true, bool canAdvanceLevel = false)
+	public void EndLevel(bool hasDied = true)
 	{
-        if (hasDied) canTouch = false;
-        frog.canDie = false;
+        canTouch = !hasDied;
 
         HideTouchIndicators();
-		MenuManager.Instance.SetGrabStats(grabStats);
-		LevelManager.Instance.EndLevel(hasDied, canAdvanceLevel);
-
-		if(!canAdvanceLevel)
-            frog.EndGame(hasDied);
+        variableManager.SaveStats(hud.BugsCaught, hud.StepsClimbed);
+		menuManager.SetGrabStats(grabStats);
+        frog.EndGame(hasDied);
 	}
 
 	#endregion Functions
@@ -272,7 +263,7 @@ public class TouchManager : MonoBehaviour {
 	{
 		if(touched.CompareTag("Step") && HasFreeLimb && !StepIsHeld(touched))
 		{
-			touchStepAction(touched, touchIndex, worldPos);
+			TouchStep(touched, touchIndex, worldPos);
 		}
 
 		else if(touched.CompareTag("Bug"))
@@ -302,13 +293,13 @@ public class TouchManager : MonoBehaviour {
 			int index = distance > 20 ? 0 : (distance > 10 ? 1 : 2);
 			TrackGrabQuality(index);
 			qualityText.GetTransformAndSetPosition(worldPos, index);
-            HUD.Instance.StepsClimbed++;
+            hud.StepsClimbed++;
         }
 
         Limb limb = GetFreeLimb();
 		limb.SetStep(step, touchIndex);
 
-        LevelManager.Instance.CheckForStepTrigger(step, HUD.Instance.StepsClimbed);
+        LevelManager.Instance.CheckForStepTrigger(step, hud.StepsClimbed);
 	}
 
 /*	private void TouchStepEnhanced(Transform step, int touchIndex)
@@ -424,7 +415,7 @@ public class TouchManager : MonoBehaviour {
 	private void ResetGame()
 	{
 		canTouch = true;
-		HUD.Instance.SetInitialStats();
+		hud.SetInitialStats();
 		grabStats = Vector4i.zero;
 		frog.Reset();
 	}
