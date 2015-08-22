@@ -1,0 +1,33 @@
+fileFormatVersion: 2
+guid: 551d3a18be3d9e542a0011764cc4136a
+timeCreated: 1438342732
+licenseType: Free
+MonoImporter:
+  serializedVersion: 2
+  defaultReferences:
+  - slurpSound: {fileID: 8300000, guid: 6809f726321496d439e6e9b007f17517, type: 3}
+  - selectSound: {fileID: 8300000, guid: 4b8241274b6a85b4f90d2eb596ce142e, type: 3}
+  - squishSound: {fileID: 8300000, guid: 2becab2d23c05a343bb9d413688d0c97, type: 3}
+  - grabSound: {fileID: 8300000, guid: 85938578ce10b1a43914cba04115765e, type: 3}
+  - hurtSound: {fileID: 8300000, guid: eaec61f141becaf4b8edd71924544b5b, type: 3}
+  - missSound: {fileID: 8300000, guid: aaa7c38abf23d77469e2cb9a7966b3d4, type: 3}
+  - awakeSound: {fileID: 8300000, guid: 3ac601c9d514c4842b63439966cdc604, type: 3}
+  - fallSound: {fileID: 8300000, guid: 048a9809c6fa6bd40a7f97997a46af45, type: 3}
+  - flySound: {fileID: 8300000, guid: 01fdcc85b20d2694bb61c6a6028c1801, type: 3}
+  - newSound: {fileID: 8300000, guid: 5a44a67faa14a4e4d8abb7e7e7ed4706, type: 3}
+  - blinkSound: {fileID: 8300000, guid: 45819ba6886ff2f4c93bf28cba23d4a2, type: 3}
+  - highScoreSound: {fileID: 8300000, guid: 4074d94a85812604aa555a81e5e36829, type: 3}
+  - base10Sound: {fileID: 8300000, guid: dc6d2e1005132434b89f39a27bb6721a, type: 3}
+  - crumbleSound: {fileID: 8300000, guid: 84085f3b2cf921f40baabd07eb33e1a4, type: 3}
+  - crumbleShortSound: {fileID: 8300000, guid: 515a34a2e0cf1da449fe16dd90295ce1, type: 3}
+  - boilVoiceSound: {fileID: 8300000, guid: 3bf919e55e5fc9f49831100fc1153651, type: 3}
+  - perfectVoiceSound: {fileID: 8300000, guid: 7b6612eaac0dcb04eac798cd2de710d6, type: 3}
+  - okVoiceSound: {fileID: 8300000, guid: ce4b1e3c92843764b8a21f8c37dfc6ad, type: 3}
+  - greatVoiceSound: {fileID: 8300000, guid: 1e87a9ee7dfe1094ab94243330dcb630, type: 3}
+  - splashSound: {fileID: 8300000, guid: eed358cf2f43c3047a2216ad102ddfea, type: 3}
+  - holdOnVoiceSound: {fileID: 8300000, guid: c3efe3e21f5977e43b98fa333a07fc6d, type: 3}
+  executionOrder: 0
+  icon: {instanceID: 0}
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
