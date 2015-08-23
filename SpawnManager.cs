@@ -20,7 +20,8 @@ public class SpawnManager : MonoBehaviour {
 		new Vector2(0, -1f), new Vector2(0.5f, 0), new Vector2(-0.5f, 0), new Vector2(0.5f, -1f), new Vector2(-0.5f, -1f)
 	};
 
-    private List<Spawner> spawners = new List<Spawner>();
+    private BugSpawner bugSpawner;
+    private List<Spawner> levelSpawners = new List<Spawner>();
     private List<Spawner> activeStepSpawners = new List<Spawner>();
     private Dictionary<Vector2, List<Spawner>> spawnersInDirection = new Dictionary<Vector2, List<Spawner>>();
 
@@ -33,6 +34,11 @@ public class SpawnManager : MonoBehaviour {
 		SetUpSpawnDirections();
 	}
 
+    void Start()
+    {
+        bugSpawner = transform.FindChild("Global").GetComponentInChildren<BugSpawner>();
+    }
+
 	public void SetUpLevel(Vector2 initialSpawnDirection)
 	{
 		CollectSpawners();
@@ -43,7 +49,7 @@ public class SpawnManager : MonoBehaviour {
 	{
 		ActivateSpawnersForDirection(false);
 
-		TellSpawners(spawners, (x) => x.StartClimb());
+		TellSpawners(levelSpawners, (x) => x.StartClimb());
 	}
 
 	public void PullStep(Step step, bool isInverted, float stepPullMultiplier = 1f)
@@ -75,36 +81,36 @@ public class SpawnManager : MonoBehaviour {
 
     public void DisableSpawners(bool delayFade = false)
 	{
-		foreach(Spawner spawner in spawners)
+		foreach(Spawner spawner in levelSpawners)
 		{
 			ToggleSpawner(spawner, false, delayFade);
 		}
 	}
 
-	public void SpawnFlyBundle(int spawnAmount, Vector2 position, bool isTame)
+	public void SpawnFlyBundle(int spawnAmount, Vector2 position, int playerID)
 	{
-		TellSpawners(spawners, (x) => x.SpawnFlyBundle(spawnAmount, position, isTame));
+        bugSpawner.SpawnFlyBundle(spawnAmount, position, playerID);
 	}
 
 	public void SpawnFromAll(Spawner.Type spawnerType, Vector2 direction, int spawnIndex)
 	{
-		for(int i = 0; i < spawners.Count; i++)
+		for(int i = 0; i < levelSpawners.Count; i++)
 		{
-			if(spawners[i].spawnerType == spawnerType && spawners[i].spawnDirection == direction)
+			if(levelSpawners[i].spawnerType == spawnerType && levelSpawners[i].spawnDirection == direction)
 			{
-				spawners[i].CycleThroughMovementsAndSpawn(spawnIndex);
+				levelSpawners[i].CycleThroughMovementsAndSpawn(spawnIndex);
 			}
 		}
 	}
 
 	public void ActivateScenerySpawners()
 	{
-		for(int i=0; i< spawners.Count; i++)
+		for(int i=0; i< levelSpawners.Count; i++)
 		{
-            if (spawners[i].spawnerType == Spawner.Type.Scenery)
+            if (levelSpawners[i].spawnerType == Spawner.Type.Scenery)
             {
-                spawners[i].Activate(true);
-                Debug.Log(spawners[i].name + "Activated");
+                levelSpawners[i].Activate(true);
+                Debug.Log(levelSpawners[i].name + "Activated");
             }
 
 		}
@@ -138,11 +144,11 @@ public class SpawnManager : MonoBehaviour {
 
     private void EnableStepSpawners()
 	{
-		for(int i=0; i<spawners.Count; i++)
+		for(int i=0; i<levelSpawners.Count; i++)
 		{
-			if(spawners[i].spawnerType == Spawner.Type.Step) 
+			if(levelSpawners[i].spawnerType == Spawner.Type.Step) 
 			{
-				ToggleSpawner(spawners[i], true);
+				ToggleSpawner(levelSpawners[i], true);
 			}
 		}
 	}
@@ -159,7 +165,7 @@ public class SpawnManager : MonoBehaviour {
 
 	private void CollectSpawners()
 	{
-		spawners.Clear ();
+		levelSpawners.Clear ();
 		foreach(List<Spawner> spawnerList in spawnersInDirection.Values)
 		{
 			spawnerList.Clear();
@@ -167,7 +173,7 @@ public class SpawnManager : MonoBehaviour {
 
 		foreach(Spawner spawner in transform.FindChild("LevelSpawners").GetComponentsInChildren<Spawner>())
 		{
-			spawners.Add(spawner);
+			levelSpawners.Add(spawner);
 			if(spawner.spawnerType == Spawner.Type.Step)
 			{
 				spawnersInDirection[(spawner as StepSpawner).spawnDirection].Add(spawner);

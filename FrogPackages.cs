@@ -48,10 +48,18 @@ public class FrogPackages : MonoBehaviour {
 
 	private bool hasLoaded = false;
 
+    private IController controller;
+    private VariableManager variableManager;
+    private MenuManager menuManager;
+
 	#region Component Segments
 
 	void Awake()
 	{
+        menuManager = GetComponent<MenuManager>();
+        variableManager = GetComponent<VariableManager>();
+        controller = GetComponent(typeof(IController)) as IController;
+
 		//Clear any saved purchases
 		if(ResetPackagesOnStart)
 		{
@@ -69,7 +77,7 @@ public class FrogPackages : MonoBehaviour {
 	void Start()
 	{
 		hasLoaded = true;
-		MakeFrog(VariableManager.Instance.currentFrogID, false, false);
+		MakeFrog(variableManager.currentFrogID, false, false);
 	}
 
 	#endregion Component Segments
@@ -101,7 +109,7 @@ public class FrogPackages : MonoBehaviour {
 
 		if(!isViewingAllFrogs || hasPackage)
 		{
-			VariableManager.Instance.currentFrogID = id;
+			variableManager.currentFrogID = id;
 			arrowPanelBuyButton.SetActive(false);
 		}
 		else if(frogScript.canBuy == 1)
@@ -115,7 +123,7 @@ public class FrogPackages : MonoBehaviour {
 
 		RaiseFrog(delay);
 
-		if(frogScript.audioIntroduction != null) AudioManager.Instance.Play(frogScript.audioIntroduction);
+		if(frogScript.audioIntroduction != null) AudioManager.Instance.PlayForAll(frogScript.audioIntroduction);
 	}
 
 	#region Button Callbacks
@@ -139,7 +147,7 @@ public class FrogPackages : MonoBehaviour {
 	
 	public void PurchaseFrogFromStore(int id)
 	{
-		MenuManager.Instance.DisableBuyButton(false);
+		menuManager.DisableBuyButton(false);
 		LowerAndOpenFrog(id, true);
 	}
 
@@ -150,6 +158,7 @@ public class FrogPackages : MonoBehaviour {
 
 	public void RaiseFrog(float delay = 0)
 	{
+        Invoke("CanTouch", delay);
 		frogScript.Rise(true, delay);
 	}
 
@@ -266,6 +275,7 @@ public class FrogPackages : MonoBehaviour {
 
 	private void LowerFrog()
 	{
+        controller.canTouch = false;
 		frogScript.Lower();
 	}
 
@@ -295,9 +305,9 @@ public class FrogPackages : MonoBehaviour {
 
 	private void CelebrateNew(bool isNew)
 	{
-		AudioManager.Instance.Play(isNew ? AudioManager.Instance.newSound : AudioManager.Instance.missSound);
+		AudioManager.Instance.PlayForAll(isNew ? AudioManager.Instance.newSound : AudioManager.Instance.missSound);
 		RectTransform newFrogText = Instantiate(isNew ? newFrogTextPrefab : tryAgainTextPrefab) as RectTransform;
-		newFrogText.SetParent(MenuManager.Instance.canvas, true);
+		newFrogText.SetParent(menuManager.canvas, true);
 		newFrogText.anchoredPosition = Vector2.zero;
 
 		Destroy (newFrogText.gameObject, 2f);
@@ -414,7 +424,6 @@ public class FrogPackages : MonoBehaviour {
 		this.frog.name = "Frog";
 		this.frog.SetParent(level); 
 		frogScript = frog.GetComponent<Frog>();
-		TouchManager.Instance.SetFrog(frog);
 
 		frogScript.WakeUp();
 	}
@@ -424,7 +433,7 @@ public class FrogPackages : MonoBehaviour {
 		arrowPanelBuyButton.SetActive(false);
 		OpenPackage(id);
 
-		if(canSetFrog) VariableManager.Instance.currentFrogID = currentFrogID;
+		if(canSetFrog) variableManager.currentFrogID = currentFrogID;
 	}
 
 	private void OpenRandomFrog(bool isUnlocking)

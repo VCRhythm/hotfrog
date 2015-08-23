@@ -33,7 +33,7 @@ public class Scenery : RigidbodySpawn {
 
     private void PlayAudio()
     {
-        AudioManager.Instance.Play(null, audioSource);
+        AudioManager.Instance.PlayForAll(null, audioSource);
     }
 
 	#endregion Component Segments

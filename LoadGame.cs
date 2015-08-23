@@ -16,7 +16,6 @@ public class LoadGame : MonoBehaviour {
 			yield return wait;
 
 		GetComponent<Animator>().SetTrigger("FadeAway");
-		MenuManager.Instance.InitialSetup();
 	}
 
 	private void Destroy()

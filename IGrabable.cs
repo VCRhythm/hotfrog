@@ -1,3 +1,3 @@
 ﻿public interface IGrabable {
-	void Grab();
+	void Grab(int playerID);
 }

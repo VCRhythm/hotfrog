@@ -2,9 +2,11 @@
 using DG.Tweening;
 
 public class Limb : MonoBehaviour {
-	
-	#region Fields
-	
+
+    #region Fields
+
+    public int playerID = -1;
+
 	private int touchIndex = -1;
 	public int TouchIndex { get { return touchIndex; } set { touchIndex = value; } } 
 	[HideInInspector]public float lastTouch = 0;
@@ -166,7 +168,7 @@ public class Limb : MonoBehaviour {
 		if(step != null)
 		{
 			frog.Bob(stepScript, step.position.x);
-			stepScript.Grab();
+			stepScript.Grab(playerID);
 		}
 	}
 

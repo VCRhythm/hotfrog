@@ -13,13 +13,16 @@ public class MenuManager : MonoBehaviour {
 			frogName.DOFade(value ? 1 : 0, 0);
 		}
 	}
-	
-	public TextMeshProUGUI pausePrefab;
+
+    private IController controller;
+    private FrogPackages frogPackages;
+    private AdvertisingManager advertisingManager;
+    private VariableManager variableManager;
+    private HUD hud;
+    public TextMeshProUGUI pausePrefab;
 	public GameObject tameFlyNetPrefab;
 	public Bug startGameBugPrefab;
 	private Bug startBug;
-
-	[HideInInspector]public Vector2 flyIconPosition;
 
 	private bool touchState;
 	private bool touchStateIsSet = false;
@@ -31,7 +34,7 @@ public class MenuManager : MonoBehaviour {
 		{
 			if(value && !isShowingMainMenu)
 			{
-				FrogPackages.Instance.isViewingAllFrogs = false;
+				frogPackages.isViewingAllFrogs = false;
 				titleTransform.gameObject.SetActive(true);
 				mainMenu.interactable = true;
 				mainMenu.blocksRaycasts = true;
@@ -63,7 +66,7 @@ public class MenuManager : MonoBehaviour {
 			}
 			else
 			{
-				VariableManager.Instance.SaveSettings();
+				variableManager.SaveSettings();
 				settingsMenu.interactable = false;
 				settingsMenu.blocksRaycasts = false;
 				settingsMenu.alpha = 0;
@@ -112,8 +115,8 @@ public class MenuManager : MonoBehaviour {
 			}
 			else
 			{
-				HUD.Instance.canChangeFlyCount = true;
-				HUD.Instance.UpdateFlyCount();
+				hud.canChangeFlyCount = true;
+				hud.UpdateFlyCount();
 				flyToGoText.Clear ();
 				flyButton.interactable = false;
 				flyPanelCG.interactable = false;
@@ -150,12 +153,12 @@ public class MenuManager : MonoBehaviour {
 		{
 			if(value)
 			{
-				hud.alpha = 1;
+				hudCanvas.alpha = 1;
 			}
 			else
 			{
 				qualityCountPanelCG.alpha = 0;
-				hud.alpha = 0;
+				hudCanvas.alpha = 0;
 			}
 		}
 	}
@@ -196,7 +199,7 @@ public class MenuManager : MonoBehaviour {
 			{
 				giftButton.SetActive(false);
 				float rand = Random.value;
-				if(rand > 0.6f && AdvertisingManager.Instance.IsReady)
+				if(rand > 0.6f && advertisingManager.IsReady)
 				{
 					adButton.SetActive(true);
 					buyButtonObject.SetActive(false);
@@ -228,7 +231,7 @@ public class MenuManager : MonoBehaviour {
 	private RectTransform settingsButton;
 	private RectTransform returnButton;
 
-	private CanvasGroup hud;
+	private CanvasGroup hudCanvas;
 	private RectTransform hudRect;
 	private TextMeshProUGUI highScoreText;
 	private RectTransform qualityCountPanel;
@@ -261,6 +264,7 @@ public class MenuManager : MonoBehaviour {
 	private int frogCost = 100;
 
 	private GameObject tameFlyNet;
+    private Vector2 flyIconPosition;
 
 	private float screenWidth = (float)Screen.width / Screen.height * 50;
 
@@ -271,6 +275,11 @@ public class MenuManager : MonoBehaviour {
 
 	void Awake()
 	{
+        controller = GetComponent(typeof(IController)) as IController;
+        frogPackages = GetComponent<FrogPackages>();
+        variableManager = GetComponent<VariableManager>();
+        advertisingManager = GetComponent <AdvertisingManager>();
+        hud = GetComponent<HUD>();
 		canvas = GetComponent<RectTransform>();
 		titleTransform = canvas.FindChild("Title").GetComponent<RectTransform>();
 
@@ -281,7 +290,7 @@ public class MenuManager : MonoBehaviour {
 		settingsMenu = canvas.FindChild("SettingsPanel").GetComponent<CanvasGroup>();
 		musicToggle = settingsMenu.transform.GetChild(0).FindChild("MusicToggle").GetComponent<Toggle>();
 
-		hud = canvas.FindChild ("HUD").GetComponent<CanvasGroup>();
+        hudCanvas = hud.GetComponent<CanvasGroup>();
 		hudRect = hud.GetComponent<RectTransform>();
 
 		qualityCountPanelCG = canvas.FindChild("QualityCountPanel").GetComponent<CanvasGroup>();
@@ -290,12 +299,12 @@ public class MenuManager : MonoBehaviour {
 		greatCount = qualityCountPanel.FindChild("GreatCount").GetComponent<TextMeshProUGUI>();;
 		okCount = qualityCountPanel.FindChild("OKCount").GetComponent<TextMeshProUGUI>();;
 
+        flyIconPosition = new Vector2(screenWidth, 50);
 		flyButton = canvas.FindChild ("FlyPanel").GetComponent<Button>();
 		flyPanelCG = flyButton.GetComponent<CanvasGroup>();
 		flyTextAnimator = flyButton.transform.FindChild("FlyCount").GetComponent<Animator>();
 		flyCount = flyButton.transform.FindChild("FlyCount").GetComponent<TextMeshProUGUI>();
-		flyToGoText = flyButton.transform.FindChild("ToGoText").GetComponent<TextMeshProUGUI>();
-		flyIconPosition = new Vector2(screenWidth, 50);
+        flyToGoText = flyButton.transform.FindChild("ToGoText").GetComponent<TextMeshProUGUI>();
 		tameFlyNet = Instantiate(tameFlyNetPrefab, flyIconPosition, Quaternion.identity) as GameObject;
 
 		arrowPanelCG = canvas.FindChild("ArrowPanel").GetComponent<CanvasGroup>();
@@ -317,12 +326,13 @@ public class MenuManager : MonoBehaviour {
 		buyButtonText = buyButton.transform.FindChild("Text").GetComponent<TextMeshProUGUI>();
 		buyButtonImage = buyButton.transform.FindChild("Image").GetComponent<Image>();
 
-		lava = GameObject.FindObjectOfType<Lava>();
+		lava = FindObjectOfType<Lava>();
 	}
 
 	void Start()
 	{
-		musicToggle.isOn = VariableManager.Instance.IsPlayingMusic;
+        InitialSetup();
+		musicToggle.isOn = variableManager.IsPlayingMusic;
 	}
 
 	void OnApplicationFocus(bool focusStatus) 
@@ -333,10 +343,10 @@ public class MenuManager : MonoBehaviour {
 
 			if(!touchStateIsSet)
 			{
-				touchState = TouchManager.Instance.canTouch;
+				touchState = controller.canTouch;
 				touchStateIsSet = true;
 			}
-			TouchManager.Instance.canTouch = false;
+			controller.canTouch = false;
 
 			if(pauseText != null) Destroy (pauseText.gameObject);
 			pauseText = Instantiate (pausePrefab) as TextMeshProUGUI;
@@ -398,7 +408,7 @@ public class MenuManager : MonoBehaviour {
 
 		CanSpendFlys = false;
 
-		StartCoroutine(HUD.Instance.ChangeBugCount(-frogCost));
+		StartCoroutine(hud.ChangeBugCount(-frogCost));
 
 		IsShowingReturnPanel = false;
 		IsShowingArrowPanel = false;
@@ -406,7 +416,7 @@ public class MenuManager : MonoBehaviour {
 		HideStartFly();
 		IsShowingHUD = false;
 
-		SpawnManager.Instance.SpawnFlyBundle(frogCost, flyIconPosition, false);
+		SpawnManager.Instance.SpawnFlyBundle(frogCost, flyIconPosition, controller.playerID);
 		FrogPackages.Instance.LowerAndOpenRandomFrog(true);
 
 		Invoke ("ShowReturnPanel", 3f);
@@ -429,11 +439,6 @@ public class MenuManager : MonoBehaviour {
 	
 	public void ShowMainMenu(bool playSound)
 	{
-		if(TouchManager.Instance.isPlaying)
-		{
-			TouchManager.Instance.EndGame(false);
-		}
-
 		lava.Reset();
 
 		CanSpendFlys = false;
@@ -480,7 +485,7 @@ public class MenuManager : MonoBehaviour {
 		IsShowingEndGamePanel = false;
 		IsShowingHUD = false;
 
-		AdvertisingManager.Instance.PlayAdvertisement();
+		advertisingManager.PlayAdvertisement();
 	}
 
 	public void SpawnGiftFlys(bool isGift, int amountOverride = -1)
@@ -492,9 +497,9 @@ public class MenuManager : MonoBehaviour {
 
 		int giftAmount = amountOverride >= 0 ? amountOverride : (isGift ? Random.Range(60, 100) : Random.Range(15, 35));
 
-		SpawnManager.Instance.SpawnFlyBundle(giftAmount, -flyIconPosition, true);
+		SpawnManager.Instance.SpawnFlyBundle(giftAmount, -flyIconPosition, controller.playerID);
 
-		FrogPackages.Instance.RaiseFrog();
+		frogPackages.RaiseFrog();
 		Invoke ("ShowReturnPanel", 3f);
 	}
 
@@ -534,7 +539,7 @@ public class MenuManager : MonoBehaviour {
 	{
 		if(canSpendFlys)
 		{
-			int bugsLeft = frogCost - HUD.Instance.BugsCaught;
+			int bugsLeft = frogCost - hud.BugsCaught;
 			
 			if(bugsLeft <= 0)
 			{
@@ -543,7 +548,7 @@ public class MenuManager : MonoBehaviour {
 				flyPanelCG.blocksRaycasts = true;
 				
 				flyCount.SetText("Win a frog!");
-				HUD.Instance.canChangeFlyCount = false;
+				hud.canChangeFlyCount = false;
 				flyTextAnimator.SetBool("IsAnimating", true);
 				flyToGoText.Clear();
 			}
@@ -575,12 +580,12 @@ public class MenuManager : MonoBehaviour {
 	{
 		if(pauseText != null)
 		{
-			if(TouchManager.Instance.canDie)
+			if(controller.canTouch)
 			{
 				float pauseEndTime;
 				for(int i=3; i >= 1; i--)
 				{
-					AudioManager.Instance.Play(AudioManager.Instance.blinkSound);
+					AudioManager.Instance.PlayForAll(AudioManager.Instance.blinkSound);
 					pauseText.SetText("{0}", i);
 					pauseEndTime = Time.realtimeSinceStartup + 1f;
 
@@ -589,7 +594,7 @@ public class MenuManager : MonoBehaviour {
 				}
 			}
 			if(pauseText != null) Destroy (pauseText.gameObject);
-			TouchManager.Instance.canTouch = touchState;
+			controller.canTouch = touchState;
 			touchStateIsSet = false;
 			Time.timeScale = 1;
 		}
@@ -677,7 +682,7 @@ public class MenuManager : MonoBehaviour {
 
 	private void PlaySelectSound()
 	{
-		AudioManager.Instance.Play (AudioManager.Instance.selectSound);
+		AudioManager.Instance.PlayForAll (AudioManager.Instance.selectSound);
 	}
 
 	private void StopAllTweens()
@@ -751,5 +756,12 @@ public class MenuManager : MonoBehaviour {
 		return false;
 	}
 
-	#endregion Private Functions
+    private void MakeActionText(RectTransform prefab)
+    {
+        RectTransform instantiated = Instantiate(prefab) as RectTransform;
+        instantiated.SetParent(canvas, false);
+        Destroy(instantiated.gameObject, 2f);
+    }
+
+    #endregion Private Functions
 }

@@ -1,10 +1,11 @@
 using UnityEngine;
-using System.Collections.Generic;
 
 public class TouchManager : MonoBehaviour, IController {
 
-	#region Fields
-	
+    #region Fields
+
+    public int playerID { get; set; }
+
 	//HUD Counters
 	Vector4i grabStats;
 	
@@ -17,25 +18,25 @@ public class TouchManager : MonoBehaviour, IController {
 	float limbReturnTime = .3f;
 	Vector2[] currentLimbVelocity = new Vector2[2];
 
-	//Input
+    //Input
+    public bool canTouch { get; set; }
 	bool isTouchInput = false;
-	[HideInInspector] public bool canTouch = false;
 	TouchIndicator[] touchIndicators = new TouchIndicator[2];
 	IUserInput UserInput;
     LayerMask touchableLayerMask;
-    bool isPlaying = false;
+    public bool isPlaying { get; set; }
 
     //Guidance
     public TouchIndicator touchIndicatorPrefab;
     public Transform[] guidancePrefabs = new Transform[2];
 
     //Components
-    [HideInInspector] public Frog frog;
+    public VariableManager variableManager { get; set; }
+    public MenuManager menuManager { get; set; }
+    public Frog frog { get; set; }
+    public HUD hud { get; set; }
     CanvasGroup endGameCanvas;
     ObjectPool qualityText;
-    HUD hud;
-    VariableManager variableManager;
-    MenuManager menuManager;
         
     #endregion Fields
 
@@ -43,6 +44,7 @@ public class TouchManager : MonoBehaviour, IController {
 
     void Awake()
 	{
+        Register();
         hud = GetComponent<HUD>();
         variableManager = GetComponent<VariableManager>();
         menuManager = GetComponent<MenuManager>();
@@ -111,7 +113,7 @@ public class TouchManager : MonoBehaviour, IController {
                 }
             }
                 
-			if(!HasStep && !frog.IsDead && frog.canDie )
+			if(!HasStep && !frog.isDead && frog.canDie )
 			{
                 if(LevelManager.Instance.ReportFall(this))
                 {
@@ -129,12 +131,12 @@ public class TouchManager : MonoBehaviour, IController {
 	
 	public void PlayLevel()
 	{
-		ResetGame();
-        frog.SlowlyLower();
+        ResetStats();
+        frog.Play();
         isPlaying = true;
 	}
 	
-	public void ReleaseStep(Transform step)
+	public void ForceRelease(Transform step)
 	{
 		if(StepIsHeld(step))
 		{
@@ -147,21 +149,34 @@ public class TouchManager : MonoBehaviour, IController {
 		frog = newFrog.GetComponent<Frog>();
 		limbs = newFrog.GetComponentsInChildren<Limb>();
 	}
-	
-	public void EndLevel(bool hasDied = true)
-	{
-        canTouch = !hasDied;
+
+    #endregion Functions
+
+    #region Private Functions
+
+    private void EndLevel(bool hasDied = true)
+    {
+        isPlaying = false;
+        canTouch = false;
 
         HideTouchIndicators();
         variableManager.SaveStats(hud.BugsCaught, hud.StepsClimbed);
-		menuManager.SetGrabStats(grabStats);
+        menuManager.SetGrabStats(grabStats);
         frog.EndGame(hasDied);
-	}
+        Invoke("ResumeTouch", hasDied ? 1f : 0);
+    }
 
-	#endregion Functions
+    private void ResumeTouch()
+    {
+        canTouch = true;
+    }
 
-	#region Private Functions
-	
+    private void Register()
+    {
+        playerID = ControllerManager.playerCount++;
+        ControllerManager.Instance.Register(this);
+    }
+
 	private TouchIndicator GetTouchIndicator(int touchIndex)
 	{
 		if(touchIndicators[0].touchIndex == touchIndex) return touchIndicators[0];
@@ -252,7 +267,7 @@ public class TouchManager : MonoBehaviour, IController {
 				//qualityText.GetTransformAndSetPosition(worldPos, 3);
 				grabStats.w++;
 			}
-			AudioManager.Instance.Play(AudioManager.Instance.missSound);
+			AudioManager.Instance.PlayForAll(AudioManager.Instance.missSound);
 			GetFreeLimb().MoveLimb(worldPos);
 
 			frog.Look(worldPos);
@@ -273,7 +288,7 @@ public class TouchManager : MonoBehaviour, IController {
 
 		else if(touched.CompareTag("GrabableScenery"))
 		{
-			touched.SpawnScript().Grab();
+			touched.SpawnScript().Grab(playerID);
 		}
 
 		frog.Look(touched);
@@ -281,7 +296,7 @@ public class TouchManager : MonoBehaviour, IController {
 
 	private void TouchBug(Transform bug)
 	{
-		bug.BugSpawnScript().Grab();
+		bug.BugSpawnScript().Grab(playerID);
 		frog.ExpandTongue(bug);
 	}
 
@@ -397,27 +412,25 @@ public class TouchManager : MonoBehaviour, IController {
 	{
 		if(index == 0)
 		{
-			AudioManager.Instance.Play(AudioManager.Instance.okVoiceSound);
+			AudioManager.Instance.PlayForAll(AudioManager.Instance.okVoiceSound);
 			grabStats.x++;
 		}
 		else if(index == 1)
 		{
-			AudioManager.Instance.Play(AudioManager.Instance.greatVoiceSound);
+			AudioManager.Instance.PlayForAll(AudioManager.Instance.greatVoiceSound);
 			grabStats.y++;
 		}
 		else if(index == 2)
 		{
-			AudioManager.Instance.Play(AudioManager.Instance.perfectVoiceSound);
+			AudioManager.Instance.PlayForAll(AudioManager.Instance.perfectVoiceSound);
 			grabStats.z++;
 		}
 	}
 
-	private void ResetGame()
+	private void ResetStats()
 	{
-		canTouch = true;
 		hud.SetInitialStats();
 		grabStats = Vector4i.zero;
-		frog.Reset();
 	}
 		
 	private void SetUpInput()

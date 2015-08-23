@@ -6,7 +6,7 @@ public class Bug : Spawn {
 	private float moveTime = 3f;
 	private float lifeSpan = 2f;
 	private bool isLeaving = false;
-	private bool isTame = false;
+	private int ownerID = -1;
 
 	private float halfScreenWidth = 50 * ((float)Screen.width / Screen.height);
 	private float halfScreenHeight = 50;
@@ -20,7 +20,7 @@ public class Bug : Spawn {
 		StartGame,
 	}
 	public Bug.ActionType actionType;
-	private System.Action grabAction;
+	private System.Action<int> grabAction;
 	private System.Action disableAction;
 	private System.Action decisionAfterMoving;
 	private bool isGrabbed = false;
@@ -38,7 +38,7 @@ public class Bug : Spawn {
 
 		isGrabbed = false;
 		isLeaving = false;
-		isTame = false;
+		ownerID = -1;
 		screenOffset = new Vector4(.1f, .1f, .1f, .1f);
 	}
 
@@ -48,21 +48,21 @@ public class Bug : Spawn {
 	{
 		if(!isGrabbed)
 		{
-			if(!isTame) _gameObject.layer = 11;
+			if(ownerID < 0) _gameObject.layer = 11;
 			isLeaving = true;
 			SetUpDestination();
 		}
 	}
 	
-	public override void Grab()
+	public override void Grab(int playerID)
 	{
 		isGrabbed = true;
-		grabAction();
+		grabAction(playerID);
 	}
 
-	public void MakeTame()
+	public void MakeTame(int playerID)
 	{
-		isTame = true;
+        ownerID = playerID;
 		_gameObject.layer = 13;
 	}
 
@@ -83,10 +83,15 @@ public class Bug : Spawn {
 
 		if(isLeaving)
 		{
-			if(isTame)
-				dest = MenuManager.Instance.flyIconPosition;
-			else
-				dest = new Vector3(Random.value > .5  ? 80 : -80, 0, 1f);
+            if (ownerID >= 0)
+            {
+                //Fly to top right corner
+                dest = new Vector2(halfScreenWidth * 2, 50);
+            }
+            else
+            {
+                dest = new Vector3(Random.value > .5 ? 80 : -80, 0, 1f);
+            }
 		}
 		else
 		{
@@ -112,11 +117,11 @@ public class Bug : Spawn {
 
 	protected override void OnTriggerEnter2D (Collider2D other)
 	{
-		if(isTame)
+		if(ownerID >= 0)
 		{
-			grabAction();
-			MenuManager.Instance.UpdateFlyToGoText();
-			AudioManager.Instance.Play(AudioManager.Instance.flySound);
+			grabAction(ownerID);
+            ControllerManager.Instance.TellController(ownerID, (x) => { x.menuManager.UpdateFlyToGoText(); });
+			AudioManager.Instance.PlayForAll(AudioManager.Instance.flySound);
 		}
 
 		base.OnTriggerEnter2D (other);
@@ -124,18 +129,37 @@ public class Bug : Spawn {
 
 	private void AssignInteractionAction()
 	{
-		grabAction = () => { CancelCurrentMovement(); };
+		grabAction = (int playerID) => { CancelCurrentMovement(); };
 
 		switch(actionType)
 		{
-		case Bug.ActionType.StartGame:
-			grabAction += () => { TouchManager.Instance.frog.tongue.AddToCatchActions( () => { MenuManager.Instance.StartGame(); Destroy(_gameObject);} ); };
-			decisionAfterMoving = () => { Invoke ("SetUpDestination", lifeSpan); };
-			break;
-		case Bug.ActionType.None:
-			grabAction += () => { HUD.Instance.BugsCaught++; };
-			decisionAfterMoving = () => { Invoke("Leave", lifeSpan); };
-			break;
+            case ActionType.StartGame:
+                
+			    grabAction += (int playerID) => 
+                {
+                    ControllerManager.Instance.TellController(playerID, (x) =>
+                    {
+                        x.frog.tongue.AddToCatchActions(
+                            () =>
+                            {
+                                x.menuManager.StartGame();
+                                Destroy(_gameObject);
+                            });
+                    });
+                };
+			    decisionAfterMoving = () => { Invoke ("SetUpDestination", lifeSpan); };
+			    break;
+
+            case ActionType.None:
+                grabAction += (int playerID) => 
+                {
+                    ControllerManager.Instance.TellController(playerID, (x) =>
+                    {
+                        x.hud.BugsCaught++;
+                    });
+                };
+			    decisionAfterMoving = () => { Invoke("Leave", lifeSpan); };
+			    break;
 		}
 	}
 

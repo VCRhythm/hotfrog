@@ -46,7 +46,7 @@ public class MovingScenery : Spawn, IGrabable {
 
 	#region IGrabable implementation
 
-	public override void Grab () 
+	public override void Grab (int playerID) 
 	{ 
 		if(!canGrab) return;
 
@@ -54,7 +54,7 @@ public class MovingScenery : Spawn, IGrabable {
 
 		if(grabClip != null) 
 		{
-			AudioManager.Instance.Play(grabClip, audioSource);
+			AudioManager.Instance.PlayForAll(grabClip, audioSource);
 		}
 
 		FadeAndDestroy(0, 0, 1f);

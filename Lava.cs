@@ -24,9 +24,9 @@ public class Lava : MonoBehaviour {
 
 	public void FallSplash()
 	{
-		AudioManager.Instance.Play(AudioManager.Instance.hurtSound);
+		AudioManager.Instance.PlayForAll(AudioManager.Instance.hurtSound);
 
-		DOTween.To (UpdateGradient, 1, 0.2f, .5f).SetDelay(3f).OnComplete(() => {MenuManager.Instance.ShowEndGamePanel();});
+        DOTween.To(UpdateGradient, 1, 0.2f, .5f).SetDelay(3f);
 	}
 
 	public void Splash(Vector2 splashPosition, int splashCount)

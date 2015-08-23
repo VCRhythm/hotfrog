@@ -52,7 +52,7 @@ public class Tongue : MonoBehaviour {
 	{
 		if( isExpanding) return;
 
-		AudioManager.Instance.Play(AudioManager.Instance.slurpSound);
+		AudioManager.Instance.PlayForAll(AudioManager.Instance.slurpSound);
 
 		target = endTarget;
 		journeyLength = Vector2.Distance(target.position, _transform.position);
@@ -71,7 +71,7 @@ public class Tongue : MonoBehaviour {
 	private void DefaultCatchAction()
 	{
 		target.SpawnScript().Destroy();
-		AudioManager.Instance.Play(AudioManager.Instance.squishSound);
+		AudioManager.Instance.PlayForAll(AudioManager.Instance.squishSound);
 	}
 
 	private void ResetCatchAction()

@@ -20,6 +20,16 @@ public class PurchaseManager : MonoBehaviour {
 	public bool isUsingStore = true;
 	private bool hasStarted = false;
 	private StoreAssets assets;
+    private MenuManager menuManager;
+    private HUD hud;
+    private FrogPackages frogPackages;
+    
+    void Awake()
+    {
+        frogPackages = GetComponent<FrogPackages>();
+        hud = GetComponent<HUD>();
+        menuManager = GetComponent<MenuManager>();
+    }
 
 	void Start()
 	{
@@ -70,9 +80,9 @@ public class PurchaseManager : MonoBehaviour {
 	public void OnCurrencyBalanceChanged(VirtualCurrency virtualCurrency, int balance, int amountAdded)
 	{
 		if(amountAdded > 0)
-			MenuManager.Instance.SpawnGiftFlys(false, amountAdded);
+			menuManager.SpawnGiftFlys(false, amountAdded);
 		else
-			HUD.Instance.ChangeBugCount(amountAdded);
+			hud.ChangeBugCount(amountAdded);
 	}
 
 	public void ClearPurchases()
@@ -99,7 +109,7 @@ public class PurchaseManager : MonoBehaviour {
 	{
 		int id = GetID(pvi.ItemId);
 		if(id > 0 && pvi.GetBalance() > 0)
-			FrogPackages.Instance.PurchaseFrogFromStore(id);
+			frogPackages.PurchaseFrogFromStore(id);
 	}
 	
 	public void OnMarketRefund(PurchasableVirtualItem pvi)
@@ -107,12 +117,12 @@ public class PurchaseManager : MonoBehaviour {
 		int id = GetID(pvi.ItemId);
 
 		if(id > 0)
-			FrogPackages.Instance.LockPackage(id);
+			frogPackages.LockPackage(id);
 	}
 
 	public void OnUnexpectedErrorInStore(string message)
 	{
-		MenuManager.Instance.DisableBuyButton(true);
+		menuManager.DisableBuyButton(true);
 	}
 
 	public void OnRestoreTransactionsFinished(bool success)

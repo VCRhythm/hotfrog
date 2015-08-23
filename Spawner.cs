@@ -82,8 +82,6 @@ public class Spawner : MonoBehaviour
         spawnCount = 0;
     }
 
-    public virtual void SpawnFlyBundle(int spawnAmount, Vector3 newPosition, bool spawnsAreTame) { }
-
     public virtual void Activate(bool canMove) { }
 
     public virtual void StartClimb()

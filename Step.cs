@@ -26,7 +26,7 @@ public class Step : RigidbodySpawn {
 	private Vector2 savedPosition;
 	private float savedAngularVelocity;
 	private Vector2 pullPosition;
-	private bool isGrabbed = false;
+	private int grabbedPlayerID = -1;
 
 	public enum ActionType
 	{
@@ -111,7 +111,7 @@ public class Step : RigidbodySpawn {
 			PlayCrumbleSound();
 			lava.Splash(new Vector2(_transform.position.x, -50f), lavaSplashes);
 			
-			ReleaseStep();
+			ForceRelease();
 		}
 
 		//else if(other.CompareTag("GrabableScenery")) return;
@@ -133,10 +133,10 @@ public class Step : RigidbodySpawn {
 		_transform.DOShakeScale(1f);
 	}
 
-	public override void Grab()
+	public override void Grab(int playerID)
 	{
 		wasGrabbed = true;
-		isGrabbed = true;
+		grabbedPlayerID = playerID;
 
 		grabAction();
 	}
@@ -144,19 +144,12 @@ public class Step : RigidbodySpawn {
 	public void Release()
 	{
 		releaseAction();
-		isGrabbed = false;
+		grabbedPlayerID = -1;
 	}
 
     public override void FadeAndDestroy(float fadeDelay, float fadeTime, float destroyDelay)
     {
         destroyAction();
-
-        if (isGrabbed)
-        {
-            ReleaseStep();
-        }
-
-        if (HasGuidance) Destroy(guidance.gameObject);
 
         base.FadeAndDestroy (fadeDelay, fadeTime, destroyDelay);		
 	}
@@ -164,15 +157,6 @@ public class Step : RigidbodySpawn {
 	public override void Destroy ()
 	{
 		destroyAction();
-
-        if (isGrabbed)
-        {
-            ReleaseStep();
-        }
-
-		IsUnsteady = false;
-
-        if (HasGuidance) Destroy(guidance.gameObject);
 
         base.Destroy ();
 	}
@@ -253,7 +237,7 @@ public class Step : RigidbodySpawn {
 		yield return new WaitForSeconds(3f);
 
         if (IsUnsteady)
-            ReleaseStep();
+            ForceRelease();
 	}
 
 	private IEnumerator Fall()
@@ -365,17 +349,17 @@ public class Step : RigidbodySpawn {
 
 	private void PlayShortCrumbleSound()
 	{
-		AudioManager.Instance.Play (AudioManager.Instance.crumbleShortSound, audioSource);
+		AudioManager.Instance.PlayForAll (AudioManager.Instance.crumbleShortSound, audioSource);
 	}
 
 	private void PlayCrumbleSound()
 	{
-		AudioManager.Instance.Play (AudioManager.Instance.crumbleSound, audioSource);
+		AudioManager.Instance.PlayForAll (AudioManager.Instance.crumbleSound, audioSource);
 	}
 
 	private void PlayGrabSound()
 	{
-		AudioManager.Instance.Play (AudioManager.Instance.grabSound, audioSource);
+		AudioManager.Instance.PlayForAll (AudioManager.Instance.grabSound, audioSource);
 	}
 
 	private void AssignInteractionAction()
@@ -383,6 +367,7 @@ public class Step : RigidbodySpawn {
 		grabAction = () => { InitialGrabAction(); };
 		releaseAction = () => { InitialReleaseAction(); };
         canBeSpawned = (int spawnCount) => { return true; };
+        destroyAction = () => { ForceRelease(); IsUnsteady = false; if (HasGuidance) Destroy(guidance.gameObject); };
 
 		switch(actionType)
 		{
@@ -419,7 +404,7 @@ public class Step : RigidbodySpawn {
 			    grabAction = () => { SpawnManager.Instance.SpawnDirection = new Vector2(-1, -1);  InitialGrabAction();};
 			    break;
 		    case ActionType.Beetle:
-			    grabAction = () => { ReleaseStep(); grabAction = () => { InitialGrabAction(); }; };
+			    grabAction = () => { ForceRelease(); grabAction = () => { InitialGrabAction(); }; };
 			    break;
 		    case ActionType.PullByLocation:
 			    grabAction = () => { SetSpawnDirectionBasedOnPosition(); InitialGrabAction(); };
@@ -432,34 +417,34 @@ public class Step : RigidbodySpawn {
 			    GameObject splash = _transform.FindChild("Flingee").gameObject;
 			    Vector2 splashLocalPosition = splash.transform.localPosition;
 			    grabAction += () => { splash.GetComponent<Rigidbody2D>().isKinematic = false; splash.GetComponent<Splash>().enabled = true; };
-			    destroyAction = () => { splash.GetComponent<Splash>().enabled = false; splash.GetComponent<Rigidbody2D>().isKinematic = true; splash.transform.localPosition = splashLocalPosition; splash.transform.localRotation = Quaternion.identity; };
+			    destroyAction += () => { splash.GetComponent<Splash>().enabled = false; splash.GetComponent<Rigidbody2D>().isKinematic = true; splash.transform.localPosition = splashLocalPosition; splash.transform.localRotation = Quaternion.identity; };
 			    break;
 
 		    case ActionType.StepFlinging:
 			    GameObject step = _transform.FindChild("Flingee").gameObject;
 			    Vector2 stepLocalPosition = step.transform.localPosition;
 			    grabAction += () => { step.GetComponent<Rigidbody2D>().isKinematic = false; step.GetComponent<Step>().enabled = true; };
-			    destroyAction = () => { step.GetComponent<Step>().enabled = false; step.GetComponent<Rigidbody2D>().isKinematic = true; step.transform.localPosition = stepLocalPosition; step.transform.localRotation = Quaternion.identity; };
+			    destroyAction += () => { step.GetComponent<Step>().enabled = false; step.GetComponent<Rigidbody2D>().isKinematic = true; step.transform.localPosition = stepLocalPosition; step.transform.localRotation = Quaternion.identity; };
 			    break;
 
 		    case ActionType.SpawnFly:
 			    GameObject bug = _transform.FindChild("Bug").gameObject;
 			    Vector2 bugLocalPosition = bug.transform.localPosition;
 			    grabAction += () => { bug.GetComponent<Bug>().enabled = true; };
-			    destroyAction = () => { bug.GetComponent<Bug>().enabled = false; bug.transform.localPosition = bugLocalPosition; bug.transform.localRotation = Quaternion.identity; };
+			    destroyAction += () => { bug.GetComponent<Bug>().enabled = false; bug.transform.localPosition = bugLocalPosition; bug.transform.localRotation = Quaternion.identity; };
 			    break;
 		}
 	}
 
-//	private void PullDownRelease()
-//	{
-//		StopPullTween();
-//	}
+    //	private void PullDownRelease()
+    //	{
+    //		StopPullTween();
+    //	}
 
-	private void ReleaseStep()
-	{
+    private void ForceRelease()
+    {
         CancelInvoke();
-        TouchManager.Instance.ReleaseStep(_transform);
+        ControllerManager.Instance.TellController(grabbedPlayerID, (x) => { x.ForceRelease(_transform); });
 	}
 
 	private IEnumerator DestroyIn(float delay)

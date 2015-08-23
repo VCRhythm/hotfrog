@@ -119,7 +119,7 @@ public class LevelManager : MonoBehaviour
     {
         PullY(-3f);
         speckManager.MoveSpecks(stepTransforms[0]);
-        AudioManager.Instance.Play(AudioManager.Instance.fallSound); 
+        AudioManager.Instance.PlayForAll(AudioManager.Instance.fallSound); 
     }
 
     public bool ReportFall(IController controller)
@@ -148,6 +148,7 @@ public class LevelManager : MonoBehaviour
         {
             lava.FallSplash();
             lava.LiftHeat(false);
+            ControllerManager.Instance.TellControllers((x) => { x.menuManager.ShowEndGamePanel(); });
         }
 
         HideWalls();
@@ -334,7 +335,6 @@ public class LevelManager : MonoBehaviour
     private void StartClimb()
     {
         lava.LiftHeat(true);
-        MenuManager.Instance.IsShowingReturnPanel = false;
         SpawnManager.Instance.StartClimb();
     }
 

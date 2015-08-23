@@ -25,6 +25,7 @@ public class HUD : MonoBehaviour {
 	Animator stepCountAnimator;
 	TextMeshProUGUI flyCountText;
 	TextMeshProUGUI highScoreText;
+    VariableManager variableManager;
 
 	int bugsCaught = 0;
 	int newHighScore = -1;
@@ -32,17 +33,23 @@ public class HUD : MonoBehaviour {
 
 	void Awake()
 	{
+        variableManager = GetComponent<VariableManager>();
 		stepCountText = transform.FindChild("StepCount").GetComponent<TextMeshProUGUI>();
 		stepCountAnimator = stepCountText.GetComponent<Animator>();
 		highScoreText = GameObject.Find ("HighScore").GetComponent<TextMeshProUGUI>();
 		flyCountText = GameObject.Find ("FlyCount").GetComponent<TextMeshProUGUI>();
 	}
 	
+    void Start()
+    {
+        BugsCaught = variableManager.BugsCaught;
+    }
+
 	public IEnumerator ChangeBugCount(int changeAmount)
 	{
 		int oldBugsCaught = bugsCaught;
 		bugsCaught += changeAmount;
-		VariableManager.Instance.SaveBugs(bugsCaught);
+		variableManager.SaveBugs(bugsCaught);
 		
 		if(changeAmount < 0)
 		{
@@ -57,7 +64,7 @@ public class HUD : MonoBehaviour {
 			while(oldBugsCaught < bugsCaught)
 			{
 				flyCountText.SetText("{0}", ++oldBugsCaught);
-				AudioManager.Instance.Play(AudioManager.Instance.flySound);
+				AudioManager.Instance.PlayForAll(AudioManager.Instance.flySound);
 				yield return new WaitForFixedUpdate();
 			}
 		}
@@ -74,8 +81,8 @@ public class HUD : MonoBehaviour {
 		canChangeFlyCount = true;
 			
 		//Update Scoreboard
-		if(VariableManager.Instance.HighScore > 0)
-			newHighScore = VariableManager.Instance.HighScore + 1;
+		if(variableManager.HighScore > 0)
+			newHighScore = variableManager.HighScore + 1;
 			
 		UpdateFlyCount();
 		StepsClimbed = 0;
@@ -83,7 +90,7 @@ public class HUD : MonoBehaviour {
 
 	private void NewHighScore()
 	{
-		AudioManager.Instance.Play (AudioManager.Instance.highScoreSound);
+		AudioManager.Instance.PlayForAll (AudioManager.Instance.highScoreSound);
 	
 		stepCountAnimator.SetBool("IsHighScore", true);
 		stepCountAnimator.SetTrigger("IsBase10");
@@ -91,7 +98,7 @@ public class HUD : MonoBehaviour {
 
 	private void Base10Score()
 	{
-		AudioManager.Instance.Play (AudioManager.Instance.base10Sound);
+		AudioManager.Instance.PlayForAll (AudioManager.Instance.base10Sound);
 		stepCountAnimator.SetBool("IsHighScore", false);
 		stepCountAnimator.SetTrigger("IsBase10");
 	}

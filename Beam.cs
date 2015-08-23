@@ -45,7 +45,7 @@ public class Beam : MonoBehaviour {
 
 	public void Expand(Transform from, Transform to, Color color)
 	{
-		AudioManager.Instance.Play(AudioManager.Instance.slurpSound);
+		AudioManager.Instance.PlayForAll(AudioManager.Instance.slurpSound);
 		_renderer.color = color;
 		baseTransform = from;
 		targetTransform = to;

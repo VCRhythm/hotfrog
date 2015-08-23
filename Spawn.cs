@@ -60,6 +60,6 @@ public abstract class Spawn : PooledObject, IGrabable {
 	public virtual void ResumeMovement(){}
 
 	#region IGrabable implementation
-	public virtual void Grab () { }
+	public virtual void Grab (int playerID) { }
 	#endregion
 }

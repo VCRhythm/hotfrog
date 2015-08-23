@@ -2,7 +2,7 @@ using UnityEngine;
 
 public class BugSpawner : Spawner {
 
-	public bool isSpawningTameSpawns = false;
+	public int spawningForPlayerID = -1;
 
 	[HideInInspector]public Vector4 buttonBarriers;
 	
@@ -10,7 +10,7 @@ public class BugSpawner : Spawner {
 	{
 		base.Reset (false);
 
-		isSpawningTameSpawns = false;
+        spawningForPlayerID = -1;
 		enabled = false;
 	}
 	
@@ -19,11 +19,11 @@ public class BugSpawner : Spawner {
 		ControlBugSpawns((x) => x.Leave());
 	}
 
-	public override void SpawnFlyBundle(int spawnAmount, Vector3 newPosition, bool spawnsAreTame)
+	public void SpawnFlyBundle(int spawnAmount, Vector3 newPosition, int spawnPlayerID)
 	{
 		Reset(false);
 
-		isSpawningTameSpawns = spawnsAreTame;
+        spawningForPlayerID = spawnPlayerID;
 		maxSpawn = spawnAmount;
 		spawningSpeedMin = 0;
 		spawningSpeedMax = 0;
@@ -55,8 +55,8 @@ public class BugSpawner : Spawner {
 	{
 		Transform spawn = base.CreateSpawn(spawnIndex);
 
-		if(isSpawningTameSpawns)
-			spawn.BugSpawnScript().MakeTame();
+		if(spawningForPlayerID >= 0)
+			spawn.BugSpawnScript().MakeTame(spawningForPlayerID);
 
 		return spawn;
 	}

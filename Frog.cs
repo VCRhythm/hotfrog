@@ -130,7 +130,7 @@ public class Frog : MonoBehaviour {
 	private Step BobStep { get { return bobStep; } set { bobStep = value;}}
 		
     private bool isMoving = false;
-		private RiseState riseState = RiseState.Lowered;
+	private RiseState riseState = RiseState.Lowered;
 
 	public Vector2 BodyPosition { get { return _transform.position; } set { _transform.position = new Vector2(value.x, value.y);}}
 	public Vector2 HeadPosition { get { return headTransform.localPosition; } set { headTransform.localPosition = new Vector2(value.x, value.y); } }
@@ -181,13 +181,11 @@ public class Frog : MonoBehaviour {
 		}
 	}
 
-	public void Reset()
-	{
-		ResetLook();
-		isDead = false;
-		isFalling = false;
-		isMoving = false;
-	}
+    public void Play()
+    {
+        Reset();
+        SlowlyLower();
+    }
 
 	public void EndGame(bool hasDied)
 	{
@@ -224,8 +222,6 @@ public class Frog : MonoBehaviour {
 
 			ResetLook();
 
-			TouchManager.Instance.canTouch = true;
-
 			riseState = canFullyRise ? RiseState.Arisen : RiseState.Peeking;
 
 			if(canPlaySound) AudioManager.Instance.PlayIn(delay, AudioManager.Instance.awakeSound);
@@ -238,26 +234,16 @@ public class Frog : MonoBehaviour {
 	{
 		if(riseState != RiseState.Lowered)
 		{
-			TouchManager.Instance.canTouch = false;
 			riseState = RiseState.Lowered;
 			_transform.DOMoveY (endY, 1f);
 		}
-	}
-
-	public void SlowlyLower()
-	{
-		StopCoroutine("SteadilyLowerHead");
-		riseState = RiseState.Unlocked;
-		Look (Vector2.up * 100f);
-		gravityMultiplier = gravityMultiplierStart;
-		StartCoroutine("SteadilyLowerHead");
 	}
 	
 	public void Bob(Step step, float xVal)
 	{
 		gravityMultiplier = gravityMultiplierStart;
 
-		IsMoving = true;
+		isMoving = true;
 		BobStep = step;
 
 		float yDest = Mathf.Min(5f, HeadPosition.y + 50f);
@@ -282,10 +268,10 @@ public class Frog : MonoBehaviour {
 	
 	public void StopBob(Step step)
 	{
-		if(IsMoving && BobStep == step)
+		if(isMoving && BobStep == step)
 		{
 			BobStep = null;
-			IsMoving = false;
+			isMoving = false;
 			DOTween.Kill("Y");
 		}
     }	
@@ -323,9 +309,26 @@ public class Frog : MonoBehaviour {
 	}
 #endif
 
-	#region Private Functions
+    #region Private Functions
 
-	private void CancelBob()
+    private void Reset()
+    {
+        ResetLook();
+        isDead = false;
+        isFalling = false;
+        isMoving = false;
+    }
+
+    private void SlowlyLower()
+    {
+        StopCoroutine("SteadilyLowerHead");
+        riseState = RiseState.Unlocked;
+        Look(Vector2.up * 100f);
+        gravityMultiplier = gravityMultiplierStart;
+        StartCoroutine("SteadilyLowerHead");
+    }
+
+    private void CancelBob()
 	{
 		if(DOTween.IsTweening(headTransform)) headTransform.DOKill();
 	}
@@ -430,11 +433,11 @@ public class Frog : MonoBehaviour {
 	
 	private IEnumerator SteadilyLowerHead()
 	{
-		IsFalling = true;
+		isFalling = true;
 
-		while(!IsDead)
+		while(!isDead)
 		{
-			if(IsFalling && HeadPosition.y > -50) 
+			if(isFalling && HeadPosition.y > -50) 
 			{
 				gravityMultiplier += gravityAcceleration;
 				headTransform.Translate(0, -gravity * gravityMultiplier * Time.deltaTime, 0, Space.World);
@@ -464,7 +467,7 @@ public class Frog : MonoBehaviour {
 	
 	private void PlayFallSound()
 	{
-		AudioManager.Instance.Play(AudioManager.Instance.fallSound);
+		AudioManager.Instance.PlayForAll(AudioManager.Instance.fallSound);
 	}
 
 	private void ResetLook()

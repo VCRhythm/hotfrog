@@ -8,6 +8,7 @@ public class VariableManager : MonoBehaviour {
 	public int HighScore { get { return highScore; } set { highScore = value; highScoreText.SetText("TOP: {0}", value); } }
 
 	public bool IsPlayingMusic { get; private set; }
+    public int BugsCaught { get; private set; }
 	public int currentFrogID = -1;
 
 	private TextMeshProUGUI highScoreText;
@@ -20,7 +21,7 @@ public class VariableManager : MonoBehaviour {
 		currentFrogID = PlayerPrefs.GetInt("FrogID", 1);
 		HighScore = PlayerPrefs.GetInt("HighScore", 0);
 		IsPlayingMusic = PlayerPrefsX.GetBool("IsPlayingMusic", true);
-		HUD.Instance.BugsCaught = PlayerPrefs.GetInt("Bugs", 0);
+		BugsCaught = PlayerPrefs.GetInt("Bugs", 0);
 
 		Social.localUser.Authenticate(ProcessAuthentication);
 	}
@@ -48,7 +49,7 @@ public class VariableManager : MonoBehaviour {
 
 	public void ToggleMusic()
 	{
-		AudioManager.Instance.Play(AudioManager.Instance.selectSound);
+		AudioManager.Instance.PlayForAll(AudioManager.Instance.selectSound);
 		IsPlayingMusic = !IsPlayingMusic;
 	}
 	

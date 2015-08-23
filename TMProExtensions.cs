@@ -4,14 +4,6 @@ using DG.Tweening;
 
 public static class TMProExtensions {
 
-	public static void MakeActionText(this RectTransform prefab)
-	{
-		RectTransform instantiated = UnityEngine.MonoBehaviour.Instantiate(prefab) as RectTransform;
-		instantiated.SetParent(MenuManager.Instance.canvas, false);
-		//restoreText.anchoredPosition = Vector2.zero;
-		UnityEngine.MonoBehaviour.Destroy (instantiated.gameObject, 2f);
-	}
-
 	public static void Clear(this TextMeshProUGUI target)
 	{
 		target.text = "";
