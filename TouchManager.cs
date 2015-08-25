@@ -19,7 +19,8 @@ public class TouchManager : MonoBehaviour, IController {
 	Vector2[] currentLimbVelocity = new Vector2[2];
 
     //Input
-    public bool canTouch { get; set; }
+    private bool canTouch = false; 
+    public bool CanTouch { get { return canTouch; } set { canTouch = value;  } }
 	bool isTouchInput = false;
 	TouchIndicator[] touchIndicators = new TouchIndicator[2];
 	IUserInput UserInput;
@@ -44,20 +45,25 @@ public class TouchManager : MonoBehaviour, IController {
 
     void Awake()
 	{
-        Register();
-        hud = GetComponent<HUD>();
-        variableManager = GetComponent<VariableManager>();
-        menuManager = GetComponent<MenuManager>();
+        variableManager = GetComponentInParent<VariableManager>();
+        menuManager = transform.parent.GetComponentInChildren<MenuManager>();
+        hud = menuManager.GetComponentInChildren<HUD>();
+
         touchableLayerMask = LayerMask.GetMask("Touchable");
 		SetUpInput();
 		SetUpTouchIndicators();
 
 		qualityText = GetComponent<ObjectPool>();
     }
+
+    void Start()
+    {
+        Register();
+    }
 	
 	void Update ()
 	{
-        if (canTouch)
+        if (CanTouch)
         {
             MoveLimbs();
 
@@ -157,7 +163,7 @@ public class TouchManager : MonoBehaviour, IController {
     private void EndLevel(bool hasDied = true)
     {
         isPlaying = false;
-        canTouch = false;
+        CanTouch = false;
 
         HideTouchIndicators();
         variableManager.SaveStats(hud.BugsCaught, hud.StepsClimbed);
@@ -168,7 +174,7 @@ public class TouchManager : MonoBehaviour, IController {
 
     private void ResumeTouch()
     {
-        canTouch = true;
+        CanTouch = true;
     }
 
     private void Register()

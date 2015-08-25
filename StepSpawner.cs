@@ -5,36 +5,6 @@ public class StepSpawner : Spawner
     private Transform newSpawn;
     private Step newStep;
 
-    void OnEnable()
-    {
-        canSpawn = false;
-    }
-
-    #region Public Functions
-
-    public override void Reset(bool delayFade)
-    {
-        base.Reset(delayFade);
-
-        SpawnManager.Instance.SpawnDirection = -Vector2.up;
-        _transform.position = new Vector2(0, 20f);
-    }
-
-    public override void Activate(bool canMove)
-    {
-        if (canMove)
-            Move();
-
-        canSpawn = true;
-    }
-
-    public override void StartClimb()
-    {
-        StartCoroutine(StartSpawning(false));
-    }
-
-    #endregion Public Functions
-
     #region Private Functions
 
     protected override Transform CreateSpawn(int spawnIndex = -1)

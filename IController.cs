@@ -7,8 +7,9 @@ public interface IController  {
     MenuManager menuManager { get; set; }
     VariableManager variableManager { get; set; }
     HUD hud { get; set; }
-    bool canTouch { get; set; }
+    bool CanTouch { get; set; }
 
+    void PlayLevel();
     void SetFrog(Transform frog);
     void ForceRelease(Transform step);
 }

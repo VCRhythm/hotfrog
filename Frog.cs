@@ -255,8 +255,8 @@ public class Frog : MonoBehaviour {
 		if(Mathf.Sign(xDest) == Mathf.Sign(xVal))
 		{
 			DOTween.Kill ("X");
-			//DOTween.Kill("XRock");
-			headTransform.DOPunchRotation(new Vector3(0, 0, -0.5f * (headTransform.position.x - xDest)), 1f, 1, 1f).SetId("XRock").OnComplete(() => { headTransform.DORotate(Vector3.zero, 1f); } );
+            //DOTween.Kill("XRock");
+            headTransform.DOPunchRotation(new Vector3(0, 0, -0.5f * (headTransform.position.x - xDest)), 1f, 1, 1f).SetId("XRock").OnComplete(() => { headTransform.DORotate(Vector3.zero, 1f); } );
 			headTransform.DOMoveX(xDest, xDestTime).SetEase(Ease.OutSine).SetId("X");
 		}
 

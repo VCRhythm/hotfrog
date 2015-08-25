@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Collections;
 using DG.Tweening;
-using TMPro;
 
 public class Step : RigidbodySpawn {
 	
@@ -76,7 +75,7 @@ public class Step : RigidbodySpawn {
 	{
 		base.Awake();
 
-		lava = GameObject.FindObjectOfType<Lava>();
+		lava = FindObjectOfType<Lava>();
 		pebblePool = GameObject.Find("PebbleSpawner").GetComponent<ObjectPool>();
 	}
 
@@ -216,10 +215,14 @@ public class Step : RigidbodySpawn {
 
 		StartCoroutine(ShowCrumbles(delay));
 
-		if(canFall)
-			StartCoroutine("Fall");	
-		else
-			StartCoroutine("ReleaseUnsteadyTouch");
+        if (canFall)
+        {
+            StartCoroutine("Fall");
+        }
+        else
+        {
+            StartCoroutine("ReleaseUnsteadyTouch");
+        }
 	}
 
 	private IEnumerator ShowCrumbles(float delay)

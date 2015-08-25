@@ -33,7 +33,7 @@ public class HUD : MonoBehaviour {
 
 	void Awake()
 	{
-        variableManager = GetComponent<VariableManager>();
+        variableManager = transform.parent.GetComponentInParent<VariableManager>();
 		stepCountText = transform.FindChild("StepCount").GetComponent<TextMeshProUGUI>();
 		stepCountAnimator = stepCountText.GetComponent<Animator>();
 		highScoreText = GameObject.Find ("HighScore").GetComponent<TextMeshProUGUI>();

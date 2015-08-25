@@ -6,7 +6,6 @@ using DG.Tweening;
 [RequireComponent(typeof(ObjectPool))]
 public class Spawner : MonoBehaviour
 {
-
     #region Fields
 
     public enum Type
@@ -18,8 +17,8 @@ public class Spawner : MonoBehaviour
     }
     public Type spawnerType;
     public Vector2 spawnDirection = new Vector2(0, -1f);
-    public bool hasDiscreteMovement = false;
 
+    public bool hasDiscreteMovement = false;
     public List<Vector3> Movements = new List<Vector3>();
     [ReadOnly]
     public List<Vector3> adjustedMovements = new List<Vector3>();
@@ -29,14 +28,14 @@ public class Spawner : MonoBehaviour
     public float moveTimeMax = 2f; 
     public float moveSpeedMin = 1f;
     public float moveSpeedMax = 2f;
-    public float maxSpawn = -1;
+    public float maxSpawnCount = -1;
     public float spawningSpeedMin = 2f;
     public float spawningSpeedMax = 2f;
     protected float savedSpawningSpeedMin;
     protected float savedSpawningSpeedMax;
+    private bool isMoving = false;
 
-    [ReadOnly]
-    public bool canSpawn = false;
+    [ReadOnly] public bool isSpawning = false;
     protected bool spawnsCanMove = true;
     protected int spawnCount = 0;
     private float lastSpawnTime;
@@ -71,8 +70,8 @@ public class Spawner : MonoBehaviour
     public virtual void Reset(bool delayFade)
     {
         Debug.Log("Destroying spawns from " + name);
-        CancelInvoke();
-        canSpawn = false;
+        isMoving = false;
+        isSpawning = false;
 
         DestroySpawns(delayFade);
 
@@ -82,15 +81,23 @@ public class Spawner : MonoBehaviour
         spawnCount = 0;
     }
 
-    public virtual void Activate(bool canMove) { }
-
-    public virtual void StartClimb()
+    public virtual void Activate()
     {
-        canSpawn = true;
         if (adjustedMovements.Count > 0)
-            Invoke("Move", Random.Range(moveTimeMin, moveTimeMax));
-        
-        StartCoroutine(StartSpawning(false));
+        {
+            isMoving = true;
+            SetPosition(adjustedMovements[0]);
+            StartCoroutine(Move());
+        }
+
+        isSpawning = true;
+        StartCoroutine(StartSpawning());
+    }
+
+    public void Deactivate()
+    {
+        isMoving = false;
+        isSpawning = false;
     }
 
     public void CycleThroughMovementsAndSpawn(int spawnIndex = -1)
@@ -106,22 +113,28 @@ public class Spawner : MonoBehaviour
 
     #region Private Functions
 
-    protected void Move()
+    protected IEnumerator Move()
     {
-        Vector3 destination;
-        do
-        {
-            destination = adjustedMovements[Random.Range(0, adjustedMovements.Count)];
-        } while (destination == _transform.position && adjustedMovements.Count > 1);
-        float speed = Random.Range(moveSpeedMin, moveSpeedMax);
-        float nextMoveTime = Random.Range(moveTimeMin, moveTimeMax);
+        while(isMoving)
+        { 
+            Vector3 destination;
+            do
+            {
+                destination = adjustedMovements[Random.Range(0, adjustedMovements.Count)];
+            } while (destination == _transform.position && adjustedMovements.Count > 1);
+            float speed = Random.Range(moveSpeedMin, moveSpeedMax);
+            float nextMoveTime = Random.Range(moveTimeMin, moveTimeMax);
 
-        if (!hasDiscreteMovement)
-            _transform.DOLocalMove(destination, speed).OnComplete(() => { Invoke("Move", nextMoveTime); });
-        else
-        {
-            SetPosition(destination);
-            Invoke("Move", nextMoveTime);
+            if (!hasDiscreteMovement)
+            {
+                _transform.DOLocalMove(destination, speed);
+                yield return new WaitForSeconds(speed + nextMoveTime);
+            }
+            else
+            {
+                SetPosition(destination);
+                yield return new WaitForSeconds(nextMoveTime);
+            }
         }
     }
 
@@ -152,25 +165,27 @@ public class Spawner : MonoBehaviour
         _transform.position = destination;
     }
 
-    protected virtual IEnumerator StartSpawning(bool isFresh)
+    protected virtual IEnumerator StartSpawning()
     {
-        if (spawnCount > 0 && isFresh)
-        {
-            DestroySpawns(false);
-        }
-
-        while (enabled && (spawnCount < maxSpawn || maxSpawn < 0))
+        while (isSpawning)
         {
             if (Time.time - lastSpawnTime > spawningSpeedMin)
+            {
                 CreateSpawn();
+            }
+
+            if (spawnCount >= maxSpawnCount && maxSpawnCount > 0)
+            {
+                isSpawning = false;
+            }
+
             yield return new WaitForSeconds(Random.Range(spawningSpeedMin, spawningSpeedMax));
         }
-        CancelInvoke("Move");
     }
 
     protected virtual Transform CreateSpawn(int spawnIndex = -1)
     {
-        if (!canSpawn) return null;
+        if (!isSpawning) return null;
 
         if (spawnIndex == -1 && spawnProbabilities.Count > 1)
         {

@@ -8,10 +8,9 @@ public class BugSpawner : Spawner {
 	
 	public override void Reset (bool delayFade)
 	{
-		base.Reset (false);
-
         spawningForPlayerID = -1;
-		enabled = false;
+
+        base.Reset (delayFade);
 	}
 	
 	public void MakeSpawnsLeave()
@@ -24,7 +23,7 @@ public class BugSpawner : Spawner {
 		Reset(false);
 
         spawningForPlayerID = spawnPlayerID;
-		maxSpawn = spawnAmount;
+		maxSpawnCount = spawnAmount;
 		spawningSpeedMin = 0;
 		spawningSpeedMax = 0;
 
@@ -33,12 +32,12 @@ public class BugSpawner : Spawner {
 		enabled = true;
 	}
 
-	public override void StartClimb() 
+	public override void Activate() 
 	{
 		spawningSpeedMin = 2f;
 		spawningSpeedMax = 2f;
 
-		base.StartClimb();
+		base.Activate();
 	}
 
 	#region Private Functions
@@ -55,8 +54,10 @@ public class BugSpawner : Spawner {
 	{
 		Transform spawn = base.CreateSpawn(spawnIndex);
 
-		if(spawningForPlayerID >= 0)
-			spawn.BugSpawnScript().MakeTame(spawningForPlayerID);
+        if (spawningForPlayerID >= 0)
+        {
+            spawn.BugSpawnScript().MakeTame(spawningForPlayerID);
+        }
 
 		return spawn;
 	}

@@ -15,6 +15,7 @@ public class MenuManager : MonoBehaviour {
 	}
 
     private IController controller;
+    private PurchaseManager purchaseManager;
     private FrogPackages frogPackages;
     private AdvertisingManager advertisingManager;
     private VariableManager variableManager;
@@ -83,7 +84,7 @@ public class MenuManager : MonoBehaviour {
 			{
 				if(!isShowingArrowPanel)
 				{
-					PurchaseManager.Instance.StartService();
+					purchaseManager.StartService();
 					arrowPanelCG.alpha = 1;
 					arrowPanelCG.interactable = true;
 					arrowPanelCG.blocksRaycasts = true;
@@ -92,7 +93,7 @@ public class MenuManager : MonoBehaviour {
 			}
 			else if(!value && isShowingArrowPanel)
 			{
-				PurchaseManager.Instance.StopService();
+				purchaseManager.StopService();
 //				arrowPanelCG.alpha = 0;
 				arrowPanelCG.interactable = false;
 				arrowPanelCG.blocksRaycasts = false;
@@ -177,7 +178,7 @@ public class MenuManager : MonoBehaviour {
 			}
 			else
 			{
-				PurchaseManager.Instance.StopService();
+				purchaseManager.StopService();
 				endGamePanel.alpha = 0;
 				endGamePanel.interactable = false;
 				endGamePanel.blocksRaycasts = false;
@@ -209,7 +210,7 @@ public class MenuManager : MonoBehaviour {
 				}
 				else if(rand > 0.3f && SetUpBuyButton())
 				{
-					PurchaseManager.Instance.StartService();
+					purchaseManager.StartService();
 					buyButtonObject.SetActive(true);
 					adButton.SetActive(false);
 				}
@@ -275,11 +276,11 @@ public class MenuManager : MonoBehaviour {
 
 	void Awake()
 	{
-        controller = GetComponent(typeof(IController)) as IController;
-        frogPackages = GetComponent<FrogPackages>();
-        variableManager = GetComponent<VariableManager>();
-        advertisingManager = GetComponent <AdvertisingManager>();
-        hud = GetComponent<HUD>();
+        controller = transform.parent.GetComponentInChildren(typeof(IController)) as IController;
+        purchaseManager = transform.parent.FindChild("SOOMLA").GetComponent<PurchaseManager>();
+        frogPackages = GetComponentInParent<FrogPackages>();
+        variableManager = GetComponentInParent<VariableManager>();
+        advertisingManager = GetComponentInParent<AdvertisingManager>();
 		canvas = GetComponent<RectTransform>();
 		titleTransform = canvas.FindChild("Title").GetComponent<RectTransform>();
 
@@ -290,6 +291,7 @@ public class MenuManager : MonoBehaviour {
 		settingsMenu = canvas.FindChild("SettingsPanel").GetComponent<CanvasGroup>();
 		musicToggle = settingsMenu.transform.GetChild(0).FindChild("MusicToggle").GetComponent<Toggle>();
 
+        hud = transform.FindChild("HUD").GetComponent<HUD>();
         hudCanvas = hud.GetComponent<CanvasGroup>();
 		hudRect = hud.GetComponent<RectTransform>();
 
@@ -343,10 +345,10 @@ public class MenuManager : MonoBehaviour {
 
 			if(!touchStateIsSet)
 			{
-				touchState = controller.canTouch;
+				touchState = controller.CanTouch;
 				touchStateIsSet = true;
 			}
-			controller.canTouch = false;
+			controller.CanTouch = false;
 
 			if(pauseText != null) Destroy (pauseText.gameObject);
 			pauseText = Instantiate (pausePrefab) as TextMeshProUGUI;
@@ -580,7 +582,7 @@ public class MenuManager : MonoBehaviour {
 	{
 		if(pauseText != null)
 		{
-			if(controller.canTouch)
+			if(!controller.CanTouch)
 			{
 				float pauseEndTime;
 				for(int i=3; i >= 1; i--)
@@ -594,7 +596,7 @@ public class MenuManager : MonoBehaviour {
 				}
 			}
 			if(pauseText != null) Destroy (pauseText.gameObject);
-			controller.canTouch = touchState;
+			controller.CanTouch = touchState;
 			touchStateIsSet = false;
 			Time.timeScale = 1;
 		}
@@ -604,7 +606,7 @@ public class MenuManager : MonoBehaviour {
 	{
 		if(startBug == null)
 		{
-			startBug = Instantiate(startGameBugPrefab) as Bug;
+			startBug = Instantiate(startGameBugPrefab, new Vector3(0,0,-1), Quaternion.identity) as Bug;
 			startBug.screenOffset = barriers;
 			startBug.enabled = true;
 		}
@@ -750,7 +752,7 @@ public class MenuManager : MonoBehaviour {
 
 			buyButtonText.SetText("$0.99");
 			buyButtonImage.sprite = frog.ThumbnailSprite;
-			buyButton.onClick.AddListener(() => { PurchaseManager.Instance.Purchase(frog); });
+			buyButton.onClick.AddListener(() => { purchaseManager.Purchase(frog); });
 			return true;
 		}
 		return false;

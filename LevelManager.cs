@@ -18,7 +18,7 @@ public class LevelManager : MonoBehaviour
     }
 
     [ReadOnly] public bool isPlaying = false;
-    public int levelCount = 0;
+    public int levelIndex = 1;
     public Level[] levels;
 
     public Step pullUpStepTransform;
@@ -26,16 +26,16 @@ public class LevelManager : MonoBehaviour
 
     [HideInInspector] public bool canEndAnimation = false;
 
-    private Animator anim;
+    private Animator sunAnimator;
     private Lava lava;
     private Transform spawnerParent;
-    private List<Transform> createdSpawners = new List<Transform>();
+    private List<Spawner> createdSpawners = new List<Spawner>();
     private Overlay overlay1;
     private Overlay overlay2;
     private Transform wallParent;
     private Wall[] walls;
     private LensFlare flash;
-    private Level currentLevel { get { return levels[levelCount]; } }
+    private Level currentLevel { get { return levels[levelIndex]; } }
     private List<LevelEvent> timedLevelEvents = new List<LevelEvent>();
     private List<LevelEvent> stepLevelEvents = new List<LevelEvent>();
     private int timeEventIndex = 0;
@@ -60,31 +60,32 @@ public class LevelManager : MonoBehaviour
         {
             step.Position = initialPos;
         }
-
-    }
-
-    void Awake()
-    {
-        anim = GetComponent<Animator>();
-
-        LoadLevelAnimations();
     }
 
     void Start()
     {
+        //Stores level spawners in hierarchy
         spawnerParent = GameObject.Find("Spawners").transform.FindChild("LevelSpawners").transform;
+
+        //Used to animate a flash
         flash = GameObject.Find("Flash").GetComponent<LensFlare>();
+
         wallParent = GameObject.Find("Walls").transform;
         walls = wallParent.GetComponentsInChildren<Wall>();
+        lava = FindObjectOfType<Lava>();
+        sunAnimator = FindObjectOfType<Sun>().GetComponent<Animator>();
 
         overlay1 = new Overlay(GameObject.Find("Overlay").transform);
         overlay2 = new Overlay(GameObject.Find("Overlay2").transform);
 
         SetUpPullSteps();
 
-        AudioManager.Instance.StartMusic(true, 1);
+        //Set up and Start level 0
+        SetUpLevel(0);
+        StartLevel(levels[0]);
 
-        SetUpLevel();
+        //Set up current level
+        SetUpLevel(levelIndex);
     }
 
     #region Public Functions
@@ -94,7 +95,6 @@ public class LevelManager : MonoBehaviour
         StartCoroutine(ShowIntro());
     }
 
-    
     public void TrackStep(Transform stepTransform)
     {
         stepTransforms.Add(stepTransform);
@@ -109,7 +109,7 @@ public class LevelManager : MonoBehaviour
         }
 
         //Handle speck guidance
-        if(levelCount == 0 && stepCount < 2)
+        if(levelIndex == 1)
         {
             MoveGuidanceOnTouch(step);
         }
@@ -140,10 +140,10 @@ public class LevelManager : MonoBehaviour
     {
         StopCoroutine("NextTimedEvent");
         isPlaying = false;
-        Debug.Log("Disable spawners");
-        SpawnManager.Instance.DisableSpawners(hasDied);
-        AudioManager.Instance.FadeOutMusic();
 
+        Debug.Log("Disable spawners");
+        SpawnManager.Instance.ResetLevelSpawners(Spawner.Type.Scenery, true, hasDied);
+                
         if (hasDied)
         {
             lava.FallSplash();
@@ -152,13 +152,24 @@ public class LevelManager : MonoBehaviour
         }
 
         HideWalls();
-        Debug.Log("Clean up spawners");
-        CleanUpSpawners();
 
-        if (canLoadNextLevel) levelCount++;
-        Debug.Log("Set up level");
-        SetUpLevel();
-        if (canLoadNextLevel) StartLevel();
+        Debug.Log("Clean up spawners");
+        CleanUpSpawners(false);
+
+        if (canLoadNextLevel)
+        {
+            levelIndex++;
+            Debug.Log("Set up level");
+            SetUpLevel(levelIndex);
+            ShowIntroAndStartLevel();
+        }
+        else
+        {
+            SetUpLevel(0);
+            StartLevel(levels[0]);
+        }        
+
+        AudioManager.Instance.FadeOutMusic();
     }
 
     #endregion
@@ -184,17 +195,33 @@ public class LevelManager : MonoBehaviour
             canEndAnimation = false;
         }
 
-        StartLevel();
+        StartLevel(currentLevel);
     }
 
-    private void StartLevel()
+    private void StartLevel(Level level)
     {
-        timeEventIndex = 0;
-        stepEventIndex = 0;
+        Debug.Log("Starting Level " + level.levelName);
 
-        //AudioManager.Instance.StartMusic(true, 0);
+        //Clear leftover scenery
+        if (level.clearAllScenery)
+        {
+            SpawnManager.Instance.ResetLevelSpawners(Spawner.Type.Scenery);
+        }
+
+        //Set up level spawners (might want to move this to setup)
+        stepTransforms.Clear();
+        SetUpSpawners(level);
+
+        //Show Scenery
+        SpawnManager.Instance.ActivateLevelSpawners(Spawner.Type.Scenery);
+
+        //Start music
+        AudioManager.Instance.StartMusic(true, currentLevel.musicIndex);
+
+        //Lower Lava
         lava.LowerHeat();
 
+        //Set up overlay
         if (currentLevel.overlayMaterial != null)
         {
             overlay1.Lift();
@@ -202,13 +229,21 @@ public class LevelManager : MonoBehaviour
             overlay1.Fade(false);
         }
 
+        //Set up background
         if (currentLevel.backgroundMaterial != null)
         {
             SetWalls(currentLevel.backgroundMaterial);
         }
 
+        //Start level counters
+        timeEventIndex = 0;
+        stepEventIndex = 0;
         startTime = Time.time;
         if (timedLevelEvents.Count > 0) StartCoroutine("NextTimedEvent");
+
+        //Play Level
+        if(level.levelName != "Menu")
+            ControllerManager.Instance.TellControllers((x) => { x.PlayLevel(); });
     }
 
     private void ReleaseY()
@@ -232,11 +267,12 @@ public class LevelManager : MonoBehaviour
         wallParent.DOLocalMoveZ(10f, 1f);
     }
 
-    private void CleanUpSpawners()
+    private void CleanUpSpawners(bool cleanUpScenerySpawners)
     {
         for (int i = createdSpawners.Count - 1; i >= 0; i--)
         {
-            DestroyImmediate(createdSpawners[i].gameObject);
+            if(createdSpawners[i].spawnerType != Spawner.Type.Scenery || cleanUpScenerySpawners)
+                Destroy(createdSpawners[i].gameObject);
         }
     }
 
@@ -246,34 +282,37 @@ public class LevelManager : MonoBehaviour
 
         for (int i = 0; i < level.spawners.Count; i++)
         {
-            Transform spawner = Instantiate(level.spawners[i]) as Transform;
+            Spawner spawner = Instantiate(level.spawners[i]) as Spawner;
             Debug.Log(spawner + " created");
-            spawner.SetParent(spawnerParent);
+            spawner.transform.SetParent(spawnerParent);
             createdSpawners.Add(spawner);
         }
 
         SpawnManager.Instance.SetUpLevel(level.initialSpawnDirection);
     }
 
-    private void SetUpLevel()
+    private void SetUpLevel(int levelIndex)
     {
-        stepTransforms.Clear();
-        AudioManager.Instance.StartMusic(false, currentLevel.musicIndex);
-        SetUpSpawners(currentLevel);
-        FillLevelEvents();
-        lava = FindObjectOfType<Lava>();
+        FillLevelEvents(levelIndex);
     }
 
-    private void FillLevelEvents()
+    private void FillLevelEvents(int level)
     {
+        Debug.Log("Filling level " + level);
         timedLevelEvents.Clear();
         stepLevelEvents.Clear();
 
-        switch (levelCount)
+        switch (level)
         {
+            //Menu
             case 0:
+                break;
+
+            //Tutorial
+            case 1:
+                timedLevelEvents.Add(new LevelEvent(true, 0f, () => { Instantiate(currentLevel.GetObject("Stars")); sunAnimator.SetBool("isNight", true); }));
+                timedLevelEvents.Add(new LevelEvent(true, 0f, () => { SpawnManager.Instance.ActivateLevelSpawners(Spawner.Type.Step); }));
                 speckManager = Instantiate(currentLevel.GetObject("SpeckManager")).GetComponent<SpeckManager>();
-                timedLevelEvents.Add(new LevelEvent(true, 0, () => { SpawnManager.Instance.ActivateScenerySpawners(); }));
                 timedLevelEvents.Add(new LevelEvent(true, 1f, () => { speckManager.ActivateSpecks(Vector2.zero); }));
                 timedLevelEvents.Add(new LevelEvent(true, 2f, () => { speckManager.MoveSpecks(stepTransforms[0]); }));
 
@@ -281,10 +320,13 @@ public class LevelManager : MonoBehaviour
                 {
                     StartCoroutine(Flash());
                     AudioManager.Instance.PlayIn(1f, AudioManager.Instance.splashSound);
+                    EndLevel(false, true);
                 }));
                 break;
-            case 1:
-                timedLevelEvents.Add(new LevelEvent(true, 1f, () => { StartClimb(); }));
+            
+            //Pot
+            case 2:
+                timedLevelEvents.Add(new LevelEvent(true, 1f, () => { lava.LiftHeat(true); }));
                 //stepLevelEvents.Add(new LevelEvent(false, 2f, () => { SpawnManager.Instance.SpawnFromAll(Spawner.Type.Scenery, Vector2.up, 0); SpawnManager.Instance.ActivateScenerySpawners(); }));
                 /*stepLevelEvents.Add(new LevelEvent(false, 20f, () =>
               {
@@ -294,8 +336,10 @@ public class LevelManager : MonoBehaviour
                   AudioManager.Instance.PlayIn(1f, AudioManager.Instance.splashSound);
               }));*/
                 break;
-            case 2:
-                stepLevelEvents.Add(new LevelEvent(false, 2f, () => { SpawnManager.Instance.ActivateScenerySpawners(); }));
+            
+            //Kitchen
+            case 3:
+                stepLevelEvents.Add(new LevelEvent(false, 2f, () => { SpawnManager.Instance.ActivateLevelSpawners(Spawner.Type.Scenery); }));
                 break;
         }
     }
@@ -332,12 +376,6 @@ public class LevelManager : MonoBehaviour
         }
     }
 
-    private void StartClimb()
-    {
-        lava.LiftHeat(true);
-        SpawnManager.Instance.StartClimb();
-    }
-
     private void SetUpPullSteps()
     {
         pullUpStep = new PullStep(pullUpStepTransform);
@@ -349,8 +387,7 @@ public class LevelManager : MonoBehaviour
         {
             switch (i)
             {
-                case 0:
-                    levels[i].levelAnimations.Add(() => { anim.SetTrigger("Nightfall"); });
+                case 1:
                     break;
             }
         }

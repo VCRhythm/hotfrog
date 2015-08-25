@@ -51,15 +51,16 @@ public class FrogPackages : MonoBehaviour {
     private IController controller;
     private VariableManager variableManager;
     private MenuManager menuManager;
+    private PurchaseManager purchaseManager;
 
 	#region Component Segments
 
 	void Awake()
 	{
+        purchaseManager = GetComponent<PurchaseManager>();
         menuManager = GetComponent<MenuManager>();
         variableManager = GetComponent<VariableManager>();
-        controller = GetComponent(typeof(IController)) as IController;
-
+        controller = transform.GetComponentInChildren(typeof(IController)) as IController;
 		//Clear any saved purchases
 		if(ResetPackagesOnStart)
 		{
@@ -68,15 +69,15 @@ public class FrogPackages : MonoBehaviour {
 		}
 
 		LoadPackages();
-
-		level = GameObject.Find("Level").transform;
-		nameText = GameObject.Find ("FrogName").GetComponent<TextMeshProUGUI>();
-		arrowPanelBuyButton = GameObject.Find("ArrowPanel").transform.FindChild("BuyButton").gameObject;
 	}
 
 	void Start()
 	{
-		hasLoaded = true;
+        level = GameObject.Find("Level").transform;
+        nameText = GameObject.Find("FrogName").GetComponent<TextMeshProUGUI>();
+        arrowPanelBuyButton = GameObject.Find("ArrowPanel").transform.FindChild("BuyButton").gameObject;
+
+        hasLoaded = true;
 		MakeFrog(variableManager.currentFrogID, false, false);
 	}
 
@@ -130,7 +131,7 @@ public class FrogPackages : MonoBehaviour {
 
 	public void PurchaseFrogFromButton()
 	{
-		PurchaseManager.Instance.Purchase(frogScript);
+		purchaseManager.Purchase(frogScript);
 	}
 
 	public void NextFrog()
@@ -158,9 +159,9 @@ public class FrogPackages : MonoBehaviour {
 
 	public void RaiseFrog(float delay = 0)
 	{
-        Invoke("CanTouch", delay);
 		frogScript.Rise(true, delay);
-	}
+        Invoke("CanTouch", delay);
+    }
 
 	public void MakeSureFrogIsPurchased()
 	{
@@ -169,10 +170,6 @@ public class FrogPackages : MonoBehaviour {
 		if(!IsPackageOpen(currentFrogID))
 		{
 			LowerAndOpenRandomFrog(false);
-		}
-		else
-		{
-			RaiseFrog();
 		}
 	}
 
@@ -275,7 +272,7 @@ public class FrogPackages : MonoBehaviour {
 
 	private void LowerFrog()
 	{
-        controller.canTouch = false;
+        controller.CanTouch = false;
 		frogScript.Lower();
 	}
 
@@ -424,7 +421,7 @@ public class FrogPackages : MonoBehaviour {
 		this.frog.name = "Frog";
 		this.frog.SetParent(level); 
 		frogScript = frog.GetComponent<Frog>();
-
+        controller.SetFrog(frog);
 		frogScript.WakeUp();
 	}
 
@@ -449,7 +446,12 @@ public class FrogPackages : MonoBehaviour {
 		MakeFrog(randomFrogID, isUnlocking, isUnlocking);
 		if(isUnlocking) BuyFrog(currentFrogID, true);
 	}
-	
+
+    private void CanTouch()
+    {
+        controller.CanTouch = true;
+    }	
+
 //	private void PrintPackages(List<Vector2> packages)
 //	{
 //		for(int i=0; i< packages.Count; i++)

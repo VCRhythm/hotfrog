@@ -6,7 +6,10 @@ public class StepAndScenerySpawner : ScenerySpawner {
     {
         Transform spawn = base.CreateSpawn(spawnIndex);
 
-        LevelManager.Instance.TrackStep(spawn.GetComponentInChildren<Step>()._transform);
+        if (spawn != null)
+        {
+            LevelManager.Instance.TrackStep(spawn.GetComponentInChildren<Step>()._transform);
+        }
 
         return spawn;
     }

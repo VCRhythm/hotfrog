@@ -7,22 +7,15 @@ public class ScenerySpawner : Spawner {
     public float maxSpawnScale = 1f;
     public Color[] colorOptions;
 
-	public override void Activate (bool canMove)
+	public override void Activate ()
 	{
-		enabled = true;
-        canSpawn = true;
-
         if (spawnAllOnAwake)
         {
+            isSpawning = true;
             CycleThroughMovementsAndSpawn();
         }
 
-        if (canMove)
-        {
-            Move();
-        }
-
-        StartCoroutine(StartSpawning(false));
+        base.Activate();
 	}
 
 	protected override void SetMovementToScreenSize()
@@ -39,8 +32,6 @@ public class ScenerySpawner : Spawner {
     protected override Transform CreateSpawn(int spawnIndex = -1)
     {
         Transform spawn = base.CreateSpawn(spawnIndex);
-
-        Debug.Log("Spawned " + spawn.name);
 
         if (spawn == null) return null;
 

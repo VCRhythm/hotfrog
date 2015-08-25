@@ -7,12 +7,13 @@ public class SpawnManager : MonoBehaviour {
 	private static SpawnManager instance;
 	public static SpawnManager Instance {
 		get {
-			if (instance == null) instance = GameObject.FindObjectOfType<SpawnManager>();
+			if (instance == null) instance = FindObjectOfType<SpawnManager>();
 			return instance;
 		}
 	}
 
     public Vector2 SpawnDirection = -Vector2.up;
+    private Vector2 prevSpawnDirection = -Vector2.up;
     public Vector2 pullVector{ get; private set; }
 
     public Vector2[] spawnDirections = new Vector2[5]
@@ -41,15 +42,10 @@ public class SpawnManager : MonoBehaviour {
 
 	public void SetUpLevel(Vector2 initialSpawnDirection)
 	{
-		CollectSpawners();
-		EnableStepSpawners();
-	}
+        SpawnDirection = initialSpawnDirection;
+        prevSpawnDirection = initialSpawnDirection;
 
-	public void StartClimb()
-	{
-		ActivateSpawnersForDirection(false);
-
-		TellSpawners(levelSpawners, (x) => x.StartClimb());
+		CollectLevelSpawners();
 	}
 
 	public void PullStep(Step step, bool isInverted, float stepPullMultiplier = 1f)
@@ -61,14 +57,15 @@ public class SpawnManager : MonoBehaviour {
         Vector2 spawnDirection = isInverted ? -SpawnDirection : SpawnDirection;
         pullVector = spawnDirection * PullMultiplier(commandingStep.Position.y, spawnDirection.y * 40f) * stepPullMultiplier;
 
-		if(!isInverted) ActivateSpawnersForDirection(true);
+		if(!isInverted) ActivateSpawnersForDirection(spawnDirection != prevSpawnDirection);
+        prevSpawnDirection = spawnDirection;
 	}
 
 	public void ReleasePullingStep(Step step)
 	{
-		if(step == commandingStep)
-		{
-			TellSpawners(activeStepSpawners, (x) => x.canSpawn = false);
+        if (step == commandingStep)
+        {
+            DeactivateSpawners(activeStepSpawners);
 			commandingStep = null;
 			pullVector = Vector2.zero;
 		}
@@ -79,20 +76,23 @@ public class SpawnManager : MonoBehaviour {
         ReleasePullingStep(commandingStep);
     }
 
-    public void DisableSpawners(bool delayFade = false)
+    public void ResetLevelSpawners(Spawner.Type type, bool reverseType = false, bool delayFade = false)
 	{
 		foreach(Spawner spawner in levelSpawners)
 		{
-			ToggleSpawner(spawner, false, delayFade);
+            if (spawner.spawnerType == type || (reverseType && spawner.spawnerType != type))
+            {
+                spawner.Reset(delayFade);
+            }
 		}
 	}
 
-	public void SpawnFlyBundle(int spawnAmount, Vector2 position, int playerID)
+    public void SpawnFlyBundle(int spawnAmount, Vector2 position, int playerID)
 	{
         bugSpawner.SpawnFlyBundle(spawnAmount, position, playerID);
 	}
 
-	public void SpawnFromAll(Spawner.Type spawnerType, Vector2 direction, int spawnIndex)
+/*	public void SpawnFromAll(Spawner.Type spawnerType, Vector2 direction, int spawnIndex)
 	{
 		for(int i = 0; i < levelSpawners.Count; i++)
 		{
@@ -101,100 +101,74 @@ public class SpawnManager : MonoBehaviour {
 				levelSpawners[i].CycleThroughMovementsAndSpawn(spawnIndex);
 			}
 		}
-	}
+	}*/
 
-	public void ActivateScenerySpawners()
-	{
+    public void ActivateLevelSpawners(Spawner.Type type)
+    { 
 		for(int i=0; i< levelSpawners.Count; i++)
 		{
-            if (levelSpawners[i].spawnerType == Spawner.Type.Scenery)
+            if (levelSpawners[i].spawnerType == type)
             {
-                levelSpawners[i].Activate(true);
+                levelSpawners[i].Activate();
                 Debug.Log(levelSpawners[i].name + "Activated");
             }
 
 		}
 	}
 
-    /*public void ActivateMenuSpawners()
-    {
-        for (int i = 0; i < spawners.Count; i++)
-        {
-            if (spawners[i].spawnerType == Spawner.Type.Menu)
-            {
-                spawners[i].Activate(true);
-            }
-        }
-    }
-
-    public void DeactivateMenuSpawners()
-    {
-        for (int i = 0; i < spawners.Count; i++)
-        {
-            if (spawners[i].spawnerType == Spawner.Type.Menu)
-            {
-                spawners[i].Reset(false);
-            }
-        }
-    }*/
-
     #endregion Public Functions
 
     #region Private Functions
-
-    private void EnableStepSpawners()
-	{
-		for(int i=0; i<levelSpawners.Count; i++)
-		{
-			if(levelSpawners[i].spawnerType == Spawner.Type.Step) 
-			{
-				ToggleSpawner(levelSpawners[i], true);
-			}
-		}
-	}
 	
-	private void ToggleSpawner(Spawner spawner, bool isActive, bool delayFade = false)
+	private void CollectLevelSpawners()
 	{
-		if(!isActive && spawner.gameObject.activeInHierarchy)
-		{
-			spawner.Reset(delayFade);
-		}
-
-		spawner.enabled = isActive;
-	}
-
-	private void CollectSpawners()
-	{
+        //Clear level spawner list
 		levelSpawners.Clear ();
-		foreach(List<Spawner> spawnerList in spawnersInDirection.Values)
+
+        //Clear spawners in direction arrays
+        foreach (List<Spawner> spawnerList in spawnersInDirection.Values)
 		{
 			spawnerList.Clear();
 		}
 
 		foreach(Spawner spawner in transform.FindChild("LevelSpawners").GetComponentsInChildren<Spawner>())
 		{
-			levelSpawners.Add(spawner);
+            //Add step spawners to direction arrays
 			if(spawner.spawnerType == Spawner.Type.Step)
 			{
-				spawnersInDirection[(spawner as StepSpawner).spawnDirection].Add(spawner);
+				spawnersInDirection[spawner.spawnDirection].Add(spawner);
 			}
-		}
-	}
 
-	private void ActivateSpawnersForDirection(bool canMove)
+            levelSpawners.Add(spawner);
+        }
+    }
+
+	private void ActivateSpawnersForDirection(bool deactivatePrevDirection)
 	{
-		TellSpawners(activeStepSpawners, (x) => x.canSpawn = false);
+        if (deactivatePrevDirection)
+        {
+            DeactivateSpawners(activeStepSpawners);
+        }
+
 		activeStepSpawners = spawnersInDirection[SpawnDirection];
-	    TellSpawners(activeStepSpawners, (x) => x.Activate(canMove));	
+        ActivateSpawners(activeStepSpawners);
 	}
 
-	private void TellSpawners(List<Spawner> spawnerList, System.Action<Spawner> action)
-	{
-		for(int i = spawnerList.Count - 1; i >= 0; i--)
-		{
-			action(spawnerList[i]);
-		}
-	}
+    private void ActivateSpawners(List<Spawner> spawnerList)
+    {
+        for(int i=0; i<spawnerList.Count; i++)
+        {
+            spawnerList[i].Activate();
+        }
+    }
+
+    private void DeactivateSpawners(List<Spawner> spawnerList)
+    {
+        for (int i = 0; i < spawnerList.Count; i++)
+        {
+            spawnerList[i].Deactivate();
+        }
+    }
 
 	private void SetUpSpawnDirections()
 	{
@@ -204,11 +178,19 @@ public class SpawnManager : MonoBehaviour {
 		}
 	}
 
-
     private float PullMultiplier(float position, float target)
     {
         return 2f * Mathf.Abs(target - position);
     }
+
+    /*	private void TellSpawners(List<Spawner> spawnerList, System.Action<Spawner> action)
+	{
+		for(int i = spawnerList.Count - 1; i >= 0; i--)
+		{
+			action(spawnerList[i]);
+		}
+	}
+    */
 
     #endregion Private Functions
 }

@@ -3,11 +3,13 @@ using System.Collections.Generic;
 
 [System.Serializable]
 public class Level {
+    public string levelName = "";
     public int musicIndex = 1;
+    public bool clearAllScenery = true;
     public Material backgroundMaterial;
     public Material overlayMaterial;
     public Material overlay2Material;
-	public List<Transform> spawners = new List<Transform>();
+	public List<Spawner> spawners = new List<Spawner>();
 	public Vector2 initialSpawnDirection = new Vector2(0, -1f);
 	[HideInInspector] public List<LevelEvent> levelEvents = new List<LevelEvent>();
 	public List<GameObject> levelObjects = new List<GameObject>();

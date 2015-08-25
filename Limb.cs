@@ -80,15 +80,16 @@ public class Limb : MonoBehaviour {
 		{
 			if(step != null) OpenHand();
 			stepScript = null;
-		}
+            step = newStep;
+        }
 		else
 		{
 			stepScript = newStep.StepSpawnScript();
 			stepGameObject = newStep.gameObject;
-			MoveLimb(newStep);
+            step = newStep;
+            MoveLimb(newStep);
 		}
-
-		step = newStep;
+		
 		touchIndex = newTouchIndex;		
 	}
 
@@ -121,7 +122,7 @@ public class Limb : MonoBehaviour {
 		CancelMovement();
 
 		IsMoving = true;
-		_transform.DOMove(targetPosition, 0.1f).OnComplete(MovingStopped);
+        _transform.DOMove(targetPosition, 0.1f).OnComplete(MovingStopped);
 	}
 	
 	#endregion Public Functions
@@ -131,9 +132,8 @@ public class Limb : MonoBehaviour {
 	private void MoveLimb(Transform target)
 	{
 		//Movement has already been cancelled by SetStep
-
 		IsMoving = true;
-		_transform.DOMove((Vector2)target.position, 0.1f).OnComplete(CloseHand);
+        _transform.DOMove((Vector2)target.position, 0.1f).OnComplete(CloseHand);
 	}
 
 	private void CancelMovement()
@@ -165,11 +165,8 @@ public class Limb : MonoBehaviour {
 		//handGrabRenderer.sortingOrder = 1;
 		handRenderer.sprite = backGrabSprite;
 
-		if(step != null)
-		{
-			frog.Bob(stepScript, step.position.x);
-			stepScript.Grab(playerID);
-		}
+    	frog.Bob(stepScript, step.position.x);
+		stepScript.Grab(playerID);
 	}
 
 	private void MovingStopped()

@@ -6,15 +6,6 @@ using System.Text.RegularExpressions;
 
 public class PurchaseManager : MonoBehaviour {
 
-	// A singleton instance of this class
-	private static PurchaseManager instance;
-	public static PurchaseManager Instance {
-		get {
-			if (instance == null) instance = GameObject.FindObjectOfType<PurchaseManager>();
-			return instance;
-		}
-	}
-
 	public RectTransform restoredTextPrefab;
 	public bool isUsingHighway = true;
 	public bool isUsingStore = true;

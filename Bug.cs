@@ -24,8 +24,8 @@ public class Bug : Spawn {
 	private System.Action disableAction;
 	private System.Action decisionAfterMoving;
 	private bool isGrabbed = false;
-	
-	void OnEnable ()
+
+    void OnEnable()
 	{
 		AssignInteractionAction();
 		SetUpDestination();
@@ -86,17 +86,17 @@ public class Bug : Spawn {
             if (ownerID >= 0)
             {
                 //Fly to top right corner
-                dest = new Vector2(halfScreenWidth * 2, 50);
+                dest = new Vector3(halfScreenWidth * 2, 50, -1f);
             }
             else
             {
-                dest = new Vector3(Random.value > .5 ? 80 : -80, 0, 1f);
+                dest = new Vector3(Random.value > .5 ? 80 : -80, 0, -1f);
             }
 		}
 		else
 		{
 			dest = new Vector3(Random.Range(halfScreenWidth * (-1 + screenOffset.w), halfScreenWidth * (1 - screenOffset.y)),
-			                   Random.Range(halfScreenHeight * (-1 + screenOffset.z), halfScreenHeight * (1 - screenOffset.x)), 1f );
+			                   Random.Range(halfScreenHeight * (-1 + screenOffset.z), halfScreenHeight * (1 - screenOffset.x)), -1f );
 /*			Debug.Log (string.Format ("Dest: {4}, Left: {0}, Right: {1}, Top: {2}, Bottom: {3}", 
 			                          halfScreenWidth * (-1 + offset.w), 
 			                          halfScreenWidth * (1 - offset.y),
