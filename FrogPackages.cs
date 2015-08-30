@@ -9,18 +9,15 @@ public class FrogPackages : MonoBehaviour {
 	private static FrogPackages instance;
 	public static FrogPackages Instance {
 		get {
-			if (instance == null) instance = GameObject.FindObjectOfType<FrogPackages>();
+			if (instance == null) instance = FindObjectOfType<FrogPackages>();
 			return instance;
 		}
 	}
 
 	public bool ResetPackagesOnStart = false;
-	public List<Transform> frogPackages = new List<Transform>();
+	public List<Frog> frogPackages = new List<Frog>();
 	public bool HasOpenPackages { get { return openPackages.Count > 1; } }
-	
-	public RectTransform newFrogTextPrefab;
-	public RectTransform tryAgainTextPrefab;
-	
+		
 	[HideInInspector] public bool isViewingAllFrogs = false;
 	
 	private List<Vector3i> packagesSaved = new List<Vector3i>();
@@ -38,13 +35,10 @@ public class FrogPackages : MonoBehaviour {
 	}
 	
 	private int currentFrogID = -1;
-	private Transform level;
 
-	private Transform frog;
-	private Frog frogScript;
+	private Frog frog;
 
 	private TextMeshProUGUI nameText;
-	private GameObject arrowPanelBuyButton;
 
 	private bool hasLoaded = false;
 
@@ -73,9 +67,7 @@ public class FrogPackages : MonoBehaviour {
 
 	void Start()
 	{
-        level = GameObject.Find("Level").transform;
         nameText = GameObject.Find("FrogName").GetComponent<TextMeshProUGUI>();
-        arrowPanelBuyButton = GameObject.Find("ArrowPanel").transform.FindChild("BuyButton").gameObject;
 
         hasLoaded = true;
 		MakeFrog(variableManager.currentFrogID, false, false);
@@ -89,7 +81,7 @@ public class FrogPackages : MonoBehaviour {
 	{
 		if(frog != null) Destroy (frog.gameObject);
 
-		Transform frogPrefab = null;
+		Frog frogPrefab = null;
 		for(int i = 0; i < frogPackages.Count; i++)
 		{
 			if(frogPackages[i].GetComponent<Frog>().id == id)
@@ -99,39 +91,39 @@ public class FrogPackages : MonoBehaviour {
 			}
 		}
 
-		SetFrog(Instantiate (frogPrefab, new Vector3(0, -100f), Quaternion.identity) as Transform);
+		SetFrog(Instantiate (frogPrefab, new Vector3(0, -100f), Quaternion.identity) as Frog);
 
 		currentFrogID = id;
 
 		bool hasPackage = IsPackageOpen(id);
 		float delay = hasDelay ? 2f: 0;
 
-		StartCoroutine(ShowFrogName(delay, frogScript.frogName, canCelebrate, hasPackage));
+		StartCoroutine(menuManager.ShowFrogName(delay, frog.frogName, canCelebrate, hasPackage));
 
 		if(!isViewingAllFrogs || hasPackage)
 		{
 			variableManager.currentFrogID = id;
-			arrowPanelBuyButton.SetActive(false);
+            menuManager.ShowArrowPanelBuyButton(false);
 		}
-		else if(frogScript.canBuy == 1)
+		else if(frog.canBuy == 1)
 		{
-			arrowPanelBuyButton.SetActive(true);
-		}
-		else if(frogScript.canBuy == 0)
+            menuManager.ShowArrowPanelBuyButton(true);
+        }
+		else if(frog.canBuy == 0)
 		{
-			arrowPanelBuyButton.SetActive(false);
-		}
+            menuManager.ShowArrowPanelBuyButton(false);
+        }
 
 		RaiseFrog(delay);
 
-		if(frogScript.audioIntroduction != null) AudioManager.Instance.PlayForAll(frogScript.audioIntroduction);
+		if(frog.audioIntroduction != null) AudioManager.Instance.PlayForAll(frog.audioIntroduction);
 	}
 
 	#region Button Callbacks
 
 	public void PurchaseFrogFromButton()
 	{
-		purchaseManager.Purchase(frogScript);
+		purchaseManager.Purchase(frog);
 	}
 
 	public void NextFrog()
@@ -159,7 +151,7 @@ public class FrogPackages : MonoBehaviour {
 
 	public void RaiseFrog(float delay = 0)
 	{
-		frogScript.Rise(true, delay);
+		frog.Rise(true, delay);
         Invoke("CanTouch", delay);
     }
 
@@ -273,7 +265,7 @@ public class FrogPackages : MonoBehaviour {
 	private void LowerFrog()
 	{
         controller.CanTouch = false;
-		frogScript.Lower();
+		frog.Lower();
 	}
 
 	private static int CompareXValue(Vector3i v1, Vector3i v2)
@@ -284,30 +276,6 @@ public class FrogPackages : MonoBehaviour {
 	private static int CompareXValueDescending(Vector3i v1, Vector3i v2)
 	{
 		return v2.x.CompareTo(v1.x);
-	}
-
-	private IEnumerator ShowFrogName(float waitTime, string frogName, bool canCelebrate, bool hasPackage)
-	{
-		nameText.Clear ();
-		yield return new WaitForSeconds(waitTime);
-
-		nameText.color = hasPackage || canCelebrate ? Color.white : Color.red;
-		nameText.SetText(frogScript.frogName);
-	
-		if(canCelebrate && !hasPackage)
-			CelebrateNew(true);
-		else if(canCelebrate && hasPackage)
-			CelebrateNew(false);
-	}
-
-	private void CelebrateNew(bool isNew)
-	{
-		AudioManager.Instance.PlayForAll(isNew ? AudioManager.Instance.newSound : AudioManager.Instance.missSound);
-		RectTransform newFrogText = Instantiate(isNew ? newFrogTextPrefab : tryAgainTextPrefab) as RectTransform;
-		newFrogText.SetParent(menuManager.canvas, true);
-		newFrogText.anchoredPosition = Vector2.zero;
-
-		Destroy (newFrogText.gameObject, 2f);
 	}
 
 	private void CycleFrog(bool next)
@@ -415,20 +383,17 @@ public class FrogPackages : MonoBehaviour {
 		return false;
 	}
 	
-	private void SetFrog(Transform frog)
+	private void SetFrog(Frog frog)
 	{
-		this.frog = frog;
-		this.frog.name = "Frog";
-		this.frog.SetParent(level); 
+        this.frog = frog;
 
-		frogScript = frog.GetComponent<Frog>();
         controller.SetFrog(frog);
-		frogScript.WakeUp();
+		frog.WakeUp();
 	}
 
 	private void BuyFrog(int id, bool canSetFrog)
 	{
-		arrowPanelBuyButton.SetActive(false);
+        menuManager.ShowArrowPanelBuyButton(false);
 		OpenPackage(id);
 
 		if(canSetFrog) variableManager.currentFrogID = currentFrogID;

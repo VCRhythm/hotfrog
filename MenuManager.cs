@@ -6,13 +6,13 @@ using DG.Tweening;
 
 public class MenuManager : MonoBehaviour {
 
-	public bool IsShowingFrogName
-	{
-		set
-		{
-			frogName.DOFade(value ? 1 : 0, 0);
-		}
-	}
+    public TextMeshProUGUI pausePrefab;
+    public GameObject tameFlyNetPrefab;
+    public Bug startGameBugPrefab;
+    private Bug startBug;
+
+    public RectTransform newFrogTextPrefab;
+    public RectTransform tryAgainTextPrefab;
 
     private IController controller;
     private PurchaseManager purchaseManager;
@@ -20,15 +20,19 @@ public class MenuManager : MonoBehaviour {
     private AdvertisingManager advertisingManager;
     private VariableManager variableManager;
     private HUD hud;
-    public TextMeshProUGUI pausePrefab;
-	public GameObject tameFlyNetPrefab;
-	public Bug startGameBugPrefab;
-	private Bug startBug;
 
-	private bool touchState;
+    private bool touchState;
 	private bool touchStateIsSet = false;
 
-	private bool isShowingMainMenu = false;
+    public bool IsShowingFrogName
+    {
+        set
+        {
+            frogName.DOFade(value ? 1 : 0, 0);
+        }
+    }
+
+    private bool isShowingMainMenu = false;
 	private bool IsShowingMainMenu
 	{ 
 		set 
@@ -224,7 +228,7 @@ public class MenuManager : MonoBehaviour {
 		}
 	}
 
-	[HideInInspector] public RectTransform canvas;
+	private RectTransform canvas;
 	private RectTransform titleTransform;
 	private CanvasGroup mainMenu;
 	private CanvasGroup settingsMenu;
@@ -245,6 +249,8 @@ public class MenuManager : MonoBehaviour {
 	private RectTransform arrowPanel;
 	private TextMeshProUGUI frogName;
 	private CanvasGroup returnPanel;
+    private GameObject arrowPanelBuyButton;
+
 
 	private Button flyButton;
 	private CanvasGroup flyPanelCG;
@@ -311,9 +317,10 @@ public class MenuManager : MonoBehaviour {
 
 		arrowPanelCG = canvas.FindChild("ArrowPanel").GetComponent<CanvasGroup>();
 		arrowPanel = arrowPanelCG.GetComponent<RectTransform>();
-		frogName = arrowPanel.FindChild("FrogName").GetComponent<TextMeshProUGUI>();;
+		frogName = arrowPanel.FindChild("FrogName").GetComponent<TextMeshProUGUI>();
+        arrowPanelBuyButton = arrowPanel.FindChild("BuyButton").gameObject;
 
-		returnPanel = canvas.FindChild("ReturnPanel").GetComponent<CanvasGroup>();
+        returnPanel = canvas.FindChild("ReturnPanel").GetComponent<CanvasGroup>();
 		returnButton = returnPanel.transform.FindChild("ReturnButton").GetComponent<RectTransform>();
 
 		Transform endGameTransform = canvas.FindChild("EndGamePanel");
@@ -574,11 +581,41 @@ public class MenuManager : MonoBehaviour {
 		okCount.SetText("{0}% OK", (qualityStats.x / (float)total) * 100);
 	}
 
-	#endregion Functions
+    public void ShowArrowPanelBuyButton(bool isTrue)
+    {
+        arrowPanelBuyButton.SetActive(isTrue);
+    }
 
-	#region Private Functions
-		     
-	private IEnumerator Resume()
+    public IEnumerator ShowFrogName(float waitTime, string name, bool canCelebrate, bool hasPackage)
+    {
+        frogName.Clear();
+        yield return new WaitForSeconds(waitTime);
+
+        frogName.color = hasPackage || canCelebrate ? Color.white : Color.red;
+        frogName.SetText(name);
+
+        if (canCelebrate)
+        {
+            CelebrateNew(!hasPackage);
+        }
+    }
+
+
+    #endregion Functions
+
+    #region Private Functions
+
+    private void CelebrateNew(bool isNew)
+    {
+        AudioManager.Instance.PlayForAll(isNew ? AudioManager.Instance.newSound : AudioManager.Instance.missSound);
+        RectTransform newFrogText = Instantiate(isNew ? newFrogTextPrefab : tryAgainTextPrefab) as RectTransform;
+        newFrogText.SetParent(canvas, true);
+        newFrogText.anchoredPosition = Vector2.zero;
+
+        Destroy(newFrogText.gameObject, 2f);
+    }
+
+    private IEnumerator Resume()
 	{
 		if(pauseText != null)
 		{

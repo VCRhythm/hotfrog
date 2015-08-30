@@ -7,7 +7,7 @@ public interface IController  {
 
     void StartLevel();
     void PlayLevel();
-    void SetFrog(Transform frog);
+    void SetFrog(Frog frog);
     void ForceRelease(Transform step);
     void CollectFly();
     void AddToTongueCatchActions(System.Action action);

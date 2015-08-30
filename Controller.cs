@@ -3,6 +3,7 @@ using System;
 
 public abstract class Controller : MonoBehaviour, IController {
 
+    public string playerName;
     public abstract int playerID { get; set; }
     public abstract bool isPlaying { get; set; }
 
@@ -38,10 +39,12 @@ public abstract class Controller : MonoBehaviour, IController {
         Register();
     }
 
-    public void SetFrog(Transform newFrog)
+    public void SetFrog(Frog frog)
     {
-        frog = newFrog.GetComponent<Frog>();
-        limbs = newFrog.GetComponentsInChildren<Limb>();
+        this.frog = frog;
+        frog.transform.name = playerName + "'s Frog";
+        frog.transform.SetParent(transform);
+        limbs = frog.GetComponentsInChildren<Limb>();
     }
 
     public abstract void StartLevel();
