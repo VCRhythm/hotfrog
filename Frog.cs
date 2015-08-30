@@ -146,7 +146,7 @@ public class Frog : MonoBehaviour {
 	private float yVelocity = 0f;
 	private float endY = -100f;
 
-	void Awake()
+    void Awake()
 	{
 		_transform = transform;
 
@@ -211,7 +211,7 @@ public class Frog : MonoBehaviour {
 
 	public void WakeUp()
 	{
-		StartCoroutine (AwakeAnimate());
+        StartCoroutine (AwakeAnimate());
 	}
 
 	public void Rise(bool canFullyRise, float delay = 0, bool canPlaySound = true)

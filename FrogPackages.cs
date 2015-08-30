@@ -420,6 +420,7 @@ public class FrogPackages : MonoBehaviour {
 		this.frog = frog;
 		this.frog.name = "Frog";
 		this.frog.SetParent(level); 
+
 		frogScript = frog.GetComponent<Frog>();
         controller.SetFrog(frog);
 		frogScript.WakeUp();

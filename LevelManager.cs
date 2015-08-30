@@ -148,7 +148,6 @@ public class LevelManager : MonoBehaviour
         {
             lava.FallSplash();
             lava.LiftHeat(false);
-            ControllerManager.Instance.TellControllers((x) => { x.menuManager.ShowEndGamePanel(); });
         }
 
         HideWalls();
@@ -242,8 +241,10 @@ public class LevelManager : MonoBehaviour
         if (timedLevelEvents.Count > 0) StartCoroutine("NextTimedEvent");
 
         //Play Level
-        if(level.levelName != "Menu")
+        if (level.levelName != "Menu")
+        {
             ControllerManager.Instance.TellControllers((x) => { x.PlayLevel(); });
+        }
     }
 
     private void ReleaseY()

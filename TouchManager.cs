@@ -1,31 +1,17 @@
 using UnityEngine;
 
-public class TouchManager : MonoBehaviour, IController {
+public class TouchManager : Controller {
 
     #region Fields
 
-    public int playerID { get; set; }
-
-	//HUD Counters
-	Vector4i grabStats;
+    public override int playerID { get; set; }
 	
-	//Limbs
-	public int FreeLimbCount { get { return (limbs[0].IsFree ? 1 : 0) + (limbs[1].IsFree ? 1 : 0); } }
-	Limb[] limbs = new Limb[2];
-	bool HasFreeLimb { get { return limbs[0].IsFree || limbs[1].IsFree; } }
-	bool HasStep { get { return !(limbs[0].IsFree && limbs[1].IsFree); } }
-	Vector2[] limbReturnPos = new Vector2[2]{new Vector2(20, -40), new Vector2(-20, -40)};
-	float limbReturnTime = .3f;
-	Vector2[] currentLimbVelocity = new Vector2[2];
-
     //Input
-    private bool canTouch = false; 
-    public bool CanTouch { get { return canTouch; } set { canTouch = value;  } }
-	bool isTouchInput = false;
+    private bool canTouch = false;
+    public override bool CanTouch { get { return canTouch; } set { canTouch = value;  } }
 	TouchIndicator[] touchIndicators = new TouchIndicator[2];
-	IUserInput UserInput;
-    LayerMask touchableLayerMask;
-    public bool isPlaying { get; set; }
+
+    public override bool isPlaying { get; set; }
 
     //Guidance
     public TouchIndicator touchIndicatorPrefab;
@@ -34,7 +20,6 @@ public class TouchManager : MonoBehaviour, IController {
     //Components
     public VariableManager variableManager { get; set; }
     public MenuManager menuManager { get; set; }
-    public Frog frog { get; set; }
     public HUD hud { get; set; }
     CanvasGroup endGameCanvas;
     ObjectPool qualityText;
@@ -49,16 +34,9 @@ public class TouchManager : MonoBehaviour, IController {
         menuManager = transform.parent.GetComponentInChildren<MenuManager>();
         hud = menuManager.GetComponentInChildren<HUD>();
 
-        touchableLayerMask = LayerMask.GetMask("Touchable");
-		SetUpInput();
 		SetUpTouchIndicators();
 
 		qualityText = GetComponent<ObjectPool>();
-    }
-
-    void Start()
-    {
-        Register();
     }
 	
 	void Update ()
@@ -107,17 +85,13 @@ public class TouchManager : MonoBehaviour, IController {
                     }
 
                     if (isTouchInput)
+                    {
                         DecrementOtherTouchIndices(i);
+                    }
                 }
             }
 
-            for (int i = 0; i < 2; i++)
-            {
-                if (!limbs[i].IsFree && (UserInput.InputCount <= limbs[i].TouchIndex || !UserInput.IsInputOn(limbs[i].TouchIndex)))
-                {
-                    FreeTouch(i);
-                }
-            }
+            FreeTouches();
                 
 			if(!HasStep && !frog.isDead && frog.canDie )
 			{
@@ -135,26 +109,28 @@ public class TouchManager : MonoBehaviour, IController {
 
 	#region Functions
 	
-	public void PlayLevel()
+	public override void PlayLevel()
 	{
         ResetStats();
         frog.Play();
         isPlaying = true;
 	}
 	
-	public void ForceRelease(Transform step)
-	{
-		if(StepIsHeld(step))
-		{
-			FreeTouch(GetLimb(step).TouchIndex);
-		}
-	}
+    public override void CollectFly()
+    {
+        hud.BugsCaught++;
+        menuManager.UpdateFlyToGoText();
+    }
 
-	public void SetFrog(Transform newFrog)
-	{
-		frog = newFrog.GetComponent<Frog>();
-		limbs = newFrog.GetComponentsInChildren<Limb>();
-	}
+    public override void StartLevel()
+    {
+        menuManager.StartGame();
+    }
+
+    public override void AddToTongueCatchActions(System.Action action)
+    {
+        frog.tongue.AddToCatchActions(action);
+    }
 
     #endregion Functions
 
@@ -166,8 +142,13 @@ public class TouchManager : MonoBehaviour, IController {
         CanTouch = false;
 
         HideTouchIndicators();
+
         variableManager.SaveStats(hud.BugsCaught, hud.StepsClimbed);
         menuManager.SetGrabStats(grabStats);
+        if (hasDied)
+        {
+            menuManager.ShowEndGamePanel();
+        }
         frog.EndGame(hasDied);
         Invoke("ResumeTouch", hasDied ? 1f : 0);
     }
@@ -240,12 +221,6 @@ public class TouchManager : MonoBehaviour, IController {
 		else if(touchIndicators[0].touchIndex >= touchIndex)
 			touchIndicators[0].touchIndex++;
 	}
-
-	private void FreeTouch(int touchIndex)
-	{
-//		GetTouchIndicator(touchIndex).Hide();
-		GetLimb(touchIndex).ReleaseStep();
-	}
 			
 	private void SetUpBarriers()
 	{
@@ -253,74 +228,6 @@ public class TouchManager : MonoBehaviour, IController {
 
 		GameObject.Find("LeftRockBarrier").transform.position = new Vector2(-halfScreenWidth-1, -1.8f);
 		GameObject.Find("RightRockBarrier").transform.position = new Vector2(halfScreenWidth+1, -1.8f);
-	}
-	
-	private void CheckTouch(Vector2 worldPos, int touchIndex)
-	{
-		RaycastHit2D hit = Physics2D.Raycast (worldPos, Vector2.zero, 1f, touchableLayerMask);
-
-		//Touched an object
-		if(hit.collider != null)
-		{
-			DecipherTouch(hit.transform, touchIndex, worldPos);
-		}
-
-		//Didn't touch an object
-		else if(HasFreeLimb)
-		{
-			if(isPlaying)
-			{
-				//qualityText.GetTransformAndSetPosition(worldPos, 3);
-				grabStats.w++;
-			}
-			AudioManager.Instance.PlayForAll(AudioManager.Instance.missSound);
-			GetFreeLimb().MoveLimb(worldPos);
-
-			frog.Look(worldPos);
-		}
-	}
-
-	private void DecipherTouch(Transform touched, int touchIndex, Vector2 worldPos)
-	{
-		if(touched.CompareTag("Step") && HasFreeLimb && !StepIsHeld(touched))
-		{
-			TouchStep(touched, touchIndex, worldPos);
-		}
-
-		else if(touched.CompareTag("Bug"))
-		{
-			TouchBug(touched);
-		}
-
-		else if(touched.CompareTag("GrabableScenery"))
-		{
-			touched.SpawnScript().Grab(playerID);
-		}
-
-		frog.Look(touched);
-	}
-
-	private void TouchBug(Transform bug)
-	{
-		bug.BugSpawnScript().Grab(playerID);
-		frog.ExpandTongue(bug);
-	}
-
-	private void TouchStep(Transform step, int touchIndex, Vector2 worldPos)
-    { 
-		if(isPlaying && !step.StepSpawnScript().wasGrabbed)
-		{
-			float distance = (worldPos - (Vector2)step.position).sqrMagnitude;
-			int index = distance > 20 ? 0 : (distance > 10 ? 1 : 2);
-			TrackGrabQuality(index);
-			qualityText.GetTransformAndSetPosition(worldPos, index);
-            hud.StepsClimbed++;
-        }
-
-        Limb limb = GetFreeLimb();
-		limb.SetStep(step, touchIndex);
-
-        LevelManager.Instance.CheckForStepTrigger(step, hud.StepsClimbed);
 	}
 
 /*	private void TouchStepEnhanced(Transform step, int touchIndex)
@@ -343,39 +250,7 @@ public class TouchManager : MonoBehaviour, IController {
 			stepsLinked = 0;
 	}
 	*/
-				
-	private bool StepIsHeld(Transform step)
-	{
-		return limbs[0].GetStepTransform() == step || limbs[1].GetStepTransform() == step;
-	}
-	
-	private Limb GetFreeLimb() 
-	{ 
-		if(limbs[0].IsFree)
-			return limbs[0];
-		else if(limbs[1].IsFree)
-			return limbs[1];
-		return null;
-	} 
-
-	private Limb GetLimb(int touchIndex)
-	{
-		if(limbs[0].HasTouchIndex(touchIndex))
-			return limbs[0];
-		else if(limbs[1].HasTouchIndex(touchIndex))
-			return limbs[1];
-		return null;
-	}
-
-	private Limb GetLimb(Transform step)
-	{
-		if(limbs[0].GetStepTransform() == step)
-			return limbs[0];
-		else if(limbs[1].GetStepTransform() == step)
-			return limbs[1];
-		return null;
-	}
-
+					
 	private bool TouchIsLimb(int touchIndex)
 	{
 		return limbs[0].HasTouchIndex(touchIndex) || limbs[1].HasTouchIndex(touchIndex);
@@ -395,28 +270,28 @@ public class TouchManager : MonoBehaviour, IController {
 			touchIndicators[i].Hide();
 	}
 
-	private void MoveLimbs()
-	{
-		for(int i = 0; i < limbs.Length; i++)
-		{
-			//Move Limb to Step
-			if(!limbs[i].IsFree && !limbs[i].IsMoving)
-			{
-				limbs[i].Position = limbs[i].GetStepTransform().position;
-				limbs[i].HandRotation = limbs[i].GetStepTransform().rotation;
-			}
+    protected override void TouchStep(Transform step, int touchIndex, Vector2 worldPos)
+    {
+        if (isPlaying && !step.StepSpawnScript().wasGrabbed)
+        {
+            float distance = (worldPos - (Vector2)step.position).sqrMagnitude;
+            int index = distance > 20 ? 0 : (distance > 10 ? 1 : 2);
+            TrackGrabQuality(index, worldPos);
+            hud.StepsClimbed++;
+        }
 
-			//Return Limb to starting location
-			else
-			{
-				limbs[i].Position = Vector2.SmoothDamp(limbs[i].Position, limbReturnPos[i], ref currentLimbVelocity[i], limbReturnTime);
-			}
-		}
-	}
+        Limb limb = GetFreeLimb();
+        limb.SetStep(step, touchIndex);
 
-	private void TrackGrabQuality(int index)
+        LevelManager.Instance.CheckForStepTrigger(step, hud.StepsClimbed);
+    }
+
+
+    protected override void TrackGrabQuality(int index, Vector2 worldPos)
 	{
-		if(index == 0)
+        qualityText.GetTransformAndSetPosition(worldPos, index);
+
+        if (index == 0)
 		{
 			AudioManager.Instance.PlayForAll(AudioManager.Instance.okVoiceSound);
 			grabStats.x++;
@@ -439,16 +314,6 @@ public class TouchManager : MonoBehaviour, IController {
 		grabStats = Vector4i.zero;
 	}
 		
-	private void SetUpInput()
-	{
-#if UNITY_EDITOR
-		Component[] userInputs = GetComponents (typeof(IUserInput));
-		UserInput = (userInputs[0] as IUserInput).IsTouchInput ? userInputs[1] as IUserInput : userInputs[0] as IUserInput;
-#else
-		UserInput = (IUserInput) GetComponent(typeof(IUserInput));
-#endif
-		isTouchInput = UserInput.IsTouchInput;
-	}
 
     /*	
 	// Never called

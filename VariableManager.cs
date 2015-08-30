@@ -1,23 +1,17 @@
 ﻿using UnityEngine;
-using TMPro;
 using UnityEngine.SocialPlatforms;
 
 public class VariableManager : MonoBehaviour {
 
-	private int highScore = 0;
-	public int HighScore { get { return highScore; } set { highScore = value; highScoreText.SetText("TOP: {0}", value); } }
-
+	public int HighScore { get; private set; }
 	public bool IsPlayingMusic { get; private set; }
     public int BugsCaught { get; private set; }
 	public int currentFrogID = -1;
 
-	private TextMeshProUGUI highScoreText;
 	private bool hasLoadedSocial = false;
 
 	void Awake()
-	{
-		Transform hud = GameObject.Find ("HUD").transform;
-		highScoreText = hud.FindChild ("HighScore").GetComponent<TextMeshProUGUI>();
+    { 
 		currentFrogID = PlayerPrefs.GetInt("FrogID", 1);
 		HighScore = PlayerPrefs.GetInt("HighScore", 0);
 		IsPlayingMusic = PlayerPrefsX.GetBool("IsPlayingMusic", true);
@@ -38,7 +32,6 @@ public class VariableManager : MonoBehaviour {
 
 			SaveHighScore(stepsClimbed);
 			HighScore = stepsClimbed;
-			highScoreText.color = Color.green;
 		}
 	}
 

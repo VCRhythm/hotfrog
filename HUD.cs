@@ -77,19 +77,25 @@ public class HUD : MonoBehaviour {
 
 	public void SetInitialStats()
 	{
-		highScoreText.color = Color.white;
-		canChangeFlyCount = true;
-			
-		//Update Scoreboard
-		if(variableManager.HighScore > 0)
-			newHighScore = variableManager.HighScore + 1;
-			
-		UpdateFlyCount();
-		StepsClimbed = 0;
+        StepsClimbed = 0;
+
+        highScoreText.color = Color.white;
+        highScoreText.SetText("TOP: {0}", variableManager.HighScore);
+
+        //Update Scoreboard
+        if (variableManager.HighScore > 0)
+        {
+            newHighScore = variableManager.HighScore + 1;
+        }
+
+
+        canChangeFlyCount = true;
+        UpdateFlyCount();
 	}
 
 	private void NewHighScore()
 	{
+        highScoreText.color = Color.green;
 		AudioManager.Instance.PlayForAll (AudioManager.Instance.highScoreSound);
 	
 		stepCountAnimator.SetBool("IsHighScore", true);

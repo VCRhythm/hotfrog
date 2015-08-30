@@ -120,7 +120,6 @@ public class Bug : Spawn {
 		if(ownerID >= 0)
 		{
 			grabAction(ownerID);
-            ControllerManager.Instance.TellController(ownerID, (x) => { x.menuManager.UpdateFlyToGoText(); });
 			AudioManager.Instance.PlayForAll(AudioManager.Instance.flySound);
 		}
 
@@ -139,10 +138,10 @@ public class Bug : Spawn {
                 {
                     ControllerManager.Instance.TellController(playerID, (x) =>
                     {
-                        x.frog.tongue.AddToCatchActions(
+                        x.AddToTongueCatchActions(
                             () =>
                             {
-                                x.menuManager.StartGame();
+                                x.StartLevel();
                                 Destroy(_gameObject);
                             });
                     });
@@ -155,7 +154,7 @@ public class Bug : Spawn {
                 {
                     ControllerManager.Instance.TellController(playerID, (x) =>
                     {
-                        x.hud.BugsCaught++;
+                        x.CollectFly();
                     });
                 };
 			    decisionAfterMoving = () => { Invoke("Leave", lifeSpan); };
