@@ -3,15 +3,9 @@ using UnityEngine;
 public class TouchManager : Controller {
 
     #region Fields
-
-    public override int playerID { get; set; }
 	
     //Input
-    private bool canTouch = false;
-    public override bool CanTouch { get { return canTouch; } set { canTouch = value;  } }
 	TouchIndicator[] touchIndicators = new TouchIndicator[2];
-
-    public override bool isPlaying { get; set; }
 
     //Guidance
     public TouchIndicator touchIndicatorPrefab;
@@ -28,8 +22,10 @@ public class TouchManager : Controller {
 
     #region Component Segments
 
-    void Awake()
+    protected override void Awake()
 	{
+        SetUpInput();
+
         variableManager = GetComponentInParent<VariableManager>();
         menuManager = transform.parent.GetComponentInChildren<MenuManager>();
         hud = menuManager.GetComponentInChildren<HUD>();
@@ -37,6 +33,8 @@ public class TouchManager : Controller {
 		SetUpTouchIndicators();
 
 		qualityText = GetComponent<ObjectPool>();
+
+        base.Awake();
     }
 	
 	void Update ()
@@ -112,8 +110,8 @@ public class TouchManager : Controller {
 	public override void PlayLevel()
 	{
         ResetStats();
-        frog.Play();
-        isPlaying = true;
+
+        base.PlayLevel();
 	}
 	
     public override void CollectFly()
@@ -127,14 +125,20 @@ public class TouchManager : Controller {
         menuManager.StartGame();
     }
 
-    public override void AddToTongueCatchActions(System.Action action)
-    {
-        frog.tongue.AddToCatchActions(action);
-    }
-
     #endregion Functions
 
     #region Private Functions
+
+    private void SetUpInput()
+    {
+#if UNITY_EDITOR
+        Component[] userInputs = GetComponents(typeof(IUserInput));
+        UserInput = (userInputs[0] as IUserInput).IsTouchInput ? userInputs[1] as IUserInput : userInputs[0] as IUserInput;
+#else
+		UserInput = (IUserInput) GetComponent(typeof(IUserInput));
+#endif
+        isTouchInput = UserInput.IsTouchInput;
+    }
 
     private void EndLevel(bool hasDied = true)
     {

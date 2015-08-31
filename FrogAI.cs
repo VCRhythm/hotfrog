@@ -1,65 +1,42 @@
 ﻿using UnityEngine;
-using System;
 
-[RequireComponent(typeof(Frog))]
 public class FrogAI : Controller
 {
-    public override bool CanTouch
-    {
-        get
-        {
-            throw new NotImplementedException();
-        }
+    private float lastDecisionTime = 0;
+    private float nextDecisionTime = 1f;
+    private float screenWidth;
+    private float screenHeight;
 
-        set
-        {
-            throw new NotImplementedException();
-        }
+    void Start()
+    {
+        SetFrog(GetComponentInChildren<Frog>());
+
+        screenHeight = Camera.main.orthographicSize;
+        screenWidth = screenHeight * (Screen.width / Screen.height);
     }
 
-    public override bool isPlaying
+    void Update()
     {
-        get
-        {
-            throw new NotImplementedException();
-        }
+        if (!CanTouch) return;
 
-        set
-        {
-            throw new NotImplementedException();
-        }
-    }
+        MoveLimbs();
 
-    public override int playerID
-    {
-        get
+        if(Time.time >= lastDecisionTime + nextDecisionTime)
         {
-            throw new NotImplementedException();
+            Vector2 worldPosition = new Vector2(Random.Range(-screenWidth, screenWidth), Random.Range(-screenHeight, screenHeight) );
+            
+            CheckTouch(worldPosition, 0);
+            lastDecisionTime = Time.time;
         }
-
-        set
-        {
-            throw new NotImplementedException();
-        }
-    }
-
-    public override void AddToTongueCatchActions(Action action)
-    {
-        throw new NotImplementedException();
     }
 
     public override void CollectFly()
     {
-        throw new NotImplementedException();
-    }
-
-    public override void PlayLevel()
-    {
-        throw new NotImplementedException();
+        return;
     }
 
     public override void StartLevel()
     {
-        throw new NotImplementedException();
+        return;
     }
 }

@@ -153,6 +153,7 @@ public class Frog : MonoBehaviour {
 		minBlinkTimer = new WaitForSeconds(minBlinkTime);
 
 		headTransform = _transform.FindChild("Head");
+        Debug.Log(headTransform);
 		tongue = headTransform.FindChild("Tongue").GetComponent<Tongue>();
 		rightPupil = headTransform.FindChild("RightPupil");
 		leftPupil = headTransform.FindChild("LeftPupil");

@@ -38,8 +38,6 @@ public class FrogPackages : MonoBehaviour {
 
 	private Frog frog;
 
-	private TextMeshProUGUI nameText;
-
 	private bool hasLoaded = false;
 
     private IController controller;
@@ -55,7 +53,8 @@ public class FrogPackages : MonoBehaviour {
         menuManager = GetComponent<MenuManager>();
         variableManager = GetComponent<VariableManager>();
         controller = transform.GetComponentInChildren(typeof(IController)) as IController;
-		//Clear any saved purchases
+		
+        //Clear any saved purchases
 		if(ResetPackagesOnStart)
 		{
 			PlayerPrefs.DeleteAll();
@@ -67,8 +66,6 @@ public class FrogPackages : MonoBehaviour {
 
 	void Start()
 	{
-        nameText = GameObject.Find("FrogName").GetComponent<TextMeshProUGUI>();
-
         hasLoaded = true;
 		MakeFrog(variableManager.currentFrogID, false, false);
 	}

@@ -4,11 +4,11 @@ using System;
 public abstract class Controller : MonoBehaviour, IController {
 
     public string playerName;
-    public abstract int playerID { get; set; }
-    public abstract bool isPlaying { get; set; }
+    public int playerID { get; set; }
+    public bool isPlaying { get; set; }
 
     //Input
-    public abstract bool CanTouch { get; set; }
+    public bool CanTouch { get; set; }
     protected IUserInput UserInput;
     protected bool isTouchInput = false;
     LayerMask touchableLayerMask;
@@ -28,9 +28,8 @@ public abstract class Controller : MonoBehaviour, IController {
     float limbReturnTime = .3f;
     Vector2[] currentLimbVelocity = new Vector2[2];
 
-    void Awake()
+    protected virtual void Awake()
     {
-        SetUpInput();
         touchableLayerMask = LayerMask.GetMask("Touchable");
     }
 
@@ -49,10 +48,18 @@ public abstract class Controller : MonoBehaviour, IController {
 
     public abstract void StartLevel();
 
-    public abstract void PlayLevel();
+    public virtual void PlayLevel()
+    {
+        frog.Play();
+        isPlaying = true;
+    }
 
     public abstract void CollectFly();
-    public abstract void AddToTongueCatchActions(Action action);
+
+    public void AddToTongueCatchActions(Action action)
+    {
+        frog.tongue.AddToCatchActions(action);
+    }
 
     public void ForceRelease(Transform step)
     {
@@ -66,17 +73,6 @@ public abstract class Controller : MonoBehaviour, IController {
     {
         playerID = ControllerManager.playerCount++;
         ControllerManager.Instance.Register(this);
-    }
-
-    private void SetUpInput()
-    {
-#if UNITY_EDITOR
-        Component[] userInputs = GetComponents(typeof(IUserInput));
-        UserInput = (userInputs[0] as IUserInput).IsTouchInput ? userInputs[1] as IUserInput : userInputs[0] as IUserInput;
-#else
-		UserInput = (IUserInput) GetComponent(typeof(IUserInput));
-#endif
-        isTouchInput = UserInput.IsTouchInput;
     }
 
     protected void FreeTouches()
