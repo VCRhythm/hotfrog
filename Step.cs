@@ -7,7 +7,6 @@ public class Step : RigidbodySpawn {
 	#region Public Fields
 	
 	public ActionType actionType;
-    public float pullMultiplier = 1f;
 
     public Vector2 Position { get { return _transform.position; } set { _transform.position = value; } }
     public bool HasGuidance { get { return guidance != null; } }
@@ -254,11 +253,11 @@ public class Step : RigidbodySpawn {
 		}
 	}
 
-	private void Pull(bool isInverted = false)
+	private bool Pull(bool isInverted = false, float pullMultiplier = 1f)
 	{
         Invoke("StopPull", 1f);
 
-        SpawnManager.Instance.PullStep(this, isInverted, pullMultiplier);
+        return SpawnManager.Instance.PullStep(this, isInverted, pullMultiplier);
 	}
 
 	private void StopPull()
@@ -375,7 +374,7 @@ public class Step : RigidbodySpawn {
 		switch(actionType)
 		{
             case ActionType.Tutorial:
-                releaseAction += () => { Pull(true); };
+                releaseAction += () => { if(Pull(true, 3f)) LevelManager.Instance.ResetTutorial(); };
                 break;
 		    case ActionType.Crumble:
 			    grabAction += () => { MakeUnsteady(false, .5f); Invoke("Explode", 1.5f); };
@@ -439,15 +438,13 @@ public class Step : RigidbodySpawn {
 		}
 	}
 
-    //	private void PullDownRelease()
-    //	{
-    //		StopPullTween();
-    //	}
-
     private void ForceRelease()
     {
         CancelInvoke();
-        ControllerManager.Instance.TellController(grabbedPlayerID, (x) => { x.ForceRelease(_transform); });
+        if (grabbedPlayerID >= 0)
+        {
+            ControllerManager.Instance.TellController(grabbedPlayerID, (x) => { x.ForceRelease(_transform); });
+        }
 	}
 
 	private IEnumerator DestroyIn(float delay)
@@ -455,15 +452,7 @@ public class Step : RigidbodySpawn {
 		yield return new WaitForSeconds(delay);
 		Destroy ();
 	}
-	
-//	private void StopPullTween()
-//	{
-//		if(DOTween.IsTweening(_transform))
-//		{
-//			_transform.DOKill();
-//		}
-//	}
-	
+		
 	private void StopShakeTween()
 	{
 		IsUnsteady = false;

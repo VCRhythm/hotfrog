@@ -41,7 +41,6 @@ public class RigidbodySpawn : Spawn, IGrabable
         {
             if (speed != currentSpeed)
             {
-                Debug.Log(speed + " " + currentSpeed);
                 rb2D.velocity = new Vector2(Mathf.Sign(currentSpeed.x) != Mathf.Sign(speed.x) ? 0 : rb2D.velocity.x, Mathf.Sign(currentSpeed.y) != Mathf.Sign(speed.y) ? 0 : rb2D.velocity.y);                
                 //rb2D.angularVelocity = 0;
                 currentSpeed = speed;

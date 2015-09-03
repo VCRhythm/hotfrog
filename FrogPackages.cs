@@ -1,7 +1,6 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
-using TMPro;
 
 public class FrogPackages : MonoBehaviour {
 
@@ -49,8 +48,8 @@ public class FrogPackages : MonoBehaviour {
 
 	void Awake()
 	{
-        purchaseManager = GetComponent<PurchaseManager>();
-        menuManager = GetComponent<MenuManager>();
+        purchaseManager = GetComponentInChildren<PurchaseManager>();
+        menuManager = GetComponentInChildren<MenuManager>();
         variableManager = GetComponent<VariableManager>();
         controller = transform.GetComponentInChildren(typeof(IController)) as IController;
 		

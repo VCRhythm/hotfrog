@@ -153,7 +153,6 @@ public class Frog : MonoBehaviour {
 		minBlinkTimer = new WaitForSeconds(minBlinkTime);
 
 		headTransform = _transform.FindChild("Head");
-        Debug.Log(headTransform);
 		tongue = headTransform.FindChild("Tongue").GetComponent<Tongue>();
 		rightPupil = headTransform.FindChild("RightPupil");
 		leftPupil = headTransform.FindChild("LeftPupil");
@@ -257,7 +256,7 @@ public class Frog : MonoBehaviour {
 		{
 			DOTween.Kill ("X");
             //DOTween.Kill("XRock");
-            headTransform.DOPunchRotation(new Vector3(0, 0, -0.5f * (headTransform.position.x - xDest)), 1f, 1, 1f).SetId("XRock").OnComplete(() => { headTransform.DORotate(Vector3.zero, 1f); } );
+            headTransform.DOPunchRotation(new Vector3(0, 0, -0.1f * (headTransform.position.x - xDest)), 1f, 1, 1f).SetId("XRock").OnComplete(() => { headTransform.DORotate(Vector3.zero, 1f); } );
 			headTransform.DOMoveX(xDest, xDestTime).SetEase(Ease.OutSine).SetId("X");
 		}
 

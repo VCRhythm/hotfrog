@@ -1,6 +1,8 @@
 using UnityEngine;
 
-public class TouchManager : Controller {
+[RequireComponent(typeof(VariableManager))]
+[RequireComponent(typeof(ObjectPool))]
+public class Player : Controller {
 
     #region Fields
 	
@@ -12,9 +14,9 @@ public class TouchManager : Controller {
     public Transform[] guidancePrefabs = new Transform[2];
 
     //Components
-    public VariableManager variableManager { get; set; }
-    public MenuManager menuManager { get; set; }
-    public HUD hud { get; set; }
+    VariableManager variableManager { get; set; }
+    MenuManager menuManager { get; set; }
+    HUD hud { get; set; }
     CanvasGroup endGameCanvas;
     ObjectPool qualityText;
         
@@ -26,8 +28,8 @@ public class TouchManager : Controller {
 	{
         SetUpInput();
 
-        variableManager = GetComponentInParent<VariableManager>();
-        menuManager = transform.parent.GetComponentInChildren<MenuManager>();
+        variableManager = GetComponent<VariableManager>();
+        menuManager = GetComponentInChildren<MenuManager>();
         hud = menuManager.GetComponentInChildren<HUD>();
 
 		SetUpTouchIndicators();

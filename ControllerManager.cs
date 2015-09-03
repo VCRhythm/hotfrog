@@ -16,19 +16,19 @@ public class ControllerManager : MonoBehaviour {
 
     public static int playerCount = 0;
 
-    private List<IController> controllers = new List<IController>();
+    private List<Controller> controllers = new List<Controller>();
 
-    public void Register(IController controller)
+    public void Register(Controller controller)
     {
         controllers.Add(controller);
     }
 
-    public void Deregister(IController controller)
+    public void Deregister(Controller controller)
     {
         controllers.Remove(controller);
     }
 
-    public void TellControllers(System.Action<IController> action)
+    public void TellControllers(System.Action<Controller> action)
     {
         for(int i=0; i<controllers.Count; i++)
         {
@@ -36,9 +36,12 @@ public class ControllerManager : MonoBehaviour {
         }
     }
 
-    public void TellController(int playerID, System.Action<IController> action)
+    public void TellController(int playerID, System.Action<Controller> action)
     {
-        action(controllers.Find(x => x.playerID == playerID));
+        Debug.Log(controllers.Count);
+        Controller controller = controllers.Find(x => x.playerID == playerID);
+        Debug.Log(controller + " action: " + action);
+        action(controller);
     }
 
 }

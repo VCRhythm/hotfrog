@@ -10,9 +10,11 @@ public class FrogAI : Controller
     void Start()
     {
         SetFrog(GetComponentInChildren<Frog>());
+        PlayLevel();
 
         screenHeight = Camera.main.orthographicSize;
-        screenWidth = screenHeight * (Screen.width / Screen.height);
+        screenWidth = screenHeight * (Screen.height / Screen.width) *.5f;
+        CanTouch = true;
     }
 
     void Update()

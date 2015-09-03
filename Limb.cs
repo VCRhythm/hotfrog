@@ -80,7 +80,7 @@ public class Limb : MonoBehaviour {
 		{
 			if(step != null) OpenHand();
 			stepScript = null;
-            step = newStep;
+            step = null;
         }
 		else
 		{
@@ -122,7 +122,7 @@ public class Limb : MonoBehaviour {
 		CancelMovement();
 
 		IsMoving = true;
-        _transform.DOMove(targetPosition, 0.1f).OnComplete(MovingStopped);
+        _transform.DOMove(targetPosition, 0.1f).OnComplete(() => { IsMoving = false; });
 	}
 	
 	#endregion Public Functions
@@ -133,7 +133,8 @@ public class Limb : MonoBehaviour {
 	{
 		//Movement has already been cancelled by SetStep
 		IsMoving = true;
-        _transform.DOMove((Vector2)target.position, 0.1f).OnComplete(CloseHand);
+        _transform.DOMove((Vector2)target.position, 0.1f);
+        Invoke("CloseHand", .1f);
 	}
 
 	private void CancelMovement()
@@ -158,21 +159,19 @@ public class Limb : MonoBehaviour {
 	
 	private void CloseHand()
 	{
-		MovingStopped();
+        IsMoving = false;
 
-		handGrabRenderer.sprite = grabSprite;
-		//handGrabRenderer.sortingLayerName = ROCKS_SORTING_LAYER;
-		//handGrabRenderer.sortingOrder = 1;
-		handRenderer.sprite = backGrabSprite;
+        if (step != null && stepScript.isActiveAndEnabled)
+        {
+            handGrabRenderer.sprite = grabSprite;
+            handRenderer.sprite = backGrabSprite;
+            //handGrabRenderer.sortingLayerName = ROCKS_SORTING_LAYER;
+            //handGrabRenderer.sortingOrder = 1;
 
-    	frog.Bob(stepScript, step.position.x);
-		stepScript.Grab(playerID);
-	}
-
-	private void MovingStopped()
-	{
-		IsMoving = false;
-	}
+            frog.Bob(stepScript, step.position.x);
+            stepScript.Grab(playerID);
+        }
+    }
 	
 	#endregion Private Functions
 }

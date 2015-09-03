@@ -12,7 +12,7 @@ public class LevelManager : MonoBehaviour
     {
         get
         {
-            if (instance == null) instance = GameObject.FindObjectOfType<LevelManager>();
+            if (instance == null) instance = FindObjectOfType<LevelManager>();
             return instance;
         }
     }
@@ -21,6 +21,7 @@ public class LevelManager : MonoBehaviour
     public int levelIndex = 1;
     public Level[] levels;
 
+    public Transform aiPrefab;
     public Step pullUpStepTransform;
     private PullStep pullUpStep;
 
@@ -30,6 +31,7 @@ public class LevelManager : MonoBehaviour
     private Lava lava;
     private Transform spawnerParent;
     private List<Spawner> createdSpawners = new List<Spawner>();
+    private List<GameObject> createdObjects = new List<GameObject>();
     private Overlay overlay1;
     private Overlay overlay2;
     private Transform wallParent;
@@ -117,7 +119,6 @@ public class LevelManager : MonoBehaviour
 
     public void ResetTutorial()
     {
-        PullY(-3f);
         speckManager.MoveSpecks(stepTransforms[0]);
         AudioManager.Instance.PlayForAll(AudioManager.Instance.fallSound); 
     }
@@ -154,11 +155,11 @@ public class LevelManager : MonoBehaviour
 
         Debug.Log("Clean up spawners");
         CleanUpSpawners(false);
+        CleanUpObjects();
 
         if (canLoadNextLevel)
         {
             levelIndex++;
-            Debug.Log("Set up level");
             SetUpLevel(levelIndex);
             ShowIntroAndStartLevel();
         }
@@ -206,6 +207,8 @@ public class LevelManager : MonoBehaviour
         {
             SpawnManager.Instance.ResetLevelSpawners(Spawner.Type.Scenery);
         }
+
+        createdObjects.Clear();
 
         //Set up level spawners (might want to move this to setup)
         stepTransforms.Clear();
@@ -268,12 +271,23 @@ public class LevelManager : MonoBehaviour
         wallParent.DOLocalMoveZ(10f, 1f);
     }
 
+    private void CleanUpObjects()
+    {
+        for(int i=createdObjects.Count - 1; i>=0; i--)
+        {
+            Destroy(createdObjects[i]);
+        }
+    }
+
     private void CleanUpSpawners(bool cleanUpScenerySpawners)
     {
         for (int i = createdSpawners.Count - 1; i >= 0; i--)
         {
-            if(createdSpawners[i].spawnerType != Spawner.Type.Scenery || cleanUpScenerySpawners)
-                Destroy(createdSpawners[i].gameObject);
+            if (createdSpawners[i].spawnerType != Spawner.Type.Scenery || cleanUpScenerySpawners)
+            {
+                Debug.Log(createdSpawners[i].name +" destroyed");
+                DestroyImmediate(createdSpawners[i].gameObject);
+            }
         }
     }
 
@@ -299,7 +313,6 @@ public class LevelManager : MonoBehaviour
 
     private void FillLevelEvents(int level)
     {
-        Debug.Log("Filling level " + level);
         timedLevelEvents.Clear();
         stepLevelEvents.Clear();
 
@@ -311,9 +324,14 @@ public class LevelManager : MonoBehaviour
 
             //Tutorial
             case 1:
-                timedLevelEvents.Add(new LevelEvent(true, 0f, () => { Instantiate(currentLevel.GetObject("Stars")); sunAnimator.SetBool("isNight", true); }));
+                timedLevelEvents.Add(new LevelEvent(true, 0f, () => 
+                {
+                    createdObjects.Add(Instantiate(currentLevel.GetObject("Stars")));
+                    sunAnimator.SetBool("isNight", true);
+                }));
                 timedLevelEvents.Add(new LevelEvent(true, 0f, () => { SpawnManager.Instance.ActivateLevelSpawners(Spawner.Type.Step); }));
                 speckManager = Instantiate(currentLevel.GetObject("SpeckManager")).GetComponent<SpeckManager>();
+                createdObjects.Add(speckManager.gameObject);
                 timedLevelEvents.Add(new LevelEvent(true, 1f, () => { speckManager.ActivateSpecks(Vector2.zero); }));
                 timedLevelEvents.Add(new LevelEvent(true, 2f, () => { speckManager.MoveSpecks(stepTransforms[0]); }));
 
@@ -328,6 +346,8 @@ public class LevelManager : MonoBehaviour
             //Pot
             case 2:
                 timedLevelEvents.Add(new LevelEvent(true, 1f, () => { lava.LiftHeat(true); }));
+                timedLevelEvents.Add(new LevelEvent(true, 2f, () => { PullY(3f); }));
+                timedLevelEvents.Add(new LevelEvent(true, 5f, () => { Instantiate(aiPrefab); }));
                 //stepLevelEvents.Add(new LevelEvent(false, 2f, () => { SpawnManager.Instance.SpawnFromAll(Spawner.Type.Scenery, Vector2.up, 0); SpawnManager.Instance.ActivateScenerySpawners(); }));
                 /*stepLevelEvents.Add(new LevelEvent(false, 20f, () =>
               {

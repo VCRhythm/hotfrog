@@ -48,9 +48,13 @@ public class SpawnManager : MonoBehaviour {
 		CollectLevelSpawners();
 	}
 
-	public void PullStep(Step step, bool isInverted, float stepPullMultiplier = 1f)
+	public bool PullStep(Step step, bool isInverted = false, float stepPullMultiplier = 1f)
 	{
-		if(isInverted && (commandingStep != null && step != commandingStep)) return;
+        //Don't reset steps if not commanding step
+        if (isInverted && (commandingStep != null && step != commandingStep))
+        {
+            return false;
+        }
 
 		commandingStep = step;
 
@@ -59,6 +63,8 @@ public class SpawnManager : MonoBehaviour {
 
 		if(!isInverted) ActivateSpawnersForDirection(spawnDirection != prevSpawnDirection);
         prevSpawnDirection = spawnDirection;
+
+        return true;
 	}
 
 	public void ReleasePullingStep(Step step)
@@ -137,6 +143,7 @@ public class SpawnManager : MonoBehaviour {
 			if(spawner.spawnerType == Spawner.Type.Step)
 			{
 				spawnersInDirection[spawner.spawnDirection].Add(spawner);
+                Debug.Log(spawner.name + ", " +spawnersInDirection[spawner.spawnDirection].Count);
 			}
 
             levelSpawners.Add(spawner);
