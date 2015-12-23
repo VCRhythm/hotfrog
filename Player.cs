@@ -5,21 +5,21 @@ using UnityEngine;
 public class Player : Controller {
 
     #region Fields
-	
+    bool canFall = false;
+
     //Input
-	TouchIndicator[] touchIndicators = new TouchIndicator[2];
+    TouchIndicator[] touchIndicators = new TouchIndicator[2];
 
     //Guidance
     public TouchIndicator touchIndicatorPrefab;
     public Transform[] guidancePrefabs = new Transform[2];
 
     //Components
-    VariableManager variableManager { get; set; }
-    MenuManager menuManager { get; set; }
-    HUD hud { get; set; }
-    CanvasGroup endGameCanvas;
+    VariableManager variableManager;
+    MenuManager menuManager;
+    HUD hud;
     ObjectPool qualityText;
-        
+
     #endregion Fields
 
     #region Component Segments
@@ -38,8 +38,14 @@ public class Player : Controller {
 
         base.Awake();
     }
-	
-	void Update ()
+
+    protected override void Start()
+    {
+        base.Start();
+        frogPackages.MakeFrog(variableManager.currentFrogID, false, false);
+    }
+
+    void Update ()
 	{
         if (CanTouch)
         {
@@ -61,22 +67,23 @@ public class Player : Controller {
 
                     CheckTouch(worldPosition, i);
 
-                    //					if(TouchIsLimb(i))
-                    //					{
-                    //						if(GetNewTouchIndicator(i) == null) Debug.Break();
-                    //						Debug.Log (GetNewTouchIndicator(i));
-                    //						GetNewTouchIndicator(i).Show(i, GetLimb(i).grabSprite);
-                    //					}
+                    //if(TouchIsLimb(i))
+                    //{
+                    //  if(GetNewTouchIndicator(i) == null) Debug.Break();
+                    //	Debug.Log (GetNewTouchIndicator(i));
+                    //	GetNewTouchIndicator(i).Show(i, GetLimb(i).grabSprite);
+                    //}
                 }
 
-                //				if(UserInput.IsInputOn(i))
-                //				{
-                //					if(TouchIsLimb(i))
-                //					{
-                //						TouchIndicator indicator = GetTouchIndicator(i);
-                //						indicator.SetPosition(Camera.main.ScreenToWorldPoint(UserInput.GetPosition (i)));
-                //					}
-                //				}
+                //if(UserInput.IsInputOn(i))
+                //{
+                //	if(TouchIsLimb(i))
+                //	{
+                //  	TouchIndicator indicator = GetTouchIndicator(i);
+                //		indicator.SetPosition(Camera.main.ScreenToWorldPoint(UserInput.GetPosition (i)));
+                //	}
+                //}
+
                 if (!UserInput.IsInputOn(i))
                 {
                     if (TouchIsLimb(i))
@@ -91,18 +98,13 @@ public class Player : Controller {
                 }
             }
 
-            FreeTouches();
+            FreeUnusedTouches();
                 
-			if(!HasStep && !frog.isDead && frog.canDie )
+			if(!HasStep && !frog.isDead && canFall)
 			{
-                if(LevelManager.Instance.ReportFall(this))
-                {
-                    frog.canDie = false;
-                    EndLevel();
-                }
+                EndClimb();
 			}
 		}
-
 	}
 	
 	#endregion Component Segments
@@ -122,9 +124,10 @@ public class Player : Controller {
         menuManager.UpdateFlyToGoText();
     }
 
-    public override void StartLevel()
+    public override void AteStartBug()
     {
-        menuManager.StartGame();
+        CanPlay = true;
+        menuManager.StartLevel();
     }
 
     #endregion Functions
@@ -142,31 +145,27 @@ public class Player : Controller {
         isTouchInput = UserInput.IsTouchInput;
     }
 
-    private void EndLevel(bool hasDied = true)
+    private void EndClimb()
     {
-        isPlaying = false;
+        IsPlaying = false;
+        CanPlay = false;
         CanTouch = false;
+        canFall = false;
 
+        FreeTouches();
         HideTouchIndicators();
 
         variableManager.SaveStats(hud.BugsCaught, hud.StepsClimbed);
         menuManager.SetGrabStats(grabStats);
-        if (hasDied)
-        {
-            menuManager.ShowEndGamePanel();
-        }
-        frog.EndGame(hasDied);
-        Invoke("ResumeTouch", hasDied ? 1f : 0);
-    }
+        menuManager.IsShowingReturnPanel = true;
 
-    private void ResumeTouch()
-    {
-        CanTouch = true;
+        frog.EndLevel(true);
+        LevelManager.Instance.ReportFall(this as Controller);
     }
 
     private void Register()
     {
-        playerID = ControllerManager.playerCount++;
+        ControllerID = ControllerManager.playerCount++;
         ControllerManager.Instance.Register(this);
     }
 
@@ -278,8 +277,9 @@ public class Player : Controller {
 
     protected override void TouchStep(Transform step, int touchIndex, Vector2 worldPos)
     {
-        if (isPlaying && !step.StepSpawnScript().wasGrabbed)
+        if (IsPlaying && !step.StepSpawnScript().wasGrabbedControllerID[ControllerID])
         {
+            step.StepSpawnScript().wasGrabbedControllerID[ControllerID] = true;
             float distance = (worldPos - (Vector2)step.position).sqrMagnitude;
             int index = distance > 20 ? 0 : (distance > 10 ? 1 : 2);
             TrackGrabQuality(index, worldPos);
@@ -288,6 +288,12 @@ public class Player : Controller {
 
         Limb limb = GetFreeLimb();
         limb.SetStep(step, touchIndex);
+
+        if (!canFall && step.StepSpawnScript().canPull)
+        {
+            canFall = true;
+            menuManager.IsShowingReturnPanel = false;
+        }
 
         LevelManager.Instance.CheckForStepTrigger(step, hud.StepsClimbed);
     }

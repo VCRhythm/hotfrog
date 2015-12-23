@@ -5,6 +5,7 @@ using System.Collections.Generic;
 public class Level {
     public string levelName = "";
     public int musicIndex = 1;
+    public bool hasTimedEvents = true;
     public bool clearAllScenery = true;
     public Material backgroundMaterial;
     public Material overlayMaterial;
@@ -12,11 +13,11 @@ public class Level {
 	public List<Spawner> spawners = new List<Spawner>();
 	public Vector2 initialSpawnDirection = new Vector2(0, -1f);
 	[HideInInspector] public List<LevelEvent> levelEvents = new List<LevelEvent>();
-	public List<GameObject> levelObjects = new List<GameObject>();
+	public List<LevelObject> levelObjects = new List<LevelObject>();
     public List<System.Action> levelAnimations = new List<System.Action>();
 
-	public GameObject GetObject(string name)
+	public LevelObject GetObject(string name)
 	{
-		return levelObjects.Find(x=> x.name == name);
+		return levelObjects.Find(x => x.name == name);
 	}
 }

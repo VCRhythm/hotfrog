@@ -8,7 +8,7 @@ public class StepAndScenerySpawner : ScenerySpawner {
 
         if (spawn != null)
         {
-            LevelManager.Instance.TrackStep(spawn.GetComponentInChildren<Step>()._transform);
+            LevelManager.Instance.TrackStep(spawn.GetComponentInChildren<Step>().transform);
         }
 
         return spawn;

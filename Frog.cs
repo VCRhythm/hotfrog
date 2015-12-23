@@ -29,9 +29,9 @@ public class Frog : MonoBehaviour {
 		Unlocked
 	}
 	[HideInInspector] public bool isFalling = false;
-	[HideInInspector] public bool isDead = false;
-    [HideInInspector] public bool canDie = false;
-    
+	[ReadOnly] public bool isDead = false;
+    [HideInInspector] public bool isLowered { get { return riseState == RiseState.Lowered; } }
+
     public AudioClip audioIntroduction;
 	public List<SpriteLoad> spriteLoads = new List<SpriteLoad>();
 	private Sprite RightHandGrabSprite;
@@ -118,7 +118,6 @@ public class Frog : MonoBehaviour {
 //	private MeshRenderer backgroundRenderer;
 //	private Animation backgroundAnimation;
 
-	private Transform _transform;
 	private Transform headTransform;
 	public Tongue tongue { get; private set; }
 
@@ -132,7 +131,7 @@ public class Frog : MonoBehaviour {
     private bool isMoving = false;
 	private RiseState riseState = RiseState.Lowered;
 
-	public Vector2 BodyPosition { get { return _transform.position; } set { _transform.position = new Vector2(value.x, value.y);}}
+	public Vector2 BodyPosition { get { return transform.position; } set { transform.position = new Vector2(value.x, value.y);}}
 	public Vector2 HeadPosition { get { return headTransform.localPosition; } set { headTransform.localPosition = new Vector2(value.x, value.y); } }
 
 	//Timers
@@ -148,11 +147,9 @@ public class Frog : MonoBehaviour {
 
     void Awake()
 	{
-		_transform = transform;
-
 		minBlinkTimer = new WaitForSeconds(minBlinkTime);
 
-		headTransform = _transform.FindChild("Head");
+		headTransform = transform.FindChild("Head");
 		tongue = headTransform.FindChild("Tongue").GetComponent<Tongue>();
 		rightPupil = headTransform.FindChild("RightPupil");
 		leftPupil = headTransform.FindChild("LeftPupil");
@@ -187,7 +184,7 @@ public class Frog : MonoBehaviour {
         SlowlyLower();
     }
 
-	public void EndGame(bool hasDied)
+	public void EndLevel(bool hasDied)
 	{
 		if(hasDied)
 		{
@@ -214,6 +211,11 @@ public class Frog : MonoBehaviour {
         StartCoroutine (AwakeAnimate());
 	}
 
+    public void StopSlowlyLowering()
+    {
+        StopCoroutine("SteadilyLowerHead");
+    }
+
 	public void Rise(bool canFullyRise, float delay = 0, bool canPlaySound = true)
 	{
 		if(riseState != RiseState.Arisen)
@@ -226,7 +228,7 @@ public class Frog : MonoBehaviour {
 
 			if(canPlaySound) AudioManager.Instance.PlayIn(delay, AudioManager.Instance.awakeSound);
 			headTransform.DOLocalMove(canFullyRise ? Vector2.zero : new Vector2(0, endY /2), .5f).SetDelay(delay);
-			_transform.DOMoveY(0, 1f).SetDelay(delay);
+			transform.DOMoveY(0, 1f).SetDelay(delay);
 		}
 	}
 
@@ -235,7 +237,7 @@ public class Frog : MonoBehaviour {
 		if(riseState != RiseState.Lowered)
 		{
 			riseState = RiseState.Lowered;
-			_transform.DOMoveY (endY, 1f);
+			transform.DOMoveY (endY, 1f);
 		}
 	}
 	

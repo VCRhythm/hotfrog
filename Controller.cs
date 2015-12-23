@@ -1,14 +1,33 @@
 ﻿using UnityEngine;
-using System;
 
-public abstract class Controller : MonoBehaviour, IController {
+public abstract class Controller : MonoBehaviour {
 
-    public string playerName;
-    public int playerID { get; set; }
-    public bool isPlaying { get; set; }
+    //Controller Variables
+    public string controllerName;
+    public int ControllerID { get; protected set; }
+    public bool CanPlay { get ; set; }
+    public bool IsPlaying { get; protected set; }
 
     //Input
-    public bool CanTouch { get; set; }
+    [ReadOnly] public bool canTouch = false;
+    public bool CanTouch
+    {
+        get
+        {
+            if (frog == null || (canTouch && frog.isLowered))
+            {
+                return false;
+            }
+            else
+            {
+                return canTouch;
+            }
+        }
+        set
+        {
+            canTouch = value;
+        }
+    }
     protected IUserInput UserInput;
     protected bool isTouchInput = false;
     LayerMask touchableLayerMask;
@@ -17,7 +36,8 @@ public abstract class Controller : MonoBehaviour, IController {
     protected Vector4i grabStats;
 
     //Frog
-    public Frog frog { get; set; }
+    public Frog frog;
+    protected FrogPackages frogPackages;
 
     //Limbs
     //int FreeLimbCount { get { return (limbs[0].IsFree ? 1 : 0) + (limbs[1].IsFree ? 1 : 0); } }
@@ -31,9 +51,10 @@ public abstract class Controller : MonoBehaviour, IController {
     protected virtual void Awake()
     {
         touchableLayerMask = LayerMask.GetMask("Touchable");
+        frogPackages = GetComponent<FrogPackages>();
     }
 
-    void Start()
+    protected virtual void Start()
     {
         Register();
     }
@@ -41,25 +62,25 @@ public abstract class Controller : MonoBehaviour, IController {
     public void SetFrog(Frog frog)
     {
         this.frog = frog;
-        frog.transform.name = playerName + "'s Frog";
+        frog.transform.name = controllerName + "'s Frog";
         frog.transform.SetParent(transform);
         limbs = frog.GetComponentsInChildren<Limb>();
+        foreach (Limb limb in limbs)
+        {
+            limb.controllerID = ControllerID;
+        }
     }
 
-    public abstract void StartLevel();
+    public abstract void AteStartBug();
 
     public virtual void PlayLevel()
     {
         frog.Play();
-        isPlaying = true;
+        IsPlaying = true;
+        CanTouch = true;
     }
 
     public abstract void CollectFly();
-
-    public void AddToTongueCatchActions(Action action)
-    {
-        frog.tongue.AddToCatchActions(action);
-    }
 
     public void ForceRelease(Transform step)
     {
@@ -71,11 +92,11 @@ public abstract class Controller : MonoBehaviour, IController {
 
     private void Register()
     {
-        playerID = ControllerManager.playerCount++;
+        ControllerID = ControllerManager.playerCount++;
         ControllerManager.Instance.Register(this);
     }
 
-    protected void FreeTouches()
+    protected void FreeUnusedTouches()
     {
         for (int i = 0; i < 2; i++)
         {
@@ -86,10 +107,21 @@ public abstract class Controller : MonoBehaviour, IController {
         }
     }
 
+    protected void FreeTouches()
+    {
+        for(int i = 0; i < 2; i++)
+        {
+            if(!limbs[i].IsFree)
+            {
+                FreeTouch(i);
+            }
+        }
+    }
+
     protected void FreeTouch(int touchIndex)
     {
         //GetTouchIndicator(touchIndex).Hide();
-        GetLimb(touchIndex).ReleaseStep();
+        GetLimb(touchIndex).SetStep(null);
     }
 
     protected Limb GetFreeLimb()
@@ -156,14 +188,14 @@ public abstract class Controller : MonoBehaviour, IController {
         //Didn't touch an object
         else if (HasFreeLimb)
         {
-            if (isPlaying)
+            if (CanPlay)
             {
                 //Miss
                 //qualityText.GetTransformAndSetPosition(worldPos, 3);
                 grabStats.w++;
             }
             AudioManager.Instance.PlayForAll(AudioManager.Instance.missSound);
-            GetFreeLimb().MoveLimb(worldPos);
+            GetFreeLimb().Move(worldPos);
 
             frog.Look(worldPos);
         }
@@ -183,7 +215,7 @@ public abstract class Controller : MonoBehaviour, IController {
 
         else if (touched.CompareTag("GrabableScenery"))
         {
-            touched.SpawnScript().Grab(playerID);
+            touched.SpawnScript().Grab(ControllerID);
         }
 
         frog.Look(touched);
@@ -191,14 +223,15 @@ public abstract class Controller : MonoBehaviour, IController {
 
     private void TouchBug(Transform bug)
     {
-        bug.BugSpawnScript().Grab(playerID);
+        bug.BugSpawnScript().Grab(ControllerID);
         frog.ExpandTongue(bug);
     }
 
     protected virtual void TouchStep(Transform step, int touchIndex, Vector2 worldPos)
     {
-        if (isPlaying && !step.StepSpawnScript().wasGrabbed)
+        if (CanPlay && !step.StepSpawnScript().wasGrabbedControllerID[ControllerID])
         {
+            step.StepSpawnScript().wasGrabbedControllerID[ControllerID] = true;
             float distance = (worldPos - (Vector2)step.position).sqrMagnitude;
             int index = distance > 20 ? 0 : (distance > 10 ? 1 : 2);
             TrackGrabQuality(index, worldPos);

@@ -27,7 +27,7 @@ public class BugSpawner : Spawner {
 		spawningSpeedMin = 0;
 		spawningSpeedMax = 0;
 
-		_transform.position = newPosition;
+		transform.position = newPosition;
 		
 		enabled = true;
 	}

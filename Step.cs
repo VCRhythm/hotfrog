@@ -2,29 +2,30 @@ using UnityEngine;
 using System.Collections;
 using DG.Tweening;
 
-public class Step : RigidbodySpawn {
-	
-	#region Public Fields
-	
-	public ActionType actionType;
+public class Step : RigidbodySpawn, IGrabable {
 
-    public Vector2 Position { get { return _transform.position; } set { _transform.position = value; } }
+    #region Public Fields
+
+    public ActionType actionType;
+
+    public Vector2 Position { get { return transform.position; } set { transform.position = value; } }
     public bool HasGuidance { get { return guidance != null; } }
-	public bool IsUnsteady { get; private set; }
-	public float TimeUnsteady { get { if(!IsUnsteady) return 0;	else return Time.time - unsteadyTime; }	}
-	public System.Func<int, bool> canBeSpawned;
-    [ReadOnly] public bool wasGrabbed = false;
+    public bool IsUnsteady { get; private set; }
+    public float TimeUnsteady { get { if (!IsUnsteady) return 0; else return Time.time - unsteadyTime; } }
+    public System.Func<int, bool> canBeSpawned;
+    [HideInInspector] public bool[] wasGrabbedControllerID;
+    public bool canPull = true;
 
     #endregion Public Fields
 
     #region Private Fields
-	private Transform guidance = null;
+    private Transform guidance = null;
 	private Animator guidanceAnimator;
 	
 	private Vector2 savedPosition;
 	private float savedAngularVelocity;
 	private Vector2 pullPosition;
-	private int grabbedPlayerID = -1;
+    private int heldByPlayerID;
 
 	public enum ActionType
 	{
@@ -50,7 +51,6 @@ public class Step : RigidbodySpawn {
 		SplashFlinging,
 		StepFlinging,
 		SpawnFly,
-        Tutorial,
         Helper
 	}
 	private System.Action grabAction;
@@ -80,8 +80,11 @@ public class Step : RigidbodySpawn {
 
 	protected override void OnEnable()
 	{
-		wasGrabbed = false;
-		AssignInteractionAction();
+        heldByPlayerID = -1;
+        wasGrabbedControllerID = new bool[ControllerManager.playerCount];
+        canPull = true;
+
+        AssignInteractionAction();
 
         base.OnEnable();
 
@@ -107,7 +110,7 @@ public class Step : RigidbodySpawn {
 		{
 
 			PlayCrumbleSound();
-			lava.Splash(new Vector2(_transform.position.x, -50f), lavaSplashes);
+			lava.Splash(new Vector2(transform.position.x, -50f), lavaSplashes);
 			
 			ForceRelease();
 		}
@@ -123,18 +126,13 @@ public class Step : RigidbodySpawn {
 
 	public void IntroShake()
 	{
-		for(int i=0; i< renderers.Length; i++)
-		{
-			renderers[i].DOFade(1, 1f);
-		}
-		_transform.DOShakePosition(1f, new Vector3(2, 2, 0), 20);
-		_transform.DOShakeScale(1f);
+		transform.DOShakePosition(1f, new Vector3(2, 2, 0), 20);
+		transform.DOShakeScale(1f);
 	}
 
-	public override void Grab(int playerID)
+	public override void Grab(int controllerID)
 	{
-		wasGrabbed = true;
-		grabbedPlayerID = playerID;
+        heldByPlayerID = controllerID;
 
 		grabAction();
 	}
@@ -142,14 +140,14 @@ public class Step : RigidbodySpawn {
 	public void Release()
 	{
 		releaseAction();
-		grabbedPlayerID = -1;
-	}
+        heldByPlayerID = -1;
+    }
 
-    public override void FadeAndDestroy(float fadeDelay, float fadeTime, float destroyDelay)
+    public override void Destroy(float fadeDelay, float fadeTime, float destroyDelay)
     {
         destroyAction();
 
-        base.FadeAndDestroy (fadeDelay, fadeTime, destroyDelay);		
+        base.Destroy (fadeDelay, fadeTime, destroyDelay);		
 	}
 
 	public override void Destroy ()
@@ -249,7 +247,7 @@ public class Step : RigidbodySpawn {
 		if(IsUnsteady)
 		{
 			StopShakeTween();
-			_transform.DOLocalMoveY(-100f, 1f);
+			transform.DOLocalMoveY(-100f, 1f);
 		}
 	}
 
@@ -306,7 +304,8 @@ public class Step : RigidbodySpawn {
 	{	
 		PlayGrabSound();
 
-		Pull ();
+		if(canPull)
+            Pull ();
         
         /*
 		hasFixedAngle = _rigidbody.fixedAngle;
@@ -345,7 +344,7 @@ public class Step : RigidbodySpawn {
 	{
 		for(int i=0; i <= explosionPebbles; i++)
 		{
-			pebblePool.GetTransformAndSetPosition(_transform.position).GetComponent<Pebble>().Explode(renderers[0].color);
+			pebblePool.GetTransformAndSetPosition(transform.position).GetComponent<Pebble>().Explode(renderers[0].color);
 		}
 	}
 
@@ -369,13 +368,10 @@ public class Step : RigidbodySpawn {
 		grabAction = () => { InitialGrabAction(); };
 		releaseAction = () => { InitialReleaseAction(); };
         canBeSpawned = (int spawnCount) => { return true; };
-        destroyAction = () => { ForceRelease(); IsUnsteady = false; if (HasGuidance) Destroy(guidance.gameObject); };
+        destroyAction = () => { ForceRelease(); canPull = false; IsUnsteady = false; if (HasGuidance) Destroy(guidance.gameObject); };
 
 		switch(actionType)
 		{
-            case ActionType.Tutorial:
-                releaseAction += () => { if(Pull(true, 3f)) LevelManager.Instance.ResetTutorial(); };
-                break;
 		    case ActionType.Crumble:
 			    grabAction += () => { MakeUnsteady(false, .5f); Invoke("Explode", 1.5f); };
 			    break;
@@ -416,21 +412,20 @@ public class Step : RigidbodySpawn {
 			    fixedUpdate = () => { rb2D.AddForce(new Vector2(0, -50f), ForceMode2D.Force); };
 			    break;
 		    case ActionType.SplashFlinging:
-			    GameObject splash = _transform.FindChild("Flingee").gameObject;
+			    GameObject splash = transform.FindChild("Flingee").gameObject;
 			    Vector2 splashLocalPosition = splash.transform.localPosition;
 			    grabAction += () => { splash.GetComponent<Rigidbody2D>().isKinematic = false; splash.GetComponent<Splash>().enabled = true; };
 			    destroyAction += () => { splash.GetComponent<Splash>().enabled = false; splash.GetComponent<Rigidbody2D>().isKinematic = true; splash.transform.localPosition = splashLocalPosition; splash.transform.localRotation = Quaternion.identity; };
 			    break;
 
 		    case ActionType.StepFlinging:
-			    GameObject step = _transform.FindChild("Flingee").gameObject;
+			    GameObject step = transform.FindChild("Flingee").gameObject;
 			    Vector2 stepLocalPosition = step.transform.localPosition;
 			    grabAction += () => { step.GetComponent<Rigidbody2D>().isKinematic = false; step.GetComponent<Step>().enabled = true; };
 			    destroyAction += () => { step.GetComponent<Step>().enabled = false; step.GetComponent<Rigidbody2D>().isKinematic = true; step.transform.localPosition = stepLocalPosition; step.transform.localRotation = Quaternion.identity; };
 			    break;
-
 		    case ActionType.SpawnFly:
-			    GameObject bug = _transform.FindChild("Bug").gameObject;
+			    GameObject bug = transform.FindChild("Bug").gameObject;
 			    Vector2 bugLocalPosition = bug.transform.localPosition;
 			    grabAction += () => { bug.GetComponent<Bug>().enabled = true; };
 			    destroyAction += () => { bug.GetComponent<Bug>().enabled = false; bug.transform.localPosition = bugLocalPosition; bug.transform.localRotation = Quaternion.identity; };
@@ -441,9 +436,9 @@ public class Step : RigidbodySpawn {
     private void ForceRelease()
     {
         CancelInvoke();
-        if (grabbedPlayerID >= 0)
+        if (heldByPlayerID >= 0)
         {
-            ControllerManager.Instance.TellController(grabbedPlayerID, (x) => { x.ForceRelease(_transform); });
+            ControllerManager.Instance.TellController(heldByPlayerID, (x) => { x.ForceRelease(transform); });
         }
 	}
 

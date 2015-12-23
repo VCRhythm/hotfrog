@@ -28,9 +28,9 @@ public class Speck : PooledObject {
     void OnEnable()
     {
         rotateSpeed = Random.Range(rotateAngleMin, rotateAngleMax) * 100f;
-        currentTarget = _transform.position;
+        currentTarget = transform.position;
         offset = Vector2.down * targetRadius;
-        SetTargetPosition(_transform.position);
+        SetTargetPosition(transform.position);
         Move(0);
     }
 
@@ -67,7 +67,7 @@ public class Speck : PooledObject {
     // If speck has rotated back to default currentTarget position, then move to nextTarget
     private void CheckPreparationPosition()
     {
-        float targetDistance = ((Vector2)_transform.position - new Vector2(currentTarget.x, currentTarget.y - targetRadius)).sqrMagnitude;
+        float targetDistance = ((Vector2)transform.position - new Vector2(currentTarget.x, currentTarget.y - targetRadius)).sqrMagnitude;
         if (targetDistance > preparationDistance)
         {
            // Debug.Log("Preparation Change" + targetDistance);
@@ -78,7 +78,7 @@ public class Speck : PooledObject {
 
     private void CheckRotationPosition()
     {
-        float targetDistance = ((Vector2)_transform.position - currentTarget).sqrMagnitude;
+        float targetDistance = ((Vector2)transform.position - currentTarget).sqrMagnitude;
         if (targetDistance > radiusThreshold)
         {
             //Debug.Log("Rotation Change" + targetDistance);
@@ -89,7 +89,7 @@ public class Speck : PooledObject {
 
     private void RotateSpeck()
     {
-        _transform.RotateAround(hasTargetTransform ? (Vector2)targetTransform.position : currentTarget, _transform.forward, rotateSpeed * Time.deltaTime);
+        transform.RotateAround(hasTargetTransform && targetTransform ? (Vector2)targetTransform.position : currentTarget, transform.forward, rotateSpeed * Time.deltaTime);
     }
 
     private void Move(float targetDistance)
@@ -97,8 +97,8 @@ public class Speck : PooledObject {
         status = Status.Moving;
         currentTarget = hasTargetTransform ? (Vector2)targetTransform.position : nextTarget;
 
-        _transform.DOKill();
-        _transform.DOMove(currentTarget + offset, 0.5f).OnComplete(() => { status = Status.Rotating; });
+        transform.DOKill();
+        transform.DOMove(currentTarget + offset, 0.5f).OnComplete(() => { status = Status.Rotating; });
     }
 
     public void SetTargetPosition(Vector2 position)

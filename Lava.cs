@@ -8,7 +8,8 @@ public class Lava : MonoBehaviour {
 	Renderer skyRenderer;
 	Transform heatPlane;
 	Material heatMaterial;
-	
+    bool heatIsLowered = false;
+
 	void Awake () 
 	{
 		splashPool = GetComponent<ObjectPool>();
@@ -43,15 +44,26 @@ public class Lava : MonoBehaviour {
 
 	public void LiftHeat(bool isHot)
 	{
-		heatPlane.DOLocalMoveZ(0, 2f).SetEase(Ease.OutExpo);
+        if (heatIsLowered)
+        {
+            heatPlane.DOLocalMoveZ(0, 2f).SetEase(Ease.OutExpo);
 
-		if(isHot)
-			heatMaterial.SetFloat("Offset", 0);
+            if (isHot)
+            {
+                heatMaterial.SetFloat("Offset", 0);
+            }
+            heatIsLowered = false;
+        }
 	}
 	
 	public void LowerHeat()
 	{
-		heatPlane.DOLocalMoveZ(10f, 2f);
+        if (!heatIsLowered)
+        {
+            Debug.Log("Lower Heat");
+            heatPlane.DOLocalMoveZ(10f, 2f).OnComplete(() => { Debug.Log("Heat Lowered"); });
+            heatIsLowered = true;
+        }
 	}
 
 	#endregion Public Functions

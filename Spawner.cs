@@ -10,7 +10,7 @@ public class Spawner : MonoBehaviour
 
     public enum Type
     {
-        None,
+        All,
         Bug,
         Step,
         Scenery
@@ -43,7 +43,6 @@ public class Spawner : MonoBehaviour
     protected ObjectPool objectPool;
     private List<float> spawnProbabilities = new List<float>();
 
-    protected Transform _transform;
     protected float halfScreenWidth;
     protected float halfScreenHeight;
 
@@ -53,7 +52,6 @@ public class Spawner : MonoBehaviour
 
     void Awake()
     {
-        _transform = transform;
         objectPool = GetComponent<ObjectPool>();
 
         savedSpawningSpeedMin = spawningSpeedMin;
@@ -87,17 +85,22 @@ public class Spawner : MonoBehaviour
         {
             isMoving = true;
             SetPosition(adjustedMovements[0]);
-            StartCoroutine(Move());
+            StartCoroutine("Move");
         }
 
         isSpawning = true;
-        StartCoroutine(StartSpawning());
+        StartCoroutine("StartSpawning");
     }
 
-    public void Deactivate()
+    public void Deactivate(bool canDestroy)
     {
+        StopAllCoroutines();
+        
         isMoving = false;
         isSpawning = false;
+
+        transform.DOKill();
+        if (canDestroy) Destroy(gameObject);
     }
 
     public void CycleThroughMovementsAndSpawn(int spawnIndex = -1)
@@ -121,13 +124,14 @@ public class Spawner : MonoBehaviour
             do
             {
                 destination = adjustedMovements[Random.Range(0, adjustedMovements.Count)];
-            } while (destination == _transform.position && adjustedMovements.Count > 1);
+            } while (destination == transform.position && adjustedMovements.Count > 1);
+
             float speed = Random.Range(moveSpeedMin, moveSpeedMax);
             float nextMoveTime = Random.Range(moveTimeMin, moveTimeMax);
 
             if (!hasDiscreteMovement)
             {
-                _transform.DOLocalMove(destination, speed);
+                transform.DOLocalMove(destination, speed);
                 yield return new WaitForSeconds(speed + nextMoveTime);
             }
             else
@@ -148,10 +152,7 @@ public class Spawner : MonoBehaviour
 
     private void DestroySpawns(bool delayFade)
     {
-        if (delayFade)
-            ControlSpawns((x) => x.FadeAndDestroy(1f, 1f, 1f));
-        else
-            ControlSpawns((x) => x.Destroy());
+        ControlSpawns((x) => x.Destroy(3f, 0, 3f));
     }
 
     protected virtual void SetMovementToScreenSize()
@@ -162,7 +163,7 @@ public class Spawner : MonoBehaviour
 
     protected void SetPosition(Vector3 destination)
     {
-        _transform.position = destination;
+        transform.position = destination;
     }
 
     protected virtual IEnumerator StartSpawning()
@@ -174,12 +175,13 @@ public class Spawner : MonoBehaviour
                 CreateSpawn();
             }
 
+            yield return new WaitForSeconds(Random.Range(spawningSpeedMin, spawningSpeedMax));
+
             if (spawnCount >= maxSpawnCount && maxSpawnCount > 0)
             {
                 isSpawning = false;
+                isMoving = false;
             }
-
-            yield return new WaitForSeconds(Random.Range(spawningSpeedMin, spawningSpeedMax));
         }
     }
 
@@ -197,7 +199,7 @@ public class Spawner : MonoBehaviour
             } while (spawnProbabilities.Count > spawnIndex + 1 && spawnChoice > 0);
         }
         
-        Transform spawn = objectPool.GetTransformAndSetPosition(_transform.position, spawnIndex);
+        Transform spawn = objectPool.GetTransformAndSetPosition(transform.position, spawnIndex);
         spawnCount++;
 
         if (!spawnsCanMove) spawn.SpawnScript().PauseMovement();

@@ -37,9 +37,7 @@ public class FrogPackages : MonoBehaviour {
 
 	private Frog frog;
 
-	private bool hasLoaded = false;
-
-    private IController controller;
+    private Controller controller;
     private VariableManager variableManager;
     private MenuManager menuManager;
     private PurchaseManager purchaseManager;
@@ -51,7 +49,7 @@ public class FrogPackages : MonoBehaviour {
         purchaseManager = GetComponentInChildren<PurchaseManager>();
         menuManager = GetComponentInChildren<MenuManager>();
         variableManager = GetComponent<VariableManager>();
-        controller = transform.GetComponentInChildren(typeof(IController)) as IController;
+        controller = transform.GetComponentInChildren<Controller>();
 		
         //Clear any saved purchases
 		if(ResetPackagesOnStart)
@@ -61,12 +59,6 @@ public class FrogPackages : MonoBehaviour {
 		}
 
 		LoadPackages();
-	}
-
-	void Start()
-	{
-        hasLoaded = true;
-		MakeFrog(variableManager.currentFrogID, false, false);
 	}
 
 	#endregion Component Segments
@@ -148,13 +140,10 @@ public class FrogPackages : MonoBehaviour {
 	public void RaiseFrog(float delay = 0)
 	{
 		frog.Rise(true, delay);
-        Invoke("CanTouch", delay);
     }
 
 	public void MakeSureFrogIsPurchased()
 	{
-		if(!hasLoaded) return;
-
 		if(!IsPackageOpen(currentFrogID))
 		{
 			LowerAndOpenRandomFrog(false);
@@ -260,7 +249,6 @@ public class FrogPackages : MonoBehaviour {
 
 	private void LowerFrog()
 	{
-        controller.CanTouch = false;
 		frog.Lower();
 	}
 
@@ -408,11 +396,6 @@ public class FrogPackages : MonoBehaviour {
 		MakeFrog(randomFrogID, isUnlocking, isUnlocking);
 		if(isUnlocking) BuyFrog(currentFrogID, true);
 	}
-
-    private void CanTouch()
-    {
-        controller.CanTouch = true;
-    }	
 
 //	private void PrintPackages(List<Vector2> packages)
 //	{

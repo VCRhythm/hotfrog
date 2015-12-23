@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using System;
 using System.Collections.Generic;
 
 public class ControllerManager : MonoBehaviour {
@@ -16,6 +17,32 @@ public class ControllerManager : MonoBehaviour {
 
     public static int playerCount = 0;
 
+    public bool anyPlaying
+    {
+        get
+        {
+            bool playing = false;
+            for (int i = 0; i < controllers.Count; i++)
+            {
+                if (controllers[i].IsPlaying) playing = true;
+            }
+            return playing;
+        }
+    }
+
+    public bool allCanPlay
+    {
+        get
+        {
+            bool playing = true;
+            for(int i = 0; i < controllers.Count; i++)
+            {
+                if (!controllers[i].CanPlay) playing = false;
+            }
+            return playing;
+        }
+    }
+
     private List<Controller> controllers = new List<Controller>();
 
     public void Register(Controller controller)
@@ -28,7 +55,7 @@ public class ControllerManager : MonoBehaviour {
         controllers.Remove(controller);
     }
 
-    public void TellControllers(System.Action<Controller> action)
+    public void TellControllers(Action<Controller> action)
     {
         for(int i=0; i<controllers.Count; i++)
         {
@@ -36,12 +63,14 @@ public class ControllerManager : MonoBehaviour {
         }
     }
 
-    public void TellController(int playerID, System.Action<Controller> action)
+    public void TellController(int playerID, Action<Controller> action)
     {
-        Debug.Log(controllers.Count);
-        Controller controller = controllers.Find(x => x.playerID == playerID);
-        Debug.Log(controller + " action: " + action);
+        Controller controller = controllers.Find(x => x.ControllerID == playerID);
         action(controller);
     }
 
+    public void TellController(Controller controller, Action<Controller> action)
+    {
+        action(controller);
+    }
 }

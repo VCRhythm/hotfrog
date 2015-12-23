@@ -14,23 +14,18 @@ public class MenuManager : MonoBehaviour {
     public RectTransform newFrogTextPrefab;
     public RectTransform tryAgainTextPrefab;
 
-    private IController controller;
+    private Controller controller;
     private PurchaseManager purchaseManager;
     private FrogPackages frogPackages;
     private AdvertisingManager advertisingManager;
     private VariableManager variableManager;
     private HUD hud;
+    private enum Direction { Up, Down }
 
     private bool touchState;
 	private bool touchStateIsSet = false;
 
-    public bool IsShowingFrogName
-    {
-        set
-        {
-            frogName.DOFade(value ? 1 : 0, 0);
-        }
-    }
+    public bool IsShowingFrogName { set { frogName.DOFade(value ? 1 : 0, 0); } }
 
     private bool isShowingMainMenu = false;
 	private bool IsShowingMainMenu
@@ -48,10 +43,10 @@ public class MenuManager : MonoBehaviour {
 				AnimateMainMenu(true);
 				isShowingMainMenu = value;
 			}
-			else if(isShowingMainMenu && !value)
+
+            if (isShowingMainMenu && !value)
 			{
 				AnimateMainMenu(false);
-				//mainMenu.alpha = 0; 
 				mainMenu.interactable = false;
 				mainMenu.blocksRaycasts = false;
 				isShowingMainMenu = value;
@@ -84,21 +79,18 @@ public class MenuManager : MonoBehaviour {
 	{
 		set
 		{
-			if(value)
+			if(value && !isShowingArrowPanel)
 			{
-				if(!isShowingArrowPanel)
-				{
-					purchaseManager.StartService();
-					arrowPanelCG.alpha = 1;
-					arrowPanelCG.interactable = true;
-					arrowPanelCG.blocksRaycasts = true;
-					AnimateArrowPanel(true);
-				}
+				purchaseManager.StartService();
+				arrowPanelCG.alpha = 1;
+				arrowPanelCG.interactable = true;
+				arrowPanelCG.blocksRaycasts = true;
+				AnimateArrowPanel(true);
 			}
-			else if(!value && isShowingArrowPanel)
+
+            if (!value && isShowingArrowPanel)
 			{
 				purchaseManager.StopService();
-//				arrowPanelCG.alpha = 0;
 				arrowPanelCG.interactable = false;
 				arrowPanelCG.blocksRaycasts = false;
 				AnimateArrowPanel(false);
@@ -108,12 +100,17 @@ public class MenuManager : MonoBehaviour {
 		}
 	}
 
-	private bool canSpendFlys = false;
+    private bool canSpendFlys = false;
 	private bool CanSpendFlys
 	{
+        get
+        {
+            return canSpendFlys;
+        }
 		set
 		{
-			canSpendFlys = value;
+            canSpendFlys = value;
+
 			if(value)
 			{
 				UpdateFlyToGoText();
@@ -144,7 +141,6 @@ public class MenuManager : MonoBehaviour {
 			}
 			else
 			{
-				//returnPanel.alpha = 0;
 				AnimateReturnPanel(true);
 				returnPanel.interactable = false;
 				returnPanel.blocksRaycasts = false;
@@ -204,7 +200,7 @@ public class MenuManager : MonoBehaviour {
 			{
 				giftButton.SetActive(false);
 				float rand = Random.value;
-				if(rand > 0.6f && advertisingManager.IsReady)
+				if(rand > 0.6f && advertisingManager.isReady)
 				{
 					adButton.SetActive(true);
 					buyButtonObject.SetActive(false);
@@ -278,11 +274,9 @@ public class MenuManager : MonoBehaviour {
 	private TextMeshProUGUI pauseText;
 	private Toggle musicToggle;
 
-	private Lava lava;
-
 	void Awake()
 	{
-        controller = transform.parent.GetComponentInChildren(typeof(IController)) as IController;
+        controller = transform.parent.GetComponentInChildren<Controller>();
         purchaseManager = transform.parent.FindChild("SOOMLA").GetComponent<PurchaseManager>();
         frogPackages = GetComponentInParent<FrogPackages>();
         variableManager = GetComponentInParent<VariableManager>();
@@ -334,8 +328,6 @@ public class MenuManager : MonoBehaviour {
 		buyButton = buyButtonObject.GetComponent<Button>();
 		buyButtonText = buyButton.transform.FindChild("Text").GetComponent<TextMeshProUGUI>();
 		buyButtonImage = buyButton.transform.FindChild("Image").GetComponent<Image>();
-
-		lava = FindObjectOfType<Lava>();
 	}
 
 	void Start()
@@ -391,7 +383,6 @@ public class MenuManager : MonoBehaviour {
 	public void ShowFrogs()
 	{
 		PlaySelectSound();
-		lava.Reset();
 
 		IsShowingFrogName = true;
 		IsShowingHUD = false;
@@ -410,7 +401,6 @@ public class MenuManager : MonoBehaviour {
 	public void SpendFlys()
 	{
 		Debug.Log ("Spend Flys");
-		lava.Reset();
 
 		if(tameFlyNet.gameObject.activeSelf)
 			tameFlyNet.gameObject.SetActive(false);
@@ -425,7 +415,7 @@ public class MenuManager : MonoBehaviour {
 		HideStartFly();
 		IsShowingHUD = false;
 
-		SpawnManager.Instance.SpawnFlyBundle(frogCost, flyIconPosition, controller.playerID);
+		SpawnManager.Instance.SpawnFlyBundle(frogCost, flyIconPosition, controller.ControllerID);
 		FrogPackages.Instance.LowerAndOpenRandomFrog(true);
 
 		Invoke ("ShowReturnPanel", 3f);
@@ -433,8 +423,6 @@ public class MenuManager : MonoBehaviour {
 
 	public void GiftFlys()
 	{
-		lava.Reset();
-
 		CanSpendFlys = false;
 
 		GiftManager.Instance.IncreaseGiftSeed();
@@ -448,8 +436,7 @@ public class MenuManager : MonoBehaviour {
 	
 	public void ShowMainMenu(bool playSound)
 	{
-		lava.Reset();
-
+        controller.CanPlay = false;
 		CanSpendFlys = false;
 		IsShowingFrogName = false;
 		IsShowingEndGamePanel = false;
@@ -463,15 +450,15 @@ public class MenuManager : MonoBehaviour {
 		IsShowingMainMenu = true;
 
 		ShowStartGameFly(new Vector4(0.5f, 0.35f, 0.6f, 0.35f));
-		FrogPackages.Instance.MakeSureFrogIsPurchased();
+        controller.frog.Rise(true);
+        FrogPackages.Instance.MakeSureFrogIsPurchased();
 	}
 
-	public void StartGame()
+	public void StartLevel()
 	{
 		PlaySelectSound();
 
 		FrogPackages.Instance.MakeSureFrogIsPurchased();
-		lava.Reset();
 
 		IsShowingSettings = false;
 		IsShowingArrowPanel = false;
@@ -482,9 +469,7 @@ public class MenuManager : MonoBehaviour {
 		CanSpendFlys = false;
 
 		IsShowingHUD = true;
-		MoveHUD(false);
-
-		LevelManager.Instance.ShowIntroAndStartLevel();
+		MoveHUD(Direction.Down);
 	}
 	
 	public void ShowAd()
@@ -499,14 +484,12 @@ public class MenuManager : MonoBehaviour {
 
 	public void SpawnGiftFlys(bool isGift, int amountOverride = -1)
 	{
-		lava.Reset();
-
 		if(!tameFlyNet.gameObject.activeSelf)
 			tameFlyNet.gameObject.SetActive(true);
 
 		int giftAmount = amountOverride >= 0 ? amountOverride : (isGift ? Random.Range(60, 100) : Random.Range(15, 35));
 
-		SpawnManager.Instance.SpawnFlyBundle(giftAmount, -flyIconPosition, controller.playerID);
+		SpawnManager.Instance.SpawnFlyBundle(giftAmount, -flyIconPosition, controller.ControllerID);
 
 		frogPackages.RaiseFrog();
 		Invoke ("ShowReturnPanel", 3f);
@@ -520,7 +503,7 @@ public class MenuManager : MonoBehaviour {
 	
 	public void ShowEndGamePanel()
 	{
-		MoveHUD(true);
+		MoveHUD(Direction.Up);
 
 		CanSpendFlys = true;
 		IsShowingEndGamePanel = true;
@@ -546,7 +529,7 @@ public class MenuManager : MonoBehaviour {
 		
 	public void UpdateFlyToGoText()
 	{
-		if(canSpendFlys)
+		if(CanSpendFlys)
 		{
 			int bugsLeft = frogCost - hud.BugsCaught;
 			
@@ -680,17 +663,17 @@ public class MenuManager : MonoBehaviour {
 			timeUntilGiftText.SetText("Gift in\n{0}:{1}", GiftManager.Instance.HoursUntilGift(), minutesUntilGift);
 	}
 
-	private void MoveHUD(bool isMovingUp)
+	private void MoveHUD(Direction direction)
 	{
-		if(isMovingUp)
+		if(direction == Direction.Up)
 		{
 			ShowQualityStats(true);
-			DOTween.To (UpdateHUDPosition, isMovingUp ? 0 : 0.83f, isMovingUp ? 0.83f : 0, 1f).SetEase(Ease.OutBack).SetDelay(0.5f);
+			DOTween.To (UpdateHUDPosition, 0, 0.83f, 1f).SetEase(Ease.OutBack).SetDelay(0.5f);
 		}
-		else if(!isMovingUp)
+		else if(direction == Direction.Down)
 		{
 			ShowQualityStats(false);
-			DOTween.To (UpdateHUDPosition, isMovingUp ? 0 : 0.83f, isMovingUp ? 0.83f : 0, 1f).SetEase(Ease.OutBack);
+			DOTween.To (UpdateHUDPosition, 0.83f, 0, 1f).SetEase(Ease.OutBack);
 		}
 	}
 	

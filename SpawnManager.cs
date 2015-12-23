@@ -14,7 +14,10 @@ public class SpawnManager : MonoBehaviour {
 
     public Vector2 SpawnDirection = -Vector2.up;
     private Vector2 prevSpawnDirection = -Vector2.up;
-    public Vector2 pullVector{ get; private set; }
+    private Vector2 pullVector;
+    public Vector2 PullVector { get { return pullVector; } set { pullVector = value; if (isHalting && value != Vector2.zero) { isHalting = false; Debug.Log("stop halting"); } } }
+
+    [HideInInspector] public bool isHalting = false;
 
     public Vector2[] spawnDirections = new Vector2[5]
 	{
@@ -27,7 +30,7 @@ public class SpawnManager : MonoBehaviour {
     private Dictionary<Vector2, List<Spawner>> spawnersInDirection = new Dictionary<Vector2, List<Spawner>>();
 
     private Step commandingStep = null;
-    
+
     #region Public Functions
 
     void Awake()
@@ -51,7 +54,7 @@ public class SpawnManager : MonoBehaviour {
 	public bool PullStep(Step step, bool isInverted = false, float stepPullMultiplier = 1f)
 	{
         //Don't reset steps if not commanding step
-        if (isInverted && (commandingStep != null && step != commandingStep))
+        if (commandingStep != null && step != commandingStep)
         {
             return false;
         }
@@ -59,7 +62,8 @@ public class SpawnManager : MonoBehaviour {
 		commandingStep = step;
 
         Vector2 spawnDirection = isInverted ? -SpawnDirection : SpawnDirection;
-        pullVector = spawnDirection * PullMultiplier(commandingStep.Position.y, spawnDirection.y * 40f) * stepPullMultiplier;
+        PullVector = spawnDirection * PullMultiplier(commandingStep.Position.y, spawnDirection.y * 40f) * stepPullMultiplier;
+        Debug.Log(pullVector);
 
 		if(!isInverted) ActivateSpawnersForDirection(spawnDirection != prevSpawnDirection);
         prevSpawnDirection = spawnDirection;
@@ -67,28 +71,40 @@ public class SpawnManager : MonoBehaviour {
         return true;
 	}
 
+    public void Pull(Vector2 direction, float multiplier)
+    {
+        PullVector = direction * PullMultiplier(0, direction.y * 40f) * multiplier;
+        Debug.Log(pullVector);
+
+        ActivateSpawnersForDirection(direction != prevSpawnDirection);
+        prevSpawnDirection = direction;
+    }
+
 	public void ReleasePullingStep(Step step)
 	{
         if (step == commandingStep)
         {
             DeactivateSpawners(activeStepSpawners);
 			commandingStep = null;
-			pullVector = Vector2.zero;
+            Debug.Log(step + " release");
+            PullVector = Vector2.zero;
 		}
 	}
 
     public void HaltPulling()
     {
+        Debug.Log("halting");
+        isHalting = true;
         ReleasePullingStep(commandingStep);
     }
 
-    public void ResetLevelSpawners(Spawner.Type type, bool reverseType = false, bool delayFade = false)
+    public void ResetLevelSpawners(Spawner.Type spawnerType, bool delayFade = false)
 	{
-		foreach(Spawner spawner in levelSpawners)
+		for(int i = levelSpawners.Count - 1; i >= 0; i--)
 		{
-            if (spawner.spawnerType == type || (reverseType && spawner.spawnerType != type))
+            if (spawnerType == Spawner.Type.All || levelSpawners[i].spawnerType == spawnerType)
             {
-                spawner.Reset(delayFade);
+                levelSpawners[i].Reset(delayFade);
             }
 		}
 	}
@@ -110,15 +126,15 @@ public class SpawnManager : MonoBehaviour {
 	}*/
 
     public void ActivateLevelSpawners(Spawner.Type type)
-    { 
-		for(int i=0; i< levelSpawners.Count; i++)
+    {
+        Debug.Log("Activate Scenery " + type);
+        for (int i=0; i< levelSpawners.Count; i++)
 		{
             if (levelSpawners[i].spawnerType == type)
             {
                 levelSpawners[i].Activate();
-                Debug.Log(levelSpawners[i].name + "Activated");
+                //Debug.Log(levelSpawners[i].name + "Activated");
             }
-
 		}
 	}
 
@@ -143,7 +159,6 @@ public class SpawnManager : MonoBehaviour {
 			if(spawner.spawnerType == Spawner.Type.Step)
 			{
 				spawnersInDirection[spawner.spawnDirection].Add(spawner);
-                Debug.Log(spawner.name + ", " +spawnersInDirection[spawner.spawnDirection].Count);
 			}
 
             levelSpawners.Add(spawner);
@@ -171,9 +186,12 @@ public class SpawnManager : MonoBehaviour {
 
     private void DeactivateSpawners(List<Spawner> spawnerList)
     {
-        for (int i = 0; i < spawnerList.Count; i++)
+        for (int i = spawnerList.Count - 1; i >= 0; i--)
         {
-            spawnerList[i].Deactivate();
+            if (spawnerList[i])
+            {
+                spawnerList[i].Deactivate(false);
+            }
         }
     }
 

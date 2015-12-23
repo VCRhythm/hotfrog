@@ -34,7 +34,7 @@ public class MovingScenery : Spawn, IGrabable {
 		speedModifier = Random.Range(minSpeedMod, maxSpeedMod);
 		
 		float scale = Random.Range(minScale, maxScale);
-		_transform.localScale = new Vector3(scale, scale, 1);
+		transform.localScale = new Vector3(scale, scale, 1);
 	}
 
 	protected override void OnTriggerEnter2D (Collider2D other)
@@ -57,7 +57,7 @@ public class MovingScenery : Spawn, IGrabable {
 			AudioManager.Instance.PlayForAll(grabClip, audioSource);
 		}
 
-		FadeAndDestroy(0, 0, 1f);
+		Destroy(0, 0, 1f);
 
 		if(particles != null)
 		{

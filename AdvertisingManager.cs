@@ -3,30 +3,34 @@ using UnityEngine.Advertisements;
 
 public class AdvertisingManager : MonoBehaviour {
 
-	public bool IsReady { get { return Advertisement.isReady() && (Time.time - lastAdvertisementTime > 60f || lastAdvertisementTime == 0); } }
+    public bool isReady { get { return Advertisement.IsReady() && (Time.time - lastAdvertisementTime > 60f || lastAdvertisementTime == 0); } }
 
-	private float lastAdvertisementTime = 0;
+    private float lastAdvertisementTime = 0;
     private MenuManager menuManager;
 
     void Awake()
-	{
+    {
         menuManager = GetComponent<MenuManager>();
-		if(Advertisement.isSupported)
-		{
-			Advertisement.allowPrecache = true;
-			Advertisement.Initialize("131627335");
-		}
-	}
+    }
 
-	public void PlayAdvertisement()
-	{
-		Advertisement.Show(null, new ShowOptions {
-			pause = true,
-			resultCallback = ShowResult => {
-			}
-		});
+    public void PlayAdvertisement()
+    {
+        Advertisement.Show(null, new ShowOptions {
+            resultCallback = RewardViewing
+        });
+    }
 
-		lastAdvertisementTime = Time.time;
-		menuManager.SpawnGiftFlys(false);
-	}
+    void RewardViewing(ShowResult showResult)
+    {
+        switch(showResult)
+        {
+            case ShowResult.Finished:
+                lastAdvertisementTime = Time.time;
+                menuManager.SpawnGiftFlys(false);
+                break;
+            default:
+                break;
+        }
+        
+    }
 }

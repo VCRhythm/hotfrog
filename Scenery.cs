@@ -16,7 +16,7 @@ public class Scenery : RigidbodySpawn {
 	{
 		base.Awake ();
         
-        originalScale = _transform.localScale;
+        originalScale = transform.localScale;
 	}
 	
     protected override void OnEnable()

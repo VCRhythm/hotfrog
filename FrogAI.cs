@@ -7,14 +7,15 @@ public class FrogAI : Controller
     private float screenWidth;
     private float screenHeight;
 
-    void Start()
+    protected override void Start()
     {
+        base.Start();
+
         SetFrog(GetComponentInChildren<Frog>());
         PlayLevel();
 
         screenHeight = Camera.main.orthographicSize;
         screenWidth = screenHeight * (Screen.height / Screen.width) *.5f;
-        CanTouch = true;
     }
 
     void Update()
@@ -37,7 +38,7 @@ public class FrogAI : Controller
         return;
     }
 
-    public override void StartLevel()
+    public override void AteStartBug()
     {
         return;
     }

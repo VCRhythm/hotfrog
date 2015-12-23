@@ -1,5 +1,6 @@
 ﻿using UnityEngine;
 using System.Collections;
+using UnityEngine.SceneManagement;
 
 public class LoadGame : MonoBehaviour {
 
@@ -7,13 +8,12 @@ public class LoadGame : MonoBehaviour {
 
 	IEnumerator Start () 
 	{
-		Application.LoadLevelAdditive(1);
+        yield return SceneManager.LoadSceneAsync(1);
 
-		while(Application.isLoadingLevel)
-			yield return wait;
-
-		while(Preload.Instance != null)
-			yield return wait;
+        while (Preload.Instance != null)
+        {
+            yield return wait;
+        }
 
 		GetComponent<Animator>().SetTrigger("FadeAway");
 	}

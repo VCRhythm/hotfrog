@@ -19,7 +19,7 @@ public class Bug : Spawn {
 		None,
 		StartGame,
 	}
-	public Bug.ActionType actionType;
+	public ActionType actionType;
 	private System.Action<int> grabAction;
 	private System.Action disableAction;
 	private System.Action decisionAfterMoving;
@@ -34,7 +34,7 @@ public class Bug : Spawn {
 	void OnDisable()
 	{
 		CancelInvoke();
-		_transform.DOKill();
+		transform.DOKill();
 
 		isGrabbed = false;
 		isLeaving = false;
@@ -48,7 +48,7 @@ public class Bug : Spawn {
 	{
 		if(!isGrabbed)
 		{
-			if(ownerID < 0) _gameObject.layer = 11;
+			if(ownerID < 0) gameObject.layer = 11;
 			isLeaving = true;
 			SetUpDestination();
 		}
@@ -63,7 +63,7 @@ public class Bug : Spawn {
 	public void MakeTame(int playerID)
 	{
         ownerID = playerID;
-		_gameObject.layer = 13;
+		gameObject.layer = 13;
 	}
 
 	#endregion Functions
@@ -72,8 +72,8 @@ public class Bug : Spawn {
 
 	private void CancelCurrentMovement()
 	{
-		if(DOTween.IsTweening(_transform)) 
-			_transform.DOKill();
+		if(DOTween.IsTweening(transform)) 
+			transform.DOKill();
 	}
 
 	private void SetUpDestination()
@@ -112,7 +112,7 @@ public class Bug : Spawn {
 
 	private void MoveTo(Vector3 dest)
 	{
-		_transform.DOMove (dest, moveTime).SetEase(Ease.OutBack);
+		transform.DOMove (dest, moveTime).SetEase(Ease.OutBack);
 	}
 
 	protected override void OnTriggerEnter2D (Collider2D other)
@@ -138,11 +138,10 @@ public class Bug : Spawn {
                 {
                     ControllerManager.Instance.TellController(playerID, (x) =>
                     {
-                        x.AddToTongueCatchActions(
-                            () =>
+                        x.frog.tongue.AddToCatchActions(() =>
                             {
-                                x.StartLevel();
-                                Destroy(_gameObject);
+                                x.AteStartBug();
+                                Destroy();
                             });
                     });
                 };

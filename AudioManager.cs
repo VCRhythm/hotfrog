@@ -95,6 +95,7 @@ public class AudioManager : MonoBehaviour {
 	
 	public void StartMusic(bool isStarting = false, int newIndex = 0)
 	{
+        Debug.Log("Starting music " + newIndex);
         for(int i=0; i<audioPlayers.Length; i++)
         {
             audioPlayers[i].StartMusic(isStarting, newIndex);

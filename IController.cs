@@ -1,14 +1,14 @@
 ﻿using UnityEngine;
 
 public interface IController  {
-    int playerID { get; set; }
-    bool isPlaying { get; set; }
+    int ControllerID { get; set; }
+    bool CanPlay { get; set; }
     bool CanTouch { get; set; }
+    Frog Frog { get; set; }
 
     void StartLevel();
     void PlayLevel();
     void SetFrog(Frog frog);
     void ForceRelease(Transform step);
     void CollectFly();
-    void AddToTongueCatchActions(System.Action action);
 }

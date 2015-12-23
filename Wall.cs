@@ -17,7 +17,7 @@ public class Wall : MonoBehaviour {
 
 	void Update()
 	{
-		Vector3 vector = -SpawnManager.Instance.pullVector * Time.deltaTime * .1f;
+		Vector3 vector = -SpawnManager.Instance.PullVector * Time.deltaTime * .1f;
 		_transform.Translate(vector.x, 0, vector.y);
 
 		if(_transform.localPosition.z > 9.9f)

@@ -31,6 +31,7 @@ public class ScenerySpawner : Spawner {
 
     protected override Transform CreateSpawn(int spawnIndex = -1)
     {
+        //Debug.Log(name + " spawn");
         Transform spawn = base.CreateSpawn(spawnIndex);
 
         if (spawn == null) return null;

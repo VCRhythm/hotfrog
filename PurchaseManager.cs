@@ -1,13 +1,11 @@
 ﻿using UnityEngine;
 using System.Collections.Generic;
 using Soomla.Store;
-using Soomla.Highway;
 using System.Text.RegularExpressions;
 
 public class PurchaseManager : MonoBehaviour {
 
 	public RectTransform restoredTextPrefab;
-	public bool isUsingHighway = true;
 	public bool isUsingStore = true;
 	private bool hasStarted = false;
 	private StoreAssets assets;
@@ -27,16 +25,13 @@ public class PurchaseManager : MonoBehaviour {
 		if(isUsingStore)
 		{
 		assets = new StoreAssets();
-#if !UNITY_EDITOR
-		if(isUsingHighway) SoomlaHighway.Initialize();
-#endif
 		SoomlaStore.Initialize(assets);
 
-		StoreEvents.OnCurrencyBalanceChanged += OnCurrencyBalanceChanged;
-		StoreEvents.OnMarketPurchase += OnMarketPurchase;
+		StoreEvents.OnCurrencyBalanceChanged += onCurrencyBalanceChanged;
+		StoreEvents.OnMarketPurchase += onMarketPurchase;
 		//StoreEvents.OnGoodBalanceChanged += OnGoodBalanceChanged;
-		StoreEvents.OnMarketRefund += OnMarketRefund;
-		StoreEvents.OnUnexpectedErrorInStore += OnUnexpectedErrorInStore;
+		StoreEvents.OnMarketRefund += onMarketRefund;
+		StoreEvents.OnUnexpectedStoreError += onUnexpectedStoreError;
 		StoreEvents.OnRestoreTransactionsFinished += OnRestoreTransactionsFinished;
 
 		if(FrogPackages.Instance.ResetPackagesOnStart)
@@ -68,7 +63,7 @@ public class PurchaseManager : MonoBehaviour {
 		SoomlaStore.BuyMarketItem(productID, "Purchase Complete");
 	}
 
-	public void OnCurrencyBalanceChanged(VirtualCurrency virtualCurrency, int balance, int amountAdded)
+	public void onCurrencyBalanceChanged(VirtualCurrency virtualCurrency, int balance, int amountAdded)
 	{
 		if(amountAdded > 0)
 			menuManager.SpawnGiftFlys(false, amountAdded);
@@ -96,14 +91,14 @@ public class PurchaseManager : MonoBehaviour {
 		//	FrogPackages.Instance.LockPackage(id);
 //	}
 
-	public void OnMarketPurchase(PurchasableVirtualItem pvi, string payload, Dictionary<string, string> extra)
+	public void onMarketPurchase(PurchasableVirtualItem pvi, string payload, Dictionary<string, string> extra)
 	{
 		int id = GetID(pvi.ItemId);
 		if(id > 0 && pvi.GetBalance() > 0)
 			frogPackages.PurchaseFrogFromStore(id);
 	}
 	
-	public void OnMarketRefund(PurchasableVirtualItem pvi)
+	public void onMarketRefund(PurchasableVirtualItem pvi)
 	{
 		int id = GetID(pvi.ItemId);
 
@@ -111,9 +106,15 @@ public class PurchaseManager : MonoBehaviour {
 			frogPackages.LockPackage(id);
 	}
 
-	public void OnUnexpectedErrorInStore(string message)
+	public void onUnexpectedStoreError(int errorCode)
 	{
 		menuManager.DisableBuyButton(true);
+        /*
+        VERIFICATION_TIMEOUT(1) - app didn't receive validation response from server in time. Please, try again later.
+        VERIFICATION_FAIL(2) - something is going wrong while SOOMLA tried to verify purchase.
+        PURCHASE_FAIL(3) - something is going wrong while SOOMLA tried to make purchase.
+        GENERAL(0) - other types of error. See details in app logs.
+        */
 	}
 
 	public void OnRestoreTransactionsFinished(bool success)

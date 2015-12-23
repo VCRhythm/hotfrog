@@ -1,4 +1,5 @@
 ﻿using UnityEngine;
+using DG.Tweening;
 using System.Collections.Generic;
 
 public class ObjectPool : MonoBehaviour
@@ -58,8 +59,17 @@ public class ObjectPool : MonoBehaviour
         return null;
     }
 
+    public void InsertAllActiveObjects()
+    {
+        for(int i=ActiveObjects.Count-1; i>=0; i--)
+        {
+            Insert(ActiveObjects[i].gameObject);
+        }
+    }
+
     public void Insert(GameObject gameObject)
     {
+        gameObject.transform.DOKill();
         if (gameObject.activeInHierarchy)
         {
             gameObject.SetActive(false);
