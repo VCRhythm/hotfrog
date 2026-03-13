@@ -1,22 +1,26 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-public class TouchInput : MonoBehaviour, IUserInput {
-	public int InputCount { get { return Input.touchCount; } }
-	public bool IsTouchInput { get { return true; } }
+namespace HotFrog.Input
+{
+    public class TouchInput : MonoBehaviour, IUserInput
+    {
+        public int InputCount => UnityEngine.Input.touchCount;
+        public bool IsTouchInput => true;
 
-	public Vector2 GetPosition(int touchIndex)
-	{
-		return Input.GetTouch(touchIndex).position;
-	}
+        public Vector2 GetPosition(int touchIndex)
+        {
+            return UnityEngine.Input.GetTouch(touchIndex).position;
+        }
 
-	public bool HasInputStarted(int touchIndex)
-	{
-		return Input.GetTouch(touchIndex).phase == TouchPhase.Began;
-	}
+        public bool HasInputStarted(int touchIndex)
+        {
+            return UnityEngine.Input.GetTouch(touchIndex).phase == TouchPhase.Began;
+        }
 
-	public bool IsInputOn(int touchIndex)
-	{
-		TouchPhase phase = Input.GetTouch (touchIndex).phase;
-		return phase == TouchPhase.Began || phase == TouchPhase.Moved || phase == TouchPhase.Stationary;
-	}
+        public bool IsInputOn(int touchIndex)
+        {
+            TouchPhase phase = UnityEngine.Input.GetTouch(touchIndex).phase;
+            return phase == TouchPhase.Began || phase == TouchPhase.Moved || phase == TouchPhase.Stationary;
+        }
+    }
 }

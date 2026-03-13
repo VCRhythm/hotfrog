@@ -3,16 +3,26 @@ using UnityEngine.UI;
 using TMPro;
 using System.Collections;
 using DG.Tweening;
+using HotFrog.Core;
+using HotFrog.Audio;
+using HotFrog.Spawning;
+using HotFrog.Player;
+using HotFrog.Entities;
+using HotFrog.Ads;
+using HotFrog.Store;
+using HotFrog.Utility;
 
+namespace HotFrog.UI
+{
 public class MenuManager : MonoBehaviour {
 
-    public TextMeshProUGUI pausePrefab;
-    public GameObject tameFlyNetPrefab;
-    public Bug startGameBugPrefab;
+    [SerializeField] private TextMeshProUGUI pausePrefab;
+    [SerializeField] private GameObject tameFlyNetPrefab;
+    [SerializeField] private Bug startGameBugPrefab;
     private Bug startBug;
 
-    public RectTransform newFrogTextPrefab;
-    public RectTransform tryAgainTextPrefab;
+    [SerializeField] private RectTransform newFrogTextPrefab;
+    [SerializeField] private RectTransform tryAgainTextPrefab;
 
     private Controller controller;
     private PurchaseManager purchaseManager;
@@ -29,8 +39,8 @@ public class MenuManager : MonoBehaviour {
 
     private bool isShowingMainMenu = false;
 	private bool IsShowingMainMenu
-	{ 
-		set 
+	{
+		set
 		{
 			if(value && !isShowingMainMenu)
 			{
@@ -51,7 +61,7 @@ public class MenuManager : MonoBehaviour {
 				mainMenu.blocksRaycasts = false;
 				isShowingMainMenu = value;
 			}
-		} 
+		}
 	}
 
 	private bool IsShowingSettings
@@ -103,10 +113,7 @@ public class MenuManager : MonoBehaviour {
     private bool canSpendFlys = false;
 	private bool CanSpendFlys
 	{
-        get
-        {
-            return canSpendFlys;
-        }
+        get => canSpendFlys;
 		set
 		{
             canSpendFlys = value;
@@ -127,7 +134,7 @@ public class MenuManager : MonoBehaviour {
 			}
 		}
 	}
-	
+
 	public bool IsShowingReturnPanel
 	{
 		set
@@ -163,10 +170,10 @@ public class MenuManager : MonoBehaviour {
 			}
 		}
 	}
-	
+
 	private bool IsShowingEndGamePanel
 	{
-		get { return endGamePanel.alpha == 1; }
+		get => endGamePanel.alpha == 1;
 		set
 		{
 			if(value)
@@ -277,57 +284,57 @@ public class MenuManager : MonoBehaviour {
 	void Awake()
 	{
         controller = transform.parent.GetComponentInChildren<Controller>();
-        purchaseManager = transform.parent.FindChild("SOOMLA").GetComponent<PurchaseManager>();
+        purchaseManager = transform.parent.Find("SOOMLA").GetComponent<PurchaseManager>();
         frogPackages = GetComponentInParent<FrogPackages>();
         variableManager = GetComponentInParent<VariableManager>();
         advertisingManager = GetComponentInParent<AdvertisingManager>();
 		canvas = GetComponent<RectTransform>();
-		titleTransform = canvas.FindChild("Title").GetComponent<RectTransform>();
+		titleTransform = canvas.Find("Title").GetComponent<RectTransform>();
 
-		mainMenu = canvas.FindChild("MainMenu").GetComponent<CanvasGroup>();
-		frogButton = mainMenu.transform.FindChild("FrogButton").GetComponent<RectTransform>();
-		settingsButton = mainMenu.transform.FindChild("SettingsButton").GetComponent<RectTransform>();
+		mainMenu = canvas.Find("MainMenu").GetComponent<CanvasGroup>();
+		frogButton = mainMenu.transform.Find("FrogButton").GetComponent<RectTransform>();
+		settingsButton = mainMenu.transform.Find("SettingsButton").GetComponent<RectTransform>();
 
-		settingsMenu = canvas.FindChild("SettingsPanel").GetComponent<CanvasGroup>();
-		musicToggle = settingsMenu.transform.GetChild(0).FindChild("MusicToggle").GetComponent<Toggle>();
+		settingsMenu = canvas.Find("SettingsPanel").GetComponent<CanvasGroup>();
+		musicToggle = settingsMenu.transform.GetChild(0).Find("MusicToggle").GetComponent<Toggle>();
 
-        hud = transform.FindChild("HUD").GetComponent<HUD>();
+        hud = transform.Find("HUD").GetComponent<HUD>();
         hudCanvas = hud.GetComponent<CanvasGroup>();
 		hudRect = hud.GetComponent<RectTransform>();
 
-		qualityCountPanelCG = canvas.FindChild("QualityCountPanel").GetComponent<CanvasGroup>();
+		qualityCountPanelCG = canvas.Find("QualityCountPanel").GetComponent<CanvasGroup>();
 		qualityCountPanel = qualityCountPanelCG.GetComponent<RectTransform>();
-		perfectCount = qualityCountPanel.FindChild("PerfectCount").GetComponent<TextMeshProUGUI>();
-		greatCount = qualityCountPanel.FindChild("GreatCount").GetComponent<TextMeshProUGUI>();;
-		okCount = qualityCountPanel.FindChild("OKCount").GetComponent<TextMeshProUGUI>();;
+		perfectCount = qualityCountPanel.Find("PerfectCount").GetComponent<TextMeshProUGUI>();
+		greatCount = qualityCountPanel.Find("GreatCount").GetComponent<TextMeshProUGUI>();;
+		okCount = qualityCountPanel.Find("OKCount").GetComponent<TextMeshProUGUI>();;
 
         flyIconPosition = new Vector2(screenWidth, 50);
-		flyButton = canvas.FindChild ("FlyPanel").GetComponent<Button>();
+		flyButton = canvas.Find("FlyPanel").GetComponent<Button>();
 		flyPanelCG = flyButton.GetComponent<CanvasGroup>();
-		flyTextAnimator = flyButton.transform.FindChild("FlyCount").GetComponent<Animator>();
-		flyCount = flyButton.transform.FindChild("FlyCount").GetComponent<TextMeshProUGUI>();
-        flyToGoText = flyButton.transform.FindChild("ToGoText").GetComponent<TextMeshProUGUI>();
-		tameFlyNet = Instantiate(tameFlyNetPrefab, flyIconPosition, Quaternion.identity) as GameObject;
+		flyTextAnimator = flyButton.transform.Find("FlyCount").GetComponent<Animator>();
+		flyCount = flyButton.transform.Find("FlyCount").GetComponent<TextMeshProUGUI>();
+        flyToGoText = flyButton.transform.Find("ToGoText").GetComponent<TextMeshProUGUI>();
+		tameFlyNet = Instantiate<GameObject>(tameFlyNetPrefab, flyIconPosition, Quaternion.identity);
 
-		arrowPanelCG = canvas.FindChild("ArrowPanel").GetComponent<CanvasGroup>();
+		arrowPanelCG = canvas.Find("ArrowPanel").GetComponent<CanvasGroup>();
 		arrowPanel = arrowPanelCG.GetComponent<RectTransform>();
-		frogName = arrowPanel.FindChild("FrogName").GetComponent<TextMeshProUGUI>();
-        arrowPanelBuyButton = arrowPanel.FindChild("BuyButton").gameObject;
+		frogName = arrowPanel.Find("FrogName").GetComponent<TextMeshProUGUI>();
+        arrowPanelBuyButton = arrowPanel.Find("BuyButton").gameObject;
 
-        returnPanel = canvas.FindChild("ReturnPanel").GetComponent<CanvasGroup>();
-		returnButton = returnPanel.transform.FindChild("ReturnButton").GetComponent<RectTransform>();
+        returnPanel = canvas.Find("ReturnPanel").GetComponent<CanvasGroup>();
+		returnButton = returnPanel.transform.Find("ReturnButton").GetComponent<RectTransform>();
 
-		Transform endGameTransform = canvas.FindChild("EndGamePanel");
+		Transform endGameTransform = canvas.Find("EndGamePanel");
 		endGamePanel = endGameTransform.GetComponent<CanvasGroup>();
-		giftButton = endGameTransform.FindChild("GiftsButton").gameObject;
-		adButton = endGameTransform.FindChild("AdsButton").gameObject;
+		giftButton = endGameTransform.Find("GiftsButton").gameObject;
+		adButton = endGameTransform.Find("AdsButton").gameObject;
 
-		timeUntilGiftText = endGameTransform.FindChild("TimeUntilGift").GetComponent<TextMeshProUGUI>();
+		timeUntilGiftText = endGameTransform.Find("TimeUntilGift").GetComponent<TextMeshProUGUI>();
 
-		buyButtonObject = endGameTransform.FindChild("BuyButton").gameObject;
+		buyButtonObject = endGameTransform.Find("BuyButton").gameObject;
 		buyButton = buyButtonObject.GetComponent<Button>();
-		buyButtonText = buyButton.transform.FindChild("Text").GetComponent<TextMeshProUGUI>();
-		buyButtonImage = buyButton.transform.FindChild("Image").GetComponent<Image>();
+		buyButtonText = buyButton.transform.Find("Text").GetComponent<TextMeshProUGUI>();
+		buyButtonImage = buyButton.transform.Find("Image").GetComponent<Image>();
 	}
 
 	void Start()
@@ -336,7 +343,7 @@ public class MenuManager : MonoBehaviour {
 		musicToggle.isOn = variableManager.IsPlayingMusic;
 	}
 
-	void OnApplicationFocus(bool focusStatus) 
+	void OnApplicationFocus(bool focusStatus)
 	{
 		if(!focusStatus)
 		{
@@ -350,7 +357,7 @@ public class MenuManager : MonoBehaviour {
 			controller.CanTouch = false;
 
 			if(pauseText != null) Destroy (pauseText.gameObject);
-			pauseText = Instantiate (pausePrefab) as TextMeshProUGUI;
+			pauseText = Instantiate<TextMeshProUGUI>(pausePrefab);
 			pauseText.transform.SetParent(canvas.GetComponent<RectTransform>(), false);
 
 			Time.timeScale = 0;
@@ -376,7 +383,7 @@ public class MenuManager : MonoBehaviour {
 
 		IsShowingSettings = true;
 		IsShowingReturnPanel = true;
-		
+
 		ShowStartGameFly(new Vector4(.3f, .35f, 1.5f, .35f));
 	}
 
@@ -418,7 +425,7 @@ public class MenuManager : MonoBehaviour {
 		SpawnManager.Instance.SpawnFlyBundle(frogCost, flyIconPosition, controller.ControllerID);
 		FrogPackages.Instance.LowerAndOpenRandomFrog(true);
 
-		Invoke ("ShowReturnPanel", 3f);
+		Invoke(nameof(ShowReturnPanel), 3f);
 	}
 
 	public void GiftFlys()
@@ -433,7 +440,7 @@ public class MenuManager : MonoBehaviour {
 
 		SpawnGiftFlys(true);
 	}
-	
+
 	public void ShowMainMenu(bool playSound)
 	{
         controller.CanPlay = false;
@@ -471,7 +478,7 @@ public class MenuManager : MonoBehaviour {
 		IsShowingHUD = true;
 		MoveHUD(Direction.Down);
 	}
-	
+
 	public void ShowAd()
 	{
 		CanSpendFlys = false;
@@ -492,7 +499,7 @@ public class MenuManager : MonoBehaviour {
 		SpawnManager.Instance.SpawnFlyBundle(giftAmount, -flyIconPosition, controller.ControllerID);
 
 		frogPackages.RaiseFrog();
-		Invoke ("ShowReturnPanel", 3f);
+		Invoke(nameof(ShowReturnPanel), 3f);
 	}
 
 	public void Quit()
@@ -500,7 +507,7 @@ public class MenuManager : MonoBehaviour {
 		PlaySelectSound();
 		Application.Quit();
 	}
-	
+
 	public void ShowEndGamePanel()
 	{
 		MoveHUD(Direction.Up);
@@ -526,19 +533,19 @@ public class MenuManager : MonoBehaviour {
 		flyPanelCG.GetComponent<Animator>().SetTrigger("ShowPanel");
 		ShowMainMenu(false);
 	}
-		
+
 	public void UpdateFlyToGoText()
 	{
 		if(CanSpendFlys)
 		{
 			int bugsLeft = frogCost - hud.BugsCaught;
-			
+
 			if(bugsLeft <= 0)
 			{
 				flyButton.interactable = true;
 				flyPanelCG.interactable = true;
 				flyPanelCG.blocksRaycasts = true;
-				
+
 				flyCount.SetText("Win a frog!");
 				hud.canChangeFlyCount = false;
 				flyTextAnimator.SetBool("IsAnimating", true);
@@ -591,7 +598,7 @@ public class MenuManager : MonoBehaviour {
     private void CelebrateNew(bool isNew)
     {
         AudioManager.Instance.PlayForAll(isNew ? AudioManager.Instance.newSound : AudioManager.Instance.missSound);
-        RectTransform newFrogText = Instantiate(isNew ? newFrogTextPrefab : tryAgainTextPrefab) as RectTransform;
+        RectTransform newFrogText = Instantiate<RectTransform>(isNew ? newFrogTextPrefab : tryAgainTextPrefab);
         newFrogText.SetParent(canvas, true);
         newFrogText.anchoredPosition = Vector2.zero;
 
@@ -626,7 +633,7 @@ public class MenuManager : MonoBehaviour {
 	{
 		if(startBug == null)
 		{
-			startBug = Instantiate(startGameBugPrefab, new Vector3(0,0,-1), Quaternion.identity) as Bug;
+			startBug = Instantiate<Bug>(startGameBugPrefab, new Vector3(0,0,-1), Quaternion.identity);
 			startBug.screenOffset = barriers;
 			startBug.enabled = true;
 		}
@@ -658,9 +665,9 @@ public class MenuManager : MonoBehaviour {
 		timeUntilGiftText.color = Color.white;
 		float minutesUntilGift = GiftManager.Instance.MinutesUntilGift();
 		if(minutesUntilGift < 10f)
-			timeUntilGiftText.SetText("Gift in\n{0}:0{1}", GiftManager.Instance.HoursUntilGift(), minutesUntilGift);
+			timeUntilGiftText.SetText($"Gift in\n{GiftManager.Instance.HoursUntilGift()}:0{minutesUntilGift}");
 		else
-			timeUntilGiftText.SetText("Gift in\n{0}:{1}", GiftManager.Instance.HoursUntilGift(), minutesUntilGift);
+			timeUntilGiftText.SetText($"Gift in\n{GiftManager.Instance.HoursUntilGift()}:{minutesUntilGift}");
 	}
 
 	private void MoveHUD(Direction direction)
@@ -676,7 +683,7 @@ public class MenuManager : MonoBehaviour {
 			DOTween.To (UpdateHUDPosition, 0.83f, 0, 1f).SetEase(Ease.OutBack);
 		}
 	}
-	
+
 	private void ShowQualityStats(bool isAppearing)
 	{
 		qualityCountPanelCG.DOFade(isAppearing ? 1f : 0, isAppearing ? 1f : 0);
@@ -780,10 +787,11 @@ public class MenuManager : MonoBehaviour {
 
     private void MakeActionText(RectTransform prefab)
     {
-        RectTransform instantiated = Instantiate(prefab) as RectTransform;
+        RectTransform instantiated = Instantiate<RectTransform>(prefab);
         instantiated.SetParent(canvas, false);
         Destroy(instantiated.gameObject, 2f);
     }
 
     #endregion Private Functions
+}
 }

@@ -1,17 +1,15 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-public class KeepInDirection : MonoBehaviour {
-
-	private Transform _transform;
-	public Vector2 direction = Vector2.up;
-
-	void Awake () 
+namespace HotFrog.Utility
+{
+	public class KeepInDirection : MonoBehaviour
 	{
-		_transform = transform;	
-	}
-	
-	void Update () 
-	{
-		_transform.up = direction;	
+		private Transform _transform;
+
+		[SerializeField] private Vector2 direction = Vector2.up;
+
+		private void Awake() => _transform = transform;
+
+		private void Update() => _transform.up = direction;
 	}
 }

@@ -1,24 +1,28 @@
 using UnityEngine;
+using HotFrog.Audio;
+using HotFrog.Spawning;
 
+namespace HotFrog.Entities
+{
 public class Scenery : RigidbodySpawn {
 
-    public Vector2 autoMovementMin = Vector2.zero;
-    public Vector2 autoMovementMax = Vector2.zero;
+    [SerializeField] private Vector2 autoMovementMin = Vector2.zero;
+    [SerializeField] private Vector2 autoMovementMax = Vector2.zero;
     private Vector2 autoMovement = Vector2.zero;
 
     public bool hasMaterial = false;
 
-    protected override Vector2 speed { get { return (base.speed == Vector2.zero) ? autoMovement : base.speed * speedModifier; } }
+    protected override Vector2 speed => (base.speed == Vector2.zero) ? autoMovement : base.speed * speedModifier;
 
     #region Component Segments
 
     protected override void Awake ()
 	{
 		base.Awake ();
-        
+
         originalScale = transform.localScale;
 	}
-	
+
     protected override void OnEnable()
     {
         base.OnEnable();
@@ -38,4 +42,5 @@ public class Scenery : RigidbodySpawn {
 
 	#endregion Component Segments
 
+}
 }

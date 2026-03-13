@@ -1,11 +1,15 @@
 using UnityEngine;
+using HotFrog.Spawning;
+using HotFrog.Utility;
 
+namespace HotFrog.Entities
+{
 public class Pebble : Spawn {
 
 	#region Fields
 
-	public float minSpeed;
-	public float maxSpeed;
+	[SerializeField] private float minSpeed;
+	[SerializeField] private float maxSpeed;
 
 	private Vector2 speedVector;
 	private Rigidbody2D _rigidbody;
@@ -25,11 +29,11 @@ public class Pebble : Spawn {
 		speedVector = new Vector2(0, -Random.Range(minSpeed, maxSpeed));
 	}
 
-	void FixedUpdate () 
+	void FixedUpdate ()
 	{
 		_rigidbody.AddForce(speedVector, ForceMode2D.Force);
 	}
-	
+
 	#endregion Component Segments
 
 	#region Functions
@@ -49,10 +53,11 @@ public class Pebble : Spawn {
 		_rigidbody.rotation = 0;
 		_rigidbody.AddForce(new Vector2(xForce, yForce), ForceMode2D.Impulse);
 		_rigidbody.AddTorque(-rotForce, ForceMode2D.Impulse);
-		
+
 		Invoke ("Destroy", 3f);
 	}
-	
+
 	#endregion Functions
 
+}
 }

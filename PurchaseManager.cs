@@ -1,18 +1,23 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections.Generic;
 using Soomla.Store;
 using System.Text.RegularExpressions;
+using HotFrog.UI;
+using HotFrog.Player;
+using HotFrog.Utility;
 
+namespace HotFrog.Store
+{
 public class PurchaseManager : MonoBehaviour {
 
-	public RectTransform restoredTextPrefab;
-	public bool isUsingStore = true;
+	[SerializeField] private RectTransform restoredTextPrefab;
+	[SerializeField] private bool isUsingStore = true;
 	private bool hasStarted = false;
 	private StoreAssets assets;
     private MenuManager menuManager;
     private HUD hud;
     private FrogPackages frogPackages;
-    
+
     void Awake()
     {
         frogPackages = GetComponent<FrogPackages>();
@@ -97,7 +102,7 @@ public class PurchaseManager : MonoBehaviour {
 		if(id > 0 && pvi.GetBalance() > 0)
 			frogPackages.PurchaseFrogFromStore(id);
 	}
-	
+
 	public void onMarketRefund(PurchasableVirtualItem pvi)
 	{
 		int id = GetID(pvi.ItemId);
@@ -127,7 +132,7 @@ public class PurchaseManager : MonoBehaviour {
 				int id = GetID (good.ItemId);
 				if(id > 0 && good.GetBalance() > 0)
 				{
-					Debug.Log ("Restoring: " + id);
+					Debug.Log ($"Restoring: {id}");
 					FrogPackages.Instance.RestorePurchase(id);
 				}
 				else
@@ -145,4 +150,5 @@ public class PurchaseManager : MonoBehaviour {
 		else
 			return -1;
 	}
+}
 }

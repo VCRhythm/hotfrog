@@ -1,7 +1,9 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using DG.Tweening;
 
+namespace HotFrog.Entities
+{
 public class Overlay {
     private Transform transform;
     private SpriteRenderer spriteRenderer;
@@ -46,4 +48,5 @@ public class Overlay {
         spriteRenderer.sprite = sprite;
         spriteRenderer.enabled = true;
     }
+}
 }

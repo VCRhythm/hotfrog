@@ -1,21 +1,23 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-public class RotateTowards : MonoBehaviour {
-
-	Transform _transform;
-	Rigidbody2D parentRB;
-	public float rotateSpeed = 100f;
-	float velocity;
-	public Vector3 direction;
-	public bool checkParent = false;
-
-	void Awake()
+namespace HotFrog.Utility
+{
+	public class RotateTowards : MonoBehaviour
 	{
-		_transform = transform;
-	}
-	
-	void Update () 
-	{
-		_transform.rotation = Quaternion.Lerp(_transform.rotation, Quaternion.Euler(direction), Time.time * rotateSpeed);
+		private Transform _transform;
+		private Rigidbody2D parentRB;
+
+		[SerializeField] private float rotateSpeed = 100f;
+		private float velocity;
+
+		[SerializeField] private Vector3 direction;
+		[SerializeField] private bool checkParent = false;
+
+		private void Awake() => _transform = transform;
+
+		private void Update()
+		{
+			_transform.rotation = Quaternion.Lerp(_transform.rotation, Quaternion.Euler(direction), Time.time * rotateSpeed);
+		}
 	}
 }

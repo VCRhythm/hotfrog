@@ -1,5 +1,9 @@
 using UnityEngine;
+using HotFrog.Audio;
+using HotFrog.Spawning;
 
+namespace HotFrog.Entities
+{
 public class Tongue : MonoBehaviour {
 
 	private Transform target;
@@ -11,7 +15,7 @@ public class Tongue : MonoBehaviour {
 	private float journeyLength;
 	private Transform _transform;
 	private float spriteY;
-	
+
 	private System.Action catchAction;
 
 	void Awake()
@@ -35,7 +39,7 @@ public class Tongue : MonoBehaviour {
 			{
 				catchAction();
 				ResetCatchAction();
-				
+
 				isExpanding = false;
 			}
 		}
@@ -58,7 +62,7 @@ public class Tongue : MonoBehaviour {
 		journeyLength = Vector2.Distance(target.position, _transform.position);
 		isExpanding = true;
 	}
-	
+
 	public void AddToCatchActions(System.Action newCatchAction)
 	{
 		catchAction += newCatchAction;
@@ -80,4 +84,5 @@ public class Tongue : MonoBehaviour {
 	}
 
 	#endregion Private Functions
+}
 }

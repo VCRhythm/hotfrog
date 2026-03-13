@@ -1,8 +1,12 @@
-﻿using UnityEngine;
+using UnityEngine;
 using DG.Tweening;
+using HotFrog.Audio;
+using HotFrog.Spawning;
 
+namespace HotFrog.Entities
+{
 public class Lava : MonoBehaviour {
-	
+
 	private ObjectPool splashPool;
 	private MeshRenderer _renderer;
 	Renderer skyRenderer;
@@ -10,14 +14,15 @@ public class Lava : MonoBehaviour {
 	Material heatMaterial;
     bool heatIsLowered = false;
 
-	void Awake () 
+	[SerializeField] private Transform background;
+
+	void Awake ()
 	{
 		splashPool = GetComponent<ObjectPool>();
 		_renderer = transform.GetChild(0).GetComponent<MeshRenderer>();
 
-		Transform background = GameObject.Find("Background").transform;
-		skyRenderer = background.FindChild("Sky").GetComponent<Renderer>();
-		heatPlane = background.FindChild("Heat");
+		skyRenderer = background.Find("Sky").GetComponent<Renderer>();
+		heatPlane = background.Find("Heat");
 		heatMaterial = heatPlane.GetComponent<MeshRenderer>().material;
 	}
 
@@ -55,7 +60,7 @@ public class Lava : MonoBehaviour {
             heatIsLowered = false;
         }
 	}
-	
+
 	public void LowerHeat()
 	{
         if (!heatIsLowered)
@@ -77,4 +82,5 @@ public class Lava : MonoBehaviour {
 	{
 		skyRenderer.sharedMaterial.DOColor(newColor, 5f);
 	}
+}
 }

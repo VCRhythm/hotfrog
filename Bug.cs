@@ -1,8 +1,15 @@
 using UnityEngine;
 using DG.Tweening;
+using HotFrog.Core;
+using HotFrog.Audio;
+using HotFrog.Spawning;
+using HotFrog.Player;
+using HotFrog.Utility;
 
+namespace HotFrog.Entities
+{
 public class Bug : Spawn {
-	
+
 	private float moveTime = 3f;
 	private float lifeSpan = 2f;
 	private bool isLeaving = false;
@@ -19,7 +26,7 @@ public class Bug : Spawn {
 		None,
 		StartGame,
 	}
-	public ActionType actionType;
+	[SerializeField] private ActionType actionType;
 	private System.Action<int> grabAction;
 	private System.Action disableAction;
 	private System.Action decisionAfterMoving;
@@ -30,7 +37,7 @@ public class Bug : Spawn {
 		AssignInteractionAction();
 		SetUpDestination();
 	}
-	
+
 	void OnDisable()
 	{
 		CancelInvoke();
@@ -43,7 +50,7 @@ public class Bug : Spawn {
 	}
 
 	#region Functions
-	
+
 	public void Leave()
 	{
 		if(!isGrabbed)
@@ -53,7 +60,7 @@ public class Bug : Spawn {
 			SetUpDestination();
 		}
 	}
-	
+
 	public override void Grab(int playerID)
 	{
 		isGrabbed = true;
@@ -72,7 +79,7 @@ public class Bug : Spawn {
 
 	private void CancelCurrentMovement()
 	{
-		if(DOTween.IsTweening(transform)) 
+		if(DOTween.IsTweening(transform))
 			transform.DOKill();
 	}
 
@@ -97,8 +104,8 @@ public class Bug : Spawn {
 		{
 			dest = new Vector3(Random.Range(halfScreenWidth * (-1 + screenOffset.w), halfScreenWidth * (1 - screenOffset.y)),
 			                   Random.Range(halfScreenHeight * (-1 + screenOffset.z), halfScreenHeight * (1 - screenOffset.x)), -1f );
-/*			Debug.Log (string.Format ("Dest: {4}, Left: {0}, Right: {1}, Top: {2}, Bottom: {3}", 
-			                          halfScreenWidth * (-1 + offset.w), 
+/*			Debug.Log (string.Format ("Dest: {4}, Left: {0}, Right: {1}, Top: {2}, Bottom: {3}",
+			                          halfScreenWidth * (-1 + offset.w),
 			                          halfScreenWidth * (1 - offset.y),
 			                          halfScreenHeight * (1 - offset.x),
 			                          halfScreenHeight * (-1 + offset.z),
@@ -133,8 +140,8 @@ public class Bug : Spawn {
 		switch(actionType)
 		{
             case ActionType.StartGame:
-                
-			    grabAction += (int playerID) => 
+
+			    grabAction += (int playerID) =>
                 {
                     ControllerManager.Instance.TellController(playerID, (x) =>
                     {
@@ -149,7 +156,7 @@ public class Bug : Spawn {
 			    break;
 
             case ActionType.None:
-                grabAction += (int playerID) => 
+                grabAction += (int playerID) =>
                 {
                     ControllerManager.Instance.TellController(playerID, (x) =>
                     {
@@ -162,4 +169,5 @@ public class Bug : Spawn {
 	}
 
 	#endregion Private Functions
+}
 }

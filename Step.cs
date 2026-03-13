@@ -1,15 +1,22 @@
 using UnityEngine;
 using System.Collections;
 using DG.Tweening;
+using HotFrog.Core;
+using HotFrog.Audio;
+using HotFrog.Spawning;
+using HotFrog.Utility;
+using HotFrog.Player;
 
+namespace HotFrog.Entities
+{
 public class Step : RigidbodySpawn, IGrabable {
 
     #region Public Fields
 
-    public ActionType actionType;
+    [SerializeField] private ActionType actionType;
 
-    public Vector2 Position { get { return transform.position; } set { transform.position = value; } }
-    public bool HasGuidance { get { return guidance != null; } }
+    public Vector2 Position { get => transform.position; set => transform.position = value; }
+    public bool HasGuidance => guidance != null;
     public bool IsUnsteady { get; private set; }
     public float TimeUnsteady { get { if (!IsUnsteady) return 0; else return Time.time - unsteadyTime; } }
     public System.Func<int, bool> canBeSpawned;
@@ -21,7 +28,7 @@ public class Step : RigidbodySpawn, IGrabable {
     #region Private Fields
     private Transform guidance = null;
 	private Animator guidanceAnimator;
-	
+
 	private Vector2 savedPosition;
 	private float savedAngularVelocity;
 	private Vector2 pullPosition;
@@ -57,14 +64,14 @@ public class Step : RigidbodySpawn, IGrabable {
 	private System.Action releaseAction;
 	private System.Action fixedUpdate = () => {};
 	private System.Action destroyAction = () => {};
-		
+
 	private float unsteadyTime = 0;
 	//private const int ROCK_LAYER = 8;
 
-	private ObjectPool pebblePool;
+	[SerializeField] private ObjectPool pebblePool;
 	private int explosionPebbles = 5;
 	private int lavaSplashes = 4;
-	private Lava lava;
+	[SerializeField] private Lava lava;
 
 	#endregion Private Fields
 
@@ -73,9 +80,6 @@ public class Step : RigidbodySpawn, IGrabable {
 	protected override void Awake()
 	{
 		base.Awake();
-
-		lava = FindObjectOfType<Lava>();
-		pebblePool = GameObject.Find("PebbleSpawner").GetComponent<ObjectPool>();
 	}
 
 	protected override void OnEnable()
@@ -111,12 +115,12 @@ public class Step : RigidbodySpawn, IGrabable {
 
 			PlayCrumbleSound();
 			lava.Splash(new Vector2(transform.position.x, -50f), lavaSplashes);
-			
+
 			ForceRelease();
 		}
 
 		//else if(other.CompareTag("GrabableScenery")) return;
-		
+
 		base.OnTriggerEnter2D (other);
 	}
 
@@ -147,7 +151,7 @@ public class Step : RigidbodySpawn, IGrabable {
     {
         destroyAction();
 
-        base.Destroy (fadeDelay, fadeTime, destroyDelay);		
+        base.Destroy (fadeDelay, fadeTime, destroyDelay);
 	}
 
 	public override void Destroy ()
@@ -166,7 +170,7 @@ public class Step : RigidbodySpawn, IGrabable {
 
 		if(canAlert)
 		{
-			Transform textAlert = guidance.FindChild("AlertText");
+			Transform textAlert = guidance.Find("AlertText");
 			textAlert.GetComponent<TextMeshPro>().text = "Hold on!";
 			textAlert.DOLocalMoveX(-8f * Mathf.Sign (_transform.position.x), 0);
 			textAlert.DOShakeScale(1f);
@@ -214,11 +218,11 @@ public class Step : RigidbodySpawn, IGrabable {
 
         if (canFall)
         {
-            StartCoroutine("Fall");
+            StartCoroutine(nameof(Fall));
         }
         else
         {
-            StartCoroutine("ReleaseUnsteadyTouch");
+            StartCoroutine(nameof(ReleaseUnsteadyTouch));
         }
 	}
 
@@ -264,7 +268,7 @@ public class Step : RigidbodySpawn, IGrabable {
 	}
 
 /*	private void Pull()
-	{	
+	{
 		canMove = false;
 		StopPullTween();
 
@@ -301,12 +305,12 @@ public class Step : RigidbodySpawn, IGrabable {
 	}
 
 	private void InitialGrabAction()
-	{	
+	{
 		PlayGrabSound();
 
 		if(canPull)
             Pull ();
-        
+
         /*
 		hasFixedAngle = _rigidbody.fixedAngle;
 		savedAngularVelocity = _rigidbody.angularVelocity;
@@ -318,7 +322,7 @@ public class Step : RigidbodySpawn, IGrabable {
 		}
         */
 	}
-	
+
 	private void InitialReleaseAction()
 	{
 		/*
@@ -412,20 +416,20 @@ public class Step : RigidbodySpawn, IGrabable {
 			    fixedUpdate = () => { rb2D.AddForce(new Vector2(0, -50f), ForceMode2D.Force); };
 			    break;
 		    case ActionType.SplashFlinging:
-			    GameObject splash = transform.FindChild("Flingee").gameObject;
+			    GameObject splash = transform.Find("Flingee").gameObject;
 			    Vector2 splashLocalPosition = splash.transform.localPosition;
 			    grabAction += () => { splash.GetComponent<Rigidbody2D>().isKinematic = false; splash.GetComponent<Splash>().enabled = true; };
 			    destroyAction += () => { splash.GetComponent<Splash>().enabled = false; splash.GetComponent<Rigidbody2D>().isKinematic = true; splash.transform.localPosition = splashLocalPosition; splash.transform.localRotation = Quaternion.identity; };
 			    break;
 
 		    case ActionType.StepFlinging:
-			    GameObject step = transform.FindChild("Flingee").gameObject;
+			    GameObject step = transform.Find("Flingee").gameObject;
 			    Vector2 stepLocalPosition = step.transform.localPosition;
 			    grabAction += () => { step.GetComponent<Rigidbody2D>().isKinematic = false; step.GetComponent<Step>().enabled = true; };
 			    destroyAction += () => { step.GetComponent<Step>().enabled = false; step.GetComponent<Rigidbody2D>().isKinematic = true; step.transform.localPosition = stepLocalPosition; step.transform.localRotation = Quaternion.identity; };
 			    break;
 		    case ActionType.SpawnFly:
-			    GameObject bug = transform.FindChild("Bug").gameObject;
+			    GameObject bug = transform.Find("Bug").gameObject;
 			    Vector2 bugLocalPosition = bug.transform.localPosition;
 			    grabAction += () => { bug.GetComponent<Bug>().enabled = true; };
 			    destroyAction += () => { bug.GetComponent<Bug>().enabled = false; bug.transform.localPosition = bugLocalPosition; bug.transform.localRotation = Quaternion.identity; };
@@ -447,12 +451,12 @@ public class Step : RigidbodySpawn, IGrabable {
 		yield return new WaitForSeconds(delay);
 		Destroy ();
 	}
-		
+
 	private void StopShakeTween()
 	{
 		IsUnsteady = false;
-		StopCoroutine("ReleaseUnsteadyTouch");
-		
+		StopCoroutine(nameof(ReleaseUnsteadyTouch));
+
 		if(DOTween.IsTweening(1))
 		{
 			DOTween.Kill (1);
@@ -460,4 +464,5 @@ public class Step : RigidbodySpawn, IGrabable {
 	}
 
 	#endregion Private Functions
+}
 }

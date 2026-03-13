@@ -1,27 +1,29 @@
 using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using HotFrog.Core;
+using HotFrog.Audio;
+using HotFrog.Player;
+using HotFrog.Store;
+using HotFrog.Utility;
 
+namespace HotFrog.UI
+{
 public class FrogPackages : MonoBehaviour {
 
 	// A singleton instance of this class
-	private static FrogPackages instance;
-	public static FrogPackages Instance {
-		get {
-			if (instance == null) instance = FindObjectOfType<FrogPackages>();
-			return instance;
-		}
-	}
+	public static FrogPackages Instance { get; private set; }
 
-	public bool ResetPackagesOnStart = false;
-	public List<Frog> frogPackages = new List<Frog>();
-	public bool HasOpenPackages { get { return openPackages.Count > 1; } }
-		
+	[SerializeField] private bool resetPackagesOnStart = false;
+	public bool ResetPackagesOnStart => resetPackagesOnStart;
+	[SerializeField] private List<Frog> frogPackages = new List<Frog>();
+	public bool HasOpenPackages => openPackages.Count > 1;
+
 	[HideInInspector] public bool isViewingAllFrogs = false;
-	
+
 	private List<Vector3i> packagesSaved = new List<Vector3i>();
-	private List<Vector3i> openPackages 
-	{ get 
+	private List<Vector3i> openPackages
+	{ get
 		{
 			List<Vector3i> list = new List<Vector3i>();
 			for(int i = 0; i < packagesSaved.Count; i++)
@@ -30,9 +32,9 @@ public class FrogPackages : MonoBehaviour {
 					list.Add(packagesSaved[i]);
 			}
 			return list;
-		} 
+		}
 	}
-	
+
 	private int currentFrogID = -1;
 
 	private Frog frog;
@@ -46,13 +48,16 @@ public class FrogPackages : MonoBehaviour {
 
 	void Awake()
 	{
+		if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+		Instance = this;
+
         purchaseManager = GetComponentInChildren<PurchaseManager>();
         menuManager = GetComponentInChildren<MenuManager>();
         variableManager = GetComponent<VariableManager>();
         controller = transform.GetComponentInChildren<Controller>();
-		
+
         //Clear any saved purchases
-		if(ResetPackagesOnStart)
+		if(resetPackagesOnStart)
 		{
 			PlayerPrefs.DeleteAll();
 			//PlayerPrefs.DeleteKey("FrogPackages");
@@ -79,7 +84,7 @@ public class FrogPackages : MonoBehaviour {
 			}
 		}
 
-		SetFrog(Instantiate (frogPrefab, new Vector3(0, -100f), Quaternion.identity) as Frog);
+		SetFrog(Instantiate<Frog>(frogPrefab, new Vector3(0, -100f), Quaternion.identity));
 
 		currentFrogID = id;
 
@@ -125,7 +130,7 @@ public class FrogPackages : MonoBehaviour {
 	}
 
 	#endregion Button Callbacks
-	
+
 	public void PurchaseFrogFromStore(int id)
 	{
 		menuManager.DisableBuyButton(false);
@@ -172,13 +177,13 @@ public class FrogPackages : MonoBehaviour {
 				{
 					int canBuy = packagesSaved[i].z;
 					packagesSaved.Remove(packagesSaved[i]);
-					Debug.Log ("Package Locked: " + id);
+					Debug.Log ($"Package Locked: {id}");
 					packagesSaved.Add(new Vector3i(id, 0, canBuy));
 					SavePackages();
 				}
 				return;
 			}
-		}		
+		}
 	}
 
 	public Frog GetRandomClosedFrogForEndGamePanel()
@@ -220,13 +225,13 @@ public class FrogPackages : MonoBehaviour {
 				if(packagesSaved[i].y == 0)
 				{
 					packagesSaved.Remove(packagesSaved[i]);
-					Debug.Log ("Package Opened: "+id);
+					Debug.Log ($"Package Opened: {id}");
 					packagesSaved.Add(new Vector3i(id, 1, 1));
 					SavePackages();
 				}
 				return;
 			}
-		}		
+		}
 	}
 
 	private IEnumerator WaitThenOpenFrog(int id, bool isUnlocking)
@@ -328,7 +333,7 @@ public class FrogPackages : MonoBehaviour {
 
 		SavePackages();
 	}
-	
+
 	private void SavePackages()
 	{
 		PlayerPrefs.DeleteKey("FrogPackages");
@@ -351,7 +356,7 @@ public class FrogPackages : MonoBehaviour {
 			return openPackages[Random.Range(0, openPackages.Count)].x;
 		}
 	}
-	
+
 	private bool IsPackageOpen(int id)
 	{
 		for(int i = 0; i < packagesSaved.Count; i++)
@@ -366,7 +371,7 @@ public class FrogPackages : MonoBehaviour {
 		}
 		return false;
 	}
-	
+
 	private void SetFrog(Frog frog)
 	{
         this.frog = frog;
@@ -404,6 +409,7 @@ public class FrogPackages : MonoBehaviour {
 //			Debug.Log (packages[i]);
 //		}
 //	}
-	
+
 	#endregion Private Functions
+}
 }

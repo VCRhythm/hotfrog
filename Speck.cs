@@ -1,6 +1,10 @@
-﻿using UnityEngine;
+using UnityEngine;
 using DG.Tweening;
+using HotFrog.Spawning;
+using HotFrog.Utility;
 
+namespace HotFrog.Entities
+{
 public class Speck : PooledObject {
 
     public enum Status
@@ -11,8 +15,8 @@ public class Speck : PooledObject {
     }
 
     [ReadOnly] public Status status;
-    public float rotateAngleMin = 3f;
-    public float rotateAngleMax = 5f;
+    [SerializeField] private float rotateAngleMin = 3f;
+    [SerializeField] private float rotateAngleMax = 5f;
     [ReadOnly] public float rotateSpeed = 1f;
 
     private Transform targetTransform = null;
@@ -115,4 +119,5 @@ public class Speck : PooledObject {
         targetTransform = target;
         nextTarget = targetTransform.position;
     }
+}
 }

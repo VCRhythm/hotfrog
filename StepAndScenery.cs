@@ -1,5 +1,8 @@
-﻿using UnityEngine;
+using UnityEngine;
+using HotFrog.Spawning;
 
+namespace HotFrog.Entities
+{
 public class StepAndScenery : Spawn
 {
     private Animator animator;
@@ -28,4 +31,5 @@ public class StepAndScenery : Spawn
         step.Destroy();
         base.Destroy();
     }
+}
 }

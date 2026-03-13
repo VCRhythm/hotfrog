@@ -1,13 +1,16 @@
-﻿using UnityEngine;
+using UnityEngine;
+using HotFrog.Spawning;
 
+namespace HotFrog.Entities
+{
 public class QualityText : PooledObject {
 
-	public float lifetime = 0.5f;
-	public bool canMove = false;
+	[SerializeField] private float lifetime = 0.5f;
+	[SerializeField] private bool canMove = false;
 
-	private Vector2 speed { get { return SpawnManager.Instance.PullVector; } }
+	private Vector2 speed => SpawnManager.Instance.PullVector;
 
-	void OnEnable () 
+	void OnEnable ()
 	{
 		Invoke("Destroy", lifetime);
 	}
@@ -20,4 +23,5 @@ public class QualityText : PooledObject {
 		}
 	}
 
+}
 }

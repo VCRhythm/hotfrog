@@ -1,16 +1,21 @@
-﻿using UnityEngine;
+using UnityEngine;
+using HotFrog.Core;
+using HotFrog.Entities;
 
-public class StepAndScenerySpawner : ScenerySpawner {
+namespace HotFrog.Spawning
+{
+    public class StepAndScenerySpawner : ScenerySpawner {
 
-    protected override Transform CreateSpawn(int spawnIndex = -1)
-    {
-        Transform spawn = base.CreateSpawn(spawnIndex);
-
-        if (spawn != null)
+        protected override Transform CreateSpawn(int spawnIndex = -1)
         {
-            LevelManager.Instance.TrackStep(spawn.GetComponentInChildren<Step>().transform);
-        }
+            Transform spawn = base.CreateSpawn(spawnIndex);
 
-        return spawn;
+            if (spawn != null)
+            {
+                LevelManager.Instance.TrackStep(spawn.GetComponentInChildren<Step>().transform);
+            }
+
+            return spawn;
+        }
     }
 }

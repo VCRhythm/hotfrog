@@ -1,6 +1,9 @@
 using UnityEngine;
 using System.Collections;
+using HotFrog.Audio;
 
+namespace HotFrog.Entities
+{
 public class Beam : MonoBehaviour {
 
 	private Transform baseTransform;
@@ -63,4 +66,5 @@ public class Beam : MonoBehaviour {
 		}
 
 	}
+}
 }

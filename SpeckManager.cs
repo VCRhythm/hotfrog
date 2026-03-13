@@ -1,19 +1,23 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using System.Collections.Generic;
+using HotFrog.Core;
+using HotFrog.Spawning;
 
+namespace HotFrog.Entities
+{
 [RequireComponent(typeof(ObjectPool))]
 public class SpeckManager : LevelObject {
-    public Color[] colorOptions;
+    [SerializeField] private Color[] colorOptions;
 
     private ObjectPool speckPool;
     private List<Speck> specks = new List<Speck>();
-    
+
     void Awake()
     {
         speckPool = GetComponent<ObjectPool>();
     }
-	
+
     public void ActivateSpecks(Vector2 position)
     {
         for(int i = 0; i < speckPool.initialPoolSize; i++)
@@ -62,4 +66,5 @@ public class SpeckManager : LevelObject {
         }
     }
 
+}
 }

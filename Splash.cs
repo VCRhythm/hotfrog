@@ -1,11 +1,14 @@
-﻿using UnityEngine;
+using UnityEngine;
+using HotFrog.Spawning;
 
+namespace HotFrog.Entities
+{
 public class Splash : Spawn {
 
-	public float minXForce = -15f;
-	public float maxXForce = 15f;
-	public float yForce = 60f;
-	public float rotMod = 2f;
+	[SerializeField] private float minXForce = -15f;
+	[SerializeField] private float maxXForce = 15f;
+	[SerializeField] private float yForce = 60f;
+	[SerializeField] private float rotMod = 2f;
 
 	Rigidbody2D _rigidbody;
 	float force;
@@ -30,4 +33,5 @@ public class Splash : Spawn {
 		Invoke ("Destroy", 3f);
 	}
 
+}
 }

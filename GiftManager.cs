@@ -1,24 +1,23 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System;
 
+namespace HotFrog.UI
+{
 public class GiftManager : MonoBehaviour {
 
 	// A singleton instance of this class
-	private static GiftManager instance;
-	public static GiftManager Instance {
-		get {
-			if (instance == null) instance = GameObject.FindObjectOfType<GiftManager>();
-			return instance;
-		}
-	}
+	public static GiftManager Instance { get; private set; }
 
 	private string savedTime;
 	private int giftSeed = 0;
 	private string timeFormat = "MM dd, yyyy HH:mm";
-	private string currentTime { get { return DateTime.Now.ToString(timeFormat); } }
+	private string currentTime => DateTime.Now.ToString(timeFormat);
 
 	void Awake()
 	{
+		if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+		Instance = this;
+
 		giftSeed = PlayerPrefs.GetInt("GiftSeed");
 
 		if(PlayerPrefs.HasKey("TimeSinceLastGift"))
@@ -29,7 +28,7 @@ public class GiftManager : MonoBehaviour {
 			savedTime = DateTime.Now.Subtract(span).ToString(timeFormat);
 		}
 	}
-	
+
 	public bool CanShowGift()
 	{
 		//Debug.Log (string.Format("Gift Time: {0}, Last Gift: {1}", GetGiftTime(), TimeSince(savedTime)));
@@ -42,7 +41,7 @@ public class GiftManager : MonoBehaviour {
 
 		return false;
 	}
-	
+
 	public float GetGiftTime()
 	{
 		return Mathf.Clamp(Mathf.RoundToInt(Mathf.Exp(giftSeed)), 120, 21600);
@@ -73,4 +72,5 @@ public class GiftManager : MonoBehaviour {
 	{
 		return (float)DateTime.Now.Subtract(DateTime.Parse(lastTime)).TotalSeconds;
 	}
+}
 }

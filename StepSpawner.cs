@@ -1,42 +1,47 @@
 using UnityEngine;
+using HotFrog.Core;
+using HotFrog.Entities;
 
-public class StepSpawner : Spawner
+namespace HotFrog.Spawning
 {
-    private Transform newSpawn;
-    private Step newStep;
-
-    #region Private Functions
-
-    protected override Transform CreateSpawn(int spawnIndex = -1)
+    public class StepSpawner : Spawner
     {
-        newSpawn = base.CreateSpawn(spawnIndex);
-        if (newSpawn == null) return null;
+        private Transform newSpawn;
+        private Step newStep;
 
-        newStep = newSpawn.StepSpawnScript();
+        #region Private Functions
 
-        if (!newStep.canBeSpawned(spawnCount))
+        protected override Transform CreateSpawn(int spawnIndex = -1)
         {
-            newStep.Destroy();
-            spawnCount--;
-            CreateSpawn();
-            return null;
+            newSpawn = base.CreateSpawn(spawnIndex);
+            if (newSpawn == null) return null;
+
+            newStep = newSpawn.StepSpawnScript();
+
+            if (!newStep.canBeSpawned(spawnCount))
+            {
+                newStep.Destroy();
+                spawnCount--;
+                CreateSpawn();
+                return null;
+            }
+
+            LevelManager.Instance.TrackStep(newSpawn);
+
+            return newSpawn;
         }
 
-        LevelManager.Instance.TrackStep(newSpawn);
-
-        return newSpawn;
-    }
-
-    protected override void SetMovementToScreenSize()
-    {
-        base.SetMovementToScreenSize();
-
-        adjustedMovements.Clear();
-        for (int i = 0; i < Movements.Count; i++)
+        protected override void SetMovementToScreenSize()
         {
-            adjustedMovements.Add(new Vector3(Movements[i].x * halfScreenWidth, Movements[i].y * halfScreenHeight, Movements[i].z));
-        }
-    }
+            base.SetMovementToScreenSize();
 
-    #endregion Private Functions
+            adjustedMovements.Clear();
+            for (int i = 0; i < Movements.Count; i++)
+            {
+                adjustedMovements.Add(new Vector3(Movements[i].x * halfScreenWidth, Movements[i].y * halfScreenHeight, Movements[i].z));
+            }
+        }
+
+        #endregion Private Functions
+    }
 }

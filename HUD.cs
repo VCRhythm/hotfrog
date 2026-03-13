@@ -1,14 +1,19 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 using TMPro;
+using HotFrog.Core;
+using HotFrog.Audio;
+using HotFrog.Utility;
 
+namespace HotFrog.UI
+{
 public class HUD : MonoBehaviour {
 
 	public int BugsCaught { get { return bugsCaught;} set { bugsCaught = value; if(canChangeFlyCount) UpdateFlyCount();} }
-	public int StepsClimbed { get { return stepsClimbed; } set { 
+	public int StepsClimbed { get { return stepsClimbed; } set {
 			stepsClimbed = value;
 			stepCountText.SetText("{0}", value);
-			
+
 			if(value == newHighScore)
 			{
 				NewHighScore();
@@ -17,14 +22,14 @@ public class HUD : MonoBehaviour {
 			{
 				Base10Score();
 			}
-		} 
+		}
 	}
 	[HideInInspector] public bool canChangeFlyCount = true;
 
 	TextMeshProUGUI stepCountText;
 	Animator stepCountAnimator;
-	TextMeshProUGUI flyCountText;
-	TextMeshProUGUI highScoreText;
+	[SerializeField] private TextMeshProUGUI flyCountText;
+	[SerializeField] private TextMeshProUGUI highScoreText;
     VariableManager variableManager;
 
 	int bugsCaught = 0;
@@ -34,12 +39,10 @@ public class HUD : MonoBehaviour {
 	void Awake()
 	{
         variableManager = transform.parent.GetComponentInParent<VariableManager>();
-		stepCountText = transform.FindChild("StepCount").GetComponent<TextMeshProUGUI>();
+		stepCountText = transform.Find("StepCount").GetComponent<TextMeshProUGUI>();
 		stepCountAnimator = stepCountText.GetComponent<Animator>();
-		highScoreText = GameObject.Find ("HighScore").GetComponent<TextMeshProUGUI>();
-		flyCountText = GameObject.Find ("FlyCount").GetComponent<TextMeshProUGUI>();
 	}
-	
+
     void Start()
     {
         BugsCaught = variableManager.BugsCaught;
@@ -50,7 +53,7 @@ public class HUD : MonoBehaviour {
 		int oldBugsCaught = bugsCaught;
 		bugsCaught += changeAmount;
 		variableManager.SaveBugs(bugsCaught);
-		
+
 		if(changeAmount < 0)
 		{
 			while(oldBugsCaught > bugsCaught)
@@ -97,7 +100,7 @@ public class HUD : MonoBehaviour {
 	{
         highScoreText.color = Color.green;
 		AudioManager.Instance.PlayForAll (AudioManager.Instance.highScoreSound);
-	
+
 		stepCountAnimator.SetBool("IsHighScore", true);
 		stepCountAnimator.SetTrigger("IsBase10");
 	}
@@ -108,4 +111,5 @@ public class HUD : MonoBehaviour {
 		stepCountAnimator.SetBool("IsHighScore", false);
 		stepCountAnimator.SetTrigger("IsBase10");
 	}
+}
 }

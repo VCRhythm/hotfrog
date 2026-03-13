@@ -1,11 +1,13 @@
-﻿using UnityEngine;
+using UnityEngine;
 
+namespace HotFrog.Entities
+{
 public class Grass : Scenery {
 
     private Animator anim;
-    public float minWaveTime = 1f;
-    public float maxWaveTime = 4f;
-    
+    [SerializeField] private float minWaveTime = 1f;
+    [SerializeField] private float maxWaveTime = 4f;
+
     void Start()
     {
         anim = GetComponent<Animator>();
@@ -16,4 +18,5 @@ public class Grass : Scenery {
     {
         anim.SetTrigger("Wave");
     }
+}
 }

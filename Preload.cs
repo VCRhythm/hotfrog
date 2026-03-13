@@ -1,27 +1,29 @@
-﻿using UnityEngine;
+using UnityEngine;
 using System.Collections;
 
-public class Preload : MonoBehaviour {
+namespace HotFrog.Core
+{
+    public class Preload : MonoBehaviour
+    {
+        public static Preload Instance { get; private set; }
 
-	// A singleton instance of this class
-	private static Preload instance;
-	public static Preload Instance {
-		get {
-			if (instance == null) instance = GameObject.FindObjectOfType<Preload>();
-			return instance;
-		}
-	}
+        [SerializeField] private Sprite[] spritesToLoad;
 
-	public Sprite[] spritesToLoad;
+        private void Awake()
+        {
+            if (Instance != null && Instance != this) { Destroy(gameObject); return; }
+            Instance = this;
+        }
 
-	IEnumerator Start () 
-	{
-		SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
-		for(int i=0; i<spritesToLoad.Length; i++)
-		{
-			spriteRenderer.sprite = spritesToLoad[i];
-			yield return null;
-		}
-		Destroy (gameObject);
-	}
+        IEnumerator Start()
+        {
+            SpriteRenderer spriteRenderer = GetComponent<SpriteRenderer>();
+            for (int i = 0; i < spritesToLoad.Length; i++)
+            {
+                spriteRenderer.sprite = spritesToLoad[i];
+                yield return null;
+            }
+            Destroy(gameObject);
+        }
+    }
 }

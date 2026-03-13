@@ -1,5 +1,9 @@
-﻿using UnityEngine;
+using UnityEngine;
 
-public class LevelObject : MonoBehaviour {
-    public virtual void Destroy(){}
+namespace HotFrog.Core
+{
+    public class LevelObject : MonoBehaviour
+    {
+        public virtual void Destroy() { }
+    }
 }

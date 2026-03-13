@@ -1,6 +1,8 @@
-﻿using System.Collections.Generic;
+using System.Collections.Generic;
 using Soomla.Store;
 
+namespace HotFrog.Store
+{
 public class StoreAssets : IStoreAssets {
 
 	public int GetVersion()
@@ -95,7 +97,8 @@ public class StoreAssets : IStoreAssets {
 	public static VirtualCategory GENERAL_CATEGORY = new VirtualCategory(
 		"General", new List<string>(new string[] {})
 	);
-	
+
 	#endregion Virtual Categories
 
+}
 }

@@ -1,9 +1,12 @@
 using UnityEngine;
 using UnityEngine.Advertisements;
+using HotFrog.UI;
 
+namespace HotFrog.Ads
+{
 public class AdvertisingManager : MonoBehaviour {
 
-    public bool isReady { get { return Advertisement.IsReady() && (Time.time - lastAdvertisementTime > 60f || lastAdvertisementTime == 0); } }
+    public bool isReady => Advertisement.IsReady() && (Time.time - lastAdvertisementTime > 60f || lastAdvertisementTime == 0);
 
     private float lastAdvertisementTime = 0;
     private MenuManager menuManager;
@@ -31,6 +34,7 @@ public class AdvertisingManager : MonoBehaviour {
             default:
                 break;
         }
-        
+
     }
+}
 }
