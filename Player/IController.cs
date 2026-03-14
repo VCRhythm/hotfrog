@@ -1,7 +1,6 @@
 using UnityEngine;
-using HotFrog.Player;
 
-namespace HotFrog.Utility
+namespace HotFrog.Player
 {
 	public interface IController  {
 		int ControllerID { get; set; }
