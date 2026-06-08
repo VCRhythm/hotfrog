@@ -40,6 +40,8 @@ These layer on top of the core loop once it's solid:
    collectible loop.
 7. **[07-multiplayer.md](07-multiplayer.md)** — networked multiplayer and the
    server-authority hardening it requires.
+8. **[08-frog-skins-and-store.md](08-frog-skins-and-store.md)** — frog skins,
+   ownership/currency persistence, and monetization (Game Passes + products).
 
 Throughout, each Roblox system is cross-referenced to the original Unity source
 file (e.g. `Player/Frog.cs`) so contributors can trace behavior back to the
@@ -64,11 +66,11 @@ These are out of the *core loop* but now have (or will have) their own docs:
 - Step `ActionType` variants beyond plain steps → **[05](05-step-behaviors.md)**.
 - Bugs and tongue collectible loop → **[06](06-bugs-and-tongue.md)**.
 - Networked multiplayer + authority hardening → **[07](07-multiplayer.md)**.
+- Frog skins, currency & store/monetization → **[08](08-frog-skins-and-store.md)**.
 
 Still unwritten / later:
 
-- Frog skins / customization (`UI/FrogPackages.cs`, `Store/`).
-- Ads and in-app purchases (`Ads/`, `Store/`).
+- Ads (`Ads/`) and gifting / daily rewards (`UI/GiftManager.cs`).
 - Scripted level progression / timed events
   (`Core/LevelManager.cs`, `Core/LevelEvent.cs`).
 
