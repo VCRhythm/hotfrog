@@ -80,6 +80,18 @@ In `ReplicatedStorage`, create:
 
 `Shared` (with the modules) is synced by Rojo — don't create it by hand.
 
+## Source art
+
+The original sprite art is in the repo under [`/Sprites`](../../Sprites): frog
+skins (`Sprites/Frogs/<name>/`, one per `SkinCatalog` entry, plus a shared
+`Universal/`), step variants (`Sprites/Rocks/`), and entities/scenery
+(`Sprites/Other/`, `Sprites/Scenery/`, `Sprites/Menu/`). These are PNGs — Roblox
+references uploaded image assets by id, so run them through the **provided upload
+tool** to get asset ids, then build the templates above from those (decals/textures
+on the rig parts) instead of plain placeholder blocks. Placeholder parts are only
+the gray-box fallback; see [doc 08](08-frog-skins-and-store.md#source-art-in-the-repo)
+for the part→sprite mapping.
+
 ## What you should see on Play
 
 - The frog falls (accelerating) and, untouched, dies in the lava and respawns.

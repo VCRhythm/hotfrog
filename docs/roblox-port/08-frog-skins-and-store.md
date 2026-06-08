@@ -26,10 +26,43 @@ The original wires this through three systems:
 So there are two unlock paths: **pay real money** (premium frogs) or **earn/spend
 Flys** (the soft-currency path, fed by caught bugs and gifts).
 
+## Source art (in the repo)
+
+The original frog art lives in [`/Sprites/Frogs/`](../../Sprites/Frogs) — one
+folder per skin, named to match the `SkinCatalog` `name` field:
+
+`Hot Frog`, `Blue Frog`, `Hawt Frog`, `Space Frog`, `Mystery Frog`,
+`Business Frog`, `Hot Lawyer`, `Invisible Man`, `Crossy Frog`, plus a shared
+[`Universal/`](../../Sprites/Frogs/Universal) set (pupils, sclera, tongue).
+
+Each skin folder holds the full rig as separate PNGs, named by part — they line up
+1:1 with the `Frog.cs` fields and the `FrogModel` rig parts:
+
+| Sprite (per `<Name>` prefix) | Rig part / use |
+|---|---|
+| `…Body`, `…Head`, `…Mouth` | body, head, mouth |
+| `…LeftEye` / `…RightEye`, `Universal…Pupil` / `…Sclera` | eyes (pupils/sclera shared via `Universal/`) |
+| `…Low/Lower/Closed{Left,Right}Eyelid` | the blink/eyelid states (`Frog.ShowEyes`) |
+| `…LeftHand` / `…RightHand`, `…HandGrab`, `…HandGrabBack` | open hand + grip variants (`Limb.cs`) |
+| `…LeftLimb` / `…RightLimb` (+ `…Shadow`) | arms |
+| `…Thumbnail` | store/UI thumbnail |
+
+Non-frog art is also present: [`/Sprites/Rocks/`](../../Sprites/Rocks) (step
+variants + direction arrows + `Castle`/`Rocket`/`Lillipad`),
+[`/Sprites/Other/`](../../Sprites/Other) (`Bug`, `LavaSplash`, `Sun`, clouds,
+grass, …), plus `Menu/` and `Scenery/`.
+
+> **Getting them into Roblox.** These are PNGs; Roblox references uploaded image
+> assets by id. Upload them with the **provided upload tool**, which yields the
+> asset ids you then reference (e.g. a generated name→assetId map the skin builder
+> reads). This doc deliberately doesn't prescribe the upload pipeline — plug in the
+> tool's output.
+
 ## Roblox mapping
 
 | Original | Roblox |
 |---|---|
+| Source sprites in `/Sprites/Frogs/<name>/` | uploaded image assets → `Decal`/`Texture`/`ImageLabel` on the rig parts |
 | Frog prefab per skin (`Frog.cs` + `SpriteLoad`) | a skin `Model` per look under `ReplicatedStorage/Assets/Skins/`, **or** one base frog with swappable textures/colors |
 | `FrogPackages` catalog (`frogPackages` list, ids, `canBuy`, `isUnlocked`) | a `SkinCatalog` `ModuleScript` (data only) |
 | `PlayerPrefs "FrogPackages"` ownership | per-player `DataStore` record: owned set + selected skin + Fly balance |
@@ -47,23 +80,31 @@ same rule as [07](07-multiplayer.md#authority--anti-exploit-required-either-way)
 
 ## Catalog (data) — replaces `StoreAssets` + serialized `Frog` fields
 
+The real catalog lives at
+[`src/shared/SkinCatalog.luau`](../../src/shared/SkinCatalog.luau) (names match the
+`/Sprites/Frogs/` folders):
+
 ```lua
 -- ReplicatedStorage/Shared/SkinCatalog (ModuleScript)
--- One entry per skin. `gamePassId` set => premium (real money, permanent).
--- `flyCost` set => buyable with soft currency. `default = true` => owned for free.
+-- name -> /Sprites/Frogs/<name>/ ; gamePassId => premium; flyCost => soft currency;
+-- default = true => owned free. The 4 premium frogs match Store/StoreAssets.cs.
 return {
-	[1] = { name = "Classic Frog", default = true },
-	[2] = { name = "Speckled",     flyCost = 500 },
-	[3] = { name = "Invisible Man", gamePassId = 0 }, -- put a real Game Pass id
-	[4] = { name = "Business Frog", gamePassId = 0 },
-	[5] = { name = "Hot Lawyer",    gamePassId = 0 },
-	[6] = { name = "Crossy Frog",   gamePassId = 0 },
-	-- ...
+	[1] = { name = "Hot Frog", default = true }, -- namesake / starter
+	[2] = { name = "Blue Frog", flyCost = 500 },
+	[3] = { name = "Hawt Frog", flyCost = 1000 },
+	[4] = { name = "Space Frog", flyCost = 1500 },
+	[5] = { name = "Mystery Frog", flyCost = 2000 },
+	[6] = { name = "Business Frog", gamePassId = 0 }, -- premium (set real id)
+	[7] = { name = "Hot Lawyer", gamePassId = 0 },
+	[8] = { name = "Invisible Man", gamePassId = 0 },
+	[9] = { name = "Crossy Frog", gamePassId = 0 },
 }
 ```
 
-Each entry's `name` maps to a model under `ReplicatedStorage/Assets/Skins/<name>`
-(or to a texture set if you go the swap route).
+Each entry's `name` maps to the source art `/Sprites/Frogs/<name>/` and to the
+built model under `ReplicatedStorage/Assets/Skins/<name>`. The `default`/`flyCost`/
+`gamePassId` values are starting guesses — reconcile against the original frog
+prefabs' `isUnlocked`/`canBuy`.
 
 ## Ownership, currency & selection — replaces `FrogPackages` persistence
 
@@ -236,6 +277,14 @@ ProfileChanged.OnClientEvent:Connect(applySkin)
 > appearance changes, exactly like the original swaps sprites but keeps the same
 > `Frog` rig. The lighter alternative (one base model, swap `Texture`/`Decal`/
 > `Color3` per skin) avoids per-skin models if your art is texture-based.
+
+Each skin model's part textures come from the uploaded
+[`/Sprites/Frogs/<name>/`](../../Sprites/Frogs) images — the per-part PNGs map onto
+the matching rig parts (see [Source art](#source-art-in-the-repo)). The eyelid
+PNGs (`Low`/`Lower`/`Closed`) are the swap frames for `Frog.ShowEyes`-style
+blinking; pupils/sclera/tongue come from `Universal/`. Drive the part→assetId
+binding from the upload tool's output so adding a skin is "drop a folder, re-run
+the tool, add a `SkinCatalog` row."
 
 ## Store UI — replaces `CycleFrog` + buy button
 
