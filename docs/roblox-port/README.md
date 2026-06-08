@@ -42,6 +42,8 @@ These layer on top of the core loop once it's solid:
    server-authority hardening it requires.
 8. **[08-frog-skins-and-store.md](08-frog-skins-and-store.md)** — frog skins,
    ownership/currency persistence, and monetization (Game Passes + products).
+9. **[09-gifts-and-ads.md](09-gifts-and-ads.md)** — the free-currency faucets:
+   timed gifts, and how the ad reward maps (or doesn't) to Roblox.
 
 Throughout, each Roblox system is cross-referenced to the original Unity source
 file (e.g. `Player/Frog.cs`) so contributors can trace behavior back to the
@@ -67,12 +69,13 @@ These are out of the *core loop* but now have (or will have) their own docs:
 - Bugs and tongue collectible loop → **[06](06-bugs-and-tongue.md)**.
 - Networked multiplayer + authority hardening → **[07](07-multiplayer.md)**.
 - Frog skins, currency & store/monetization → **[08](08-frog-skins-and-store.md)**.
+- Free-currency faucets (gifts & ads) → **[09](09-gifts-and-ads.md)**.
 
-Still unwritten / later:
+Deliberately not covered:
 
-- Ads (`Ads/`) and gifting / daily rewards (`UI/GiftManager.cs`).
 - Scripted level progression / timed events
-  (`Core/LevelManager.cs`, `Core/LevelEvent.cs`).
+  (`Core/LevelManager.cs`, `Core/LevelEvent.cs`) — the original's authored campaign
+  is out of scope for this port effort.
 
 > These docs are a living design reference, not a finished tutorial. Luau snippets
 > are **illustrative scaffolding** meant to convey the approach — they are not a
