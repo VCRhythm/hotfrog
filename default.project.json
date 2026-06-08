@@ -1,0 +1,37 @@
+{
+	"name": "hotfrog-roblox",
+	"tree": {
+		"$className": "DataModel",
+
+		"ReplicatedStorage": {
+			"$className": "ReplicatedStorage",
+			"$ignoreUnknownInstances": true,
+
+			"Shared": {
+				"$className": "Folder",
+				"$ignoreUnknownInstances": true,
+				"Config": { "$path": "docs/roblox-port/scripts/Config.lua" },
+				"PullMath": { "$path": "docs/roblox-port/scripts/PullMath.lua" },
+				"SkinCatalog": { "$path": "docs/roblox-port/scripts/SkinCatalog.lua" }
+			}
+		},
+
+		"ServerScriptService": {
+			"$className": "ServerScriptService",
+			"$ignoreUnknownInstances": true,
+			"GameServer": { "$path": "docs/roblox-port/scripts/GameServer.server.lua" },
+			"SkinService": { "$path": "docs/roblox-port/scripts/SkinService.server.lua" }
+		},
+
+		"StarterPlayer": {
+			"$className": "StarterPlayer",
+			"$ignoreUnknownInstances": true,
+
+			"StarterPlayerScripts": {
+				"$className": "StarterPlayerScripts",
+				"$ignoreUnknownInstances": true,
+				"GameClient": { "$path": "docs/roblox-port/scripts/GameClient.client.lua" }
+			}
+		}
+	}
+}

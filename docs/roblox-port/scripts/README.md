@@ -23,9 +23,32 @@ in Studio, create the matching instance type and copy the body in.
 | `PullMath.lua` | `ModuleScript` named `PullMath` | `ReplicatedStorage/Shared/` |
 | `GameServer.server.lua` | `Script` named `GameServer` | `ServerScriptService/` |
 | `GameClient.client.lua` | `LocalScript` named `GameClient` | `StarterPlayer/StarterPlayerScripts/` |
+| `SkinCatalog.lua` | `ModuleScript` named `SkinCatalog` | `ReplicatedStorage/Shared/` |
+| `SkinService.server.lua` | `Script` named `SkinService` | `ServerScriptService/` |
 
-The server auto-creates the `ReplicatedStorage/Remotes` folder and its
-`RemoteEvent`s on first run, so you don't have to make them by hand.
+`SkinCatalog` / `SkinService` power the skins & store
+([../08-frog-skins-and-store.md](../08-frog-skins-and-store.md)); the four above
+them are the core loop. The server scripts auto-create the
+`ReplicatedStorage/Remotes` folder and their `RemoteEvent`s/`RemoteFunction`s on
+first run, so you don't have to make them by hand.
+
+## Syncing with Rojo (recommended)
+
+Instead of pasting by hand, use [Rojo](https://rojo.space) to sync these files
+straight into Studio. A [`default.project.json`](../../../default.project.json) at
+the repo root maps each script to its Studio location (the table above).
+
+```sh
+# install Rojo (e.g. via Aftman/Rokit or `cargo install rojo`), then from the repo root:
+rojo serve
+```
+
+Then connect from the **Rojo** plugin in Studio and click **Sync In**. Editing a
+script on disk live-updates it in Studio.
+
+> The project is **scripts-only** and sets `$ignoreUnknownInstances`, so it syncs
+> the code without touching anything you build by hand. You still create the scene
+> and assets (below) in Studio — Rojo just keeps the scripts in sync.
 
 ## One-time scene setup (Milestone 1)
 
