@@ -1,0 +1,11 @@
+# Toolchain for the Roblox port, managed by Rokit (the successor to Aftman).
+# https://github.com/rojo-rbx/rokit
+#
+# Install Rokit once (see its README), then run `rokit install` in this repo to
+# get pinned tool versions. Add tools with `rokit add <tool>`.
+#
+# Aftman users: this same [tools] table works as `aftman.toml` if you prefer
+# Aftman (`aftman install`).
+
+[tools]
+rojo = "rojo-rbx/rojo@7.6.1"

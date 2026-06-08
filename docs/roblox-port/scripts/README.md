@@ -38,10 +38,18 @@ Instead of pasting by hand, use [Rojo](https://rojo.space) to sync these files
 straight into Studio. A [`default.project.json`](../../../default.project.json) at
 the repo root maps each script to its Studio location (the table above).
 
+Rojo's version is pinned in [`rokit.toml`](../../../rokit.toml) at the repo root.
+With [Rokit](https://github.com/rojo-rbx/rokit) installed, get the pinned tools and
+serve in one go:
+
 ```sh
-# install Rojo (e.g. via Aftman/Rokit or `cargo install rojo`), then from the repo root:
+# from the repo root
+rokit install   # installs Rojo at the pinned version (rokit.toml)
 rojo serve
 ```
+
+(No toolchain manager? `cargo install rojo` or a prebuilt binary works too — then
+just `rojo serve`. Aftman users can use the same `[tools]` table as `aftman.toml`.)
 
 Then connect from the **Rojo** plugin in Studio and click **Sync In**. Editing a
 script on disk live-updates it in Studio.
