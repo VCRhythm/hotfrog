@@ -1,0 +1,9 @@
+# Selene lint config for the Roblox port (src/).
+# Uses the Roblox standard library; CI runs `selene generate-roblox-std` to
+# produce roblox.yml before linting.
+std = "roblox"
+
+[lints]
+# We attach RemoteEvents/values via attributes and runtime lookups; don't flag
+# the occasional intentional dynamic access.
+mixed_table = "allow"

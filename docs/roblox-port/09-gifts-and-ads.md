@@ -15,7 +15,7 @@ currency, and in the original they pour into the same sink — both call
 
 One ports cleanly (gifts); the other does not (ads), for reasons specific to
 Roblox. Both ultimately feed the same `awardFlys` path from
-[doc 08's `SkinService`](scripts/SkinService.server.lua).
+[doc 08's `SkinService`](../../src/server/SkinService.server.luau).
 
 > **Persistence note.** `SkinService` already owns one `DataStore` record per
 > player (`HotfrogProfiles`). Do **not** stand up a second store that writes the

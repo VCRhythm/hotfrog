@@ -71,8 +71,11 @@ local function save(player: Player)
 	end
 end
 
--- Other server scripts (e.g. the bug-catch handler in ../06) award Flys by
--- bumping profiles[player].flys then calling push(player). Expose a helper:
+-- Other server scripts (the bug-catch handler in ../06, the gift/ad faucets in
+-- ../09) award Flys through this one path. It's published as a server-only
+-- BindableEvent in ServerStorage so those scripts can do:
+--   game.ServerStorage.AwardFlys:Fire(player, amount)
+-- (ServerStorage, not ReplicatedStorage, so clients can't fire it.)
 local function awardFlys(player: Player, amount: number)
 	local p = profiles[player]
 	if p then
@@ -80,7 +83,15 @@ local function awardFlys(player: Player, amount: number)
 		push(player)
 	end
 end
--- (publish awardFlys via a ModuleScript or _G if you need it from another script)
+
+local ServerStorage = game:GetService("ServerStorage")
+local awardFlysBindable = ServerStorage:FindFirstChild("AwardFlys") :: BindableEvent?
+if not awardFlysBindable then
+	awardFlysBindable = Instance.new("BindableEvent")
+	awardFlysBindable.Name = "AwardFlys"
+	awardFlysBindable.Parent = ServerStorage
+end
+awardFlysBindable.Event:Connect(awardFlys)
 
 local function grantGamePassSkins(player: Player)
 	local p = profiles[player]

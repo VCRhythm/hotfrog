@@ -3,7 +3,7 @@
 > Extension on top of the basic loop. Read
 > [03-core-mechanics.md](03-core-mechanics.md) first — this assumes the step
 > spawner, pool, and the `GrabStep` / `ReleaseStep` remotes from the
-> [reference scripts](scripts/).
+> [reference scripts](10-implementation-setup.md).
 
 In the original, a step is not always a plain platform. `Entities/Step.cs` defines
 an `ActionType` enum (~20 values) and, in `AssignInteractionAction()`, composes
@@ -81,7 +81,7 @@ return Behaviors
 
 ## Wiring it into the server
 
-The reference [`GameServer.server.lua`](scripts/GameServer.server.lua) already has
+The reference [`GameServer.server.lua`](../../src/server/GameServer.server.luau) already has
 the hook points. Extend its handlers to dispatch through the registry:
 
 ```lua

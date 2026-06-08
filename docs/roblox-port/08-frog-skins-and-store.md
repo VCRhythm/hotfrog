@@ -54,7 +54,7 @@ same rule as [07](07-multiplayer.md#authority--anti-exploit-required-either-way)
 return {
 	[1] = { name = "Classic Frog", default = true },
 	[2] = { name = "Speckled",     flyCost = 500 },
-	[3] = { name = "Invisible Man", gamePassId = 0 /* put real id */ },
+	[3] = { name = "Invisible Man", gamePassId = 0 }, -- put a real Game Pass id
 	[4] = { name = "Business Frog", gamePassId = 0 },
 	[5] = { name = "Hot Lawyer",    gamePassId = 0 },
 	[6] = { name = "Crossy Frog",   gamePassId = 0 },
@@ -212,7 +212,7 @@ end
 
 ## Applying the look — replaces `SpriteLoad` / `MakeFrog`
 
-The basic [`GameClient`](scripts/GameClient.client.lua) clones a fixed
+The basic [`GameClient`](../../src/client/GameClient.client.luau) clones a fixed
 `Assets/FrogModel`. With skins, build the frog from the **selected** skin instead:
 
 ```lua

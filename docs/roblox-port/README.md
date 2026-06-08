@@ -27,8 +27,9 @@ Read in order:
 4. **[04-build-roadmap.md](04-build-roadmap.md)** — ordered, independently
    testable milestones for building it in Studio.
 
-Then the **[scripts/](scripts/)** folder has ready-to-paste Luau (`Config`,
-`PullMath`, `GameServer`, `GameClient`) implementing the basic loop end to end.
+The reference implementation lives in [`/src`](../../src) (real Luau, synced into
+Studio by Rojo) — see **[10-implementation-setup.md](10-implementation-setup.md)**
+for the source layout, toolchain, and how to run it.
 
 ### Extensions (beyond the basic version)
 
@@ -44,6 +45,12 @@ These layer on top of the core loop once it's solid:
    ownership/currency persistence, and monetization (Game Passes + products).
 9. **[09-gifts-and-ads.md](09-gifts-and-ads.md)** — the free-currency faucets:
    timed gifts, and how the ad reward maps (or doesn't) to Roblox.
+
+### Building & running it
+
+10. **[10-implementation-setup.md](10-implementation-setup.md)** — the `/src`
+    source layout, the pinned toolchain (Rojo/stylua/selene/luau-lsp), CI, and how
+    to sync it into Studio and play it.
 
 Throughout, each Roblox system is cross-referenced to the original Unity source
 file (e.g. `Player/Frog.cs`) so contributors can trace behavior back to the

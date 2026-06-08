@@ -1,0 +1,13 @@
+# Rokit / toolchain
+~/.rokit
+
+# Rojo build artifacts
+*.rbxl
+*.rbxlx
+*.rbxl.lock
+*.rbxlx.lock
+sourcemap.json
+
+# Generated lint/type-check data
+roblox.yml
+globalTypes.d.luau

@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: ["**"]
+  pull_request:
+
+jobs:
+  check:
+    name: Format, lint & build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools (Rokit)
+        uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Format check (stylua)
+        run: stylua --check src/
+
+      - name: Lint (selene)
+        run: |
+          selene generate-roblox-std
+          selene src/
+
+      - name: Build (rojo)
+        run: rojo build default.project.json --output build.rbxl
+
+  typecheck:
+    name: Luau type-check (advisory)
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install tools (Rokit)
+        uses: CompeyDev/setup-rokit@v0.2.1
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Generate sourcemap
+        run: rojo sourcemap default.project.json --output sourcemap.json
+
+      - name: Fetch Roblox global type definitions
+        run: curl -fsSL -o globalTypes.d.luau https://raw.githubusercontent.com/JohnnyMorganz/luau-lsp/main/scripts/globalTypes.d.luau
+
+      - name: Analyze (luau-lsp)
+        run: luau-lsp analyze --defs=globalTypes.d.luau --sourcemap=sourcemap.json src/

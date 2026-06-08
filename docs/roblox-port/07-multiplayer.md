@@ -1,7 +1,7 @@
 # 07 — Networked Multiplayer
 
 > Builds on [02-architecture-mapping.md](02-architecture-mapping.md#decision-2-client--server-split)
-> and the [reference scripts](scripts/). The basic scripts are single-player-shaped
+> and the [reference scripts](10-implementation-setup.md). The basic scripts are single-player-shaped
 > with some client trust; this page covers true **networked** multiplayer (multiple
 > Roblox players in a live server) and the authority hardening that comes with it.
 
@@ -54,7 +54,7 @@ frogs and conflict rules.
 
 ## Authority & anti-exploit (required either way)
 
-The basic [`GameServer`](scripts/GameServer.server.lua) trusts the client for two
+The basic [`GameServer`](../../src/server/GameServer.server.luau) trusts the client for two
 things to stay simple: it accepts client-reported **grabs** and client-reported
 **death** (`ReportDeath`). In a competitive multiplayer game with a leaderboard,
 that's exploitable. Harden as follows:
@@ -137,7 +137,7 @@ end)
 
 ## How the basic scripts change
 
-Concretely, to take the [reference scripts](scripts/) to networked multiplayer
+Concretely, to take the [reference scripts](10-implementation-setup.md) to networked multiplayer
 (Option A + hardening):
 
 1. **Per-player field:** parameterize spawning/pool/pull by player (a `Steps_<userId>`
