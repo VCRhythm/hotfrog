@@ -1,3 +1,6 @@
+# Unity meta files (not needed for the Roblox port)
+*.meta
+
 # Rokit / toolchain
 ~/.rokit
 
