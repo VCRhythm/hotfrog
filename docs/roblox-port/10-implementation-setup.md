@@ -56,8 +56,8 @@ rojo build default.project.json --output build.rbxl   # parse + build
 ```
 
 [`.github/workflows/ci.yml`](../../.github/workflows/ci.yml) runs format + lint +
-build on every push/PR, plus an advisory Luau type-check (`luau-lsp analyze`
-against a generated sourcemap). Config: [`.stylua.toml`](../../.stylua.toml),
+build on every push/PR, plus a Luau type-check (`luau-lsp analyze` against a
+generated sourcemap). Config: [`.stylua.toml`](../../.stylua.toml),
 [`selene.toml`](../../selene.toml), [`.luaurc`](../../.luaurc).
 
 ## One-time scene setup in Studio (Milestone 1)

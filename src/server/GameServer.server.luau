@@ -169,7 +169,7 @@ end)
 -- ---------------------------------------------------------------------------
 -- Player lifecycle
 -- ---------------------------------------------------------------------------
-Players.PlayerAdded:Connect(function(player)
+Players.PlayerAdded:Connect(function(player: Player)
 	local ok, best = pcall(function()
 		return highScores:GetAsync("u_" .. player.UserId)
 	end)
@@ -179,7 +179,7 @@ Players.PlayerAdded:Connect(function(player)
 	task.defer(pushScore, player)
 end)
 
-Players.PlayerRemoving:Connect(function(player)
+Players.PlayerRemoving:Connect(function(player: Player)
 	commitHighScore(player)
 	sessionScore[player] = nil
 	sessionBest[player] = nil

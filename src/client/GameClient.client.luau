@@ -159,7 +159,7 @@ end)
 -- ---------------------------------------------------------------------------
 -- Per-frame: limbs follow/return, frog falls, lava check
 -- ---------------------------------------------------------------------------
-RunService.Heartbeat:Connect(function(dt)
+RunService.Heartbeat:Connect(function(dt: number)
 	-- limbs
 	for _, limb in ipairs(limbs) do
 		if limb.heldStep and limb.heldStep.Parent then

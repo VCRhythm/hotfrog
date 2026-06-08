@@ -29,9 +29,8 @@ jobs:
         run: rojo build default.project.json --output build.rbxl
 
   typecheck:
-    name: Luau type-check (advisory)
+    name: Luau type-check
     runs-on: ubuntu-latest
-    continue-on-error: true
     steps:
       - uses: actions/checkout@v4
 
