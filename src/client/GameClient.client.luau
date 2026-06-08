@@ -200,7 +200,7 @@ local function makeLabel(name: string, posY: number): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.Size = UDim2.fromOffset(220, 36)
-	label.Position = UDim2.new(0, 12, 0, posY)
+	label.Position = UDim2.fromOffset(12, posY)
 	label.BackgroundTransparency = 1
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextScaled = true
