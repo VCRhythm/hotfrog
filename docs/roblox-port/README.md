@@ -27,6 +27,20 @@ Read in order:
 4. **[04-build-roadmap.md](04-build-roadmap.md)** — ordered, independently
    testable milestones for building it in Studio.
 
+Then the **[scripts/](scripts/)** folder has ready-to-paste Luau (`Config`,
+`PullMath`, `GameServer`, `GameClient`) implementing the basic loop end to end.
+
+### Extensions (beyond the basic version)
+
+These layer on top of the core loop once it's solid:
+
+5. **[05-step-behaviors.md](05-step-behaviors.md)** — porting the step
+   `ActionType` variants (crumble, fall, change-direction, …) as behavior modules.
+6. **[06-bugs-and-tongue.md](06-bugs-and-tongue.md)** — the bug + tongue
+   collectible loop.
+7. **[07-multiplayer.md](07-multiplayer.md)** — networked multiplayer and the
+   server-authority hardening it requires.
+
 Throughout, each Roblox system is cross-referenced to the original Unity source
 file (e.g. `Player/Frog.cs`) so contributors can trace behavior back to the
 original.
@@ -43,16 +57,20 @@ original.
 - **Lava** bottom hazard and lose condition + run restart.
 - **Step-count scoring**, HUD, and persistent high score.
 
-### Out of scope (later)
+### Beyond the basic version
+
+These are out of the *core loop* but now have (or will have) their own docs:
+
+- Step `ActionType` variants beyond plain steps → **[05](05-step-behaviors.md)**.
+- Bugs and tongue collectible loop → **[06](06-bugs-and-tongue.md)**.
+- Networked multiplayer + authority hardening → **[07](07-multiplayer.md)**.
+
+Still unwritten / later:
 
 - Frog skins / customization (`UI/FrogPackages.cs`, `Store/`).
-- Bugs and tongue collectible loop (`Entities/Bug.cs`, `Entities/Tongue.cs`).
 - Ads and in-app purchases (`Ads/`, `Store/`).
-- Local multiplayer (the original supports 2+ controllers).
 - Scripted level progression / timed events
   (`Core/LevelManager.cs`, `Core/LevelEvent.cs`).
-- Step `ActionType` variants beyond plain steps (crumble, fall, change-direction,
-  launch, etc. — see `Entities/Step.cs`). These are noted as extension points.
 
 > These docs are a living design reference, not a finished tutorial. Luau snippets
 > are **illustrative scaffolding** meant to convey the approach — they are not a
