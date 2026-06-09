@@ -260,26 +260,24 @@ The basic [`GameClient`](../../src/client/GameClient.client.luau) clones a fixed
 `Assets/FrogModel`. With skins, build the frog from the **selected** skin instead:
 
 ```lua
--- client: rebuild/retexture the frog when the profile arrives / changes
+-- client: retexture the frog rig whenever the profile arrives / changes
 local ProfileChanged = remotes:WaitForChild("ProfileChanged")
 local Catalog = require(ReplicatedStorage.Shared.SkinCatalog)
-local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
+local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 
--- Each rig Decal carries a "Suffix" attribute naming the sprite it shows
--- ("Body", "Head", "LowLeftEyelid", "LeftHandGrab", …). SkinAssets resolves the
--- selected skin's part to an rbxassetid (or nil until uploaded).
-local function applySkin(profile)
-	local name = Catalog[profile.selected].name
-	for _, d in frogModel:GetDescendants() do
-		local suffix = d:IsA("Decal") and d:GetAttribute("Suffix")
-		if suffix then
-			d.Texture = SkinAssets.part(name, suffix) or d.Texture -- keep placeholder if unset
-		end
-	end
-end
-
-ProfileChanged.OnClientEvent:Connect(applySkin)
+-- Rig Decals carry a "Suffix" attribute ("Body", "Head", "LowLeftEyelid",
+-- "LeftHandGrab", …); SpriteSkin resolves each to the selected skin's rbxassetid
+-- via SkinAssets (and leaves the placeholder when an id isn't uploaded yet).
+ProfileChanged.OnClientEvent:Connect(function(profile)
+	SpriteSkin.apply(frogModel, Catalog[profile.selected].name)
+end)
 ```
+
+The same [`SpriteSkin`](../../src/shared/SpriteSkin.luau) util textures static art
+too — a step, bug, or lava part with a `Sprite = "WhiteRock"` / `"Bug"` /
+`"LavaSplash"` attribute gets textured by `SpriteSkin.apply(part)` (no skin name).
+See the convention in
+[doc 10](10-implementation-setup.md#texturing-parts-attribute-convention).
 
 > Keep every skin model's child part names identical (`Head`, `LeftLimb`,
 > `RightLimb`, `PrimaryPart`) so the core loop is skin-agnostic — only the

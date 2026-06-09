@@ -16,6 +16,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 
 -- ---------------------------------------------------------------------------
 -- Remotes (auto-created so you don't have to build them by hand)
@@ -56,6 +57,7 @@ local function acquireStep(): BasePart
 	local step = table.remove(pool) or template:Clone()
 	step:SetAttribute("Kind", "Step")
 	step.Anchored = true -- we move it ourselves (kinematic)
+	SpriteSkin.apply(step) -- texture from its `Sprite` attribute (no-op until ids are set)
 	step.Parent = container
 	active[step] = true
 	return step

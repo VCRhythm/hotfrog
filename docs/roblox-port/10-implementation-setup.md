@@ -20,6 +20,7 @@ src/
     PullMath.luau
     SkinCatalog.luau
     SkinAssets.luau   -- name → rbxassetid map (paste uploaded ids here)
+    SpriteSkin.luau   -- textures parts from SkinAssets via an attribute convention
   server/    -> ServerScriptService.Server     (Scripts)
     GameServer.server.luau
     SkinService.server.luau
@@ -110,6 +111,30 @@ order:
 > moderated by) Roblox. So the chain is:
 > **`/Sprites` PNGs → `/tools` prep → catbox URLs → Ludo (reference) → generated
 > assets → upload to Roblox → `rbxassetid` bound to the rig parts.**
+
+### Texturing parts (attribute convention)
+
+[`src/shared/SpriteSkin.luau`](../../src/shared/SpriteSkin.luau) textures any
+`Decal`/`Texture`/`ImageLabel` from [`SkinAssets`](../../src/shared/SkinAssets.luau)
+using one attribute you set on the part in your templates:
+
+| Attribute | Use | Resolved by |
+|---|---|---|
+| `Sprite = "<stem>"` | skin-agnostic art — `"WhiteRock"`, `"Bug"`, `"LavaSplash"`, `"Sun"` | `SkinAssets.image(stem)` |
+| `Suffix = "<suffix>"` | per-skin frog part — `"Body"`, `"Head"`, `"LeftHandGrab"` | `SkinAssets.part(skinName, suffix)` |
+
+Then call `SpriteSkin.apply(root, skinName?)`:
+
+- **Frog rig** — `SpriteSkin.apply(frogModel, selectedSkinName)` retextures all the
+  `Suffix` decals for the chosen skin (wired in [doc 08](08-frog-skins-and-store.md)).
+- **Static art** — `SpriteSkin.apply(part)` (no skin name) textures `Sprite` decals.
+  The reference [`GameServer`](../../src/server/GameServer.server.luau) already calls
+  this on each step it spawns; do the same when you build the `Bug`
+  ([doc 06](06-bugs-and-tongue.md)) and `Lava` parts (give their decal a
+  `Sprite = "Bug"` / `"LavaSplash"` attribute).
+
+It's a no-op for any part whose id is still `0` in `SkinAssets`, so it's safe to
+call on placeholder templates before art is uploaded.
 
 ## What you should see on Play
 

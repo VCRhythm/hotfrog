@@ -57,6 +57,7 @@ local function spawnBug()
 	local bug = table.remove(bugPool) or bugTemplate:Clone()
 	bug:SetAttribute("Kind", "Bug")
 	bug.Anchored = true
+	SpriteSkin.apply(bug) -- bug's decal carries Sprite="Bug" (see doc 10 convention)
 	bug.Parent = bugContainer
 	bugsActive[bug] = true
 
