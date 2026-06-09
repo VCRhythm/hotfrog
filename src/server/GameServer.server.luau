@@ -125,13 +125,15 @@ makeCtx = function(step: BasePart, player: Player?): StepBehaviors.Ctx
 end
 
 -- Weighted behavior roll, gated by canSpawn (Step.cs canBeSpawned).
+local behaviorWeights: { [string]: number } = Config.BEHAVIOR_WEIGHTS
+
 local function rollBehavior(): string
 	local total = 0
-	for _, weight in Config.BEHAVIOR_WEIGHTS do
+	for _, weight in behaviorWeights do
 		total += weight
 	end
 	local r = math.random() * total
-	for name, weight in Config.BEHAVIOR_WEIGHTS do
+	for name, weight in behaviorWeights do
 		r -= weight
 		if r <= 0 then
 			local b = StepBehaviors[name]
