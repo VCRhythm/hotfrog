@@ -52,11 +52,14 @@ variants + direction arrows + `Castle`/`Rocket`/`Lillipad`),
 [`/Sprites/Other/`](../../Sprites/Other) (`Bug`, `LavaSplash`, `Sun`, clouds,
 grass, …), plus `Menu/` and `Scenery/`.
 
-> **Getting them into Roblox.** These are PNGs; Roblox references uploaded image
-> assets by id. Upload them with the **provided upload tool**, which yields the
-> asset ids you then reference (e.g. a generated name→assetId map the skin builder
-> reads). This doc deliberately doesn't prescribe the upload pipeline — plug in the
-> tool's output.
+> **Getting them into Roblox.** The PNGs are prepped via [`/tools`](../../tools)
+> (clean up + `upload_to_catbox.py` → `{name: url}`), and those catbox URLs are
+> used as **reference inputs for Ludo** to generate the Roblox-bound assets — see
+> the pipeline in
+> [doc 10](10-implementation-setup.md#art-tooling-tools). A Roblox `Decal`/
+> `ImageLabel` needs an `rbxassetid://` (an asset uploaded to Roblox), so the skin
+> builder binds parts from the **generated assets' ids** (e.g. a name→assetId map),
+> not from catbox URLs.
 
 ## Roblox mapping
 
@@ -278,13 +281,14 @@ ProfileChanged.OnClientEvent:Connect(applySkin)
 > `Frog` rig. The lighter alternative (one base model, swap `Texture`/`Decal`/
 > `Color3` per skin) avoids per-skin models if your art is texture-based.
 
-Each skin model's part textures come from the uploaded
-[`/Sprites/Frogs/<name>/`](../../Sprites/Frogs) images — the per-part PNGs map onto
-the matching rig parts (see [Source art](#source-art-in-the-repo)). The eyelid
-PNGs (`Low`/`Lower`/`Closed`) are the swap frames for `Frog.ShowEyes`-style
-blinking; pupils/sclera/tongue come from `Universal/`. Drive the part→assetId
-binding from the upload tool's output so adding a skin is "drop a folder, re-run
-the tool, add a `SkinCatalog` row."
+Each skin model's part textures come from the
+[`/Sprites/Frogs/<name>/`](../../Sprites/Frogs) images (via the
+[`/tools` → catbox → Ludo](10-implementation-setup.md#art-tooling-tools) pipeline)
+— the per-part sprites map onto the matching rig parts (see
+[Source art](#source-art-in-the-repo)). The eyelid PNGs (`Low`/`Lower`/`Closed`)
+are the swap frames for `Frog.ShowEyes`-style blinking; pupils/sclera/tongue come
+from `Universal/`. Drive the part→assetId binding from a generated name→assetId map
+so adding a skin is "drop a folder, run the pipeline, add a `SkinCatalog` row."
 
 ## Store UI — replaces `CycleFrog` + buy button
 

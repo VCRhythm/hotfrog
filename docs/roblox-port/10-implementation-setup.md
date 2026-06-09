@@ -85,12 +85,30 @@ In `ReplicatedStorage`, create:
 The original sprite art is in the repo under [`/Sprites`](../../Sprites): frog
 skins (`Sprites/Frogs/<name>/`, one per `SkinCatalog` entry, plus a shared
 `Universal/`), step variants (`Sprites/Rocks/`), and entities/scenery
-(`Sprites/Other/`, `Sprites/Scenery/`, `Sprites/Menu/`). These are PNGs — Roblox
-references uploaded image assets by id, so run them through the **provided upload
-tool** to get asset ids, then build the templates above from those (decals/textures
-on the rig parts) instead of plain placeholder blocks. Placeholder parts are only
-the gray-box fallback; see [doc 08](08-frog-skins-and-store.md#source-art-in-the-repo)
-for the part→sprite mapping.
+(`Sprites/Other/`, `Sprites/Scenery/`, `Sprites/Menu/`). See
+[doc 08](08-frog-skins-and-store.md#source-art-in-the-repo) for the part→sprite
+mapping. Placeholder parts are only the gray-box fallback; the real look comes from
+these via the art pipeline below.
+
+### Art tooling (`/tools`)
+
+[`/tools`](../../tools) holds Python sprite-prep utilities (`pip install -r
+tools/requirements.txt`; see [tools/README.md](../../tools/README.md)). Typical
+order:
+
+1. **`webp_to_png.py`** — normalize any `.webp` source art to `.png`.
+2. **`remove_bg.py`** — flood-fill out a solid background and tight-crop.
+3. **`pixel_pass.py`** — optional: bake a consistent low-res pixel-art look.
+4. **`upload_to_catbox.py`** — upload the cleaned PNGs to catbox.moe and emit a
+   `{name: url}` JSON map (keys are file stems).
+
+> **How art reaches Roblox.** The catbox URLs are **reference inputs for Ludo** —
+> they're fed to the AI asset tool as references to generate the Roblox-bound
+> assets. Note catbox URLs are *not* usable as Roblox textures directly: a Roblox
+> `Decal`/`ImageLabel` needs an `rbxassetid://` from an asset uploaded to (and
+> moderated by) Roblox. So the chain is:
+> **`/Sprites` PNGs → `/tools` prep → catbox URLs → Ludo (reference) → generated
+> assets → upload to Roblox → `rbxassetid` bound to the rig parts.**
 
 ## What you should see on Play
 

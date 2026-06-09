@@ -14,3 +14,7 @@ sourcemap.json
 # Generated lint/type-check data
 roblox.yml
 globalTypes.d.luau
+
+# Python (tools/) caches
+__pycache__/
+*.pyc
