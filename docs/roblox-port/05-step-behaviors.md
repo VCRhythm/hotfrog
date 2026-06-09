@@ -4,6 +4,17 @@
 > [03-core-mechanics.md](03-core-mechanics.md) first — this assumes the step
 > spawner, pool, and the `GrabStep` / `ReleaseStep` remotes from the
 > [reference scripts](10-implementation-setup.md).
+>
+> **Implemented:** the registry lives at
+> [`src/shared/StepBehaviors.luau`](../../src/shared/StepBehaviors.luau), and
+> [`GameServer`](../../src/server/GameServer.server.luau) dispatches it — holder
+> tracking (`heldBy`), a per-dispatch `ctx` with a **Gen** guard (pooled steps get
+> a generation attribute so delayed effects can't fire on a recycled part), a
+> weighted roll via `Config.BEHAVIOR_WEIGHTS`, spawn-bias-driven spawn X, and a
+> `ForceRelease` remote the client handles. Shipped variants: `None`, `Crumble`,
+> `CrumbleAfterRelease`, `Fall`, `ChangeDirectionLeft/Right/Up`, `Beetle` — each
+> stamps its own art (`sprite` → `CrumblyRock`, the arrows, …) via SpriteSkin.
+> The snippets below remain the explanatory version.
 
 In the original, a step is not always a plain platform. `Entities/Step.cs` defines
 an `ActionType` enum (~20 values) and, in `AssignInteractionAction()`, composes

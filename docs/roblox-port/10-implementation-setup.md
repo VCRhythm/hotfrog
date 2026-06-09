@@ -21,6 +21,7 @@ src/
     SkinCatalog.luau
     SkinAssets.luau   -- name → rbxassetid map (paste uploaded ids here)
     SpriteSkin.luau   -- textures parts from SkinAssets via an attribute convention
+    StepBehaviors.luau -- step ActionType registry (doc 05)
   server/    -> ServerScriptService.Server     (Scripts + a ModuleScript)
     Profiles.luau           -- single per-player profile + DataStore (persistence)
     GameServer.server.luau

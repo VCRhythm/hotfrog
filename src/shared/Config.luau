@@ -33,6 +33,22 @@ local Config = {
 
 	-- Reach: how far a limb can grab from the frog (sanity check on the server)
 	MAX_GRAB_DISTANCE = 30,
+
+	-- Step behaviors (Entities/Step.cs ActionType; see doc 05). Weighted roll per
+	-- spawned step; entries must match names in Shared/StepBehaviors.
+	BEHAVIOR_WEIGHTS = {
+		None = 70,
+		Crumble = 8,
+		CrumbleAfterRelease = 6,
+		Fall = 8,
+		ChangeDirectionLeft = 3,
+		ChangeDirectionRight = 3,
+		Beetle = 2,
+	},
+	CRUMBLE_FUSE = 1.5, -- grab -> explode (Step.cs Invoke("Explode", 1.5))
+	FALL_DELAY = 3.0, -- unsteady -> drop away (Step.cs Fall coroutine)
+	DROP_DISTANCE = 100, -- studs a falling step drops (DOLocalMoveY(-100))
+	DROP_TIME = 1.0,
 }
 
 return Config

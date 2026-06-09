@@ -25,6 +25,7 @@ local ReleaseStep = remotes:WaitForChild("ReleaseStep") :: RemoteEvent
 local ReportDeath = remotes:WaitForChild("ReportDeath") :: RemoteEvent
 local ScoreChanged = remotes:WaitForChild("ScoreChanged") :: RemoteEvent
 local GameOver = remotes:WaitForChild("GameOver") :: RemoteEvent
+local ForceRelease = remotes:WaitForChild("ForceRelease") :: RemoteEvent
 
 -- ---------------------------------------------------------------------------
 -- Camera: scriptable, looking down +Z at the plane (approx orthographic)
@@ -77,6 +78,16 @@ local function releaseLimb(index: number)
 		ReleaseStep:FireServer(index, step) -- step included for step-behaviour hooks (../05)
 	end
 end
+
+-- A step behavior knocked us off (Beetle, crumble, fall — Step.cs ForceRelease):
+-- drop whichever limb holds that step. The ReleaseStep echo is a server no-op.
+ForceRelease.OnClientEvent:Connect(function(step)
+	for i, limb in ipairs(limbs) do
+		if limb.heldStep == step then
+			releaseLimb(i)
+		end
+	end
+end)
 
 -- ---------------------------------------------------------------------------
 -- Frog gravity + bob (Player/Frog.cs)
