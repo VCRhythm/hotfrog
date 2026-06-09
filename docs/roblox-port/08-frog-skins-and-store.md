@@ -111,6 +111,12 @@ prefabs' `isUnlocked`/`canBuy`.
 
 ## Ownership, currency & selection — replaces `FrogPackages` persistence
 
+> Implemented in [`src/server/SkinService.server.luau`](../../src/server/SkinService.server.luau).
+> Ownership, Flys, and selection live on the shared profile
+> ([`Profiles.luau`](../../src/server/Profiles.luau)) — SkinService owns the
+> *rules* and remotes, not its own DataStore. The snippet below is the illustrative
+> standalone version (it inlines the storage that Profiles now centralizes).
+
 ```lua
 -- ServerScriptService/SkinService (Script)
 local ReplicatedStorage = game:GetService("ReplicatedStorage")

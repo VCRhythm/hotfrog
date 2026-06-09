@@ -10,13 +10,13 @@
 -- MVP choice -- see ../07-multiplayer.md for hardening.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local DataStoreService = game:GetService("DataStoreService")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
+local Profiles = require(script.Parent.Profiles)
 
 -- ---------------------------------------------------------------------------
 -- Remotes (auto-created so you don't have to build them by hand)
@@ -101,14 +101,19 @@ local function scrollFieldDown(distance: number, duration: number)
 end
 
 -- ---------------------------------------------------------------------------
--- Scoring + persistence (Core/VariableManager.cs)
+-- Scoring (Core/VariableManager.cs). The high score lives on the shared Profile
+-- (Profiles); sessionScore is the current run, banked into profile.highScore on
+-- death. No DataStore here -- Profiles owns persistence.
 -- ---------------------------------------------------------------------------
-local highScores = DataStoreService:GetDataStore("HotfrogHighScores")
 local sessionScore: { [Player]: number } = {}
-local sessionBest: { [Player]: number } = {}
+
+local function bestOf(player: Player): number
+	local p = Profiles.get(player)
+	return if p then p.highScore else 0
+end
 
 local function pushScore(player: Player, quality: string?)
-	ScoreChanged:FireClient(player, sessionScore[player] or 0, sessionBest[player] or 0, quality)
+	ScoreChanged:FireClient(player, sessionScore[player] or 0, bestOf(player), quality)
 end
 
 local function addScore(player: Player, amount: number, quality: string?)
@@ -117,15 +122,11 @@ local function addScore(player: Player, amount: number, quality: string?)
 end
 
 local function commitHighScore(player: Player)
+	local p = Profiles.get(player)
 	local score = sessionScore[player] or 0
-	if score > (sessionBest[player] or 0) then
-		sessionBest[player] = score
-		local key = "u_" .. player.UserId
-		pcall(function()
-			highScores:UpdateAsync(key, function(old)
-				return math.max(old or 0, score)
-			end)
-		end)
+	if p and score > p.highScore then
+		p.highScore = score
+		Profiles.save(player)
 	end
 end
 
@@ -169,20 +170,22 @@ ReportDeath.OnServerEvent:Connect(function(player)
 end)
 
 -- ---------------------------------------------------------------------------
--- Player lifecycle
+-- Player lifecycle (scoring side). Profiles owns persistence; here we reset the
+-- run and push the initial HUD once the profile is ready. The high score is
+-- banked on death (commitHighScore in ReportDeath), not on leave.
 -- ---------------------------------------------------------------------------
-Players.PlayerAdded:Connect(function(player: Player)
-	local ok, best = pcall(function()
-		return highScores:GetAsync("u_" .. player.UserId)
-	end)
-	sessionBest[player] = (ok and best) or 0
+local function initScore(player: Player)
 	sessionScore[player] = 0
-	-- give the client a moment to load before the first HUD push
-	task.defer(pushScore, player)
-end)
+	pushScore(player)
+end
+
+Profiles.Loaded:Connect(initScore)
+for _, player in Players:GetPlayers() do
+	if Profiles.get(player) then
+		initScore(player)
+	end
+end
 
 Players.PlayerRemoving:Connect(function(player: Player)
-	commitHighScore(player)
 	sessionScore[player] = nil
-	sessionBest[player] = nil
 end)

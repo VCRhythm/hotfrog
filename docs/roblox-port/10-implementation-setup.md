@@ -21,9 +21,11 @@ src/
     SkinCatalog.luau
     SkinAssets.luau   -- name → rbxassetid map (paste uploaded ids here)
     SpriteSkin.luau   -- textures parts from SkinAssets via an attribute convention
-  server/    -> ServerScriptService.Server     (Scripts)
+  server/    -> ServerScriptService.Server     (Scripts + a ModuleScript)
+    Profiles.luau           -- single per-player profile + DataStore (persistence)
     GameServer.server.luau
     SkinService.server.luau
+    GiftService.server.luau -- timed free-Fly gift (doc 09)
   client/    -> StarterPlayer.StarterPlayerScripts.Client   (LocalScript)
     GameClient.client.luau
 ```
@@ -33,6 +35,14 @@ Rojo creates the `Shared` / `Server` / `Client` folders and places each script;
 Scripts and LocalScripts run regardless of nesting, so the wrapper folders don't
 change behavior. The server auto-creates the `ReplicatedStorage/Remotes` folder and
 its `RemoteEvent`s on first run, so you don't build those by hand.
+
+**Persistence is consolidated:** [`Profiles.luau`](../../src/server/Profiles.luau)
+owns one DataStore and one per-player schema (high score, Flys, owned/selected
+skins, applied receipts, gift cooldown). `GameServer`, `SkinService`, and
+`GiftService` all read/write `Profiles.get(player)` and react to `Profiles.Loaded`
+— no service stands up its own store. Flys are granted through one path: a
+server-only `ServerStorage/AwardFlys` `BindableEvent` (`SkinService` applies +
+replicates; bugs/gifts just `:Fire(player, amount)`).
 
 ## Toolchain
 

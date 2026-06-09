@@ -17,11 +17,13 @@ One ports cleanly (gifts); the other does not (ads), for reasons specific to
 Roblox. Both ultimately feed the same `awardFlys` path from
 [doc 08's `SkinService`](../../src/server/SkinService.server.luau).
 
-> **Persistence note.** `SkinService` already owns one `DataStore` record per
-> player (`HotfrogProfiles`). Do **not** stand up a second store that writes the
-> same key. Put the gift fields (`giftSeed`, `lastGift`) on that same profile and,
-> ideally, consolidate all per-player state behind a single profile module that
-> both services read/write. The snippets below assume that shared `profiles[player]`.
+> **Persistence note.** This is now implemented: a single per-player profile,
+> [`src/server/Profiles.luau`](../../src/server/Profiles.luau), owns one DataStore
+> and holds the gift fields (`giftSeed`, `lastGift`) alongside skins/currency/high
+> score. The real gift faucet is [`src/server/GiftService.server.luau`](../../src/server/GiftService.server.luau)
+> — it reads `Profiles.get(player)`, grants Flys through the shared
+> `ServerStorage/AwardFlys` faucet, and persists via `Profiles.save`. The snippets
+> below are the illustrative version of that script.
 
 ---
 
