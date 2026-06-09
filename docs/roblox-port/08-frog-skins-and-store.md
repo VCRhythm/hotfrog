@@ -260,16 +260,22 @@ The basic [`GameClient`](../../src/client/GameClient.client.luau) clones a fixed
 `Assets/FrogModel`. With skins, build the frog from the **selected** skin instead:
 
 ```lua
--- client: rebuild the frog when the profile arrives / changes
+-- client: rebuild/retexture the frog when the profile arrives / changes
 local ProfileChanged = remotes:WaitForChild("ProfileChanged")
 local Catalog = require(ReplicatedStorage.Shared.SkinCatalog)
+local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
 
+-- Each rig Decal carries a "Suffix" attribute naming the sprite it shows
+-- ("Body", "Head", "LowLeftEyelid", "LeftHandGrab", …). SkinAssets resolves the
+-- selected skin's part to an rbxassetid (or nil until uploaded).
 local function applySkin(profile)
-	local entry = Catalog[profile.selected]
-	local template = ReplicatedStorage.Assets.Skins:FindFirstChild(entry.name)
-		or ReplicatedStorage.Assets.FrogModel -- fallback
-	-- swap the visual model but keep the same Head/LeftLimb/RightLimb part names
-	-- so the rest of GameClient (gravity, limbs) keeps working unchanged.
+	local name = Catalog[profile.selected].name
+	for _, d in frogModel:GetDescendants() do
+		local suffix = d:IsA("Decal") and d:GetAttribute("Suffix")
+		if suffix then
+			d.Texture = SkinAssets.part(name, suffix) or d.Texture -- keep placeholder if unset
+		end
+	end
 end
 
 ProfileChanged.OnClientEvent:Connect(applySkin)
@@ -287,8 +293,11 @@ Each skin model's part textures come from the
 — the per-part sprites map onto the matching rig parts (see
 [Source art](#source-art-in-the-repo)). The eyelid PNGs (`Low`/`Lower`/`Closed`)
 are the swap frames for `Frog.ShowEyes`-style blinking; pupils/sclera/tongue come
-from `Universal/`. Drive the part→assetId binding from a generated name→assetId map
-so adding a skin is "drop a folder, run the pipeline, add a `SkinCatalog` row."
+from `Universal/`. The part→assetId map lives in
+[`src/shared/SkinAssets.luau`](../../src/shared/SkinAssets.luau) (keys are sprite
+stems, matching the `upload_to_catbox.py` output) — paste the uploaded ids there, so
+adding a skin is "drop a folder, run the pipeline, paste ids, add a `SkinCatalog`
+row."
 
 ## Store UI — replaces `CycleFrog` + buy button
 

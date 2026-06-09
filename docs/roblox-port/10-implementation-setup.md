@@ -19,6 +19,7 @@ src/
     Config.luau
     PullMath.luau
     SkinCatalog.luau
+    SkinAssets.luau   -- name → rbxassetid map (paste uploaded ids here)
   server/    -> ServerScriptService.Server     (Scripts)
     GameServer.server.luau
     SkinService.server.luau
