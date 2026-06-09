@@ -19,9 +19,14 @@ local function setTexture(obj: Instance, image: string?)
 	if not image then
 		return -- leave the authored placeholder when the id isn't uploaded yet
 	end
-	if obj:IsA("Decal") or obj:IsA("Texture") then
+	-- separate branches so each :IsA() narrows obj to the concrete class
+	if obj:IsA("Decal") then
 		obj.Texture = image
-	elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+	elseif obj:IsA("Texture") then
+		obj.Texture = image
+	elseif obj:IsA("ImageLabel") then
+		obj.Image = image
+	elseif obj:IsA("ImageButton") then
 		obj.Image = image
 	end
 end
