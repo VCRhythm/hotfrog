@@ -19,15 +19,15 @@ local function setTexture(obj: Instance, image: string?)
 	if not image then
 		return -- leave the authored placeholder when the id isn't uploaded yet
 	end
-	-- separate branches so each :IsA() narrows obj to the concrete class
-	if obj:IsA("Decal") then
-		obj.Texture = image
-	elseif obj:IsA("Texture") then
-		obj.Texture = image
-	elseif obj:IsA("ImageLabel") then
-		obj.Image = image
-	elseif obj:IsA("ImageButton") then
-		obj.Image = image
+	-- Decals/Textures use .Texture; ImageLabel/ImageButton use .Image. Cast to any
+	-- for the assignment (a property set on the IsA union isn't expressible), while
+	-- keeping merged conditions so selene doesn't flag duplicate branches.
+	if obj:IsA("Decal") or obj:IsA("Texture") then
+		local sprite = obj :: any
+		sprite.Texture = image
+	elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
+		local ui = obj :: any
+		ui.Image = image
 	end
 end
 
