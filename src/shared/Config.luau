@@ -34,6 +34,11 @@ local Config = {
 	-- Reach: how far a limb can grab from the frog (sanity check on the server)
 	MAX_GRAB_DISTANCE = 30,
 
+	-- Grab anti-abuse (doc 07 hardening): cap grabs per rolling window per player.
+	-- Two limbs + fast chaining is maybe ~6/s for a human; 10 leaves headroom.
+	GRAB_WINDOW = 1.0, -- seconds
+	GRAB_MAX_PER_WINDOW = 10,
+
 	-- Step behaviors (Entities/Step.cs ActionType; see doc 05). Weighted roll per
 	-- spawned step; entries must match names in Shared/StepBehaviors.
 	BEHAVIOR_WEIGHTS = {

@@ -71,6 +71,21 @@ Rule of thumb: **the client sends intents (taps/grabs), the server owns state
 [client/server split](02-architecture-mapping.md#decision-2-client--server-split)
 taken to its authoritative conclusion.
 
+> **Implemented so far** in [`GameServer`](../../src/server/GameServer.server.luau):
+> grabs are validated server-side against the live step set, **rejected if the step
+> is already held**, and **rate-limited per player** (`Config.GRAB_WINDOW` /
+> `GRAB_MAX_PER_WINDOW`) so a bot can't fire `GrabStep` faster than a human to
+> climb instantly. Rejections fire `ForceRelease` back, so the client that
+> optimistically snapped a limb is corrected. Score is already server-only
+> (`addScore`), and high scores commit through `Profiles`.
+>
+> **Still client-trusted** (the next step): the **frog itself**. Position, gravity,
+> and the lava death are client-driven (`ReportDeath`), so the reach check above
+> uses a client-supplied `frogPos` and is only advisory. Making the frog
+> server-authoritative (below) closes that gap — it also entangles limb visuals,
+> the camera, and where skins are applied, so it's a deliberate follow-up rather
+> than part of this localized hardening pass.
+
 ### Server-authoritative frog (for Option B, and recommended for A's leaderboard)
 
 Move the gravity loop from `GameClient` to the server (one Heartbeat loop over all

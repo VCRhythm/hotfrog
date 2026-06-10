@@ -276,15 +276,54 @@ end
 -- ---------------------------------------------------------------------------
 -- Remote handlers
 -- ---------------------------------------------------------------------------
+
+-- Per-player grab rate limit (doc 07): a bot could fire GrabStep far faster than
+-- a human to climb instantly. Keep recent grab timestamps in a rolling window.
+local grabTimes: { [Player]: { number } } = {}
+
+local function grabAllowed(player: Player): boolean
+	local now = os.clock()
+	local times = grabTimes[player]
+	if not times then
+		times = {}
+		grabTimes[player] = times
+	end
+	-- drop timestamps older than the window
+	local cutoff = now - Config.GRAB_WINDOW
+	local kept = 0
+	for i = 1, #times do
+		if times[i] >= cutoff then
+			kept += 1
+			times[kept] = times[i]
+		end
+	end
+	for i = #times, kept + 1, -1 do
+		times[i] = nil
+	end
+	if kept >= Config.GRAB_MAX_PER_WINDOW then
+		return false
+	end
+	times[kept + 1] = now
+	return true
+end
+
 GrabStep.OnServerEvent:Connect(function(player, step, quality, frogPos)
 	-- validate: a real, still-active step
 	if typeof(step) ~= "Instance" or not step:IsA("BasePart") or not active[step] then
 		return
 	end
-	-- basic reach sanity check (don't trust arbitrary grabs)
+	-- reject a step someone already holds, or grabs faster than humanly possible;
+	-- ForceRelease corrects the client that optimistically snapped a limb on
+	if heldBy[step] ~= nil or not grabAllowed(player) then
+		ForceRelease:FireClient(player, step)
+		return
+	end
+	-- basic reach sanity check. NOTE: frogPos is client-supplied and so only
+	-- advisory until the frog is server-authoritative (doc 07, next step).
 	if typeof(frogPos) == "Vector3" then
 		local d2 = (Vector2.new(step.Position.X, step.Position.Y) - Vector2.new(frogPos.X, frogPos.Y)).Magnitude
 		if d2 > Config.MAX_GRAB_DISTANCE then
+			ForceRelease:FireClient(player, step)
 			return
 		end
 	end
@@ -345,4 +384,5 @@ end
 
 Players.PlayerRemoving:Connect(function(player: Player)
 	sessionScore[player] = nil
+	grabTimes[player] = nil
 end)
