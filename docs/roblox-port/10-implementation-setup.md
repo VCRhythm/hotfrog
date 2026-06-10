@@ -27,6 +27,7 @@ src/
     GameServer.server.luau
     SkinService.server.luau
     GiftService.server.luau -- timed free-Fly gift (doc 09)
+    BugService.server.luau  -- bug collectible loop (doc 06; self-provisions its folder/template)
   client/    -> StarterPlayer.StarterPlayerScripts.Client   (LocalScript)
     GameClient.client.luau
 ```

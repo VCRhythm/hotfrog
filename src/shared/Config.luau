@@ -49,6 +49,19 @@ local Config = {
 	FALL_DELAY = 3.0, -- unsteady -> drop away (Step.cs Fall coroutine)
 	DROP_DISTANCE = 100, -- studs a falling step drops (DOLocalMoveY(-100))
 	DROP_TIME = 1.0,
+
+	-- Bugs (Entities/Bug.cs + Spawning/BugSpawner.cs; doc 06)
+	BUG_INTERVAL = 2.0, -- spawn cadence (BugSpawner.Activate: 2s)
+	BUG_LIFESPAN = 2.0, -- idle time before leaving (Bug.lifeSpan)
+	BUG_ENTER_TIME = 0.8, -- drift-in tween (Bug.moveTime, scaled)
+	BUG_LEAVE_TIME = 1.0,
+	BUG_X_RANGE = 18, -- on-screen wander extents, studs
+	BUG_Y_RANGE = 12,
+	BUG_FLYS = 5, -- Flys per catch (Bug.cs CollectFly -> the Fly currency)
+
+	-- Tongue (Entities/Tongue.cs expand/retract, scaled to tween times)
+	TONGUE_EXPAND_TIME = 0.12,
+	TONGUE_RETRACT_TIME = 0.18,
 }
 
 return Config

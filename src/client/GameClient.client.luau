@@ -17,6 +17,7 @@ local Players = game:GetService("Players")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local PullMath = require(ReplicatedStorage.Shared.PullMath)
+local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -26,6 +27,7 @@ local ReportDeath = remotes:WaitForChild("ReportDeath") :: RemoteEvent
 local ScoreChanged = remotes:WaitForChild("ScoreChanged") :: RemoteEvent
 local GameOver = remotes:WaitForChild("GameOver") :: RemoteEvent
 local ForceRelease = remotes:WaitForChild("ForceRelease") :: RemoteEvent
+local CatchBug = remotes:WaitForChild("CatchBug") :: RemoteEvent
 
 -- ---------------------------------------------------------------------------
 -- Camera: scriptable, looking down +Z at the plane (approx orthographic)
@@ -119,29 +121,90 @@ end
 -- ---------------------------------------------------------------------------
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Include
-rayParams.FilterDescendantsInstances = { workspace.PlayField.Steps }
+rayParams.FilterDescendantsInstances = {
+	workspace.PlayField.Steps,
+	workspace.PlayField:WaitForChild("Bugs"), -- created by BugService at startup
+}
+
+-- Tongue visual (Entities/Tongue.cs Expand/FixedUpdate): a thin part stretches
+-- from the head to the tap point, then retracts. Pure local cosmetics -- the
+-- server is authoritative on whether the catch actually scored (doc 06).
+local function expandTongue(targetPos: Vector3)
+	local head = frog:FindFirstChild("Head")
+	if not (head and head:IsA("BasePart")) then
+		return
+	end
+	local from = head.Position
+	local length = (targetPos - from).Magnitude
+	if length < 0.5 then
+		return
+	end
+
+	local tongue = Instance.new("Part")
+	tongue.Name = "Tongue"
+	tongue.Anchored = true
+	tongue.CanCollide = false
+	tongue.CanQuery = false -- must not eat subsequent taps
+	tongue.Color = Color3.fromRGB(214, 86, 110)
+	tongue.Material = Enum.Material.SmoothPlastic
+	tongue.Size = Vector3.new(0.6, 0.6, 0.1)
+	tongue.CFrame = CFrame.lookAt(from, targetPos)
+	local decal = Instance.new("Decal")
+	decal.Face = Enum.NormalId.Front
+	decal:SetAttribute("Sprite", "UniversalTongue") -- Sprites/Frogs/Universal art
+	decal.Parent = tongue
+	SpriteSkin.apply(tongue)
+	tongue.Parent = workspace
+
+	-- grow toward the target (part scales from its centre, so walk the midpoint out)
+	local grow = TweenService:Create(tongue, TweenInfo.new(Config.TONGUE_EXPAND_TIME), {
+		Size = Vector3.new(0.6, 0.6, length),
+		CFrame = CFrame.lookAt(from, targetPos) * CFrame.new(0, 0, -length / 2),
+	})
+	grow.Completed:Once(function()
+		local shrink = TweenService:Create(tongue, TweenInfo.new(Config.TONGUE_RETRACT_TIME), {
+			Size = Vector3.new(0.6, 0.6, 0.1),
+			CFrame = CFrame.lookAt(from, targetPos),
+		})
+		shrink.Completed:Once(function()
+			tongue:Destroy()
+		end)
+		shrink:Play()
+	end)
+	grow:Play()
+end
 
 local function tryGrab(screenX: number, screenY: number)
 	if isDead then
 		return
 	end
-	local limb = getFreeLimb()
-	if not limb then
-		return
-	end
 
 	local unitRay = camera:ScreenPointToRay(screenX, screenY)
 	local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 300, rayParams)
+	if not result then
+		return -- miss: add a sound/limb-nudge here to match Controller.CheckTouch
+	end
 
-	if result and result.Instance:GetAttribute("Kind") == "Step" then
+	local kind = result.Instance:GetAttribute("Kind")
+
+	-- bugs are caught with the tongue, not a limb (Controller.TouchBug)
+	if kind == "Bug" then
+		CatchBug:FireServer(result.Instance)
+		expandTongue(result.Instance.Position)
+		return
+	end
+
+	if kind == "Step" then
+		local limb = getFreeLimb()
+		if not limb then
+			return
+		end
 		local step = result.Instance :: BasePart
 		limb.heldStep = step
 		onGrab()
 		local quality = PullMath.gradeGrab(result.Position, step.Position)
 		GrabStep:FireServer(step, quality, frogRoot.Position)
 	end
-	-- a miss (no hit) just does nothing in the basic loop; add a sound/limb-nudge
-	-- here to match Controller.CheckTouch's miss feedback if desired.
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)

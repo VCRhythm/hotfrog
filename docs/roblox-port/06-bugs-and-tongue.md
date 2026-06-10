@@ -3,6 +3,18 @@
 > Extension on top of the basic loop. Read
 > [03-core-mechanics.md](03-core-mechanics.md) first. This reuses the spawner /
 > pool pattern and adds two remotes.
+>
+> **Implemented:** the server side is
+> [`src/server/BugService.server.luau`](../../src/server/BugService.server.luau)
+> (spawner + pool with the same **Gen** guard as steps, plus tween-cancel on
+> recycle so a pooled bug can't keep animating); the client tongue + catch wiring
+> live in [`GameClient`](../../src/client/GameClient.client.luau). Two notes where
+> the implementation supersedes the snippets below: catches award **Flys** through
+> the shared `ServerStorage/AwardFlys` faucet (`Bug.cs CollectFly` is the Fly
+> currency — docs 08/09), not a step-score bonus; and there's deliberately **no
+> reach gate** on `CatchBug`, because the original tongue spans the whole screen.
+> The `Bugs` folder and a placeholder `BugTemplate` are self-provisioned at
+> startup, so no extra scene setup is needed.
 
 Bugs are the secondary objective: flies drift across the screen, and tapping one
 fires the frog's **tongue** to catch it for a bonus. Sources:
