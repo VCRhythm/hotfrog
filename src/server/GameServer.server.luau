@@ -314,7 +314,7 @@ GrabStep.OnServerEvent:Connect(function(player, step, quality, frogPos)
 	end
 	-- reject a step someone already holds, or grabs faster than humanly possible;
 	-- ForceRelease corrects the client that optimistically snapped a limb on
-	if heldBy[step] ~= nil or not grabAllowed(player) then
+	if heldBy[step] or not grabAllowed(player) then
 		ForceRelease:FireClient(player, step)
 		return
 	end
