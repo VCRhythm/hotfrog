@@ -87,10 +87,15 @@ return {
 and translates down by `gravity * multiplier * dt`. A successful grab resets the
 multiplier (`Bob`) and bobs the head up. Death triggers `Fall()`.
 
-**Roblox:** drive the fall on `RunService.Heartbeat` (client for feel, but the
-*authoritative* death check is server-side via the lava — see below). Do **not**
-use `Workspace.Gravity`. On a successful grab, reset the multiplier and tween a
+**Roblox:** drive the fall on `RunService.Heartbeat`. Do **not** use
+`Workspace.Gravity`. On a successful grab, reset the multiplier and tween a
 small upward "bob."
+
+> **Where this ended up:** the snippet below runs the loop on the client (the
+> simplest first build). The shipped implementation moved it **server-side** as
+> part of the doc-07 hardening — `GameServer` owns each frog model, the gravity
+> curve, and the lava death; the client only sends taps. Same math, different
+> owner. See [07-multiplayer.md](07-multiplayer.md#authority--anti-exploit-required-either-way).
 
 ```lua
 -- inside GameClient (LocalScript)

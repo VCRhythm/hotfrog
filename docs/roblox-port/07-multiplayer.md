@@ -54,10 +54,10 @@ frogs and conflict rules.
 
 ## Authority & anti-exploit (required either way)
 
-The basic [`GameServer`](../../src/server/GameServer.server.luau) trusts the client for two
-things to stay simple: it accepts client-reported **grabs** and client-reported
-**death** (`ReportDeath`). In a competitive multiplayer game with a leaderboard,
-that's exploitable. Harden as follows:
+The basic scripts originally trusted the client for **grabs** and **death**
+(`ReportDeath`) to stay simple. That trust is exploitable in a competitive game,
+so this table set out the hardening — all four rows are now implemented (see the
+note below the table):
 
 | Trust in the basic scripts | Hardening for multiplayer |
 |---|---|
@@ -79,12 +79,15 @@ taken to its authoritative conclusion.
 > optimistically snapped a limb is corrected. Score is already server-only
 > (`addScore`), and high scores commit through `Profiles`.
 >
-> **Still client-trusted** (the next step): the **frog itself**. Position, gravity,
-> and the lava death are client-driven (`ReportDeath`), so the reach check above
-> uses a client-supplied `frogPos` and is only advisory. Making the frog
-> server-authoritative (below) closes that gap — it also entangles limb visuals,
-> the camera, and where skins are applied, so it's a deliberate follow-up rather
-> than part of this localized hardening pass.
+> **And the frog is server-authoritative**: `GameServer` builds each player's
+> `Frog_<userId>` model in `workspace/PlayField/Frogs` and owns position, the
+> gravity curve, limb rendering, the lava death, and respawn. `ReportDeath` no
+> longer exists — the client has no say in when it died — the reach check runs
+> against the *server's* frog position, grab **quality is graded server-side**
+> from the reported tap point (`PullMath.gradeGrab`; lying about it can at worst
+> flash the HUD), and the server enforces the two-limb cap
+> (`Config.MAX_HELD_STEPS`). The client keeps only optimistic limb *slots* to
+> gate input, corrected by `ForceRelease`.
 
 ### Server-authoritative frog (for Option B, and recommended for A's leaderboard)
 
@@ -92,6 +95,14 @@ Move the gravity loop from `GameClient` to the server (one Heartbeat loop over a
 frogs), and send the resulting positions to clients to render. The client still
 sends taps; it no longer decides where the frog is or when it dies. This removes
 `ReportDeath` entirely — the server's lava check fires `GameOver`.
+
+> **Implemented**, with one design twist on the snippet below: instead of a
+> `FrogState` remote, the server **owns real frog models in `workspace`** and
+> moves them kinematically. The frog's motion is autonomous (gravity + grab
+> events — the client never steers it), so ordinary replication renders it with
+> no feel penalty, and it buys two things for free: every player **sees every
+> frog**, and skins are **applied server-side** from the profile (doc 08), so
+> they replicate too.
 
 ```lua
 -- server: one fall loop for every player's frog (replaces client gravity + ReportDeath)

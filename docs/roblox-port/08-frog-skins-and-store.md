@@ -262,6 +262,12 @@ end
 
 ## Applying the look — replaces `SpriteLoad` / `MakeFrog`
 
+> **Superseded by the doc-07 hardening:** frogs are server-built, so the shipped
+> code applies skins **server-side** — `GameServer.createFrog` reads
+> `profile.selected` at creation and `SkinService` re-applies on `SelectSkin` —
+> and the look replicates to everyone. The client snippet below remains valid for
+> a client-built-frog architecture (the pre-hardening basic loop).
+
 The basic [`GameClient`](../../src/client/GameClient.client.luau) clones a fixed
 `Assets/FrogModel`. With skins, build the frog from the **selected** skin instead:
 
@@ -318,11 +324,11 @@ payload so the UI can't desync from the authoritative profile.
 
 ## Multiplayer note
 
-In a networked session, other players should see your chosen skin. Since the frog
-is client-built here, replicate the selection: the server already knows each
-`profile.selected`, so have it broadcast `(userId, selectedSkinId)` to all clients
-(or build frogs server-side per [07](07-multiplayer.md)'s server-authoritative
-frog) and let each client apply the right skin model to each player's frog.
+**Resolved by the doc-07 hardening:** frogs are now built and skinned
+**server-side** — `GameServer` applies the profile's skin at frog creation, and
+[`SkinService`](../../src/server/SkinService.server.luau) retextures the live
+`Frog_<userId>` model when the selection changes — so every player sees every
+frog's skin through ordinary replication, no extra broadcast needed.
 
 ## Milestones
 

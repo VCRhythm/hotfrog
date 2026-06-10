@@ -1,22 +1,21 @@
 --!strict
 -- StarterPlayer/StarterPlayerScripts/GameClient (LocalScript)
--- Client side of the basic Hotfrog loop:
+-- Client side of the Hotfrog loop -- intents and cosmetics only (doc 07):
 --   * scriptable camera framing the play plane (../02 Option A)
---   * frog custom gravity + head bob (Player/Frog.cs)
---   * two independent limbs that grab / hold / return (Player/Controller.cs, Limb.cs)
---   * input -> raycast -> grab, with grab-quality grading (Player/Controller.cs)
---   * local death detection -> ReportDeath; HUD driven by ScoreChanged
+--   * input -> raycast -> grab/catch intents (Player/Controller.cs)
+--   * optimistic limb slots for input gating, corrected by ForceRelease
+--   * tongue visual (Entities/Tongue.cs) + HUD
 --
--- The frog is a client-local visual; steps are server-owned and replicate in.
+-- The frog itself is SERVER-owned: GameServer builds Frog_<userId> in
+-- workspace/PlayField/Frogs and drives gravity, limbs, death, and respawn, so it
+-- simply replicates in like the steps do. The client never moves it.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local RunService = game:GetService("RunService")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 local Config = require(ReplicatedStorage.Shared.Config)
-local PullMath = require(ReplicatedStorage.Shared.PullMath)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 
@@ -24,9 +23,7 @@ local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local GrabStep = remotes:WaitForChild("GrabStep") :: RemoteEvent
 local ReleaseStep = remotes:WaitForChild("ReleaseStep") :: RemoteEvent
-local ReportDeath = remotes:WaitForChild("ReportDeath") :: RemoteEvent
 local ScoreChanged = remotes:WaitForChild("ScoreChanged") :: RemoteEvent
-local GameOver = remotes:WaitForChild("GameOver") :: RemoteEvent
 local ForceRelease = remotes:WaitForChild("ForceRelease") :: RemoteEvent
 local CatchBug = remotes:WaitForChild("CatchBug") :: RemoteEvent
 
@@ -39,99 +36,65 @@ camera.FieldOfView = 40 -- far + narrow FOV fakes an orthographic look
 camera.CFrame = CFrame.lookAt(Vector3.new(0, 0, 60), Vector3.new(0, 0, 0))
 
 -- ---------------------------------------------------------------------------
--- Spawn the local frog
+-- My server-owned frog (for the tongue origin and the Dead gate)
 -- ---------------------------------------------------------------------------
-local frog = ReplicatedStorage.Assets.FrogModel:Clone()
-frog.Parent = workspace
-local frogRoot = frog.PrimaryPart :: BasePart
-local START_CFRAME = CFrame.new(0, 0, Config.PLANE_Z)
-frogRoot.CFrame = START_CFRAME
-frogRoot.Anchored = true
+local playField = workspace:WaitForChild("PlayField")
+local myFrog = playField:WaitForChild("Frogs"):WaitForChild("Frog_" .. player.UserId, math.huge) :: Model
 
-local function v2to3(v: Vector2): Vector3
-	return PullMath.v2to3(v)
+local function frogIsDead(): boolean
+	return myFrog:GetAttribute("Dead") == true
 end
 
 -- ---------------------------------------------------------------------------
--- Limbs
+-- Limb slots: an optimistic mirror of what we hold, used only to gate input
+-- (two limbs). The server is the truth; ForceRelease corrects us.
 -- ---------------------------------------------------------------------------
-type Limb = { part: BasePart, rest: Vector2, heldStep: BasePart? }
-local limbs: { Limb } = {
-	{ part = frog:FindFirstChild("RightLimb") :: BasePart, rest = Config.LIMB_REST[1], heldStep = nil },
-	{ part = frog:FindFirstChild("LeftLimb") :: BasePart, rest = Config.LIMB_REST[2], heldStep = nil },
-}
+type Slot = { heldStep: BasePart? }
+local slots: { Slot } = { { heldStep = nil }, { heldStep = nil } }
 
-local function getFreeLimb(): Limb?
-	for _, limb in ipairs(limbs) do
-		if not limb.heldStep then
-			return limb
+local function getFreeSlot(): Slot?
+	for _, slot in ipairs(slots) do
+		if not slot.heldStep then
+			return slot
 		end
 	end
 	return nil
 end
 
-local function anyLimbHolding(): boolean
-	return limbs[1].heldStep ~= nil or limbs[2].heldStep ~= nil
-end
-
-local function releaseLimb(index: number)
-	local step = limbs[index].heldStep
+local function releaseSlot(index: number)
+	local step = slots[index].heldStep
 	if step then
-		limbs[index].heldStep = nil
+		slots[index].heldStep = nil
 		ReleaseStep:FireServer(index, step) -- step included for step-behaviour hooks (../05)
 	end
 end
 
--- A step behavior knocked us off (Beetle, crumble, fall — Step.cs ForceRelease):
--- drop whichever limb holds that step. The ReleaseStep echo is a server no-op.
+-- The server rejected/ended a grab (already held, rate limit, behavior knock-off,
+-- death): drop whichever slot mirrors that step. The ReleaseStep echo is a
+-- server-side no-op because heldBy was already cleared.
 ForceRelease.OnClientEvent:Connect(function(step)
-	for i, limb in ipairs(limbs) do
-		if limb.heldStep == step then
-			releaseLimb(i)
+	for i, slot in ipairs(slots) do
+		if slot.heldStep == step then
+			releaseSlot(i)
 		end
 	end
 end)
 
 -- ---------------------------------------------------------------------------
--- Frog gravity + bob (Player/Frog.cs)
--- ---------------------------------------------------------------------------
-local gravityMult = Config.GRAVITY_MULT_START
-local isDead = false
-
-local function onGrab()
-	gravityMult = Config.GRAVITY_MULT_START -- reset the fall curve (Bob)
-	local head = frog:FindFirstChild("Head")
-	if head and head:IsA("BasePart") then
-		TweenService:Create(head, TweenInfo.new(0.15, Enum.EasingStyle.Sine), {
-			CFrame = head.CFrame * CFrame.new(0, 0.5, 0),
-		}):Play()
-	end
-end
-
-local function respawnFrog()
-	isDead = false
-	gravityMult = Config.GRAVITY_MULT_START
-	for i = 1, #limbs do
-		limbs[i].heldStep = nil
-	end
-	frogRoot.CFrame = START_CFRAME
-end
-
--- ---------------------------------------------------------------------------
--- Input -> grab (Player/Controller.cs: CheckTouch / DecipherTouch / TouchStep)
+-- Input -> intents (Player/Controller.cs: CheckTouch / DecipherTouch / TouchStep)
 -- ---------------------------------------------------------------------------
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Include
 rayParams.FilterDescendantsInstances = {
-	workspace.PlayField.Steps,
-	workspace.PlayField:WaitForChild("Bugs"), -- created by BugService at startup
+	playField:WaitForChild("Steps"),
+	playField:WaitForChild("Bugs"), -- created by BugService at startup
 }
 
 -- Tongue visual (Entities/Tongue.cs Expand/FixedUpdate): a thin part stretches
 -- from the head to the tap point, then retracts. Pure local cosmetics -- the
 -- server is authoritative on whether the catch actually scored (doc 06).
 local function expandTongue(targetPos: Vector3)
-	local head = frog:FindFirstChild("Head")
+	local head = myFrog:FindFirstChild("Head")
 	if not (head and head:IsA("BasePart")) then
 		return
 	end
@@ -177,7 +140,7 @@ local function expandTongue(targetPos: Vector3)
 end
 
 local function tryGrab(screenX: number, screenY: number)
-	if isDead then
+	if frogIsDead() then
 		return
 	end
 
@@ -198,16 +161,14 @@ local function tryGrab(screenX: number, screenY: number)
 	end
 
 	if kind == "Step" then
-		local limb = getFreeLimb()
-		if not limb then
+		local slot = getFreeSlot()
+		if not slot then
 			return
 		end
 		local step = result.Instance :: BasePart
-		limb.heldStep = step
-		onGrab()
+		slot.heldStep = step -- optimistic; the server corrects via ForceRelease
 		SoundFX.play("grab") -- Step.cs PlayGrabSound
-		local quality = PullMath.gradeGrab(result.Position, step.Position)
-		GrabStep:FireServer(step, quality, frogRoot.Position)
+		GrabStep:FireServer(step, result.Position) -- server grades quality from the tap point
 	end
 end
 
@@ -221,48 +182,16 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 end)
 
 -- release a limb when its input lifts (Controller.FreeUnusedTouches). The basic
--- loop frees a limb on any relevant input-up; refine per-finger tracking later.
+-- loop frees a slot on any relevant input-up; refine per-finger tracking later.
 UserInputService.InputEnded:Connect(function(input)
 	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		-- free the most-recently-grabbed held limb
-		for i = #limbs, 1, -1 do
-			if limbs[i].heldStep then
-				releaseLimb(i)
+		-- free the most-recently-grabbed held slot
+		for i = #slots, 1, -1 do
+			if slots[i].heldStep then
+				releaseSlot(i)
 				break
 			end
 		end
-	end
-end)
-
--- ---------------------------------------------------------------------------
--- Per-frame: limbs follow/return, frog falls, lava check
--- ---------------------------------------------------------------------------
-RunService.Heartbeat:Connect(function(dt: number)
-	-- limbs
-	for _, limb in ipairs(limbs) do
-		if limb.heldStep and limb.heldStep.Parent then
-			limb.part.CFrame = CFrame.new(limb.heldStep.Position) -- follow the (scrolling) step
-		else
-			limb.heldStep = nil
-			local target = v2to3(limb.rest) + frogRoot.Position
-			local alpha = math.clamp(dt / Config.LIMB_RETURN_TIME, 0, 1)
-			limb.part.CFrame = limb.part.CFrame:Lerp(CFrame.new(target), alpha)
-		end
-	end
-
-	-- gravity: a held frog doesn't fall; otherwise accelerate downward
-	if not isDead and not anyLimbHolding() then
-		gravityMult += Config.GRAVITY_ACCEL * dt
-		local speed = math.min(Config.GRAVITY * gravityMult, Config.MAX_FALL_SPEED)
-		local p = frogRoot.Position
-		frogRoot.CFrame = CFrame.new(p.X, p.Y - speed * dt, Config.PLANE_Z)
-	end
-
-	-- lava / lose condition (Frog.Fall + Lava.cs). Client-detected here; server
-	-- owns the consequences (score commit + restart) via ReportDeath.
-	if not isDead and frogRoot.Position.Y <= Config.DESPAWN_Y then
-		isDead = true
-		ReportDeath:FireServer()
 	end
 end)
 
@@ -304,9 +233,5 @@ ScoreChanged.OnClientEvent:Connect(function(score, best, quality)
 	end
 end)
 
-GameOver.OnClientEvent:Connect(function()
-	-- simple restart: re-rise the frog (Frog.Rise). Add a fall anim / delay to
-	-- match the original's death beat if you like.
-	task.wait(0.5)
-	respawnFrog()
-end)
+-- Death/respawn is entirely server-driven; the GameOver remote is feedback-only
+-- (Effects.client.luau plays the fall sound).

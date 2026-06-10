@@ -6,10 +6,12 @@ it straight into Roblox Studio. These are the fleshed-out versions of the
 illustrative snippets in [03-core-mechanics.md](03-core-mechanics.md) plus the
 skins service from [08-frog-skins-and-store.md](08-frog-skins-and-store.md).
 
-> Still a starting point, not a shipped game: art is placeholder parts, tuning
-> lives in `Config`, and the client/server split is the pragmatic MVP one (see
-> [02-architecture-mapping.md](02-architecture-mapping.md#decision-2-client--server-split)).
-> Hardening and true multiplayer are in [07-multiplayer.md](07-multiplayer.md).
+> Still a starting point, not a shipped game: art is placeholder parts and tuning
+> lives in `Config` — but the client/server split is the **hardened** one from
+> [07-multiplayer.md](07-multiplayer.md): the server owns frogs (gravity, limbs,
+> death, respawn, skins), steps, pull, and score; the client sends taps and draws
+> cosmetics. Frogs replicate like any other server-owned model, so multiple
+> players already see each other climb.
 
 ## Source layout
 

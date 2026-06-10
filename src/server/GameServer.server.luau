@@ -1,13 +1,16 @@
 --!strict
 -- ServerScriptService/GameServer (Script)
--- Authoritative side of the basic Hotfrog loop:
+-- Authoritative side of the Hotfrog loop:
 --   * spawns & pools steps (Spawning/StepSpawner.cs + ObjectPool.cs)
 --   * owns the pull / world-scroll (Spawning/SpawnManager.cs)
+--   * owns every frog: position, gravity, limbs, death, respawn (Player/Frog.cs)
 --   * tracks score and persists the high score (Core/VariableManager.cs)
 --
--- The frog itself is client-driven for responsiveness; the client reports grabs
--- (GrabStep) and its own death (ReportDeath). That client trust is the pragmatic
--- MVP choice -- see ../07-multiplayer.md for hardening.
+-- Hardened per ../07-multiplayer.md: the client sends intents (taps); the server
+-- owns all state. Frog models live in workspace and replicate to every client,
+-- which also gives multiplayer frog visibility and server-side skins for free.
+-- The frog's motion is autonomous (gravity + grab events -- the client never
+-- steers it), so replication latency doesn't hurt feel.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -15,7 +18,9 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local PullMath = require(ReplicatedStorage.Shared.PullMath)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
+local SkinCatalog = require(ReplicatedStorage.Shared.SkinCatalog)
 local StepBehaviors = require(ReplicatedStorage.Shared.StepBehaviors)
 local Profiles = require(script.Parent.Profiles)
 
@@ -39,9 +44,8 @@ local function ensureRemote(name: string): RemoteEvent
 	return r :: RemoteEvent
 end
 
-local GrabStep = ensureRemote("GrabStep") -- client -> server: grabbed a step
+local GrabStep = ensureRemote("GrabStep") -- client -> server: tapped a step (step, tap world point)
 local ReleaseStep = ensureRemote("ReleaseStep") -- client -> server: released a limb
-local ReportDeath = ensureRemote("ReportDeath") -- client -> server: frog hit lava
 local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/best
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
@@ -59,6 +63,35 @@ local active: { [BasePart]: boolean } = {}
 local heldBy: { [BasePart]: Player } = {} -- who currently holds each step
 local spawnBias = Vector2.new(0, -1) -- SpawnManager.SpawnDirection analog
 
+-- Server-authoritative frog state (doc 07): the server owns position, gravity,
+-- held steps, and death. The model lives in workspace, so replication renders it
+-- on every client.
+type FrogState = {
+	model: Model,
+	body: BasePart,
+	head: BasePart?,
+	headOffset: CFrame,
+	limbs: { BasePart },
+	limbOffsets: { CFrame }, -- rest poses relative to the body
+	pos: Vector3,
+	gravityMult: number,
+	dead: boolean,
+	held: { BasePart }, -- steps this player holds (max Config.MAX_HELD_STEPS)
+}
+local frogs: { [Player]: FrogState } = {}
+
+local function removeHeld(player: Player, step: BasePart)
+	local f = frogs[player]
+	if not f then
+		return
+	end
+	for i = #f.held, 1, -1 do
+		if f.held[i] == step then
+			table.remove(f.held, i)
+		end
+	end
+end
+
 local function behaviorOf(step: BasePart): StepBehaviors.Behavior
 	local name = step:GetAttribute("Behavior")
 	return (typeof(name) == "string" and StepBehaviors[name]) or StepBehaviors.None
@@ -69,6 +102,7 @@ local function forceReleaseStep(step: BasePart)
 	local holder = heldBy[step]
 	if holder then
 		heldBy[step] = nil
+		removeHeld(holder, step)
 		ForceRelease:FireClient(holder, step)
 	end
 end
@@ -274,6 +308,125 @@ local function resetScore(player: Player)
 end
 
 -- ---------------------------------------------------------------------------
+-- Frogs (Player/Frog.cs, server-authoritative). One model per player, named
+-- Frog_<userId>, skinned from the profile so the look replicates to everyone.
+-- ---------------------------------------------------------------------------
+local frogContainer = workspace.PlayField:FindFirstChild("Frogs")
+if not frogContainer then
+	frogContainer = Instance.new("Folder")
+	frogContainer.Name = "Frogs"
+	frogContainer.Parent = workspace.PlayField
+end
+
+local frogTemplate = ReplicatedStorage.Assets.FrogModel
+local FROG_START = Vector3.new(0, 0, Config.PLANE_Z)
+
+local function createFrog(player: Player)
+	if frogs[player] then
+		return
+	end
+	local model = frogTemplate:Clone() :: Model
+	model.Name = "Frog_" .. player.UserId
+	model:SetAttribute("UserId", player.UserId)
+	model:SetAttribute("Dead", false)
+	for _, descendant in model:GetDescendants() do
+		if descendant:IsA("BasePart") then
+			descendant.Anchored = true -- kinematic, like the steps
+			descendant.CanCollide = false
+			descendant.CanQuery = false -- frogs must not eat taps
+		end
+	end
+
+	local body = model.PrimaryPart :: BasePart
+	local headInstance = model:FindFirstChild("Head")
+	local head = if headInstance and headInstance:IsA("BasePart") then headInstance else nil
+	local right = model:FindFirstChild("RightLimb") :: BasePart
+	local left = model:FindFirstChild("LeftLimb") :: BasePart
+
+	-- skin from the profile (server-side: replicates to everyone -- doc 08)
+	local profile = Profiles.get(player)
+	local entry = profile and SkinCatalog[profile.selected]
+	if entry then
+		SpriteSkin.apply(model, entry.name)
+	end
+
+	local state: FrogState = {
+		model = model,
+		body = body,
+		head = head,
+		headOffset = if head then body.CFrame:ToObjectSpace(head.CFrame) else CFrame.identity,
+		limbs = { right, left },
+		limbOffsets = {
+			CFrame.new(Config.LIMB_REST[1].X, Config.LIMB_REST[1].Y, 0),
+			CFrame.new(Config.LIMB_REST[2].X, Config.LIMB_REST[2].Y, 0),
+		},
+		pos = FROG_START,
+		gravityMult = Config.GRAVITY_MULT_START,
+		dead = false,
+		held = {},
+	}
+	body.CFrame = CFrame.new(FROG_START)
+	frogs[player] = state
+	model.Parent = frogContainer
+end
+
+local function killFrog(player: Player, f: FrogState)
+	f.dead = true
+	f.model:SetAttribute("Dead", true)
+	-- drop anything still held (e.g. a step dragged under the lava line with us)
+	for i = #f.held, 1, -1 do
+		forceReleaseStep(f.held[i])
+	end
+	commitHighScore(player)
+	resetScore(player)
+	GameOver:FireClient(player)
+	task.delay(Config.RESPAWN_DELAY, function()
+		if frogs[player] ~= f then
+			return -- player left (or was rebuilt) during the death beat
+		end
+		f.pos = FROG_START
+		f.gravityMult = Config.GRAVITY_MULT_START
+		f.dead = false
+		f.model:SetAttribute("Dead", false)
+	end)
+end
+
+-- The fall loop (Frog.cs SteadilyLowerHead) + lava check (Lava.cs) + rendering:
+-- limbs snap to their held step or ease back to rest, exactly as the client
+-- used to do locally.
+RunService.Heartbeat:Connect(function(dt: number)
+	for plr, f in pairs(frogs) do
+		if not f.dead then
+			if #f.held == 0 then
+				f.gravityMult += Config.GRAVITY_ACCEL * dt
+				local speed = math.min(Config.GRAVITY * f.gravityMult, Config.MAX_FALL_SPEED)
+				f.pos = Vector3.new(f.pos.X, f.pos.Y - speed * dt, Config.PLANE_Z)
+			end
+			if f.pos.Y <= Config.DESPAWN_Y then
+				killFrog(plr, f)
+			end
+		end
+
+		local bodyCF = CFrame.new(f.pos)
+		f.body.CFrame = bodyCF
+		local head = f.head
+		if head then
+			head.CFrame = bodyCF * f.headOffset
+		end
+		for i, limbPart in f.limbs do
+			local step = f.held[i]
+			if step and step.Parent then
+				limbPart.CFrame = CFrame.new(step.Position) -- follow the (scrolling) step
+			else
+				local target = bodyCF * f.limbOffsets[i]
+				local alpha = math.clamp(dt / Config.LIMB_RETURN_TIME, 0, 1)
+				limbPart.CFrame = limbPart.CFrame:Lerp(target, alpha)
+			end
+		end
+	end
+end)
+
+-- ---------------------------------------------------------------------------
 -- Remote handlers
 -- ---------------------------------------------------------------------------
 
@@ -307,9 +460,14 @@ local function grabAllowed(player: Player): boolean
 	return true
 end
 
-GrabStep.OnServerEvent:Connect(function(player, step, quality, frogPos)
-	-- validate: a real, still-active step
+GrabStep.OnServerEvent:Connect(function(player, step, tapPos)
+	-- validate: a real, still-active step, from a live frog with a limb to spare
 	if typeof(step) ~= "Instance" or not step:IsA("BasePart") or not active[step] then
+		return
+	end
+	local f = frogs[player]
+	if not f or f.dead or #f.held >= Config.MAX_HELD_STEPS then
+		ForceRelease:FireClient(player, step)
 		return
 	end
 	-- reject a step someone already holds, or grabs faster than humanly possible;
@@ -318,24 +476,23 @@ GrabStep.OnServerEvent:Connect(function(player, step, quality, frogPos)
 		ForceRelease:FireClient(player, step)
 		return
 	end
-	-- basic reach sanity check. NOTE: frogPos is client-supplied and so only
-	-- advisory until the frog is server-authoritative (doc 07, next step).
-	if typeof(frogPos) == "Vector3" then
-		local d2 = (Vector2.new(step.Position.X, step.Position.Y) - Vector2.new(frogPos.X, frogPos.Y)).Magnitude
-		if d2 > Config.MAX_GRAB_DISTANCE then
-			ForceRelease:FireClient(player, step)
-			return
-		end
+	-- reach check against the SERVER's frog position (no client trust left here)
+	local reach = (Vector2.new(step.Position.X, step.Position.Y) - Vector2.new(f.pos.X, f.pos.Y)).Magnitude
+	if reach > Config.MAX_GRAB_DISTANCE then
+		ForceRelease:FireClient(player, step)
+		return
 	end
-	if typeof(quality) ~= "string" then
-		quality = "OK"
-	end
+	-- grade quality server-side from the reported tap point (doc 07): garbage
+	-- input can at worst claim "Perfect", which only flashes the HUD
+	local quality = if typeof(tapPos) == "Vector3" then PullMath.gradeGrab(tapPos, step.Position) else "OK"
 
+	f.gravityMult = Config.GRAVITY_MULT_START -- reset the fall curve (Frog.Bob)
 	scrollFieldDown(Config.PULL_DISTANCE, Config.PULL_TIME)
 	addScore(player, 1, quality)
 
 	-- step behaviors (doc 05): track the holder, then dispatch onGrab
 	heldBy[step] = player
+	table.insert(f.held, step)
 	local b = behaviorOf(step)
 	if b.onGrab then
 		b.onGrab(makeCtx(step, player))
@@ -352,37 +509,44 @@ ReleaseStep.OnServerEvent:Connect(function(player, _limbIndex, step)
 		return
 	end
 	heldBy[step] = nil
+	removeHeld(player, step)
 	local b = behaviorOf(step)
 	if b.onRelease and active[step] then
 		b.onRelease(makeCtx(step, player))
 	end
 end)
 
-ReportDeath.OnServerEvent:Connect(function(player)
-	commitHighScore(player)
-	resetScore(player)
-	GameOver:FireClient(player)
-end)
-
 -- ---------------------------------------------------------------------------
--- Player lifecycle (scoring side). Profiles owns persistence; here we reset the
--- run and push the initial HUD once the profile is ready. The high score is
--- banked on death (commitHighScore in ReportDeath), not on leave.
+-- Player lifecycle. Profiles owns persistence; once a profile is ready we set
+-- up the run state, the leaderstats board, and the server-owned frog. Death is
+-- decided entirely by the server's lava check in the frog Heartbeat (no
+-- ReportDeath remote -- the client has no say in when it died).
 -- ---------------------------------------------------------------------------
-local function initScore(player: Player)
+local function initPlayer(player: Player)
 	ensureLeaderstats(player)
 	sessionScore[player] = 0
+	createFrog(player)
 	pushScore(player)
 end
 
-Profiles.Loaded:Connect(initScore)
+Profiles.Loaded:Connect(initPlayer)
 for _, player in Players:GetPlayers() do
 	if Profiles.get(player) then
-		initScore(player)
+		initPlayer(player)
 	end
 end
 
 Players.PlayerRemoving:Connect(function(player: Player)
+	local f = frogs[player]
+	if f then
+		for i = #f.held, 1, -1 do
+			local step = f.held[i]
+			heldBy[step] = nil -- no ForceRelease: the holder is leaving
+			table.remove(f.held, i)
+		end
+		frogs[player] = nil
+		f.model:Destroy()
+	end
 	sessionScore[player] = nil
 	grabTimes[player] = nil
 end)

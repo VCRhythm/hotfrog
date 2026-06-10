@@ -13,6 +13,7 @@ local ServerStorage = game:GetService("ServerStorage")
 local Players = game:GetService("Players")
 
 local Catalog = require(ReplicatedStorage.Shared.SkinCatalog)
+local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 local Profiles = require(script.Parent.Profiles)
 
 -- Developer Product id -> Flys granted. FILL IN real product ids.
@@ -95,6 +96,15 @@ SelectSkin.OnServerEvent:Connect(function(player, id)
 	if p and p.owned[id] then
 		p.selected = id
 		push(player)
+		-- retexture the live server-owned frog (GameServer names it Frog_<userId>);
+		-- the new look replicates to every client
+		local entry = Catalog[id]
+		local playField = workspace:FindFirstChild("PlayField")
+		local frogsFolder = playField and playField:FindFirstChild("Frogs")
+		local frogModel = frogsFolder and frogsFolder:FindFirstChild("Frog_" .. player.UserId)
+		if entry and frogModel then
+			SpriteSkin.apply(frogModel, entry.name)
+		end
 	end
 end)
 

@@ -38,6 +38,8 @@ local Config = {
 	-- Two limbs + fast chaining is maybe ~6/s for a human; 10 leaves headroom.
 	GRAB_WINDOW = 1.0, -- seconds
 	GRAB_MAX_PER_WINDOW = 10,
+	MAX_HELD_STEPS = 2, -- a frog has two limbs (server-enforced)
+	RESPAWN_DELAY = 1.5, -- death beat before the frog re-rises (Frog.cs Fall/Rise)
 
 	-- Step behaviors (Entities/Step.cs ActionType; see doc 05). Weighted roll per
 	-- spawned step; entries must match names in Shared/StepBehaviors.
