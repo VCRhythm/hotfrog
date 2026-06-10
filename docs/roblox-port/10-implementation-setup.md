@@ -43,7 +43,8 @@ its `RemoteEvent`s on first run, so you don't build those by hand.
 
 **Persistence is consolidated:** [`Profiles.luau`](../../src/server/Profiles.luau)
 owns one DataStore and one per-player schema (high score, Flys, owned/selected
-skins, applied receipts, gift cooldown). `GameServer`, `SkinService`, and
+skins, applied receipts, gift cooldown), plus an `OrderedDataStore` mirror of
+personal bests for the global top-N (`Profiles.topScores`). `GameServer`, `SkinService`, and
 `GiftService` all read/write `Profiles.get(player)` and react to `Profiles.Loaded`
 — no service stands up its own store. Flys are granted through one path: a
 server-only `ServerStorage/AwardFlys` `BindableEvent` (`SkinService` applies +

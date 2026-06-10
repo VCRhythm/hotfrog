@@ -217,7 +217,39 @@ local function bestOf(player: Player): number
 	return if p then p.highScore else 0
 end
 
+-- leaderstats: Score (current run) + Best in the built-in player list (doc 07)
+local function ensureLeaderstats(player: Player)
+	if player:FindFirstChild("leaderstats") then
+		return
+	end
+	local stats = Instance.new("Folder")
+	stats.Name = "leaderstats"
+	local score = Instance.new("IntValue")
+	score.Name = "Score"
+	score.Parent = stats
+	local best = Instance.new("IntValue")
+	best.Name = "Best"
+	best.Parent = stats
+	stats.Parent = player
+end
+
+local function updateLeaderstats(player: Player)
+	local stats = player:FindFirstChild("leaderstats")
+	if not stats then
+		return
+	end
+	local score = stats:FindFirstChild("Score")
+	if score and score:IsA("IntValue") then
+		score.Value = sessionScore[player] or 0
+	end
+	local best = stats:FindFirstChild("Best")
+	if best and best:IsA("IntValue") then
+		best.Value = bestOf(player)
+	end
+end
+
 local function pushScore(player: Player, quality: string?)
+	updateLeaderstats(player)
 	ScoreChanged:FireClient(player, sessionScore[player] or 0, bestOf(player), quality)
 end
 
@@ -232,6 +264,7 @@ local function commitHighScore(player: Player)
 	if p and score > p.highScore then
 		p.highScore = score
 		Profiles.save(player)
+		Profiles.recordGlobalBest(player, score) -- mirror into the global top-N (doc 07)
 	end
 end
 
@@ -298,6 +331,7 @@ end)
 -- banked on death (commitHighScore in ReportDeath), not on leave.
 -- ---------------------------------------------------------------------------
 local function initScore(player: Player)
+	ensureLeaderstats(player)
 	sessionScore[player] = 0
 	pushScore(player)
 end

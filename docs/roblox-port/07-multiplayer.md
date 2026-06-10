@@ -120,6 +120,13 @@ HUD/score.
 
 ## Leaderboard & persistence
 
+> **Implemented:** [`GameServer`](../../src/server/GameServer.server.luau) creates
+> `leaderstats` (`Score` = current run, `Best`) and keeps them in sync from the one
+> `pushScore` choke point; [`Profiles`](../../src/server/Profiles.luau) mirrors new
+> personal bests into an `OrderedDataStore` (`Profiles.recordGlobalBest`, called
+> when a run banks a new high score) and exposes `Profiles.topScores(n)` for a
+> world-leaderboard surface.
+
 - **In-session board:** use `leaderstats` (a `Folder` named `leaderstats` under
   each `Player` with an `IntValue` like `Score`) so Roblox shows the player list
   ranking for free.

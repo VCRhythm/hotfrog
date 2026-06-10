@@ -24,6 +24,7 @@ export type Profile = {
 }
 
 local store = DataStoreService:GetDataStore("HotfrogProfiles_v1")
+local orderedBest = DataStoreService:GetOrderedDataStore("HotfrogGlobalBest_v1")
 local cache: { [Player]: Profile } = {}
 local loadedEvent = Instance.new("BindableEvent")
 
@@ -92,6 +93,35 @@ function Profiles.save(player: Player)
 	pcall(function()
 		store:SetAsync(keyFor(player), p)
 	end)
+end
+
+-- Mirror a new personal best into the OrderedDataStore so a global top-N is
+-- queryable (doc 07, Leaderboard & persistence). Call when highScore improves.
+function Profiles.recordGlobalBest(player: Player, best: number)
+	pcall(function()
+		orderedBest:SetAsync(keyFor(player), best)
+	end)
+end
+
+export type TopEntry = { userId: number, score: number }
+
+-- Global top-N personal bests for a world-leaderboard surface. Returns an empty
+-- list on DataStore failure rather than erroring.
+function Profiles.topScores(count: number): { TopEntry }
+	local results: { TopEntry } = {}
+	local ok, pages = pcall(function()
+		return orderedBest:GetSortedAsync(false, math.clamp(count, 1, 100))
+	end)
+	if not ok then
+		return results
+	end
+	for _, entry in pages:GetCurrentPage() do
+		local userId = tonumber(string.match(entry.key, "%d+"))
+		if userId then
+			table.insert(results, { userId = userId, score = tonumber(entry.value) or 0 })
+		end
+	end
+	return results
 end
 
 local function load(player: Player)
