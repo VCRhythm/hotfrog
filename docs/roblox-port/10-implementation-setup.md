@@ -22,14 +22,17 @@ src/
     SkinAssets.luau   -- name → rbxassetid map (paste uploaded ids here)
     SpriteSkin.luau   -- textures parts from SkinAssets via an attribute convention
     StepBehaviors.luau -- step ActionType registry (doc 05)
+    SoundAssets.luau  -- clip stem → rbxassetid map (paste uploaded ids here)
+    SoundFX.luau      -- one-shot sound player over SoundAssets
   server/    -> ServerScriptService.Server     (Scripts + a ModuleScript)
     Profiles.luau           -- single per-player profile + DataStore (persistence)
     GameServer.server.luau
     SkinService.server.luau
     GiftService.server.luau -- timed free-Fly gift (doc 09)
     BugService.server.luau  -- bug collectible loop (doc 06; self-provisions its folder/template)
-  client/    -> StarterPlayer.StarterPlayerScripts.Client   (LocalScript)
+  client/    -> StarterPlayer.StarterPlayerScripts.Client   (LocalScripts)
     GameClient.client.luau
+    Effects.client.luau     -- sounds + pebble debris off Unsteady steps
 ```
 
 The mapping is defined in [`default.project.json`](../../default.project.json).
@@ -147,6 +150,19 @@ Then call `SpriteSkin.apply(root, skinName?)`:
 
 It's a no-op for any part whose id is still `0` in `SkinAssets`, so it's safe to
 call on placeholder templates before art is uploaded.
+
+### Audio
+
+The repo contains **no audio files** — unlike the sprites, the original sound set
+was never committed. [`SoundAssets.luau`](../../src/shared/SoundAssets.luau) lists
+the clip stems named by `Audio/AudioManager.cs` (grab, crumble, fall, slurp,
+squish, miss, music…), so it doubles as the list of sounds to source or recreate;
+paste uploaded ids there exactly like `SkinAssets`.
+[`SoundFX.play(stem)`](../../src/shared/SoundFX.luau) is a silent no-op while an
+id is `0`, and the gameplay calls are already wired (grab/miss/slurp in
+`GameClient`; squish/fall/crumble + pebble debris in
+[`Effects.client.luau`](../../src/client/Effects.client.luau)) — uploading clips
+makes the game audible with no code changes.
 
 ## What you should see on Play
 

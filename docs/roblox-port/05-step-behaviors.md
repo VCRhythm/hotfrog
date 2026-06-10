@@ -135,6 +135,10 @@ These are the Roblox versions of the private methods in `Step.cs`:
 
 `Pebble` (the crumble debris in `Entities/Pebble.cs`) becomes a tiny pooled part
 that you unanchor and let fall, or tween — cosmetic, client-side is fine.
+Implemented: [`Effects.client.luau`](../../src/client/Effects.client.luau) emits
+pebble bursts off any step whose `Unsteady` attribute is set (the `ShowCrumbles`
+loop), tinted to the step's colour, as client-local parts so they never fight the
+server-owned step CFrames.
 
 ## Mapping the full enum
 

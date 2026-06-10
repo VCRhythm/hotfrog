@@ -18,6 +18,7 @@ local Players = game:GetService("Players")
 local Config = require(ReplicatedStorage.Shared.Config)
 local PullMath = require(ReplicatedStorage.Shared.PullMath)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
+local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -139,6 +140,7 @@ local function expandTongue(targetPos: Vector3)
 	if length < 0.5 then
 		return
 	end
+	SoundFX.play("slurp") -- Tongue.cs Expand
 
 	local tongue = Instance.new("Part")
 	tongue.Name = "Tongue"
@@ -182,7 +184,8 @@ local function tryGrab(screenX: number, screenY: number)
 	local unitRay = camera:ScreenPointToRay(screenX, screenY)
 	local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 300, rayParams)
 	if not result then
-		return -- miss: add a sound/limb-nudge here to match Controller.CheckTouch
+		SoundFX.play("miss") -- Controller.CheckTouch miss feedback
+		return
 	end
 
 	local kind = result.Instance:GetAttribute("Kind")
@@ -202,6 +205,7 @@ local function tryGrab(screenX: number, screenY: number)
 		local step = result.Instance :: BasePart
 		limb.heldStep = step
 		onGrab()
+		SoundFX.play("grab") -- Step.cs PlayGrabSound
 		local quality = PullMath.gradeGrab(result.Position, step.Position)
 		GrabStep:FireServer(step, quality, frogRoot.Position)
 	end
