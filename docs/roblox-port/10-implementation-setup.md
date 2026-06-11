@@ -35,6 +35,7 @@ src/
   client/    -> StarterPlayer.StarterPlayerScripts.Client   (LocalScripts)
     GameClient.client.luau
     Effects.client.luau     -- sounds + pebble debris off Unsteady steps
+    StoreUI.client.luau     -- skin store + gift button (docs 08/09)
 ```
 
 The mapping is defined in [`default.project.json`](../../default.project.json).

@@ -311,12 +311,19 @@ row."
 
 ## Store UI — replaces `CycleFrog` + buy button
 
+> **Implemented:** [`src/client/StoreUI.client.luau`](../../src/client/StoreUI.client.luau)
+> — a Shop toggle opens a panel that cycles the roster (`<`/`>`), shows the
+> Selected/Owned/locked-price status, and drives one context button; a Flys
+> balance sits top-right and the gift button (doc 09) bottom-left. State comes
+> entirely from `ProfileChanged`, so it can't desync from the authoritative
+> profile.
+
 A `ScreenGui` that shows one skin at a time with next/prev (the `CycleFrog`
 analog), a locked/owned badge, and a context button:
 
-- **Owned** → "Select" → `SelectSkin:FireServer(id)`.
-- **Buyable with Flys** (`flyCost`, enough balance) → "Buy (N Flys)" →
-  `BuyWithFlys:InvokeServer(id)`.
+- **Owned** → "Wear" → `SelectSkin:FireServer(id)`.
+- **Buyable with Flys** (`flyCost`) → "Buy (N)" → `BuyWithFlys:InvokeServer(id)`
+  (server checks balance; the panel just refreshes from `ProfileChanged`).
 - **Premium** (`gamePassId`) → "Buy" → `MarketplaceService:PromptGamePassPurchase`.
 
 Drive the owned/locked state and Fly balance entirely from the `ProfileChanged`

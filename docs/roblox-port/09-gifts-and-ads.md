@@ -163,6 +163,10 @@ server-authoritative.
 
 ## Milestones
 
+Milestones 1–2 are implemented: `GiftService` (eligibility + claim) and the gift
+button + smooth local countdown in
+[`StoreUI.client.luau`](../../src/client/StoreUI.client.luau).
+
 1. Gift fields on the shared profile (`giftSeed`, `lastGift`); `GiftService`
    eligibility + claim. *Verify: claim grants Flys; the next claim is locked and
    the cooldown grows; rejoining keeps the correct countdown.*
