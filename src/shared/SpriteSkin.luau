@@ -3,7 +3,9 @@
 -- shared by the frog rig (per-skin) and static art (steps / bug / lava / scenery).
 -- See ../../docs/roblox-port/08-frog-skins-and-store.md and 10-implementation-setup.md.
 --
--- Set one of these attributes on a Decal/Texture/ImageLabel in your templates:
+-- Set one of these attributes on a Decal/Texture/ImageLabel — or on a BasePart,
+-- in which case its child Decals/Textures are textured (handy for steps whose
+-- sprite is chosen at spawn time):
 --   Sprite = "<stem>"   exact sprite stem, skin-agnostic — e.g. "WhiteRock",
 --                        "Bug", "LavaSplash", "Sun" (resolved by SkinAssets.image)
 --   Suffix = "<suffix>" per-skin frog part — e.g. "Body", "Head", "LeftHandGrab"
@@ -15,19 +17,30 @@ local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
 
 local SpriteSkin = {}
 
-local function setTexture(obj: Instance, image: string?)
-	if not image then
-		return -- leave the authored placeholder when the id isn't uploaded yet
-	end
-	-- Decals/Textures use .Texture; ImageLabel/ImageButton use .Image. Cast to any
-	-- for the assignment (a property set on the IsA union isn't expressible), while
-	-- keeping merged conditions so selene doesn't flag duplicate branches.
+-- Paint one image-bearing instance (Decal/Texture use .Texture; ImageLabel/
+-- ImageButton use .Image). Cast to any for the assignment (a property set on the
+-- IsA union isn't expressible), with merged conditions so selene is happy.
+local function paint(obj: Instance, image: string)
 	if obj:IsA("Decal") or obj:IsA("Texture") then
 		local sprite = obj :: any
 		sprite.Texture = image
 	elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
 		local ui = obj :: any
 		ui.Image = image
+	end
+end
+
+local function setTexture(obj: Instance, image: string?)
+	if not image then
+		return -- leave the authored placeholder when the id isn't uploaded yet
+	end
+	if obj:IsA("BasePart") then
+		-- a tagged part textures the surface decals/textures parented to it
+		for _, child in obj:GetChildren() do
+			paint(child, image)
+		end
+	else
+		paint(obj, image)
 	end
 end
 

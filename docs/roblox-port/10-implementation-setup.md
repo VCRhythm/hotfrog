@@ -142,6 +142,11 @@ using one attribute you set on the part in your templates:
 | `Sprite = "<stem>"` | skin-agnostic art — `"WhiteRock"`, `"Bug"`, `"LavaSplash"`, `"Sun"` | `SkinAssets.image(stem)` |
 | `Suffix = "<suffix>"` | per-skin frog part — `"Body"`, `"Head"`, `"LeftHandGrab"` | `SkinAssets.part(skinName, suffix)` |
 
+Put the attribute on the `Decal`/`Texture`/`ImageLabel` itself, **or on a
+`BasePart`** — a tagged part textures the `Decal`s parented to it. So a step part
+whose `Sprite` is stamped at spawn time just needs a blank `Decal` (Front face) on
+the `StepTemplate`; the frog rig instead tags each part's `Decal` with `Suffix`.
+
 Then call `SpriteSkin.apply(root, skinName?)`:
 
 - **Frog rig** — `SpriteSkin.apply(frogModel, selectedSkinName)` retextures all the
