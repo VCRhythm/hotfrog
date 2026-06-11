@@ -76,3 +76,27 @@ python tools/upload_to_catbox.py Sprites/Frogs --recursive
 ```
 
 Accepts files and/or directories; `--pattern` filters directory inputs only.
+
+## `upload_to_roblox.py`
+
+Upload images to Roblox via the **Open Cloud Assets API** and print a
+`{stem: assetId}` JSON map — the keys the Roblox port's `SkinAssets.luau` /
+`SoundAssets.luau` expect (file stem, e.g. `HotFrogBody`). This is the step that
+turns the `/Sprites` PNGs into `rbxassetid`s the game can render; Studio's Asset
+Manager "Bulk Import" is the manual equivalent.
+
+Needs an Open Cloud API key (assets, Read+Write) and your creator id:
+
+```bat
+set ROBLOX_API_KEY=...
+python tools/upload_to_roblox.py "Sprites/Frogs" --recursive ^
+    --creator-id 1234567 --creator-type user -o sprite_ids.json
+:: also emit a paste-ready Lua id table:
+python tools/upload_to_roblox.py Sprites/Other --creator-id 1234567 --lua-out ids.lua
+```
+
+Then paste the ids into the port's `SkinAssets.luau` (images) / `SoundAssets.luau`
+(audio). Uploaded assets are moderated, so a fresh id can render blank until
+approved; failed files map to `""` so you can re-run just those. Never commit your
+key.
+

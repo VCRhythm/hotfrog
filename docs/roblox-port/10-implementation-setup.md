@@ -160,6 +160,23 @@ Then call `SpriteSkin.apply(root, skinName?)`:
 It's a no-op for any part whose id is still `0` in `SkinAssets`, so it's safe to
 call on placeholder templates before art is uploaded.
 
+### Plugging in the `/Sprites` art (end to end)
+
+1. **Upload** the PNGs to Roblox to get asset ids. For the whole `/Sprites`
+   set, [`tools/upload_to_roblox.py`](../../tools/upload_to_roblox.py) does it via
+   Open Cloud and writes a `{stem: assetId}` map (Studio's Asset Manager bulk
+   import is the manual equivalent). Stems match the filenames, e.g.
+   `HotFrogBody`.
+2. **Paste** the ids into [`SkinAssets.luau`](../../src/shared/SkinAssets.luau)'s
+   `Ids` table (`HotFrogBody = 123…`). `0` stays invisible, so partial is fine.
+3. **Tag** the templates with the attribute convention above
+   (`StepTemplate` decal, the `FrogModel` rig's `Suffix` decals). `SpriteSkin`
+   then paints them — no further code.
+
+The naming ties together: a frog stem = skin name minus spaces + suffix
+(`"Hot Frog"` + `Body` → `HotFrogBody`), so ids from `/Sprites/Frogs/<name>/`
+line up with `SkinCatalog` automatically.
+
 ### Audio
 
 The repo contains **no audio files** — unlike the sprites, the original sound set
