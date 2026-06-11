@@ -1,0 +1,19 @@
+{
+  "className": "Part",
+  "properties": {
+    "Size": [2, 2, 0.4],
+    "CFrame": [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+    "Anchored": true,
+    "CanCollide": false,
+    "Color": [0.235, 0.235, 0.235],
+    "Material": "SmoothPlastic"
+  },
+  "children": [
+    {
+      "name": "Art",
+      "className": "Decal",
+      "properties": { "Face": "Front" },
+      "attributes": { "Sprite": "Bug" }
+    }
+  ]
+}

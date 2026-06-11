@@ -81,25 +81,32 @@ build on every push/PR, plus a Luau type-check (`luau-lsp analyze` against a
 generated sourcemap). Config: [`.stylua.toml`](../../.stylua.toml),
 [`selene.toml`](../../selene.toml), [`.luaurc`](../../.luaurc).
 
-## One-time scene setup in Studio (Milestone 1)
+## Scene setup (synced by Rojo)
 
-Rojo syncs the code; you still build the world it expects. In `Workspace`, create
-a model `PlayField` containing:
+The world the code expects is now **Rojo-managed** — `rojo build`/`serve` creates
+it, so a fresh sync gives you a runnable place with no hand-building:
 
-- `Lava` — a wide, flat anchored `Part`, top at `Config.DESPAWN_Y` on the `Z = 0`
-  plane.
-- `Steps` — an empty `Folder` (spawned steps are parented here).
+- `Workspace/PlayField` ([`src/workspace/PlayField.model.json`](../../src/workspace/PlayField.model.json)) —
+  a `Lava` part at `Config.DESPAWN_Y` plus empty `Steps` / `Frogs` / `Bugs`
+  folders the services parent spawns into.
+- `ReplicatedStorage/Assets` ([`src/assets/`](../../src/assets)) — the
+  clone templates: `StepTemplate` (Part + blank `Decal`), `BugTemplate` (Part +
+  `Decal` tagged `Sprite="Bug"`), and `FrogModel` (a `Model` whose `PrimaryPart`
+  is wired to `Body`, with `Head` / `LeftLimb` / `RightLimb` and their `Suffix`-
+  tagged face/limb decals already in place — see the convention below).
 
-In `ReplicatedStorage`, create:
+The templates are gray/green placeholder blocks with **pre-tagged, empty decals**:
+they render as plain blocks until you upload art and paste ids (`SpriteSkin` then
+paints the tagged decals — no further authoring). Referent properties like
+`FrogModel.PrimaryPart` use Rojo's `Rojo_Id` / `Rojo_Target_<Prop>` attribute
+convention. `Workspace` and `ReplicatedStorage` are synced with
+`$ignoreUnknownInstances`, so anything you add by hand in Studio (terrain,
+lighting, extra skins) is left untouched. `Shared` (the modules) is synced too —
+don't create any of this by hand.
 
-- `Assets` (Folder) with:
-  - `StepTemplate` — a small `Part` sized like a stepping stone.
-  - `FrogModel` — a `Model` whose `PrimaryPart` is a body `Part`, plus child parts
-    named `Head`, `LeftLimb`, `RightLimb`. (Placeholder blocks are fine.)
-  - `Skins/` (Folder) — one model per skin named to match `SkinCatalog` entries
-    (optional until you wire up [doc 08](08-frog-skins-and-store.md)).
-
-`Shared` (with the modules) is synced by Rojo — don't create it by hand.
+> Adding a frog skin: clone `FrogModel`'s decal layout, or just rely on the shared
+> rig — `SpriteSkin.apply(model, skinName)` resolves each `Suffix` to that skin's
+> ids, so one rig serves every skin in `SkinCatalog`.
 
 ## Source art
 
@@ -169,13 +176,15 @@ call on placeholder templates before art is uploaded.
    `HotFrogBody`.
 2. **Paste** the ids into [`SkinAssets.luau`](../../src/shared/SkinAssets.luau)'s
    `Ids` table (`HotFrogBody = 123…`). `0` stays invisible, so partial is fine.
-3. **Tag** the templates with the attribute convention above
-   (`StepTemplate` decal, the `FrogModel` rig's `Suffix` decals). `SpriteSkin`
-   then paints them — no further code.
 
-The naming ties together: a frog stem = skin name minus spaces + suffix
-(`"Hot Frog"` + `Body` → `HotFrogBody`), so ids from `/Sprites/Frogs/<name>/`
-line up with `SkinCatalog` automatically.
+That's it — the templates ([`src/assets/`](../../src/assets)) ship with their
+decals already tagged (`StepTemplate`'s blank decal, the `FrogModel` rig's
+`Suffix` decals), so `SpriteSkin` paints them the moment ids land. No Studio
+clicking.
+
+The naming ties everything together: a frog stem = skin name minus spaces +
+suffix (`"Hot Frog"` + `Body` → `HotFrogBody`), so ids from
+`/Sprites/Frogs/<name>/` line up with `SkinCatalog` automatically.
 
 ### Audio
 

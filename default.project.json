@@ -3,10 +3,17 @@
 	"tree": {
 		"$className": "DataModel",
 
+		"Workspace": {
+			"$className": "Workspace",
+			"$ignoreUnknownInstances": true,
+			"PlayField": { "$path": "src/workspace/PlayField.model.json" }
+		},
+
 		"ReplicatedStorage": {
 			"$className": "ReplicatedStorage",
 			"$ignoreUnknownInstances": true,
-			"Shared": { "$path": "src/shared" }
+			"Shared": { "$path": "src/shared" },
+			"Assets": { "$path": "src/assets" }
 		},
 
 		"ServerScriptService": {

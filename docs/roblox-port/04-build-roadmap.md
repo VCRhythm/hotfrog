@@ -13,9 +13,11 @@ the relevant section of [03-core-mechanics.md](03-core-mechanics.md).
 
 **Goal:** the playfield exists and the camera frames it.
 
-- Create `Workspace/PlayField` with a `Lava` part at the bottom and an empty
-  `Steps` folder. Add one anchored `StepTemplate` and a `FrogModel` placeholder on
-  the `Z = 0` plane.
+- `Workspace/PlayField` (Lava + `Steps`/`Frogs`/`Bugs` folders) and the
+  `ReplicatedStorage/Assets` templates (`StepTemplate`, `FrogModel`, `BugTemplate`)
+  are **synced by Rojo** ([`src/workspace`](../../src/workspace),
+  [`src/assets`](../../src/assets)) — they appear on first sync as placeholder
+  blocks, no hand-building needed.
 - Set `CurrentCamera.CameraType = Scriptable` and point it at the plane
   ([Option A](02-architecture-mapping.md#option-a--plane-in-3d-with-real-parts-recommended)).
 - Add `ReplicatedStorage/Shared/Config`.

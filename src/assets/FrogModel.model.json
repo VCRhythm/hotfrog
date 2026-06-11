@@ -1,0 +1,84 @@
+{
+  "className": "Model",
+  "attributes": { "Rojo_Target_PrimaryPart": "frogBody" },
+  "children": [
+    {
+      "name": "Body",
+      "className": "Part",
+      "properties": {
+        "Size": [2, 2, 1],
+        "CFrame": [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "Color": [0.3, 0.66, 0.33],
+        "Material": "SmoothPlastic"
+      },
+      "attributes": { "Rojo_Id": "frogBody" },
+      "children": [
+        { "name": "Body", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "Body" } }
+      ]
+    },
+    {
+      "name": "Head",
+      "className": "Part",
+      "properties": {
+        "Size": [1.6, 1.6, 1],
+        "CFrame": [0, 1.6, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "Color": [0.3, 0.66, 0.33],
+        "Material": "SmoothPlastic"
+      },
+      "children": [
+        { "name": "Head", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "Head" } },
+        { "name": "Mouth", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "Mouth" } },
+        { "name": "LeftEye", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "LeftEye" } },
+        { "name": "RightEye", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "RightEye" } },
+        { "name": "LowLeftEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LowLeftEyelid" } },
+        { "name": "LowRightEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LowRightEyelid" } },
+        { "name": "LowerLeftEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LowerLeftEyelid" } },
+        { "name": "LowerRightEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LowerRightEyelid" } },
+        { "name": "ClosedLeftEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedLeftEyelid" } },
+        { "name": "ClosedRightEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedRightEyelid" } }
+      ]
+    },
+    {
+      "name": "RightLimb",
+      "className": "Part",
+      "properties": {
+        "Size": [0.7, 1.8, 1],
+        "CFrame": [1.4, -1.4, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "Color": [0.3, 0.66, 0.33],
+        "Material": "SmoothPlastic"
+      },
+      "children": [
+        { "name": "RightLimb", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "RightLimb" } },
+        { "name": "RightHand", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "RightHand" } },
+        { "name": "RightHandGrab", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "RightHandGrab" } }
+      ]
+    },
+    {
+      "name": "LeftLimb",
+      "className": "Part",
+      "properties": {
+        "Size": [0.7, 1.8, 1],
+        "CFrame": [-1.4, -1.4, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+        "Anchored": true,
+        "CanCollide": false,
+        "CanQuery": false,
+        "Color": [0.3, 0.66, 0.33],
+        "Material": "SmoothPlastic"
+      },
+      "children": [
+        { "name": "LeftLimb", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "LeftLimb" } },
+        { "name": "LeftHand", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "LeftHand" } },
+        { "name": "LeftHandGrab", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LeftHandGrab" } }
+      ]
+    }
+  ]
+}
