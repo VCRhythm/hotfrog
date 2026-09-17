@@ -137,6 +137,29 @@ order:
 > moderated by) Roblox. So the chain is:
 > **`/Sprites` PNGs → `/tools` prep → catbox URLs → Ludo (reference) → generated
 > assets → upload to Roblox → `rbxassetid` bound to the rig parts.**
+>
+> That's the one-off *generate new art* path. Once the art exists (as it already
+> does for the shipped `/Sprites`), getting it and the audio into Roblox and into
+> `SkinAssets`/`SoundAssets` is one four-command pipeline — see
+> [tools/README.md](../../tools/README.md#the-full-asset-pipeline-one-command-per-step-200-ids-no-hand-pasting):
+> `build_manifest.py` (scan `/Sprites` + the Unity `Assets/Audio` folder) →
+> `upload_to_roblox.py --dry-run` (sanity check) → `upload_to_roblox.py` (the real
+> upload, Open Cloud, cached/resumable) → `write_asset_ids.py` (fills in the `Ids`
+> tables in place). No hand-pasting ~200 ids.
+>
+> **Image ids, not decal ids.** Uploading a PNG through the Open Cloud Assets
+> API creates a Decal *wrapping* the actual Image asset, and the API's
+> response only gives you the Decal's id — which does **not** render when set
+> on `Decal.Texture`/`ImageLabel.Image` from a script (only Studio's property
+> editor resolves a pasted decal id for you). `upload_to_roblox.py` resolves
+> each decal to its image id (Open Cloud Asset Delivery API, retried across
+> Roblox's moderation delay) and `write_asset_ids.py` refuses to write an
+> unresolved decal id into `SkinAssets.luau` — see
+> [tools/README.md](../../tools/README.md#the-full-asset-pipeline-one-command-per-step-200-ids-no-hand-pasting)'s
+> "IMAGE IDS, NOT DECAL IDS" section for the required API-key scopes, the
+> `--resolve-only`/`tools/resolve_decals.luau` fallback, and why you should
+> upload **one test image first** and confirm it renders in Studio before
+> running the full ~173-asset batch.
 
 ### Texturing parts (attribute convention)
 
@@ -169,30 +192,70 @@ call on placeholder templates before art is uploaded.
 
 ### Plugging in the `/Sprites` art (end to end)
 
-1. **Upload** the PNGs to Roblox to get asset ids. For the whole `/Sprites`
-   set, [`tools/upload_to_roblox.py`](../../tools/upload_to_roblox.py) does it via
-   Open Cloud and writes a `{stem: assetId}` map (Studio's Asset Manager bulk
-   import is the manual equivalent). Stems match the filenames, e.g.
-   `HotFrogBody`.
-2. **Paste** the ids into [`SkinAssets.luau`](../../src/shared/SkinAssets.luau)'s
-   `Ids` table (`HotFrogBody = 123…`). `0` stays invisible, so partial is fine.
+Run the four-command pipeline from
+[tools/README.md](../../tools/README.md#the-full-asset-pipeline-one-command-per-step-200-ids-no-hand-pasting):
+
+1. **`python tools/build_manifest.py`** — scans `/Sprites` (every skin folder,
+   `Rocks`, `Other`, `Scenery`, `Menu`) and the Unity project's `Assets/Audio`
+   folder, and writes `tools/asset_manifest.json`: every asset, its key
+   (matching the `Ids` table keys below), kind (image/audio), and target table.
+2. **`python tools/upload_to_roblox.py --manifest ... --dry-run`** — sanity
+   check with no network calls (`--creator-id` isn't even required in this mode).
+3. **`python tools/upload_to_roblox.py --manifest ...`** (with `ROBLOX_API_KEY`
+   set, and an API key that has the **assets** Read+Write permission *and* the
+   **legacy-asset:manage** scope — see the "Image ids, not decal ids" note
+   above) — the real Open Cloud upload. Stems match the filenames, e.g.
+   `HotFrogBody`. Each uploaded image's Decal id is resolved to its Image id
+   (retried across Roblox's moderation delay; re-run later, or
+   `--resolve-only`, if it's still pending). Results are cached in
+   `tools/asset_ids.json`, so a failed/partial run resumes on re-run instead of
+   re-uploading everything. **Try one image first**
+   (`--keys HotFrogBody`) and confirm it renders on a test part in Studio
+   before running the full ~173-asset batch.
+4. **`python tools/write_asset_ids.py`** — writes the cached, *resolved* image
+   ids (and audio ids) into
+   [`SkinAssets.luau`](../../src/shared/SkinAssets.luau) /
+   [`SoundAssets.luau`](../../src/shared/SoundAssets.luau)'s `Ids` tables in
+   place (idempotent, preserves hand-written comments). `0` stays invisible, so
+   partial upload runs are fine — re-run step 4 any time the cache changes. A
+   key whose decal id hasn't resolved to an image id yet is left at `0` with a
+   warning printed (never a wrong-but-nonzero id) — see
+   [tools/README.md](../../tools/README.md#the-full-asset-pipeline-one-command-per-step-200-ids-no-hand-pasting).
 
 That's it — the templates ([`src/assets/`](../../src/assets)) ship with their
 decals already tagged (`StepTemplate`'s blank decal, the `FrogModel` rig's
 `Suffix` decals), so `SpriteSkin` paints them the moment ids land. No Studio
-clicking.
+clicking, no hand-pasting.
 
 The naming ties everything together: a frog stem = skin name minus spaces +
 suffix (`"Hot Frog"` + `Body` → `HotFrogBody`), so ids from
 `/Sprites/Frogs/<name>/` line up with `SkinCatalog` automatically.
 
+> **Coverage caveat.** Several skins only ship a handful of sprites in the
+> source art (e.g. Hawt Frog: accessory + hand-grab states only; Space Frog: no
+> head/mouth/eyes; Business Frog & Invisible Man: arm + body only). In the
+> original Unity prefabs, every part a partial skin doesn't override falls back
+> to **Hot Frog's** art — but `SkinAssets.part()` here only falls back to the
+> shared `Universal` set (pupils/sclera/tongue), so today those un-overridden
+> parts render untextured. See the note at the top of
+> [`SkinAssets.luau`](../../src/shared/SkinAssets.luau)'s `Ids` table.
+
 ### Audio
 
-The repo contains **no audio files** — unlike the sprites, the original sound set
-was never committed. [`SoundAssets.luau`](../../src/shared/SoundAssets.luau) lists
-the clip stems named by `Audio/AudioManager.cs` (grab, crumble, fall, slurp,
-squish, miss, music…), so it doubles as the list of sounds to source or recreate;
-paste uploaded ids there exactly like `SkinAssets`.
+The sprite-art repo has no audio; the source clips live in the Unity project's
+`Assets/Audio` folder (outside this repo — `tools/build_manifest.py --audio-dir`
+points at it, default `$ROBLOX_AUDIO_SRC` or a known-machine fallback).
+[`SoundAssets.luau`](../../src/shared/SoundAssets.luau) lists every clip stem
+named by `Audio/AudioManager.cs` (grab, crumble, fall, slurp, squish, miss,
+blink, select, hurt, highScore, base10, the *Voice VO clips, splash, music1-4,
+…) plus `hotFrogVO`/`pop`/`leaves` (wired directly rather than through
+`AudioManager`'s by-name lookup) — same pipeline as `SkinAssets`, same four
+commands, fills in the ids via `write_asset_ids.py`. Third-party-copyrighted
+audio (the Mega Man death jingle) and unreferenced/legacy VO files are excluded
+or listed as skipped/optional in `tools/asset_manifest.json` — see its
+`skipped` list for the reasoning per file. `Music/BrusselSprouts.wav` is over
+the Open Cloud API's 20MB limit and gets transcoded to mp3 via `ffmpeg`
+(if on `PATH`) before upload.
 [`SoundFX.play(stem)`](../../src/shared/SoundFX.luau) is a silent no-op while an
 id is `0`, and the gameplay calls are already wired (grab/miss/slurp in
 `GameClient`; squish/fall/crumble + pebble debris in

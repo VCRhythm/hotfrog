@@ -18,3 +18,10 @@ globalTypes.d.luau
 # Python (tools/) caches
 __pycache__/
 *.pyc
+
+# Asset pipeline build artifacts (tools/build_manifest.py, upload_to_roblox.py,
+# write_asset_ids.py): machine-specific (absolute external Audio path, local
+# file sizes/hashes) and/or a local cache — regenerate, don't commit.
+tools/asset_manifest.json
+tools/asset_ids.json
+tools/.asset_cache/

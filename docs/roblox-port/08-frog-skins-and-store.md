@@ -305,9 +305,11 @@ Each skin model's part textures come from the
 are the swap frames for `Frog.ShowEyes`-style blinking; pupils/sclera/tongue come
 from `Universal/`. The part→assetId map lives in
 [`src/shared/SkinAssets.luau`](../../src/shared/SkinAssets.luau) (keys are sprite
-stems, matching the `upload_to_catbox.py` output) — paste the uploaded ids there, so
-adding a skin is "drop a folder, run the pipeline, paste ids, add a `SkinCatalog`
-row."
+stems, matching the `upload_to_catbox.py` output) — the
+[four-command pipeline](10-implementation-setup.md#plugging-in-the-sprites-art-end-to-end)
+(`build_manifest.py` → `upload_to_roblox.py` → `write_asset_ids.py`) fills them
+in for you, so adding a skin is "drop a folder, run the pipeline, add a
+`SkinCatalog` row" — no hand-pasting.
 
 ## Store UI — replaces `CycleFrog` + buy button
 
