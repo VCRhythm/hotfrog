@@ -41,7 +41,19 @@
         { "name": "LowerLeftEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LowerLeftEyelid" } },
         { "name": "LowerRightEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LowerRightEyelid" } },
         { "name": "ClosedLeftEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedLeftEyelid" } },
-        { "name": "ClosedRightEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedRightEyelid" } }
+        { "name": "ClosedRightEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedRightEyelid" } },
+        {
+          "name": "LeftPupil",
+          "className": "Texture",
+          "properties": { "Face": "Front", "StudsPerTileU": 1.6, "StudsPerTileV": 1.6 },
+          "attributes": { "Suffix": "LeftPupil" }
+        },
+        {
+          "name": "RightPupil",
+          "className": "Texture",
+          "properties": { "Face": "Front", "StudsPerTileU": 1.6, "StudsPerTileV": 1.6 },
+          "attributes": { "Suffix": "RightPupil" }
+        }
       ]
     },
     {

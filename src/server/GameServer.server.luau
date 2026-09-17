@@ -112,6 +112,10 @@ local lastStartRun: { [Player]: number } = {} -- StartRun rate limit (os.clock()
 
 local function setRunState(player: Player, state: string)
 	runState[player] = state
+	local lane = Lane.get(player)
+	if lane then
+		lane.folder:SetAttribute("RunState", state) -- every client dresses an idle lane as the Menu level
+	end
 	RunStateChanged:FireClient(player, state)
 end
 
