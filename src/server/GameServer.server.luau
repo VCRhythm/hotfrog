@@ -46,7 +46,7 @@ end
 
 local GrabStep = ensureRemote("GrabStep") -- client -> server: tapped a step (step, tap world point)
 local ReleaseStep = ensureRemote("ReleaseStep") -- client -> server: released a limb
-local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/best
+local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/best/quality/grabQuality
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
 
@@ -246,6 +246,16 @@ end
 -- ---------------------------------------------------------------------------
 local sessionScore: { [Player]: number } = {}
 
+-- Per-run grab-quality counts (Player/Player.cs grabStats Vector4i / TrackGrabQuality).
+-- Unity's score is a flat +1 per step climbed -- quality only feeds these separate
+-- Perfect/Great/OK counters, e.g. for an end-of-run stats panel (doc 08/09).
+type GrabQuality = { Perfect: number, Great: number, OK: number }
+local grabQuality: { [Player]: GrabQuality } = {}
+
+local function resetGrabQuality(player: Player)
+	grabQuality[player] = { Perfect = 0, Great = 0, OK = 0 }
+end
+
 local function bestOf(player: Player): number
 	local p = Profiles.get(player)
 	return if p then p.highScore else 0
@@ -284,11 +294,21 @@ end
 
 local function pushScore(player: Player, quality: string?)
 	updateLeaderstats(player)
-	ScoreChanged:FireClient(player, sessionScore[player] or 0, bestOf(player), quality)
+	ScoreChanged:FireClient(player, sessionScore[player] or 0, bestOf(player), quality, grabQuality[player])
 end
 
 local function addScore(player: Player, amount: number, quality: string?)
 	sessionScore[player] = (sessionScore[player] or 0) + amount
+	local q = grabQuality[player]
+	if q then
+		if quality == "Perfect" then
+			q.Perfect += 1
+		elseif quality == "Great" then
+			q.Great += 1
+		elseif quality == "OK" then
+			q.OK += 1
+		end
+	end
 	pushScore(player, quality)
 end
 
@@ -304,6 +324,7 @@ end
 
 local function resetScore(player: Player)
 	sessionScore[player] = 0
+	resetGrabQuality(player)
 	pushScore(player)
 end
 
@@ -525,6 +546,7 @@ end)
 local function initPlayer(player: Player)
 	ensureLeaderstats(player)
 	sessionScore[player] = 0
+	resetGrabQuality(player)
 	createFrog(player)
 	pushScore(player)
 end
@@ -548,5 +570,6 @@ Players.PlayerRemoving:Connect(function(player: Player)
 		f.model:Destroy()
 	end
 	sessionScore[player] = nil
+	grabQuality[player] = nil
 	grabTimes[player] = nil
 end)

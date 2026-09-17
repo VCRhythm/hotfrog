@@ -50,6 +50,7 @@ local Config = {
 		Fall = 8,
 		ChangeDirectionLeft = 3,
 		ChangeDirectionRight = 3,
+		ChangeDirectionUp = 3,
 		Beetle = 2,
 	},
 	CRUMBLE_FUSE = 1.5, -- grab -> explode (Step.cs Invoke("Explode", 1.5))

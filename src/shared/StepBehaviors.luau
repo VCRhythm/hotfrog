@@ -77,32 +77,37 @@ Behaviors.Fall = {
 }
 
 -- Direction-change steps: grabbing biases where new steps spawn from
--- (ActionType.ChangeDirection* -> SpawnManager.SpawnDirection). canSpawn keeps a
--- redundant arrow from spawning when the bias already points that way.
+-- (ActionType.ChangeDirection* -> SpawnManager.SpawnDirection). Vectors are pure
+-- horizontal/vertical (Step.cs AssignInteractionAction), not diagonal. canSpawn
+-- keeps a redundant arrow from spawning when the bias already points that way.
+local function isHorizontal(bias: Vector2): boolean
+	return bias == Vector2.new(1, 0) or bias == Vector2.new(-1, 0)
+end
+
 Behaviors.ChangeDirectionLeft = {
 	sprite = "LeftArrow",
 	canSpawn = function(bias)
-		return bias.X >= 0
+		return not isHorizontal(bias)
 	end,
 	onGrab = function(ctx)
-		ctx.setSpawnBias(Vector2.new(-1, -1))
+		ctx.setSpawnBias(Vector2.new(-1, 0))
 	end,
 }
 
 Behaviors.ChangeDirectionRight = {
 	sprite = "RightArrow",
 	canSpawn = function(bias)
-		return bias.X <= 0
+		return not isHorizontal(bias)
 	end,
 	onGrab = function(ctx)
-		ctx.setSpawnBias(Vector2.new(1, -1))
+		ctx.setSpawnBias(Vector2.new(1, 0))
 	end,
 }
 
 Behaviors.ChangeDirectionUp = {
 	sprite = "UpArrow",
 	canSpawn = function(bias)
-		return bias.X ~= 0
+		return bias ~= Vector2.new(0, -1)
 	end,
 	onGrab = function(ctx)
 		ctx.setSpawnBias(Vector2.new(0, -1))
