@@ -337,6 +337,8 @@ MUSIC = [
     ("music2", "Music/FrogSounds.wav"),  # existing key — musicClips[1]
     ("music3", "Music/Opening.mp3"),  # existing key — musicClips[2]
     ("music4", "Music/Adenine.mp3"),  # NEW — musicClips[3], previously missing from SoundAssets.luau
+    # musicClips[4] exists only in Multiplayer.unity's AudioManager override — the Country level's track
+    ("music5", "Music/Two Wrongs.wav"),
 ]
 
 AUDIO_SKIP_REASONS = {
@@ -361,7 +363,6 @@ UNREFERENCED_OPTIONAL = [
     "NothingVO.wav",
     "SeeHimVO.wav",
     "VeryHotVO.wav",
-    "Music/Two Wrongs.wav",
 ]
 
 

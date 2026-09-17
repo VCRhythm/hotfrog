@@ -46,6 +46,7 @@ local Ids: { [string]: number } = {
 
 	-- music (auto)
 	music4 = 0,
+	music5 = 0,
 }
 
 local SoundAssets = {}
