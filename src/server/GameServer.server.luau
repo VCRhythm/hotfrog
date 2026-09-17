@@ -282,6 +282,10 @@ local function pullLane(lane: Lane.Lane, distance: number, duration: number)
 	end
 	lane:addPull(distance) -- spawners only run on time earned by pulling (Lane.spawnBudget)
 	local delta = dir3.Unit * distance
+	-- replicate the pull so clients can scroll lane-local cosmetics (scenery, walls) in step
+	lane.folder:SetAttribute("PullDelta", delta)
+	lane.folder:SetAttribute("PullTime", duration)
+	lane.folder:SetAttribute("PullCount", ((lane.folder:GetAttribute("PullCount") :: number?) or 0) + 1)
 	local info = TweenInfo.new(duration, Enum.EasingStyle.Sine)
 	for step in pairs(lane.active) do
 		TweenService:Create(step, info, { CFrame = step.CFrame * CFrame.new(delta.X, delta.Y, 0) }):Play()
