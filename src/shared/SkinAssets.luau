@@ -17,12 +17,9 @@
 -- Mouth/Eyes; Business Frog & Invisible Man: Arm+Body only). In the original
 -- Unity prefabs (HawtFrog.prefab, SpaceFrog.prefab, BusinessFrog.prefab,
 -- InvisibleMan.prefab) every part these skins DON'T override falls back to the
--- "Hot Frog" sprite folder, not a shared "Universal" one. SkinAssets.part()
--- below only falls back to "Universal" (pupils/sclera/tongue), so on a partial
--- skin the un-overridden parts currently render untextured instead of showing
--- Hot Frog's art. Fixing that (fall back to "Hot Frog" for frog parts) is a
--- SpriteSkin/SkinAssets behavior change outside this asset-pipeline pass's
--- scope — left for whoever wires up the skin rig next.
+-- "Hot Frog" sprite folder, not a shared "Universal" one. Six skins also ship a
+-- single `Arm` sprite used for both limbs instead of a LeftLimb/RightLimb pair.
+-- SkinAssets.part() below follows that same chain.
 
 local Ids: { [string]: number } = {
 	-- Universal (shared across all skins: pupils, sclera, tongue)
@@ -254,10 +251,24 @@ function SkinAssets.prefix(skinName: string): string
 end
 
 -- Texture for a skin's part, e.g. part("Hot Frog", "Body") → "rbxassetid://…".
--- Falls back to the shared Universal art (pupils/sclera/tongue) when a skin
--- doesn't override that part.
+-- Fallback chain for a part the skin doesn't override, as in the Unity frog
+-- prefabs: the skin's own sprite → its single `Arm` sprite (for either limb) →
+-- the shared Universal art (pupils/sclera/tongue) → the starter Hot Frog's art.
+local FALLBACK_SKIN = "HotFrog"
+
 function SkinAssets.part(skinName: string, suffix: string): string?
-	return SkinAssets.image(SkinAssets.prefix(skinName) .. suffix) or SkinAssets.image("Universal" .. suffix)
+	local prefix = SkinAssets.prefix(skinName)
+	local own = SkinAssets.image(prefix .. suffix)
+	if own then
+		return own
+	end
+	if suffix == "LeftLimb" or suffix == "RightLimb" then
+		local arm = SkinAssets.image(prefix .. "Arm")
+		if arm then
+			return arm
+		end
+	end
+	return SkinAssets.image("Universal" .. suffix) or SkinAssets.image(FALLBACK_SKIN .. suffix)
 end
 
 return SkinAssets
