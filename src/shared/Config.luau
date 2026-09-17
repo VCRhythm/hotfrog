@@ -34,6 +34,49 @@ local Config = {
 	-- Reach: how far a limb can grab from the frog (sanity check on the server)
 	MAX_GRAB_DISTANCE = 30,
 
+	-- Lanes (doc 13: one PlayField "lane" per player; Core/LevelManager.cs +
+	-- Spawning/SpawnManager.cs, made per-player instead of global).
+	--
+	-- Unity -> studs scale factor: doc 11 §4 gives the playfield's real bounds
+	-- from Borders.prefab.json -- top/bottom "catch" triggers at y=75/y=-100
+	-- (a 175-unit vertical span) and left/right catch at x=-70.8/+70.2 (a
+	-- ~141-unit horizontal span). This port's *existing* SPAWN_Y/DESPAWN_Y
+	-- (25/-30, a 55-stud vertical span) was tuned independently before lanes
+	-- existed; dividing the two spans gives the port's own Unity-unit -> stud
+	-- factor: 55 / 175 = 0.3142857... Sanity check against the horizontal
+	-- bound: 70.5 (average of 70.8/70.2) * that factor = ~22.2 studs, which is
+	-- what LANE_HALF_WIDTH below uses (rounded). The vertical check round-trips
+	-- too: 75 * factor = ~23.6 (close to the existing SPAWN_Y=25) and
+	-- -100 * factor = ~-31.4 (close to the existing DESPAWN_Y=-30) -- i.e. the
+	-- port's already-tuned vertical numbers were, coincidentally or not,
+	-- already close to this same factor, which is why it's trusted here rather
+	-- than copying Unity's raw units.
+	UNITY_TO_STUDS = 55 / 175,
+	LANE_HALF_WIDTH = 22, -- one lane's horizontal catch bound (+/-), studs
+	-- adjacent lanes sit edge to edge with a small 2-stud gap so a bug/step
+	-- drifting to a lane's edge doesn't visually clip into its neighbour.
+	LANE_SPACING = 2 * 22 + 2, -- = 46
+
+	-- A run's total steps-climbed thresholds for soft level transitions
+	-- (owner's decision, doc 13 -- Unity itself never advances past Pot).
+	LEVEL_THRESHOLDS = { Kitchen = 200, Country = 500 },
+
+	-- Step spawners only run while the field is being pulled (SpawnManager.PullStep
+	-- / ReleasePullingStep), so a lane earns spawner time from pull distance:
+	-- seconds = studs pulled / PULL_SPAWN_SPEED. Unity's PullVector is
+	-- 2 * |target - step.y| (~80 units/s for a mid-field grab) * UNITY_TO_STUDS.
+	PULL_SPAWN_SPEED = 25, -- studs of pull per spawner-second
+	PREFILL_DEPTH = 24, -- studs of already-pulled field a fresh lane starts with
+	PREFILL_MIN_STEPS = 4, -- a lane with at least this many live steps isn't prefilled
+	TUTORIAL_FIRST_STEP_Y = 5, -- Tutorial's three tree steps: a ladder up from the frog
+	TUTORIAL_STEP_GAP = 7,
+	TUTORIAL_STEP_X = 5,
+
+	-- Tutorial "fall" rule (Core/LevelManager.cs ReportFall, levelIndex == 1):
+	-- no death -- the field pulls back up by this many PULL_DISTANCE steps and
+	-- the player retries from the same 3 tree steps.
+	TUTORIAL_PULL_BACK = 3,
+
 	-- Grab anti-abuse (doc 07 hardening): cap grabs per rolling window per player.
 	-- Two limbs + fast chaining is maybe ~6/s for a human; 10 leaves headroom.
 	GRAB_WINDOW = 1.0, -- seconds
@@ -41,43 +84,11 @@ local Config = {
 	MAX_HELD_STEPS = 2, -- a frog has two limbs (server-enforced)
 	RESPAWN_DELAY = 1.5, -- death beat before the frog re-rises (Frog.cs Fall/Rise)
 
-	-- Step behaviors (Entities/Step.cs ActionType; see doc 05). Weighted roll per
-	-- spawned step; entries must match names in Shared/StepBehaviors.
-	--
-	-- The "Pot" level (doc 11 §1, index 2) is the game's first *endless*
-	-- (maxSpawnCount = -1) set of StepSpawners, so its pools are the default mix
-	-- here. Weight = 20 * (sum of that prefab's spawnProbability, doc 12 §1,
-	-- across every Level2 StepSpawner pool it appears in, doc 11 §2a):
-	--   DownLeftStepSpawner  = Potato, Carrot, UpRock
-	--   DownRightStepSpawner = Carrot, Potato, UpRock
-	--   DownStepSpawner      = Potato, Carrot, UpLeftRock, UpRightRock
-	-- Carrot/Potato (spawnProbability 0.5) are in all 3 pools -> 1.5*20 = 30;
-	-- UpRock (0.1) is in 2 of 3 -> 0.2*20 = 4; UpLeftRock/UpRightRock (0.1) are
-	-- each in 1 of 3 -> 0.1*20 = 2.
-	BEHAVIOR_WEIGHTS = {
-		None = 30, -- Carrot (actionType None)
-		CrumbleAfterRelease = 30, -- Potato
-		ChangeDirectionUp = 4, -- UpRock
-		ChangeDirectionUpLeft = 2, -- UpLeftRock
-		ChangeDirectionUpRight = 2, -- UpRightRock
-
-		-- Not referenced by any Level2 pool (doc 11 §2a), so there's no Unity
-		-- spawnProbability to derive a weight from -- small placeholders kept for
-		-- endless-mode variety, as far as the docs allow.
-		Fall = 8, -- SlowFallRock (Level0/Level1/legacy pools only)
-		Beetle = 2, -- Beetle (legacy General/Spawners pools only)
-		ChangeDirectionLeft = 3, -- LeftRock -- not found in ANY live spawner pool (doc 11)
-		ChangeDirectionRight = 3, -- RightRock -- same
-		Falling = 2, -- FallingRock; canSpawn also gates on spawnCount (Step.cs)
-		SpawnFly = 2, -- FlyRock
-		SplashFlinging = 2, -- FlingingRock
-
-		-- CrumblyRock.prefab ships with actionType=0 (None), not Crumble (doc 12) --
-		-- Unity never actually spawns a step with this behavior. The grab/explode
-		-- logic is real ported code, kept for completeness, but weighted 0 so
-		-- rollBehavior never rolls it.
-		Crumble = 0,
-	},
+	-- Step behaviors (Entities/Step.cs ActionType; see doc 05). Per-spawner
+	-- weighted picks now live in Shared/StepKinds + Shared/Levels + Lane.luau
+	-- (Spawner.cs SetUpSpawnProbabilities/CreateSpawn, per doc 13) -- there is no
+	-- more global weight table; a step's behavior is entirely a function of
+	-- which level/spawner/kind produced it.
 	CRUMBLE_FUSE = 1.5, -- grab -> explode (Step.cs Invoke("Explode", 1.5))
 	FALL_DELAY = 3.0, -- unsteady -> drop away (Step.cs Fall coroutine)
 	DROP_DISTANCE = 100, -- studs a falling step drops (DOLocalMoveY(-100))

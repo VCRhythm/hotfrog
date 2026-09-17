@@ -6,6 +6,13 @@
 -- CollectFly -> the Fly currency), and tells the catcher for tongue/squish
 -- feedback. Bugs are pooled with the same Gen guard as steps so the delayed
 -- leave timer can't act on a recycled part.
+--
+-- Per-lane (doc 13 item 7): each occupied lane runs its own spawn cadence and
+-- picks positions relative to that lane's origin, and a bug is tagged with its
+-- lane's UserId so only that lane's player can catch it. Lanes are discovered
+-- through `workspace.PlayField.Lanes`' child Folders and their `UserId`/`Origin`
+-- attributes (Lane.luau sets these) -- this script deliberately never requires
+-- server/Lane.luau or GameServer, so load order between them is moot.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
@@ -114,13 +121,18 @@ end
 -- `origin` is set for ActionType.SpawnFly (doc 05): a FlyRock-style step was
 -- grabbed, so the bug starts at the step and only wanders nearby, instead of
 -- entering from the screen edge and roaming the whole field like a normal spawn.
-local function spawnBug(origin: Vector3?)
+-- `laneOrigin`/`laneUserId` scope the spawn/wander bounds and catch permission
+-- to one lane (doc 13 item 7).
+local function spawnBug(laneOrigin: Vector3, laneUserId: number, origin: Vector3?)
 	local bug = (table.remove(pool) or template:Clone()) :: BasePart
 	bug:SetAttribute("Kind", "Bug")
 	bug:SetAttribute("Gen", ((bug:GetAttribute("Gen") :: number?) or 0) + 1)
+	bug:SetAttribute("LaneUserId", laneUserId)
 	bug.Anchored = true
 	SpriteSkin.apply(bug) -- no-op until ids land in SkinAssets
 	local gen = bug:GetAttribute("Gen")
+
+	local minX, maxX = laneOrigin.X - Config.BUG_X_RANGE, laneOrigin.X + Config.BUG_X_RANGE
 
 	local dest: Vector3
 	if origin then
@@ -128,7 +140,7 @@ local function spawnBug(origin: Vector3?)
 		local wanderX = math.random(-Config.BUG_NEAR_WANDER_X, Config.BUG_NEAR_WANDER_X)
 		local wanderY = math.random(-Config.BUG_NEAR_WANDER_Y, Config.BUG_NEAR_WANDER_Y)
 		dest = Vector3.new(
-			math.clamp(origin.X + wanderX, -Config.BUG_X_RANGE, Config.BUG_X_RANGE),
+			math.clamp(origin.X + wanderX, minX, maxX),
 			math.clamp(origin.Y + wanderY, -Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
 			Config.PLANE_Z
 		)
@@ -137,15 +149,12 @@ local function spawnBug(origin: Vector3?)
 		-- original's overshoot feel (Bug.SetUpDestination / MoveTo: DOMove + Ease.OutBack)
 		local side = if math.random() > 0.5 then 1 else -1
 		bug.CFrame = CFrame.new(
-			side * (Config.BUG_X_RANGE + 6),
+			laneOrigin.X + side * (Config.BUG_X_RANGE + 6),
 			math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
 			Config.PLANE_Z
 		)
-		dest = Vector3.new(
-			math.random(-Config.BUG_X_RANGE, Config.BUG_X_RANGE),
-			math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
-			Config.PLANE_Z
-		)
+		dest =
+			Vector3.new(math.random(minX, maxX), math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE), Config.PLANE_Z)
 	end
 	bug.Parent = container
 	active[bug] = true
@@ -163,7 +172,7 @@ local function spawnBug(origin: Vector3?)
 		if not (active[bug] and bug:GetAttribute("Gen") == gen) then
 			return
 		end
-		local exitX = (if math.random() > 0.5 then 1 else -1) * (Config.BUG_X_RANGE + 10)
+		local exitX = laneOrigin.X + (if math.random() > 0.5 then 1 else -1) * (Config.BUG_X_RANGE + 10)
 		local leave = TweenService:Create(
 			bug,
 			TweenInfo.new(Config.BUG_LEAVE_TIME),
@@ -179,25 +188,71 @@ local function spawnBug(origin: Vector3?)
 	end)
 end
 
-task.spawn(function()
-	while true do
-		spawnBug()
-		task.wait(Config.BUG_INTERVAL)
-	end
-end)
+-- ---------------------------------------------------------------------------
+-- Per-lane discovery + spawn cadence (doc 13 item 7). Lane.luau creates one
+-- Folder per lane under `workspace.PlayField.Lanes` carrying `UserId`/`Origin`
+-- attributes; this script only ever reads those, never server/Lane.luau or
+-- GameServer directly, so load order between the three is moot.
+-- ---------------------------------------------------------------------------
+local lanesFolder = playField:WaitForChild("Lanes")
+local laneLoopRunning: { [Instance]: boolean } = {}
 
-spawnBugAt.Event:Connect(function(position: Vector3)
-	spawnBug(position)
+local function laneOriginOf(laneFolder: Instance): (Vector3?, number?)
+	local origin = laneFolder:GetAttribute("Origin")
+	local userId = laneFolder:GetAttribute("UserId")
+	if typeof(origin) == "Vector3" and typeof(userId) == "number" then
+		return origin, userId
+	end
+	return nil, nil
+end
+
+local function onLaneAdded(laneFolder: Instance)
+	if not laneFolder:IsA("Folder") then
+		return
+	end
+	laneLoopRunning[laneFolder] = true
+	task.spawn(function()
+		-- the very first tick may race Lane.luau setting attributes right after
+		-- Instance.new/Parent -- wait a beat for them to land
+		while laneLoopRunning[laneFolder] and laneFolder.Parent do
+			local origin, userId = laneOriginOf(laneFolder)
+			if origin and userId then
+				spawnBug(origin, userId)
+			end
+			task.wait(Config.BUG_INTERVAL)
+		end
+	end)
+end
+
+lanesFolder.ChildAdded:Connect(onLaneAdded)
+lanesFolder.ChildRemoved:Connect(function(laneFolder: Instance)
+	laneLoopRunning[laneFolder] = nil
+end)
+for _, laneFolder in lanesFolder:GetChildren() do
+	onLaneAdded(laneFolder)
+end
+
+-- ActionType.SpawnFly (doc 05): GameServer fires this with the grabbed step's
+-- world position AND its lane's userId (the step's own LaneUserId attribute),
+-- since the step's position alone doesn't say which lane it belongs to.
+spawnBugAt.Event:Connect(function(position: Vector3, laneUserId: number)
+	local laneFolder = lanesFolder:FindFirstChild(tostring(laneUserId))
+	local origin = if laneFolder then select(1, laneOriginOf(laneFolder)) else nil
+	spawnBug(origin or Vector3.new(0, 0, Config.PLANE_Z), laneUserId, position)
 end)
 
 -- ---------------------------------------------------------------------------
 -- Catching. No reach gate on purpose: the tongue spans the whole screen in the
 -- original (Controller.TouchBug works on anything tappable). Validation is
--- "a real, still-active bug" -- the server owns the bug set, so a stale tap on
--- an already-departed bug simply doesn't score.
+-- "a real, still-active bug FROM THIS PLAYER'S OWN LANE" (doc 13 item 7) -- the
+-- server owns the bug set, so a stale tap on an already-departed bug, or
+-- another lane's bug, simply doesn't score.
 -- ---------------------------------------------------------------------------
 CatchBug.OnServerEvent:Connect(function(player, bug)
 	if typeof(bug) ~= "Instance" or not bug:IsA("BasePart") or not active[bug] then
+		return
+	end
+	if bug:GetAttribute("LaneUserId") ~= player.UserId then
 		return
 	end
 	local position = bug.Position

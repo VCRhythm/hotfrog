@@ -5,7 +5,7 @@
       "name": "Lava",
       "className": "Part",
       "properties": {
-        "Size": [80, 4, 2],
+        "Size": [800, 4, 2],
         "CFrame": [0, -30, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
         "Anchored": true,
         "CanCollide": false,
@@ -19,6 +19,7 @@
     },
     { "name": "Steps", "className": "Folder" },
     { "name": "Frogs", "className": "Folder" },
-    { "name": "Bugs", "className": "Folder" }
+    { "name": "Bugs", "className": "Folder" },
+    { "name": "Lanes", "className": "Folder" }
   ]
 }

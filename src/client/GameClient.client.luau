@@ -28,17 +28,40 @@ local ForceRelease = remotes:WaitForChild("ForceRelease") :: RemoteEvent
 local CatchBug = remotes:WaitForChild("CatchBug") :: RemoteEvent
 
 -- ---------------------------------------------------------------------------
--- Camera: scriptable, looking down +Z at the plane (approx orthographic)
+-- My lane (doc 13 item 6): one PlayField "lane" per player, offset along X.
+-- Lane.luau (server) creates `Lanes/<UserId>` with `Origin`/`Level` attributes
+-- before this player's frog exists, so waiting on the lane folder first is safe
+-- and gives us the origin the camera should centre on.
+-- ---------------------------------------------------------------------------
+local playField = workspace:WaitForChild("PlayField")
+local myLane = playField:WaitForChild("Lanes"):WaitForChild(tostring(player.UserId), math.huge) :: Folder
+
+local function laneOrigin(): Vector3
+	local origin = myLane:GetAttribute("Origin")
+	return if typeof(origin) == "Vector3" then origin else Vector3.new(0, 0, 0)
+end
+
+-- ---------------------------------------------------------------------------
+-- Camera: scriptable, looking down +Z at the plane (approx orthographic),
+-- centred on this player's own lane origin -- NOT world (0,0,0) -- so raycasts
+-- from screen taps land on this lane's steps/bugs regardless of which slot it
+-- was assigned. Re-centred if the lane's origin ever changes (it doesn't today,
+-- but Lane.luau's attribute is the single source of truth either way).
 -- ---------------------------------------------------------------------------
 local camera = workspace.CurrentCamera
 camera.CameraType = Enum.CameraType.Scriptable
 camera.FieldOfView = 40 -- far + narrow FOV fakes an orthographic look
-camera.CFrame = CFrame.lookAt(Vector3.new(0, 0, 60), Vector3.new(0, 0, 0))
+
+local function updateCamera()
+	local origin = laneOrigin()
+	camera.CFrame = CFrame.lookAt(origin + Vector3.new(0, 0, 60), origin)
+end
+updateCamera()
+myLane:GetAttributeChangedSignal("Origin"):Connect(updateCamera)
 
 -- ---------------------------------------------------------------------------
 -- My server-owned frog (for the tongue origin and the Dead gate)
 -- ---------------------------------------------------------------------------
-local playField = workspace:WaitForChild("PlayField")
 local myFrog = playField:WaitForChild("Frogs"):WaitForChild("Frog_" .. player.UserId, math.huge) :: Model
 
 local function frogIsDead(): boolean

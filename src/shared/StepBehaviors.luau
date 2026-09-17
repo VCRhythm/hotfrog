@@ -82,11 +82,33 @@ Behaviors.Fall = {
 	end,
 }
 
--- Direction-change steps: grabbing biases where new steps spawn from
--- (ActionType.ChangeDirection* -> SpawnManager.SpawnDirection). Left/Right/Up are
--- pure horizontal/vertical; UpLeft/UpRight are diagonal (Step.cs
--- AssignInteractionAction). canSpawn keeps a redundant arrow from spawning when
--- the bias already points that way.
+-- Direction-change steps: grabbing sets the lane's spawn/scroll direction
+-- (ActionType.ChangeDirection* -> SpawnManager.SpawnDirection, now Lane.spawnDirection,
+-- doc 13). Left/Right/Up are pure horizontal/vertical; UpLeft/UpRight are diagonal
+-- (Step.cs AssignInteractionAction). canSpawn keeps a redundant arrow from spawning
+-- when the bias already points that way.
+--
+-- IMPORTANT naming/semantics fix vs. the literal Unity data (doc 13 item 4): a
+-- lane's `spawnDirection` is the direction the WORLD/steps scroll, not the
+-- direction the frog appears to travel -- those are opposites (exactly like the
+-- default (0,-1) "down" scroll makes the frog *feel* like it's climbing up).
+-- Unity's own shipped ActionType.ChangeDirectionUpLeft/UpRight already follow a
+-- consistent "arrow art shows the frog's apparent travel, SpawnDirection is the
+-- negation" rule: UpLeft (frog travels up-left, apparent travel (-1,1)) sets
+-- SpawnDirection=(1,-1); UpRight (travel (1,1)) sets SpawnDirection=(-1,-1).
+-- But Unity's plain ChangeDirectionLeft/Right DON'T follow that same rule -- they
+-- set SpawnDirection directly equal to their own name's sign (Left -> (-1,0),
+-- Right -> (1,0)), which under the unified "arrow = apparent travel" convention
+-- would actually make a LeftArrow push the frog to the RIGHT (world scrolls left,
+-- frog feels the opposite). That's an inconsistency in the original shipped data,
+-- not a deliberate design -- Up/UpLeft/UpRight all agree on the convention, only
+-- Left/Right don't. Per doc 13's explicit invitation to re-derive this now that
+-- lanes make directional pull real, this port applies the UNIFIED convention
+-- everywhere: ChangeDirectionLeft sets SpawnDirection=(1,0) (world scrolls right,
+-- so the frog visibly heads left, matching its own arrow art) and
+-- ChangeDirectionRight sets SpawnDirection=(-1,0) -- i.e. Left/Right are SWAPPED
+-- from Unity's literal values, while Up/UpLeft/UpRight are unchanged. See
+-- docs/roblox-port/13-levels-and-lanes.md for the full derivation.
 local function isHorizontal(bias: Vector2): boolean
 	return bias == Vector2.new(1, 0) or bias == Vector2.new(-1, 0)
 end
@@ -97,7 +119,7 @@ Behaviors.ChangeDirectionLeft = {
 		return not isHorizontal(bias)
 	end,
 	onGrab = function(ctx)
-		ctx.setSpawnBias(Vector2.new(-1, 0))
+		ctx.setSpawnBias(Vector2.new(1, 0)) -- world scrolls right so the frog appears to head left
 	end,
 }
 
@@ -107,7 +129,7 @@ Behaviors.ChangeDirectionRight = {
 		return not isHorizontal(bias)
 	end,
 	onGrab = function(ctx)
-		ctx.setSpawnBias(Vector2.new(1, 0))
+		ctx.setSpawnBias(Vector2.new(-1, 0)) -- world scrolls left so the frog appears to head right
 	end,
 }
 
@@ -117,16 +139,12 @@ Behaviors.ChangeDirectionUp = {
 		return bias ~= Vector2.new(0, -1)
 	end,
 	onGrab = function(ctx)
-		ctx.setSpawnBias(Vector2.new(0, -1))
+		ctx.setSpawnBias(Vector2.new(0, -1)) -- back to the default "climbing up" scroll
 	end,
 }
 
--- NOTE the Unity quirk (Step.cs AssignInteractionAction): UpLeft sets SpawnDirection
--- to (1, -1) and UpRight sets (-1, -1) -- the X sign looks swapped versus the plain
--- Left/Right steps above, but it isn't a bug we're fixing: SpawnDirection.X here is
--- ported 1:1 into spawnBias.X exactly like Left/Right are (no inversion either way),
--- so this preserves Unity's actual runtime behavior rather than the "intuitive"
--- naming. See GameServer's spawn loop for how a diagonal bias reads.
+-- UpLeft/UpRight already matched the unified convention in Unity's own shipped
+-- data (see the big comment above) -- kept as-is, X sign unchanged.
 Behaviors.ChangeDirectionUpLeft = {
 	sprite = "UpLeftArrow",
 	canSpawn = function(bias)

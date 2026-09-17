@@ -1,10 +1,13 @@
 --!strict
 -- ServerScriptService/GameServer (Script)
 -- Authoritative side of the Hotfrog loop:
---   * spawns & pools steps (Spawning/StepSpawner.cs + ObjectPool.cs)
---   * owns the pull / world-scroll (Spawning/SpawnManager.cs)
+--   * spawns & pools steps (Spawning/StepSpawner.cs + ObjectPool.cs), now per
+--     Lane (doc 13: one PlayField "lane" per player -- see server/Lane.luau)
+--   * owns the pull / world-scroll along each lane's own spawn direction
+--     (Spawning/SpawnManager.cs PullStep/PullVector)
 --   * owns every frog: position, gravity, limbs, death, respawn (Player/Frog.cs)
 --   * tracks score and persists the high score (Core/VariableManager.cs)
+--   * drives level flow per lane (Tutorial -> Pot -> Kitchen -> Country)
 --
 -- Hardened per ../07-multiplayer.md: the client sends intents (taps); the server
 -- owns all state. Frog models live in workspace and replicate to every client,
@@ -24,7 +27,10 @@ local PullMath = require(ReplicatedStorage.Shared.PullMath)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 local SkinCatalog = require(ReplicatedStorage.Shared.SkinCatalog)
 local StepBehaviors = require(ReplicatedStorage.Shared.StepBehaviors)
+local StepKinds = require(ReplicatedStorage.Shared.StepKinds)
+local Levels = require(ReplicatedStorage.Shared.Levels)
 local Profiles = require(script.Parent.Profiles)
+local Lane = require(script.Parent.Lane)
 
 -- ---------------------------------------------------------------------------
 -- Remotes (auto-created so you don't have to build them by hand)
@@ -51,37 +57,53 @@ local ReleaseStep = ensureRemote("ReleaseStep") -- client -> server: released a 
 local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/best/quality/grabQuality
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
+local LevelChanged = ensureRemote("LevelChanged") -- server -> client: this lane's level/transition changed
+
+local function ensureBindable(name: string): BindableEvent
+	local b = ServerStorage:FindFirstChild(name)
+	if not b then
+		b = Instance.new("BindableEvent")
+		b.Name = name
+		b.Parent = ServerStorage
+	end
+	return b :: BindableEvent
+end
 
 -- Cross-script spawn request (ActionType.SpawnFly step behavior, doc 05): fired
 -- when a FlyRock-style step is grabbed, asking BugService to drift a bug in from
--- the step's position. Same BindableEvent-in-ServerStorage pattern as the
--- AwardFlys faucet (SkinService/BugService/GiftService) -- get-or-create so load
--- order between GameServer and BugService is moot.
-local spawnBugAt = ServerStorage:FindFirstChild("SpawnBugAt") :: BindableEvent?
-if not spawnBugAt then
-	spawnBugAt = Instance.new("BindableEvent")
-	spawnBugAt.Name = "SpawnBugAt"
-	spawnBugAt.Parent = ServerStorage
+-- the step's position. `lane's userId` rides along so BugService can tag the bug
+-- to the right lane (doc 13 item 7). Same BindableEvent-in-ServerStorage pattern
+-- as the AwardFlys faucet (SkinService/BugService/GiftService) -- get-or-create
+-- so load order between GameServer and BugService is moot.
+local spawnBugAt = ensureBindable("SpawnBugAt")
+
+-- ---------------------------------------------------------------------------
+-- PlayField containers. `Lanes` holds one Folder per lane (Lane.luau creates
+-- them); `Steps`/`Frogs`/`Bugs` stay global (doc 13: the step instance pool may
+-- stay global -- only spawning/direction/level state is per-lane).
+-- ---------------------------------------------------------------------------
+local playField = workspace.PlayField
+if not playField:FindFirstChild("Lanes") then
+	local lanes = Instance.new("Folder")
+	lanes.Name = "Lanes"
+	lanes.Parent = playField
 end
 
 -- ---------------------------------------------------------------------------
--- Step pool + spawning (shared field; one field for the basic version).
--- Each spawn rolls a weighted behavior (Shared/StepBehaviors, doc 05) and bumps a
--- Gen attribute so delayed behavior effects can tell a recycled part apart.
+-- Step pool + spawning. Each lane decides WHEN/WHICH KIND/WHERE (Lane.luau);
+-- this script owns the actual pooled Instances and Step behavior dispatch
+-- (Shared/StepBehaviors, doc 05), same as before lanes existed.
 -- ---------------------------------------------------------------------------
-local template = ReplicatedStorage.Assets.StepTemplate
-local container = workspace.PlayField.Steps
+local template = ReplicatedStorage.Assets.StepTemplate :: BasePart
+local DEFAULT_STEP_SIZE = template.Size
+local container = playField.Steps :: Folder
 
 local pool: { BasePart } = {}
-local active: { [BasePart]: boolean } = {}
-local heldBy: { [BasePart]: Player } = {} -- who currently holds each step
-local flingees: { [BasePart]: BasePart } = {} -- ActionType.SplashFlinging's live "Flingee" per step, if any
-local spawnBias = Vector2.new(0, -1) -- SpawnManager.SpawnDirection analog
-local spawnCount = 0 -- steps produced so far (Step.cs canBeSpawned(spawnCount) analog, ActionType.Falling)
 
 -- Server-authoritative frog state (doc 07): the server owns position, gravity,
 -- held steps, and death. The model lives in workspace, so replication renders it
--- on every client.
+-- on every client. Forward-declared (type + table) because forceReleaseStep,
+-- below, needs to look up a lane's single frog.
 type FrogState = {
 	model: Model,
 	body: BasePart,
@@ -96,37 +118,32 @@ type FrogState = {
 }
 local frogs: { [Player]: FrogState } = {}
 
-local function removeHeld(player: Player, step: BasePart)
-	local f = frogs[player]
+local function behaviorOf(step: BasePart): StepBehaviors.Behavior
+	local name = step:GetAttribute("Behavior")
+	return (typeof(name) == "string" and StepBehaviors[name]) or StepBehaviors.None
+end
+
+-- Knock this step's holder's limb off (Step.cs ForceRelease). Only the owning
+-- lane's single player can ever hold a lane's step, so a small linear scan of
+-- its (at most 2) held steps replaces the old global heldBy map.
+local function forceReleaseStep(lane: Lane.Lane, step: BasePart)
+	local f = frogs[lane.player]
 	if not f then
 		return
 	end
 	for i = #f.held, 1, -1 do
 		if f.held[i] == step then
 			table.remove(f.held, i)
+			ForceRelease:FireClient(lane.player, step)
+			return
 		end
 	end
 end
 
-local function behaviorOf(step: BasePart): StepBehaviors.Behavior
-	local name = step:GetAttribute("Behavior")
-	return (typeof(name) == "string" and StepBehaviors[name]) or StepBehaviors.None
-end
-
--- Knock the holder's limb off this step (Step.cs ForceRelease).
-local function forceReleaseStep(step: BasePart)
-	local holder = heldBy[step]
-	if holder then
-		heldBy[step] = nil
-		removeHeld(holder, step)
-		ForceRelease:FireClient(holder, step)
-	end
-end
-
 -- Destroy this step's live "Flingee", if it has one (ActionType.SplashFlinging
--- destroyAction: disables the splash and resets its transform). Guards against a
--- step recycling mid-flight leaving orphaned debris, and against a repeat grab
--- stacking Splashes.
+-- destroyAction). Guards against a step recycling mid-flight leaving orphaned
+-- debris, and against a repeat grab stacking Splashes.
+local flingees: { [BasePart]: BasePart } = {}
 local function clearFling(step: BasePart)
 	local existing = flingees[step]
 	if existing then
@@ -137,9 +154,10 @@ end
 
 -- Spawn + launch a "Flingee" off this step (ActionType.SplashFlinging grabAction;
 -- Splash.cs OnEnable: random X impulse + fixed Y impulse + opposing torque, then
--- self-destructs after SPLASH_LIFETIME). It's a plain unanchored part, not a pooled
--- child of the step template -- StepTemplate has no pre-built Flingee/Bug children
--- (doc 10: Rojo-managed templates, no hand-building), so we build it in code.
+-- self-destructs after SPLASH_LIFETIME). It's a plain unanchored part; its sprite
+-- comes from the spawning kind's `flingeeSprite` (Shared/StepKinds), stamped on
+-- the step as a `FlingeeSprite` attribute at spawn time -- Fork/Spoon/Flame per
+-- doc 12, instead of always "Flame".
 local function flingSplash(step: BasePart)
 	clearFling(step) -- a repeat grab shouldn't stack Splashes
 	local splash = Instance.new("Part")
@@ -151,7 +169,8 @@ local function flingSplash(step: BasePart)
 	splash.CFrame = step.CFrame
 	local decal = Instance.new("Decal")
 	decal.Face = Enum.NormalId.Front
-	decal:SetAttribute("Sprite", "Flame") -- FlingingRock's Flingee sprite (doc 12): Sprites/Scenery/Flame.png
+	local flingeeSprite = step:GetAttribute("FlingeeSprite")
+	decal:SetAttribute("Sprite", if typeof(flingeeSprite) == "string" then flingeeSprite else "Flame")
 	decal.Parent = splash
 	SpriteSkin.apply(splash)
 	splash.Parent = workspace
@@ -166,26 +185,27 @@ local function flingSplash(step: BasePart)
 end
 
 -- forward-declared: releaseStep and makeCtx reference each other
-local makeCtx: (step: BasePart, player: Player?) -> StepBehaviors.Ctx
+local makeCtx: (lane: Lane.Lane, step: BasePart, player: Player?) -> StepBehaviors.Ctx
 
-local function releaseStep(step: BasePart)
-	if not active[step] then
-		return -- idempotent: behaviors and the lava check can both recycle
+local function releaseStep(lane: Lane.Lane, step: BasePart)
+	if not lane.active[step] then
+		return -- idempotent: behaviors and the bounds check can both recycle
 	end
 	local b = behaviorOf(step)
 	if b.onDestroy then
-		b.onDestroy(makeCtx(step, heldBy[step]))
+		b.onDestroy(makeCtx(lane, step, lane.player))
 	end
-	forceReleaseStep(step)
-	active[step] = nil
+	forceReleaseStep(lane, step)
+	lane.active[step] = nil
 	step.Parent = nil
+	step:SetAttribute("LaneUserId", nil)
 	table.insert(pool, step)
 end
 
-makeCtx = function(step: BasePart, player: Player?): StepBehaviors.Ctx
+makeCtx = function(lane: Lane.Lane, step: BasePart, player: Player?): StepBehaviors.Ctx
 	local gen = step:GetAttribute("Gen")
 	local function stillValid(): boolean
-		return active[step] == true and step:GetAttribute("Gen") == gen
+		return lane.active[step] == true and step:GetAttribute("Gen") == gen
 	end
 	return {
 		step = step,
@@ -195,26 +215,26 @@ makeCtx = function(step: BasePart, player: Player?): StepBehaviors.Ctx
 			step:SetAttribute("Unsteady", true) -- clients may shake/emit pebbles off this
 		end,
 		explode = function()
-			forceReleaseStep(step)
-			releaseStep(step) -- effects (pebbles/sound) are client polish, doc 05
+			forceReleaseStep(lane, step)
+			releaseStep(lane, step) -- effects (pebbles/sound) are client polish, doc 05
 		end,
 		dropAway = function()
-			forceReleaseStep(step)
+			forceReleaseStep(lane, step)
 			local info = TweenInfo.new(Config.DROP_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
 			TweenService:Create(step, info, { CFrame = step.CFrame * CFrame.new(0, -Config.DROP_DISTANCE, 0) }):Play()
-			-- the lava-line check below recycles it once it falls past DESPAWN_Y
+			-- the bounds check below recycles it once it falls past DESPAWN_Y
 		end,
 		forceRelease = function()
-			forceReleaseStep(step)
+			forceReleaseStep(lane, step)
 		end,
 		getSpawnBias = function()
-			return spawnBias
+			return lane.spawnDirection
 		end,
 		setSpawnBias = function(bias: Vector2)
-			spawnBias = bias
+			lane:changeDirection(bias)
 		end,
 		spawnBug = function()
-			spawnBugAt:Fire(step.Position) -- BugService owns the actual drift/idle/catch loop (doc 06)
+			spawnBugAt:Fire(step.Position, lane.userId) -- BugService owns the actual drift/idle/catch loop (doc 06)
 		end,
 		flingSplash = function()
 			flingSplash(step)
@@ -225,110 +245,69 @@ makeCtx = function(step: BasePart, player: Player?): StepBehaviors.Ctx
 	}
 end
 
--- Weighted behavior roll, gated by canSpawn (Step.cs canBeSpawned).
-local behaviorWeights: { [string]: number } = Config.BEHAVIOR_WEIGHTS
-
--- weight <= 0 (e.g. Crumble, doc 05/Config) must never be pickable: skip those
--- entries entirely rather than relying on `r <= 0` alone, which only excludes
--- them for as long as `r` doesn't land on exactly 0 at that entry.
-local function rollBehavior(count: number): string
-	local total = 0
-	for _, weight in behaviorWeights do
-		if weight > 0 then
-			total += weight
-		end
-	end
-	local r = math.random() * total
-	for name, weight in behaviorWeights do
-		if weight > 0 then
-			r -= weight
-			if r <= 0 then
-				local b = StepBehaviors[name]
-				if b and (not b.canSpawn or b.canSpawn(spawnBias, count)) then
-					return name
-				end
-				return "None" -- gated out: fall back to a plain step
-			end
-		end
-	end
-	return "None"
-end
-
-local function acquireStep(): BasePart
-	local step = table.remove(pool) or template:Clone()
+local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3): BasePart
+	local kind = StepKinds[kindName]
+	local step = (table.remove(pool) or template:Clone()) :: BasePart
 	step:SetAttribute("Kind", "Step")
 	step:SetAttribute("Gen", ((step:GetAttribute("Gen") :: number?) or 0) + 1)
 	step:SetAttribute("Unsteady", false)
 	step:SetAttribute("Shrugged", false)
+	step:SetAttribute("LaneUserId", lane.userId)
 	step.Anchored = true -- we move it ourselves (kinematic)
 	clearFling(step) -- pooling safety: a recycled step must not inherit a live Flingee
 
-	spawnCount += 1
-	local name = rollBehavior(spawnCount)
-	step:SetAttribute("Behavior", name)
-	local sprite = StepBehaviors[name] and StepBehaviors[name].sprite
-	if sprite then
-		step:SetAttribute("Sprite", sprite) -- behavior-specific art (CrumblyRock, arrows, …)
-	end
+	step:SetAttribute("Behavior", if kind then kind.behavior else "None")
+	step:SetAttribute("Sprite", if kind then kind.sprite else nil)
+	step:SetAttribute("FlingeeSprite", if kind then kind.flingeeSprite else nil)
+	step.Size = if kind and kind.size then kind.size else DEFAULT_STEP_SIZE
 	SpriteSkin.apply(step) -- texture from its `Sprite` attribute (no-op until ids are set)
 
+	step.CFrame = CFrame.new(worldPos)
 	step.Parent = container
-	active[step] = true
+	lane.active[step] = true
 	return step
 end
 
--- spawn loop; spawn X follows the current bias (direction-change steps shift it).
--- A pure horizontal bias (ChangeDirectionLeft/Right, Y == 0) crowds spawns into
--- the outer third of that side; a diagonal bias (ChangeDirectionUpLeft/UpRight,
--- Y == -1) only narrows to that half -- cheap enough to make the two readable as
--- different pulls without a real per-direction spawner list (doc 11 §2 has one
--- per direction in Unity; this basic version still shares a single field/pool).
-local OUTER_THIRD = math.floor(Config.SPAWN_X_RANGE * 2 / 3) -- math.random needs integer bounds
-task.spawn(function()
-	while true do
-		local step = acquireStep()
-		local x
-		if spawnBias.X > 0 then
-			x = if spawnBias.Y == 0
-				then math.random(OUTER_THIRD, Config.SPAWN_X_RANGE)
-				else math.random(0, Config.SPAWN_X_RANGE)
-		elseif spawnBias.X < 0 then
-			x = if spawnBias.Y == 0
-				then math.random(-Config.SPAWN_X_RANGE, -OUTER_THIRD)
-				else math.random(-Config.SPAWN_X_RANGE, 0)
-		else
-			x = math.random(-Config.SPAWN_X_RANGE, Config.SPAWN_X_RANGE)
-		end
-		step.CFrame = CFrame.new(x, Config.SPAWN_Y, Config.PLANE_Z)
-		task.wait(Config.SPAWN_INTERVAL)
-	end
-end)
-
--- Per-tick behavior hook (Falling's constant drift, doc 05) + recycle steps that
--- drop past the lava line (analog of Step.OnTriggerEnter2D).
-RunService.Heartbeat:Connect(function(dt: number)
-	for step in pairs(active) do
-		local b = behaviorOf(step)
-		if b.onTick then
-			b.onTick(makeCtx(step, heldBy[step]), dt)
-		end
-		if step.Position.Y < Config.DESPAWN_Y then
-			releaseStep(step)
-		end
-	end
-end)
-
 -- ---------------------------------------------------------------------------
--- The pull / world-scroll: on a validated grab, slide the whole field down.
--- (SpawnManager applies PullVector to every active spawn; here it's one tween
--- per step per grab -- discrete but reads the same.)
+-- The pull / world-scroll: on a validated grab, slide this lane's steps along
+-- ITS OWN spawn direction (Spawning/SpawnManager.cs PullStep/PullVector, now
+-- per-lane -- doc 13 item 4). A negative `distance` undoes previous pulls (used
+-- by the Tutorial's no-death fall rule below).
 -- ---------------------------------------------------------------------------
-local function scrollFieldDown(distance: number, duration: number)
+local function pullLane(lane: Lane.Lane, distance: number, duration: number)
+	local dir = lane.spawnDirection
+	local dir3 = Vector3.new(dir.X, dir.Y, 0)
+	if dir3.Magnitude < 1e-4 then
+		return
+	end
+	lane:addPull(distance) -- spawners only run on time earned by pulling (Lane.spawnBudget)
+	local delta = dir3.Unit * distance
 	local info = TweenInfo.new(duration, Enum.EasingStyle.Sine)
-	for step in pairs(active) do
-		TweenService:Create(step, info, { CFrame = step.CFrame * CFrame.new(0, -distance, 0) }):Play()
+	for step in pairs(lane.active) do
+		TweenService:Create(step, info, { CFrame = step.CFrame * CFrame.new(delta.X, delta.Y, 0) }):Play()
 	end
 end
+
+-- Per-lane spawn tick + per-tick behavior hook (Falling's constant drift,
+-- doc 05) + recycle steps that leave the lane's bounds on any side (doc 13
+-- item 4 -- Borders: Left/Right/Top/Bottom catch, not just the lava line).
+RunService.Heartbeat:Connect(function(dt: number)
+	for _, lane in Lane.iter() do
+		lane:tickSpawners(dt, function(_state, kindName, worldPos)
+			acquireStep(lane, kindName, worldPos)
+		end)
+
+		for step in pairs(lane.active) do
+			local b = behaviorOf(step)
+			if b.onTick then
+				b.onTick(makeCtx(lane, step, lane.player), dt)
+			end
+			if lane:isOutOfBounds(step) then
+				releaseStep(lane, step)
+			end
+		end
+	end
+end)
 
 -- ---------------------------------------------------------------------------
 -- Scoring (Core/VariableManager.cs). The high score lives on the shared Profile
@@ -420,20 +399,38 @@ local function resetScore(player: Player)
 end
 
 -- ---------------------------------------------------------------------------
+-- LevelChanged notification (doc 13 item 6): fired on run start and every
+-- transition. Lane.luau calls this through the `notify` callback so Lane never
+-- needs to know about remotes.
+-- ---------------------------------------------------------------------------
+local function notifyLevelChanged(lane: Lane.Lane, transition: string)
+	local level = lane.level
+	LevelChanged:FireClient(
+		lane.player,
+		level.name,
+		level.musicIndex,
+		level.background,
+		level.overlay,
+		transition,
+		lane.origin
+	)
+end
+
+-- ---------------------------------------------------------------------------
 -- Frogs (Player/Frog.cs, server-authoritative). One model per player, named
 -- Frog_<userId>, skinned from the profile so the look replicates to everyone.
+-- Spawns at its lane's origin (doc 13 item 1).
 -- ---------------------------------------------------------------------------
-local frogContainer = workspace.PlayField:FindFirstChild("Frogs")
+local frogContainer = playField:FindFirstChild("Frogs")
 if not frogContainer then
 	frogContainer = Instance.new("Folder")
 	frogContainer.Name = "Frogs"
-	frogContainer.Parent = workspace.PlayField
+	frogContainer.Parent = playField
 end
 
 local frogTemplate = ReplicatedStorage.Assets.FrogModel
-local FROG_START = Vector3.new(0, 0, Config.PLANE_Z)
 
-local function createFrog(player: Player)
+local function createFrog(player: Player, lane: Lane.Lane)
 	if frogs[player] then
 		return
 	end
@@ -472,42 +469,66 @@ local function createFrog(player: Player)
 			CFrame.new(Config.LIMB_REST[1].X, Config.LIMB_REST[1].Y, 0),
 			CFrame.new(Config.LIMB_REST[2].X, Config.LIMB_REST[2].Y, 0),
 		},
-		pos = FROG_START,
+		pos = lane.origin,
 		gravityMult = Config.GRAVITY_MULT_START,
 		dead = false,
 		held = {},
 	}
-	body.CFrame = CFrame.new(FROG_START)
+	body.CFrame = CFrame.new(lane.origin)
 	frogs[player] = state
 	model.Parent = frogContainer
 end
 
-local function killFrog(player: Player, f: FrogState)
+local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 	f.dead = true
 	f.model:SetAttribute("Dead", true)
-	-- drop anything still held (e.g. a step dragged under the lava line with us)
+	-- drop anything still held (e.g. a step dragged out of bounds with us)
 	for i = #f.held, 1, -1 do
-		forceReleaseStep(f.held[i])
+		forceReleaseStep(lane, f.held[i])
 	end
 	commitHighScore(player)
 	resetScore(player)
 	GameOver:FireClient(player)
+	local profile = Profiles.get(player)
+	lane:resetRun(profile ~= nil and profile.tutorialDone == true) -- fires LevelChanged("death") itself
+	lane:prefill(function(_state, kindName, worldPos)
+		acquireStep(lane, kindName, worldPos)
+	end)
 	task.delay(Config.RESPAWN_DELAY, function()
 		if frogs[player] ~= f then
 			return -- player left (or was rebuilt) during the death beat
 		end
-		f.pos = FROG_START
+		f.pos = lane.origin
 		f.gravityMult = Config.GRAVITY_MULT_START
 		f.dead = false
 		f.model:SetAttribute("Dead", false)
 	end)
 end
 
--- The fall loop (Frog.cs SteadilyLowerHead) + lava check (Lava.cs) + rendering:
--- limbs snap to their held step or ease back to rest, exactly as the client
--- used to do locally.
+-- Tutorial "no death" rule (Core/LevelManager.cs ReportFall, levelIndex==1, doc
+-- 13 item 5): pull the field back up by TUTORIAL_PULL_BACK pulls' worth of
+-- distance and let the frog retry from its lane's origin -- no GameOver, no
+-- score reset, no respawn delay.
+local function tutorialRetry(lane: Lane.Lane, f: FrogState)
+	for i = #f.held, 1, -1 do
+		forceReleaseStep(lane, f.held[i])
+	end
+	pullLane(lane, -Config.PULL_DISTANCE * Config.TUTORIAL_PULL_BACK, 0.6)
+	f.pos = lane.origin
+	f.gravityMult = Config.GRAVITY_MULT_START
+end
+
+-- The fall loop (Frog.cs SteadilyLowerHead) + bounds check (Lava.cs, per-lane
+-- via Config.DESPAWN_Y -- lanes only offset along X, so Y bounds stay shared)
+-- + rendering: limbs snap to their held step or ease back to rest, exactly as
+-- the client used to do locally.
 RunService.Heartbeat:Connect(function(dt: number)
 	for plr, f in pairs(frogs) do
+		local lane = Lane.get(plr)
+		if not lane then
+			continue
+		end
+
 		if not f.dead then
 			if #f.held == 0 then
 				f.gravityMult += Config.GRAVITY_ACCEL * dt
@@ -515,7 +536,11 @@ RunService.Heartbeat:Connect(function(dt: number)
 				f.pos = Vector3.new(f.pos.X, f.pos.Y - speed * dt, Config.PLANE_Z)
 			end
 			if f.pos.Y <= Config.DESPAWN_Y then
-				killFrog(plr, f)
+				if lane.levelIndex == Levels.TUTORIAL then
+					tutorialRetry(lane, f)
+				else
+					killFrog(plr, f, lane)
+				end
 			end
 		end
 
@@ -573,8 +598,14 @@ local function grabAllowed(player: Player): boolean
 end
 
 GrabStep.OnServerEvent:Connect(function(player, step, tapPos)
-	-- validate: a real, still-active step, from a live frog with a limb to spare
-	if typeof(step) ~= "Instance" or not step:IsA("BasePart") or not active[step] then
+	-- validate: a real, still-active step FROM THIS PLAYER'S OWN LANE, from a
+	-- live frog with a limb to spare (doc 13 item 1: GrabStep must reject steps
+	-- from another lane)
+	if typeof(step) ~= "Instance" or not step:IsA("BasePart") then
+		return
+	end
+	local lane = Lane.get(player)
+	if not lane or step:GetAttribute("LaneUserId") ~= lane.userId or not lane.active[step] then
 		return
 	end
 	local f = frogs[player]
@@ -584,7 +615,13 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos)
 	end
 	-- reject a step someone already holds, or grabs faster than humanly possible;
 	-- ForceRelease corrects the client that optimistically snapped a limb on
-	if heldBy[step] or not grabAllowed(player) then
+	for _, held in f.held do
+		if held == step then
+			ForceRelease:FireClient(player, step)
+			return
+		end
+	end
+	if not grabAllowed(player) then
 		ForceRelease:FireClient(player, step)
 		return
 	end
@@ -599,46 +636,67 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos)
 	local quality = if typeof(tapPos) == "Vector3" then PullMath.gradeGrab(tapPos, step.Position) else "OK"
 
 	f.gravityMult = Config.GRAVITY_MULT_START -- reset the fall curve (Frog.Bob)
-	scrollFieldDown(Config.PULL_DISTANCE, Config.PULL_TIME)
+	pullLane(lane, Config.PULL_DISTANCE, Config.PULL_TIME)
 	addScore(player, 1, quality)
 
+	lane:onStepClimbed() -- level-threshold / tutorial progress; fires LevelChanged("soft") itself (doc 13 item 5)
+
 	-- step behaviors (doc 05): track the holder, then dispatch onGrab
-	heldBy[step] = player
 	table.insert(f.held, step)
 	local b = behaviorOf(step)
 	if b.onGrab then
-		b.onGrab(makeCtx(step, player))
+		b.onGrab(makeCtx(lane, step, player))
 	end
 end)
 
 ReleaseStep.OnServerEvent:Connect(function(player, _limbIndex, step)
-	-- only the recorded holder may release; ForceRelease already cleared heldBy,
-	-- so the client's echo after a forced drop lands here as a no-op
+	-- only the recorded holder may release; ForceRelease already dropped it from
+	-- f.held, so the client's echo after a forced drop lands here as a no-op
 	if typeof(step) ~= "Instance" or not step:IsA("BasePart") then
 		return
 	end
-	if heldBy[step] ~= player then
+	local lane = Lane.get(player)
+	local f = frogs[player]
+	if not lane or not f then
 		return
 	end
-	heldBy[step] = nil
-	removeHeld(player, step)
+	local held = false
+	for i = #f.held, 1, -1 do
+		if f.held[i] == step then
+			table.remove(f.held, i)
+			held = true
+			break
+		end
+	end
+	if not held then
+		return
+	end
 	local b = behaviorOf(step)
-	if b.onRelease and active[step] then
-		b.onRelease(makeCtx(step, player))
+	if b.onRelease and lane.active[step] then
+		b.onRelease(makeCtx(lane, step, player))
 	end
 end)
 
 -- ---------------------------------------------------------------------------
--- Player lifecycle. Profiles owns persistence; once a profile is ready we set
--- up the run state, the leaderstats board, and the server-owned frog. Death is
--- decided entirely by the server's lava check in the frog Heartbeat (no
--- ReportDeath remote -- the client has no say in when it died).
+-- Player lifecycle. Profiles owns persistence; once a profile is ready we
+-- create this player's Lane (doc 13), set up the run state, the leaderstats
+-- board, and the server-owned frog. Death is decided entirely by the server's
+-- bounds check in the frog Heartbeat (no ReportDeath remote -- the client has
+-- no say in when it died).
 -- ---------------------------------------------------------------------------
 local function initPlayer(player: Player)
 	ensureLeaderstats(player)
 	sessionScore[player] = 0
 	resetGrabQuality(player)
-	createFrog(player)
+
+	local profile = Profiles.get(player)
+	local tutorialDone = profile ~= nil and profile.tutorialDone == true
+	local lane = Lane.new(player, tutorialDone, notifyLevelChanged) -- fires LevelChanged("start") itself
+	lane:prefill(function(_state, kindName, worldPos)
+		acquireStep(lane, kindName, worldPos)
+	end)
+
+	createFrog(player, lane)
 	pushScore(player)
 end
 
@@ -651,14 +709,21 @@ end
 
 Players.PlayerRemoving:Connect(function(player: Player)
 	local f = frogs[player]
+	local lane = Lane.get(player)
 	if f then
 		for i = #f.held, 1, -1 do
-			local step = f.held[i]
-			heldBy[step] = nil -- no ForceRelease: the holder is leaving
-			table.remove(f.held, i)
+			table.remove(f.held, i) -- no ForceRelease: the holder is leaving
 		end
 		frogs[player] = nil
 		f.model:Destroy()
+	end
+	if lane then
+		for step in pairs(lane.active) do
+			step.Parent = nil
+			step:SetAttribute("LaneUserId", nil)
+			table.insert(pool, step)
+		end
+		lane:destroy()
 	end
 	sessionScore[player] = nil
 	grabQuality[player] = nil
