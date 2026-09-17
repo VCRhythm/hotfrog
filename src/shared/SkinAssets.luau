@@ -64,6 +64,7 @@ local Ids: { [string]: number } = {
 	Grass = 0,
 	Cloud = 0,
 	Speck = 0,
+	Flame = 0, -- Sprites/Scenery/Flame.png: FlingingRock's "Flingee" child (doc 05/12, ActionType.SplashFlinging)
 }
 
 local SkinAssets = {}

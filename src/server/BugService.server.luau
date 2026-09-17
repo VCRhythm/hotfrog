@@ -45,6 +45,17 @@ if not awardFlys then
 	awardFlys.Parent = ServerStorage
 end
 
+-- SpawnFly step behavior fan-in (created by GameServer; get-or-create so load
+-- order is moot, same pattern as the AwardFlys faucet above): grabbing a
+-- FlyRock-style step fires this with the step's position instead of requiring a
+-- Script-to-Script call (doc 05, ActionType.SpawnFly).
+local spawnBugAt = ServerStorage:FindFirstChild("SpawnBugAt") :: BindableEvent?
+if not spawnBugAt then
+	spawnBugAt = Instance.new("BindableEvent")
+	spawnBugAt.Name = "SpawnBugAt"
+	spawnBugAt.Parent = ServerStorage
+end
+
 -- ---------------------------------------------------------------------------
 -- Container + template (self-provisioned so the scene needs no extra manual
 -- setup; replace Assets/BugTemplate with real art whenever you like)
@@ -100,7 +111,10 @@ local function releaseBug(bug: BasePart)
 	table.insert(pool, bug)
 end
 
-local function spawnBug()
+-- `origin` is set for ActionType.SpawnFly (doc 05): a FlyRock-style step was
+-- grabbed, so the bug starts at the step and only wanders nearby, instead of
+-- entering from the screen edge and roaming the whole field like a normal spawn.
+local function spawnBug(origin: Vector3?)
 	local bug = (table.remove(pool) or template:Clone()) :: BasePart
 	bug:SetAttribute("Kind", "Bug")
 	bug:SetAttribute("Gen", ((bug:GetAttribute("Gen") :: number?) or 0) + 1)
@@ -108,22 +122,34 @@ local function spawnBug()
 	SpriteSkin.apply(bug) -- no-op until ids land in SkinAssets
 	local gen = bug:GetAttribute("Gen")
 
-	-- enter from a side edge, drift to a random on-screen point with the original's
-	-- overshoot feel (Bug.SetUpDestination / MoveTo: DOMove + Ease.OutBack)
-	local side = if math.random() > 0.5 then 1 else -1
-	bug.CFrame = CFrame.new(
-		side * (Config.BUG_X_RANGE + 6),
-		math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
-		Config.PLANE_Z
-	)
+	local dest: Vector3
+	if origin then
+		bug.CFrame = CFrame.new(origin)
+		local wanderX = math.random(-Config.BUG_NEAR_WANDER_X, Config.BUG_NEAR_WANDER_X)
+		local wanderY = math.random(-Config.BUG_NEAR_WANDER_Y, Config.BUG_NEAR_WANDER_Y)
+		dest = Vector3.new(
+			math.clamp(origin.X + wanderX, -Config.BUG_X_RANGE, Config.BUG_X_RANGE),
+			math.clamp(origin.Y + wanderY, -Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
+			Config.PLANE_Z
+		)
+	else
+		-- enter from a side edge, drift to a random on-screen point with the
+		-- original's overshoot feel (Bug.SetUpDestination / MoveTo: DOMove + Ease.OutBack)
+		local side = if math.random() > 0.5 then 1 else -1
+		bug.CFrame = CFrame.new(
+			side * (Config.BUG_X_RANGE + 6),
+			math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
+			Config.PLANE_Z
+		)
+		dest = Vector3.new(
+			math.random(-Config.BUG_X_RANGE, Config.BUG_X_RANGE),
+			math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
+			Config.PLANE_Z
+		)
+	end
 	bug.Parent = container
 	active[bug] = true
 
-	local dest = Vector3.new(
-		math.random(-Config.BUG_X_RANGE, Config.BUG_X_RANGE),
-		math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
-		Config.PLANE_Z
-	)
 	local enter = TweenService:Create(
 		bug,
 		TweenInfo.new(Config.BUG_ENTER_TIME, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
@@ -158,6 +184,10 @@ task.spawn(function()
 		spawnBug()
 		task.wait(Config.BUG_INTERVAL)
 	end
+end)
+
+spawnBugAt.Event:Connect(function(position: Vector3)
+	spawnBug(position)
 end)
 
 -- ---------------------------------------------------------------------------

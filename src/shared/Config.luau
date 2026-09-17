@@ -43,20 +43,56 @@ local Config = {
 
 	-- Step behaviors (Entities/Step.cs ActionType; see doc 05). Weighted roll per
 	-- spawned step; entries must match names in Shared/StepBehaviors.
+	--
+	-- The "Pot" level (doc 11 §1, index 2) is the game's first *endless*
+	-- (maxSpawnCount = -1) set of StepSpawners, so its pools are the default mix
+	-- here. Weight = 20 * (sum of that prefab's spawnProbability, doc 12 §1,
+	-- across every Level2 StepSpawner pool it appears in, doc 11 §2a):
+	--   DownLeftStepSpawner  = Potato, Carrot, UpRock
+	--   DownRightStepSpawner = Carrot, Potato, UpRock
+	--   DownStepSpawner      = Potato, Carrot, UpLeftRock, UpRightRock
+	-- Carrot/Potato (spawnProbability 0.5) are in all 3 pools -> 1.5*20 = 30;
+	-- UpRock (0.1) is in 2 of 3 -> 0.2*20 = 4; UpLeftRock/UpRightRock (0.1) are
+	-- each in 1 of 3 -> 0.1*20 = 2.
 	BEHAVIOR_WEIGHTS = {
-		None = 70,
-		Crumble = 8,
-		CrumbleAfterRelease = 6,
-		Fall = 8,
-		ChangeDirectionLeft = 3,
-		ChangeDirectionRight = 3,
-		ChangeDirectionUp = 3,
-		Beetle = 2,
+		None = 30, -- Carrot (actionType None)
+		CrumbleAfterRelease = 30, -- Potato
+		ChangeDirectionUp = 4, -- UpRock
+		ChangeDirectionUpLeft = 2, -- UpLeftRock
+		ChangeDirectionUpRight = 2, -- UpRightRock
+
+		-- Not referenced by any Level2 pool (doc 11 §2a), so there's no Unity
+		-- spawnProbability to derive a weight from -- small placeholders kept for
+		-- endless-mode variety, as far as the docs allow.
+		Fall = 8, -- SlowFallRock (Level0/Level1/legacy pools only)
+		Beetle = 2, -- Beetle (legacy General/Spawners pools only)
+		ChangeDirectionLeft = 3, -- LeftRock -- not found in ANY live spawner pool (doc 11)
+		ChangeDirectionRight = 3, -- RightRock -- same
+		Falling = 2, -- FallingRock; canSpawn also gates on spawnCount (Step.cs)
+		SpawnFly = 2, -- FlyRock
+		SplashFlinging = 2, -- FlingingRock
+
+		-- CrumblyRock.prefab ships with actionType=0 (None), not Crumble (doc 12) --
+		-- Unity never actually spawns a step with this behavior. The grab/explode
+		-- logic is real ported code, kept for completeness, but weighted 0 so
+		-- rollBehavior never rolls it.
+		Crumble = 0,
 	},
 	CRUMBLE_FUSE = 1.5, -- grab -> explode (Step.cs Invoke("Explode", 1.5))
 	FALL_DELAY = 3.0, -- unsteady -> drop away (Step.cs Fall coroutine)
 	DROP_DISTANCE = 100, -- studs a falling step drops (DOLocalMoveY(-100))
 	DROP_TIME = 1.0,
+	FALLING_MIN_SPAWN_COUNT = 5, -- ActionType.Falling canBeSpawned: spawnCount > 5
+	FALLING_DRIFT_SPEED = 15, -- studs/s downward drift (Step.cs AddForce(0,-50,Force), flattened -- no drag/accel)
+
+	-- Splash (Entities/Splash.cs; ActionType.SplashFlinging's "Flingee" child).
+	-- Values are FlingingRock's own Splash.cs fields (doc 12), reused directly as
+	-- Roblox impulse velocities (studs/s) -- a rough analog, not physically exact.
+	SPLASH_MIN_X_FORCE = -15,
+	SPLASH_MAX_X_FORCE = 15,
+	SPLASH_Y_FORCE = 60,
+	SPLASH_ROT_MOD = 2, -- initial angular velocity magnitude, opposing the X force's sign
+	SPLASH_LIFETIME = 3.0, -- Splash.cs Invoke("Destroy", 3f)
 
 	-- Bugs (Entities/Bug.cs + Spawning/BugSpawner.cs; doc 06)
 	BUG_INTERVAL = 2.0, -- spawn cadence (BugSpawner.Activate: 2s)
@@ -66,6 +102,8 @@ local Config = {
 	BUG_X_RANGE = 18, -- on-screen wander extents, studs
 	BUG_Y_RANGE = 12,
 	BUG_FLYS = 5, -- Flys per catch (Bug.cs CollectFly -> the Fly currency)
+	BUG_NEAR_WANDER_X = 6, -- ActionType.SpawnFly (doc 05): drift near the step instead of the full field, studs
+	BUG_NEAR_WANDER_Y = 4,
 
 	-- Tongue (Entities/Tongue.cs expand/retract, scaled to tween times)
 	TONGUE_EXPAND_TIME = 0.12,

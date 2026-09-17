@@ -16,6 +16,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
+local ServerStorage = game:GetService("ServerStorage")
+local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local PullMath = require(ReplicatedStorage.Shared.PullMath)
@@ -50,6 +52,18 @@ local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/bes
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
 
+-- Cross-script spawn request (ActionType.SpawnFly step behavior, doc 05): fired
+-- when a FlyRock-style step is grabbed, asking BugService to drift a bug in from
+-- the step's position. Same BindableEvent-in-ServerStorage pattern as the
+-- AwardFlys faucet (SkinService/BugService/GiftService) -- get-or-create so load
+-- order between GameServer and BugService is moot.
+local spawnBugAt = ServerStorage:FindFirstChild("SpawnBugAt") :: BindableEvent?
+if not spawnBugAt then
+	spawnBugAt = Instance.new("BindableEvent")
+	spawnBugAt.Name = "SpawnBugAt"
+	spawnBugAt.Parent = ServerStorage
+end
+
 -- ---------------------------------------------------------------------------
 -- Step pool + spawning (shared field; one field for the basic version).
 -- Each spawn rolls a weighted behavior (Shared/StepBehaviors, doc 05) and bumps a
@@ -61,7 +75,9 @@ local container = workspace.PlayField.Steps
 local pool: { BasePart } = {}
 local active: { [BasePart]: boolean } = {}
 local heldBy: { [BasePart]: Player } = {} -- who currently holds each step
+local flingees: { [BasePart]: BasePart } = {} -- ActionType.SplashFlinging's live "Flingee" per step, if any
 local spawnBias = Vector2.new(0, -1) -- SpawnManager.SpawnDirection analog
+local spawnCount = 0 -- steps produced so far (Step.cs canBeSpawned(spawnCount) analog, ActionType.Falling)
 
 -- Server-authoritative frog state (doc 07): the server owns position, gravity,
 -- held steps, and death. The model lives in workspace, so replication renders it
@@ -105,6 +121,48 @@ local function forceReleaseStep(step: BasePart)
 		removeHeld(holder, step)
 		ForceRelease:FireClient(holder, step)
 	end
+end
+
+-- Destroy this step's live "Flingee", if it has one (ActionType.SplashFlinging
+-- destroyAction: disables the splash and resets its transform). Guards against a
+-- step recycling mid-flight leaving orphaned debris, and against a repeat grab
+-- stacking Splashes.
+local function clearFling(step: BasePart)
+	local existing = flingees[step]
+	if existing then
+		existing:Destroy()
+		flingees[step] = nil
+	end
+end
+
+-- Spawn + launch a "Flingee" off this step (ActionType.SplashFlinging grabAction;
+-- Splash.cs OnEnable: random X impulse + fixed Y impulse + opposing torque, then
+-- self-destructs after SPLASH_LIFETIME). It's a plain unanchored part, not a pooled
+-- child of the step template -- StepTemplate has no pre-built Flingee/Bug children
+-- (doc 10: Rojo-managed templates, no hand-building), so we build it in code.
+local function flingSplash(step: BasePart)
+	clearFling(step) -- a repeat grab shouldn't stack Splashes
+	local splash = Instance.new("Part")
+	splash.Name = "Flingee"
+	splash.Size = Vector3.new(1.2, 1.2, 0.4)
+	splash.CanCollide = false
+	splash.CanQuery = false -- must not eat taps
+	splash.Anchored = false
+	splash.CFrame = step.CFrame
+	local decal = Instance.new("Decal")
+	decal.Face = Enum.NormalId.Front
+	decal:SetAttribute("Sprite", "Flame") -- FlingingRock's Flingee sprite (doc 12): Sprites/Scenery/Flame.png
+	decal.Parent = splash
+	SpriteSkin.apply(splash)
+	splash.Parent = workspace
+
+	local xForce = Config.SPLASH_MIN_X_FORCE + math.random() * (Config.SPLASH_MAX_X_FORCE - Config.SPLASH_MIN_X_FORCE)
+	splash.AssemblyLinearVelocity = Vector3.new(xForce, Config.SPLASH_Y_FORCE, 0)
+	local rotForce = Config.SPLASH_ROT_MOD * (if xForce >= 0 then 1 else -1)
+	splash.AssemblyAngularVelocity = Vector3.new(0, 0, -rotForce)
+
+	flingees[step] = splash
+	Debris:AddItem(splash, Config.SPLASH_LIFETIME)
 end
 
 -- forward-declared: releaseStep and makeCtx reference each other
@@ -155,26 +213,42 @@ makeCtx = function(step: BasePart, player: Player?): StepBehaviors.Ctx
 		setSpawnBias = function(bias: Vector2)
 			spawnBias = bias
 		end,
+		spawnBug = function()
+			spawnBugAt:Fire(step.Position) -- BugService owns the actual drift/idle/catch loop (doc 06)
+		end,
+		flingSplash = function()
+			flingSplash(step)
+		end,
+		clearFling = function()
+			clearFling(step)
+		end,
 	}
 end
 
 -- Weighted behavior roll, gated by canSpawn (Step.cs canBeSpawned).
 local behaviorWeights: { [string]: number } = Config.BEHAVIOR_WEIGHTS
 
-local function rollBehavior(): string
+-- weight <= 0 (e.g. Crumble, doc 05/Config) must never be pickable: skip those
+-- entries entirely rather than relying on `r <= 0` alone, which only excludes
+-- them for as long as `r` doesn't land on exactly 0 at that entry.
+local function rollBehavior(count: number): string
 	local total = 0
 	for _, weight in behaviorWeights do
-		total += weight
+		if weight > 0 then
+			total += weight
+		end
 	end
 	local r = math.random() * total
 	for name, weight in behaviorWeights do
-		r -= weight
-		if r <= 0 then
-			local b = StepBehaviors[name]
-			if b and (not b.canSpawn or b.canSpawn(spawnBias)) then
-				return name
+		if weight > 0 then
+			r -= weight
+			if r <= 0 then
+				local b = StepBehaviors[name]
+				if b and (not b.canSpawn or b.canSpawn(spawnBias, count)) then
+					return name
+				end
+				return "None" -- gated out: fall back to a plain step
 			end
-			return "None" -- gated out: fall back to a plain step
 		end
 	end
 	return "None"
@@ -187,8 +261,10 @@ local function acquireStep(): BasePart
 	step:SetAttribute("Unsteady", false)
 	step:SetAttribute("Shrugged", false)
 	step.Anchored = true -- we move it ourselves (kinematic)
+	clearFling(step) -- pooling safety: a recycled step must not inherit a live Flingee
 
-	local name = rollBehavior()
+	spawnCount += 1
+	local name = rollBehavior(spawnCount)
 	step:SetAttribute("Behavior", name)
 	local sprite = StepBehaviors[name] and StepBehaviors[name].sprite
 	if sprite then
@@ -201,15 +277,25 @@ local function acquireStep(): BasePart
 	return step
 end
 
--- spawn loop; spawn X follows the current bias (direction-change steps shift it)
+-- spawn loop; spawn X follows the current bias (direction-change steps shift it).
+-- A pure horizontal bias (ChangeDirectionLeft/Right, Y == 0) crowds spawns into
+-- the outer third of that side; a diagonal bias (ChangeDirectionUpLeft/UpRight,
+-- Y == -1) only narrows to that half -- cheap enough to make the two readable as
+-- different pulls without a real per-direction spawner list (doc 11 §2 has one
+-- per direction in Unity; this basic version still shares a single field/pool).
+local OUTER_THIRD = math.floor(Config.SPAWN_X_RANGE * 2 / 3) -- math.random needs integer bounds
 task.spawn(function()
 	while true do
 		local step = acquireStep()
 		local x
 		if spawnBias.X > 0 then
-			x = math.random(0, Config.SPAWN_X_RANGE)
+			x = if spawnBias.Y == 0
+				then math.random(OUTER_THIRD, Config.SPAWN_X_RANGE)
+				else math.random(0, Config.SPAWN_X_RANGE)
 		elseif spawnBias.X < 0 then
-			x = math.random(-Config.SPAWN_X_RANGE, 0)
+			x = if spawnBias.Y == 0
+				then math.random(-Config.SPAWN_X_RANGE, -OUTER_THIRD)
+				else math.random(-Config.SPAWN_X_RANGE, 0)
 		else
 			x = math.random(-Config.SPAWN_X_RANGE, Config.SPAWN_X_RANGE)
 		end
@@ -218,9 +304,14 @@ task.spawn(function()
 	end
 end)
 
--- recycle steps that drop past the lava line (analog of Step.OnTriggerEnter2D)
-RunService.Heartbeat:Connect(function()
+-- Per-tick behavior hook (Falling's constant drift, doc 05) + recycle steps that
+-- drop past the lava line (analog of Step.OnTriggerEnter2D).
+RunService.Heartbeat:Connect(function(dt: number)
 	for step in pairs(active) do
+		local b = behaviorOf(step)
+		if b.onTick then
+			b.onTick(makeCtx(step, heldBy[step]), dt)
+		end
 		if step.Position.Y < Config.DESPAWN_Y then
 			releaseStep(step)
 		end
