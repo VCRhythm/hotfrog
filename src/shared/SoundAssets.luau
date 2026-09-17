@@ -24,6 +24,28 @@ local Ids: { [string]: number } = {
 	music1 = 0,
 	music2 = 0,
 	music3 = 0,
+
+	-- ==== Auto-added by tools/write_asset_ids.py — keys from tools/asset_manifest.json not yet listed above.
+	-- Re-running regenerates this block; hand-organize above the sentinel if you want a key to stay put. ====
+
+	-- one-shots (auto)
+	base10 = 0,
+	blink = 0,
+	boilVoice = 0,
+	greatVoice = 0,
+	highScore = 0,
+	hotFrogVO = 0,
+	hurt = 0,
+	leaves = 0,
+	new = 0,
+	okVoice = 0,
+	perfectVoice = 0,
+	pop = 0,
+	select = 0,
+	splash = 0,
+
+	-- music (auto)
+	music4 = 0,
 }
 
 local SoundAssets = {}
