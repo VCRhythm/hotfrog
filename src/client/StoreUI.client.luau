@@ -10,6 +10,8 @@ local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
 
 local Catalog = require(ReplicatedStorage.Shared.SkinCatalog)
+local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
+local UIKit = require(script.Parent.ui.UIKit)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -18,6 +20,22 @@ local SelectSkin = remotes:WaitForChild("SelectSkin") :: RemoteEvent
 local BuyWithFlys = remotes:WaitForChild("BuyWithFlys") :: RemoteFunction
 local ClaimGift = remotes:WaitForChild("ClaimGift") :: RemoteFunction
 local GiftStatus = remotes:WaitForChild("GiftStatus") :: RemoteEvent
+local RunStateChanged = remotes:WaitForChild("RunStateChanged") :: RemoteEvent
+
+-- doc 15 (menus-and-input): a tiny bridge so MenuClient can open/close THIS
+-- script's existing store panel instead of duplicating the frog carousel --
+-- same cross-LocalScript Folder+BindableEvent pattern LevelClient.client.luau
+-- uses for LevelState. LocalScripts can't `require` each other, so this is the
+-- one place StoreUI and MenuClient actually talk.
+local menuBridge = Instance.new("Folder")
+menuBridge.Name = "MenuBridge"
+local openStoreEvent = Instance.new("BindableEvent")
+openStoreEvent.Name = "OpenStore"
+openStoreEvent.Parent = menuBridge
+local storeClosedEvent = Instance.new("BindableEvent")
+storeClosedEvent.Name = "StoreClosed"
+storeClosedEvent.Parent = menuBridge
+menuBridge.Parent = player
 
 -- ordered skin ids (Catalog is keyed by numeric id; tolerate gaps)
 local ids: { number } = {}
@@ -36,9 +54,10 @@ local cursor = 1
 local DARK = Color3.fromRGB(28, 30, 38)
 local ACCENT = Color3.fromRGB(96, 170, 255)
 
-local gui = Instance.new("ScreenGui")
-gui.Name = "StoreGui"
-gui.ResetOnSpawn = false
+-- doc 15: UIKit.screenGui adds the UIScale that keeps this readable on both
+-- phone portrait and desktop landscape (item 6's "UI must work on phone
+-- portrait and desktop landscape" requirement).
+local gui = UIKit.screenGui("StoreGui")
 
 local function corner(parent: Instance)
 	local c = Instance.new("UICorner")
@@ -99,13 +118,38 @@ panel.Visible = false
 panel.Parent = gui
 corner(panel)
 
-local nameLabel = label("SkinName", "", UDim2.fromOffset(240, 48), UDim2.fromOffset(60, 20), panel)
-local statusLabel = label("Status", "", UDim2.fromOffset(320, 30), UDim2.fromOffset(20, 120), panel)
+-- Thumbnail (doc 15 item 2 / FrogPackages carousel): the skin's own Thumbnail
+-- sprite, falling back through SkinAssets.part's Arm/Universal/HotFrog chain
+-- to its Head sprite (Blue/Space/Mystery ship no Thumbnail at all), and
+-- finally to a tinted placeholder box so the carousel still reads with every
+-- asset id at 0.
+local thumbBox = Instance.new("Frame")
+thumbBox.Name = "ThumbBox"
+thumbBox.Size = UDim2.fromOffset(96, 96)
+thumbBox.Position = UDim2.fromOffset(132, 16)
+thumbBox.BackgroundColor3 = DARK
+thumbBox.Parent = panel
+corner(thumbBox)
+local thumbTint = Instance.new("Frame")
+thumbTint.Name = "Tint"
+thumbTint.Size = UDim2.fromScale(1, 1)
+thumbTint.BorderSizePixel = 0
+thumbTint.Parent = thumbBox
+corner(thumbTint)
+local thumbImage = Instance.new("ImageLabel")
+thumbImage.Name = "Image"
+thumbImage.Size = UDim2.fromScale(1, 1)
+thumbImage.BackgroundTransparency = 1
+thumbImage.ScaleType = Enum.ScaleType.Fit
+thumbImage.Parent = thumbBox
+
+local nameLabel = label("SkinName", "", UDim2.fromOffset(240, 30), UDim2.fromOffset(60, 116), panel)
+local statusLabel = label("Status", "", UDim2.fromOffset(320, 26), UDim2.fromOffset(20, 148), panel)
 statusLabel.TextColor3 = Color3.fromRGB(180, 188, 200)
 
-local prevButton = button("Prev", "<", UDim2.fromOffset(44, 48), UDim2.fromOffset(12, 20), panel)
-local nextButton = button("Next", ">", UDim2.fromOffset(44, 48), UDim2.new(1, -56, 0, 20), panel)
-local actionButton = button("Action", "", UDim2.fromOffset(220, 48), UDim2.new(0.5, -110, 1, -64), panel)
+local prevButton = button("Prev", "<", UDim2.fromOffset(44, 48), UDim2.fromOffset(12, 40), panel)
+local nextButton = button("Next", ">", UDim2.fromOffset(44, 48), UDim2.new(1, -56, 0, 40), panel)
+local actionButton = button("Action", "", UDim2.fromOffset(220, 44), UDim2.new(0.5, -110, 0, 186), panel)
 actionButton.BackgroundColor3 = ACCENT
 local closeButton = button("Close", "X", UDim2.fromOffset(36, 36), UDim2.new(1, -44, 0, 8), panel)
 closeButton.BackgroundColor3 = DARK
@@ -124,6 +168,19 @@ local function refreshPanel()
 		return
 	end
 	nameLabel.Text = entry.name
+
+	-- doc 15 item 2: Thumbnail -> Head (via SkinAssets.part's fallback chain) ->
+	-- a tinted placeholder box (every id is 0 right now, so this is what shows).
+	local image = SkinAssets.image(SkinAssets.prefix(entry.name) .. "Thumbnail") or SkinAssets.part(entry.name, "Head")
+	if image then
+		thumbImage.Image = image
+		thumbTint.Visible = false
+	else
+		thumbImage.Image = ""
+		thumbTint.Visible = true
+		local hue = ((id or 0) * 0.161803398875) % 1
+		thumbTint.BackgroundColor3 = Color3.fromHSV(hue, 0.35, 0.55)
+	end
 
 	local owned = profile and profile.owned and id and profile.owned[id]
 	local selected = profile and id and profile.selected == id
@@ -195,6 +252,12 @@ shopToggle.Activated:Connect(function()
 end)
 closeButton.Activated:Connect(function()
 	panel.Visible = false
+	storeClosedEvent:Fire() -- doc 15: lets MenuClient bring its own panel back
+end)
+
+openStoreEvent.Event:Connect(function()
+	panel.Visible = true
+	refreshPanel()
 end)
 
 ProfileChanged.OnClientEvent:Connect(function(p)
@@ -202,6 +265,20 @@ ProfileChanged.OnClientEvent:Connect(function(p)
 	flysLabel.Text = "Flys: " .. tostring((p and p.flys) or 0)
 	if panel.Visible then
 		refreshPanel()
+	end
+end)
+
+-- doc 15 item 1: this bottom bar (Shop toggle + Gift button) is the main
+-- menu's "Gift"/"Shop/Flys" entries reused as-is, so it only makes sense
+-- outside an active run. Hidden during Playing; the store panel itself is
+-- force-closed too so a run can't be interrupted by a lingering panel.
+RunStateChanged.OnClientEvent:Connect(function(state: string)
+	local outOfRun = state ~= "Playing"
+	shopToggle.Visible = outOfRun
+	giftButton.Visible = outOfRun
+	flysLabel.Visible = outOfRun
+	if not outOfRun and panel.Visible then
+		panel.Visible = false
 	end
 end)
 

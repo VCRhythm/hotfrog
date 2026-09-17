@@ -52,12 +52,33 @@ local function ensureRemote(name: string): RemoteEvent
 	return r :: RemoteEvent
 end
 
+local function ensureRemoteFunction(name: string): RemoteFunction
+	local r = remotes:FindFirstChild(name)
+	if not r then
+		r = Instance.new("RemoteFunction")
+		r.Name = name
+		r.Parent = remotes
+	end
+	return r :: RemoteFunction
+end
+
 local GrabStep = ensureRemote("GrabStep") -- client -> server: tapped a step (step, tap world point)
 local ReleaseStep = ensureRemote("ReleaseStep") -- client -> server: released a limb
 local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/best/quality/grabQuality
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
 local LevelChanged = ensureRemote("LevelChanged") -- server -> client: this lane's level/transition changed
+
+-- Phase 5 (docs/roblox-port/15-menus-and-input.md): the Menu -> Playing -> Dead
+-- -> Menu run-state machine + its remotes. Everything below is additive on top
+-- of the existing loop; it never changes GrabStep/ScoreChanged/GameOver/
+-- LevelChanged's own contracts, only gates when they fire.
+local StartRun = ensureRemote("StartRun") -- client -> server: begin a run from Menu (rate-limited, Menu-only)
+local RunStateChanged = ensureRemote("RunStateChanged") -- server -> client: this player's Menu/Playing/Dead state
+local RunSummary = ensureRemote("RunSummary") -- server -> client: end-of-run stats for the end-of-run panel
+local SetMusicOn = ensureRemote("SetMusicOn") -- client -> server: settings toggle (writes profile.musicOn)
+local ReplayTutorial = ensureRemote("ReplayTutorial") -- client -> server: settings action (Menu-only)
+local GetTopScores = ensureRemoteFunction("GetTopScores") -- client -> server: cached global top-10 (name, score)
 
 local function ensureBindable(name: string): BindableEvent
 	local b = ServerStorage:FindFirstChild(name)
@@ -76,6 +97,44 @@ end
 -- as the AwardFlys faucet (SkinService/BugService/GiftService) -- get-or-create
 -- so load order between GameServer and BugService is moot.
 local spawnBugAt = ensureBindable("SpawnBugAt")
+
+-- ---------------------------------------------------------------------------
+-- Run state (doc 15): Menu -> Playing -> Dead -> Menu, per player. In Menu the
+-- lane is idle (createFrog still parks a frog at the origin, but the frog
+-- Heartbeat loop below skips gravity/death and the lane Heartbeat loop skips
+-- spawning while state ~= Playing) so the client can show a main menu instead
+-- of an already-falling frog. `setRunState` is the only place that changes it,
+-- so RunStateChanged always mirrors `runState` exactly.
+-- ---------------------------------------------------------------------------
+local RunState = { Menu = "Menu", Playing = "Playing", Dead = "Dead" }
+local runState: { [Player]: string } = {}
+local lastStartRun: { [Player]: number } = {} -- StartRun rate limit (os.clock())
+
+local function setRunState(player: Player, state: string)
+	runState[player] = state
+	RunStateChanged:FireClient(player, state)
+end
+
+-- Per-RUN faucet totals for the end-of-run summary (doc 15 item 1/5). Listens
+-- to the same ServerStorage/AwardFlys BindableEvent SkinService already
+-- creates and fires on every bug catch (BugService) / gift claim
+-- (GiftService) / IAP grant -- purely additive, never touches those scripts.
+-- A caught bug is identified by its Fly amount matching Config.BUG_FLYS (the
+-- only other source, gifts, grants a much larger GIFT_FLYS=100 -- see
+-- GiftService.server.luau); good enough for an end-of-run counter, not a
+-- security-sensitive value.
+local flysThisRun: { [Player]: number } = {}
+local bugsThisRun: { [Player]: number } = {}
+local awardFlysBindable = ensureBindable("AwardFlys")
+awardFlysBindable.Event:Connect(function(player: Player, amount: number)
+	if typeof(player) ~= "Instance" or not player:IsA("Player") or typeof(amount) ~= "number" then
+		return
+	end
+	flysThisRun[player] = (flysThisRun[player] or 0) + amount
+	if amount == Config.BUG_FLYS then
+		bugsThisRun[player] = (bugsThisRun[player] or 0) + 1
+	end
+end)
 
 -- ---------------------------------------------------------------------------
 -- PlayField containers. `Lanes` holds one Folder per lane (Lane.luau creates
@@ -268,6 +327,22 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3)
 	return step
 end
 
+-- Recycle every one of this lane's live steps immediately (doc 15 item 1):
+-- called on death so the lane goes back to a clean, empty, idle Menu instead
+-- of leftover run steps sitting frozen while runState ~= Playing gates the
+-- bounds-check loop below from ever recycling them on its own. Any step still
+-- held was already force-released by the caller (killFrog), so this never
+-- needs to touch f.held itself.
+local function clearLaneSteps(lane: Lane.Lane)
+	local steps: { BasePart } = {}
+	for step in pairs(lane.active) do
+		table.insert(steps, step)
+	end
+	for _, step in steps do
+		releaseStep(lane, step)
+	end
+end
+
 -- ---------------------------------------------------------------------------
 -- The pull / world-scroll: on a validated grab, slide this lane's steps along
 -- ITS OWN spawn direction (Spawning/SpawnManager.cs PullStep/PullVector, now
@@ -297,6 +372,9 @@ end
 -- item 4 -- Borders: Left/Right/Top/Bottom catch, not just the lava line).
 RunService.Heartbeat:Connect(function(dt: number)
 	for _, lane in Lane.iter() do
+		if runState[lane.player] ~= RunState.Playing then
+			continue -- Menu/Dead: idle lane, no spawning (doc 15 item 1)
+		end
 		lane:tickSpawners(dt, function(_state, kindName, worldPos)
 			acquireStep(lane, kindName, worldPos)
 		end)
@@ -483,6 +561,13 @@ local function createFrog(player: Player, lane: Lane.Lane)
 	model.Parent = frogContainer
 end
 
+-- doc 15 item 1: death now ends the run rather than auto-respawning into
+-- another fall. It banks the score/best as before, but instead of
+-- immediately re-priming the lane for another fall it reports a RunSummary
+-- (score/best/isNewBest/grab-quality counts/bugs+flys this run) and, after the
+-- same death beat the auto-respawn used to wait out, returns the player to
+-- Menu -- the client shows the end-of-run panel for that beat instead of a
+-- falling frog.
 local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 	f.dead = true
 	f.model:SetAttribute("Dead", true)
@@ -490,14 +575,34 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 	for i = #f.held, 1, -1 do
 		forceReleaseStep(lane, f.held[i])
 	end
-	commitHighScore(player)
+
+	local score = sessionScore[player] or 0
+	local q = grabQuality[player]
+	local qualitySnapshot = {
+		Perfect = if q then q.Perfect else 0,
+		Great = if q then q.Great else 0,
+		OK = if q then q.OK else 0,
+	}
+	local oldBest = bestOf(player)
+	commitHighScore(player) -- reads sessionScore[player] itself; must run before resetScore clears it
+	local newBest = bestOf(player)
+	local isNewBest = score > oldBest
+
+	local bugs = bugsThisRun[player] or 0
+	local flys = flysThisRun[player] or 0
+	bugsThisRun[player] = 0
+	flysThisRun[player] = 0
+
 	resetScore(player)
-	GameOver:FireClient(player)
+	GameOver:FireClient(player) -- unchanged: Effects.client.luau's fall-sound hook
+	RunSummary:FireClient(player, score, newBest, isNewBest, qualitySnapshot, bugs, flys)
+
+	clearLaneSteps(lane) -- leave the lane empty/idle for the Menu, not littered with the just-ended run's steps
 	local profile = Profiles.get(player)
 	lane:resetRun(profile ~= nil and profile.tutorialDone == true) -- fires LevelChanged("death") itself
-	lane:prefill(function(_state, kindName, worldPos)
-		acquireStep(lane, kindName, worldPos)
-	end)
+
+	setRunState(player, RunState.Dead)
+
 	task.delay(Config.RESPAWN_DELAY, function()
 		if frogs[player] ~= f then
 			return -- player left (or was rebuilt) during the death beat
@@ -506,6 +611,7 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 		f.gravityMult = Config.GRAVITY_MULT_START
 		f.dead = false
 		f.model:SetAttribute("Dead", false)
+		setRunState(player, RunState.Menu) -- doc 15 item 1: back to the main menu, not another fall
 	end)
 end
 
@@ -533,7 +639,11 @@ RunService.Heartbeat:Connect(function(dt: number)
 			continue
 		end
 
-		if not f.dead then
+		-- doc 15 item 1: gravity/death only apply while actually Playing -- in
+		-- Menu/Dead the frog is parked at rest (no gravity ever accumulates for
+		-- it, so it just sits at whatever f.pos it was left at; the rendering
+		-- below still runs every tick so limbs ease back to rest normally).
+		if not f.dead and runState[plr] == RunState.Playing then
 			if #f.held == 0 then
 				f.gravityMult += Config.GRAVITY_ACCEL * dt
 				local speed = math.min(Config.GRAVITY * f.gravityMult, Config.MAX_FALL_SPEED)
@@ -612,6 +722,9 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos)
 	if not lane or step:GetAttribute("LaneUserId") ~= lane.userId or not lane.active[step] then
 		return
 	end
+	if runState[player] ~= RunState.Playing then
+		return -- doc 15 item 1: no grabs outside an active run (Menu/Dead lanes are idle/empty anyway)
+	end
 	local f = frogs[player]
 	if not f or f.dead or #f.held >= Config.MAX_HELD_STEPS then
 		ForceRelease:FireClient(player, step)
@@ -681,6 +794,109 @@ ReleaseStep.OnServerEvent:Connect(function(player, _limbIndex, step)
 	end
 end)
 
+-- doc 15 item 1: begin a run from the main menu. Only valid from Menu (a
+-- client stuck mid-Playing or mid-death-beat can't re-trigger it), and
+-- rate-limited the same way grabs are so a bot can't hammer it.
+local START_RUN_COOLDOWN = 1.0
+StartRun.OnServerEvent:Connect(function(player)
+	if runState[player] ~= RunState.Menu then
+		return
+	end
+	local now = os.clock()
+	if now < (lastStartRun[player] or 0) + START_RUN_COOLDOWN then
+		return
+	end
+	lastStartRun[player] = now
+
+	local lane = Lane.get(player)
+	local f = frogs[player]
+	if not lane or not f then
+		return
+	end
+	f.pos = lane.origin
+	f.gravityMult = Config.GRAVITY_MULT_START
+	f.dead = false
+	f.model:SetAttribute("Dead", false)
+	flysThisRun[player] = 0
+	bugsThisRun[player] = 0
+	lane:prefill(function(_state, kindName, worldPos)
+		acquireStep(lane, kindName, worldPos)
+	end)
+	setRunState(player, RunState.Playing)
+end)
+
+-- Settings (doc 15 item 3): music on/off is the whole MusicOn attribute
+-- contract another agent's client music system reads -- this script never
+-- plays anything, it only validates, persists, and republishes the attribute.
+SetMusicOn.OnServerEvent:Connect(function(player, value)
+	if typeof(value) ~= "boolean" then
+		return
+	end
+	local p = Profiles.get(player)
+	if not p then
+		return
+	end
+	p.musicOn = value
+	Profiles.save(player)
+	player:SetAttribute("MusicOn", value)
+end)
+
+-- "Replay tutorial" settings action (doc 15 item 3): only from Menu, so it
+-- can't clobber a run in progress. Reuses Lane:resetRun's existing Tutorial
+-- setup rather than duplicating it.
+ReplayTutorial.OnServerEvent:Connect(function(player)
+	if runState[player] ~= RunState.Menu then
+		return
+	end
+	local p = Profiles.get(player)
+	if not p then
+		return
+	end
+	p.tutorialDone = false
+	Profiles.save(player)
+	local lane = Lane.get(player)
+	if lane then
+		lane:resetRun(false) -- back to Tutorial; fires LevelChanged for the client's level-name toast
+	end
+end)
+
+-- Global top-scores board (doc 15 item 5): Profiles.topScores(10) + name
+-- resolution are both DataStore-ish calls, so cache the assembled list for 60s
+-- rather than hitting them on every panel open. Names are cached forever
+-- (a UserId's name essentially never changes mid-session) and resolved in a
+-- pcall so one bad lookup can't fail the whole board.
+local TOP_SCORES_TTL = 60
+local topScoresCache: { { userId: number, score: number, name: string } }? = nil
+local topScoresCachedAt = 0
+local nameCache: { [number]: string } = {}
+
+local function resolveName(userId: number): string
+	local cached = nameCache[userId]
+	if cached then
+		return cached
+	end
+	local ok, name = pcall(function()
+		return Players:GetNameFromUserIdAsync(userId)
+	end)
+	local resolved = if ok and typeof(name) == "string" then name else ("Player" .. userId)
+	nameCache[userId] = resolved
+	return resolved
+end
+
+GetTopScores.OnServerInvoke = function(_player: Player)
+	local now = os.clock()
+	if not topScoresCache or (now - topScoresCachedAt) > TOP_SCORES_TTL then
+		local raw = Profiles.topScores(10)
+		local list: { { userId: number, score: number, name: string } } = {}
+		for _, entry in raw do
+			table.insert(list, { userId = entry.userId, score = entry.score, name = resolveName(entry.userId) })
+		end
+		topScoresCache = list
+		topScoresCachedAt = now
+	end
+	return topScoresCache
+end
+
 -- ---------------------------------------------------------------------------
 -- Player lifecycle. Profiles owns persistence; once a profile is ready we
 -- create this player's Lane (doc 13), set up the run state, the leaderstats
@@ -692,16 +908,24 @@ local function initPlayer(player: Player)
 	ensureLeaderstats(player)
 	sessionScore[player] = 0
 	resetGrabQuality(player)
+	flysThisRun[player] = 0
+	bugsThisRun[player] = 0
 
 	local profile = Profiles.get(player)
 	local tutorialDone = profile ~= nil and profile.tutorialDone == true
 	local lane = Lane.new(player, tutorialDone, notifyLevelChanged) -- fires LevelChanged("start") itself
-	lane:prefill(function(_state, kindName, worldPos)
-		acquireStep(lane, kindName, worldPos)
-	end)
-
+	-- doc 15 item 1: no prefill here -- a fresh join starts in Menu with an
+	-- idle, empty lane; StartRun does the prefill once the player presses Play.
 	createFrog(player, lane)
 	pushScore(player)
+	setRunState(player, RunState.Menu)
+
+	-- MusicOn attribute contract (doc 15): the whole handshake for another
+	-- agent's client music system -- this script never plays anything, only
+	-- mirrors profile.musicOn onto the Player attribute.
+	if profile then
+		player:SetAttribute("MusicOn", profile.musicOn == true)
+	end
 end
 
 Profiles.Loaded:Connect(initPlayer)
@@ -732,4 +956,8 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	sessionScore[player] = nil
 	grabQuality[player] = nil
 	grabTimes[player] = nil
+	runState[player] = nil
+	lastStartRun[player] = nil
+	flysThisRun[player] = nil
+	bugsThisRun[player] = nil
 end)
