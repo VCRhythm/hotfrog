@@ -8,8 +8,9 @@ Every system of the original Unity game now has Luau behind it (docs 01–16).
 The whole tree passes `selene`, `stylua`, `rojo build` and `luau-lsp` strict
 analysis (the CI suite in `.github/workflows/ci.yml`).
 
-**Nothing has been run in Roblox Studio yet.** Spawn density, lane spacing,
-difficulty, UI scaling and how the game feels are all unverified. Each phase
+**Studio testing has only just begun** (2026-09-19: the uploaded frog sprites
+render, Invisible Man's fallback head confirmed). Spawn density, lane spacing,
+difficulty, UI scaling and how the game feels are still unverified. Each phase
 doc ends with a "needs a Studio playtest" list:
 
 - [13-levels-and-lanes.md](13-levels-and-lanes.md#known-risks-needing-a-studio-playtest)
@@ -42,7 +43,6 @@ doc ends with a "needs a Studio playtest" list:
 |---|---|---|---|
 | Skin thumbnails for Blue / Space / Mystery Frog | store | no thumbnail file in `Sprites/Menu` | draw them; the UI falls back to the Head sprite meanwhile |
 | "Drugged" frog effect (`Frog.cs MakeDrugged`) | cosmetics | nothing in the port triggers it | only if a step type re-introduces it |
-| Invisible Man inherits Hot Frog's head | skins | `SkinAssets.part()` falls back to Hot Frog like the Unity prefabs | if it looks wrong in game, add a per-skin "no fallback" flag |
 | `HeatBackground` / `LavaGradient` materials | backdrop | wired in `WorldBackdrop` but no level references them (same as Unity) | nothing, unless a level is retuned to use them |
 | Lava height maps (`Lava_01_H1/H2.tga`) | backdrop | custom Unity shader inputs, no Roblox equivalent | n/a — `LavaGradient` uses the flat `Lava_01` texture |
 | Camera aspect for `Movements` offsets | spawning | Unity scaled `Movements` by the runtime screen aspect, which the prefab dump doesn't record; the port assumes the lane's half-width is the screen edge and clamps into the recycle margin | playtest; retune `Levels.luau`'s `MOVEMENTS_*_SCALE` if spawn positions feel wrong |
@@ -59,6 +59,7 @@ doc ends with a "needs a Studio playtest" list:
 | Music toggle save spam | `Config.MUSIC_SAVE_DEBOUNCE` (5 s); the value applies immediately, the leave/BindToClose save is unconditional |
 | Per-spawner `Movements` | all step and scenery spawner lists in `Levels.luau`; `Lane.luau` mirrors `Spawner.Move()` (discrete jump vs. tween) (doc 13) |
 | Bugs-this-run counter | `BugService` fires a `BugCaughtServer` bindable; the `AwardFlys` amount heuristic is gone |
+| Invisible Man inherits Hot Frog's head | checked in Studio with the uploaded sprites — looks right, the Unity-style `SkinAssets.part()` fallback stays |
 
 ## Deliberate deviations from Unity
 
