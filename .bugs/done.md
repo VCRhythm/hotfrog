@@ -30,3 +30,12 @@ files: docs/roblox-port/17-status-and-known-gaps.md
 test: none
 verified: see b-20260919-140016-dm0e
 review: n/a
+
+## b-20260919-155020-2sli  ignored  2026-09-19 15:55
+note: AUTO warning (server): Infinite yield possible on 'ReplicatedStorage.Shared:WaitForChild("GameDefs")'
+cause: not from this project. The stack is the local Studio plugin user_BuildingStatsEditor (another project's tool) waiting for a GameDefs module hotfrog does not have; nothing in the repo references GameDefs.
+change: none
+files: none
+test: none
+verified: grep for GameDefs across the repo returns nothing
+review: n/a
