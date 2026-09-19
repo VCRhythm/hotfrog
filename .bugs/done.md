@@ -12,3 +12,21 @@ review: n/a
 ## b-20260919-135837-n9hp  closed-by-user  2026-09-19 13:59
 note: I'm not seeing the frog sprites on load. the flies are also just placeholders, not using the actual sprites
 resolved: from dashboard
+
+## b-20260919-140016-dm0e  cannot-reproduce  2026-09-19 15:00
+note: I'm not seeing the frog sprites on load. the flies are also just placeholders, not using the actual sprites
+cause: user ruling "use mcp to do this" (b-20260919-144352-5rbt): the Studio check was run via the Roblox_Studio MCP. The texturing pipeline is correct; assetType=Image upload ids render directly, and the live frog and bug instances carry correct Suffix/Sprite attributes with non-zero Texture ids on server and client, no console errors. The original repro likely predates the working state.
+change: no code change; doc 17 step 2 now records the Image-id render check as verified.
+files: docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: Studio via MCP: edit-mode Decal with rbxassetid://132401989626297 rendered (screen capture); playtest inspection of Frog_<UserId>.Body.Body and BugTemplate.Art on server and client. Play-mode screen capture came back black (MCP capture limitation), so in-play confirmation is by property inspection, not a picture.
+review: n/a
+
+## b-20260919-144352-5rbt  cannot-reproduce  2026-09-19 15:00
+note: DECISION: use mcp to do this (reopens b-20260919-140016-dm0e)
+cause: answer to b-20260919-140016-dm0e; see that block.
+change: none
+files: docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: see b-20260919-140016-dm0e
+review: n/a

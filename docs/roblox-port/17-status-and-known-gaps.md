@@ -28,8 +28,11 @@ doc ends with a "needs a Studio playtest" list:
    already holds ~100 uploaded ids (`status: resolved-direct`); the remaining
    entries — including the five background/US-map images added the same day —
    are still `id = 0`. Run `tools/write_asset_ids.py` to pull cached ids into
-   `SkinAssets` / `SoundAssets`, then spot-check one image in Studio: whether an
-   `assetType=Image` upload id renders directly is still unverified.
+   `SkinAssets` / `SoundAssets`, then spot-check one image in Studio: confirmed
+   2026-09-19 via MCP (`HotFrogBody`, `rbxassetid://132401989626297`, pasted into
+   a test Decal and into the live `Frog_<UserId>`/`BugTemplate` instances during
+   a playtest) — an `assetType=Image` upload id does render directly from
+   script, on both server and client, no `--resolve-only` re-upload needed.
 3. **Create products** and paste ids:
    - 4 Game Passes → `src/shared/SkinCatalog.luau` (`gamePassId`)
    - Fly-pack Developer Products → `FLY_PRODUCTS` in
