@@ -104,7 +104,7 @@ if not template then
 	part.CanCollide = false
 	part.Color = Color3.fromRGB(60, 60, 60)
 	local decal = Instance.new("Decal")
-	decal.Face = Enum.NormalId.Front
+	decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 	decal:SetAttribute("Sprite", "Bug") -- Sprites/Other/Bug.png via SkinAssets
 	decal.Parent = part
 	part.Parent = assets

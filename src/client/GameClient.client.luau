@@ -245,9 +245,11 @@ local function expandTongue(targetPos: Vector3)
 	tongue.Color = Color3.fromRGB(214, 86, 110)
 	tongue.Material = Enum.Material.SmoothPlastic
 	tongue.Size = Vector3.new(0.6, 0.6, 0.1)
-	tongue.CFrame = CFrame.lookAt(from, targetPos)
+	-- up = world +Z keeps the stretched part's Top face pointing at the camera
+	-- (which sits at +Z), so the tongue sprite is never edge-on to it.
+	tongue.CFrame = CFrame.lookAt(from, targetPos, Vector3.zAxis)
 	local decal = Instance.new("Decal")
-	decal.Face = Enum.NormalId.Front
+	decal.Face = Enum.NormalId.Top
 	decal:SetAttribute("Sprite", "UniversalTongue") -- Sprites/Frogs/Universal art
 	decal.Parent = tongue
 	SpriteSkin.apply(tongue)
@@ -256,12 +258,12 @@ local function expandTongue(targetPos: Vector3)
 	-- grow toward the target (part scales from its centre, so walk the midpoint out)
 	local grow = TweenService:Create(tongue, TweenInfo.new(Config.TONGUE_EXPAND_TIME), {
 		Size = Vector3.new(0.6, 0.6, length),
-		CFrame = CFrame.lookAt(from, targetPos) * CFrame.new(0, 0, -length / 2),
+		CFrame = CFrame.lookAt(from, targetPos, Vector3.zAxis) * CFrame.new(0, 0, -length / 2),
 	})
 	grow.Completed:Once(function()
 		local shrink = TweenService:Create(tongue, TweenInfo.new(Config.TONGUE_RETRACT_TIME), {
 			Size = Vector3.new(0.6, 0.6, 0.1),
-			CFrame = CFrame.lookAt(from, targetPos),
+			CFrame = CFrame.lookAt(from, targetPos, Vector3.zAxis),
 		})
 		shrink.Completed:Once(function()
 			tongue:Destroy()

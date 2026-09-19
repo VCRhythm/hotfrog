@@ -179,7 +179,11 @@ local function updatePupils(state: FrogState, dt: number)
 	if target then
 		local localPoint = head.CFrame:PointToObjectSpace(target)
 		local reach = 3 -- studs of local offset that maxes out the pupil travel (ADAPTED clamp)
-		targetU = math.clamp(localPoint.X / reach, -1, 1) * WorldConfig.PUPIL_MAX_OFFSET
+		-- U is negated: the sprites sit on each part's Back (+Z) face, and there a
+		-- POSITIVE OffsetStudsU slides the image the -X way -- away from a target
+		-- on the frog's right. V needs no flip (+V slides the image up). Measured
+		-- in Studio 2026-09-19 with an offset test rig, see SpriteSkin's header.
+		targetU = -math.clamp(localPoint.X / reach, -1, 1) * WorldConfig.PUPIL_MAX_OFFSET
 		targetV = math.clamp(localPoint.Y / reach, -1, 1) * WorldConfig.PUPIL_MAX_OFFSET
 	end
 

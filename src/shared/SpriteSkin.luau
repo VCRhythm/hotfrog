@@ -11,6 +11,14 @@
 --   Suffix = "<suffix>" per-skin frog part — e.g. "Body", "Head", "LeftHandGrab"
 --                        (resolved by SkinAssets.part(skinName, suffix))
 -- A part with `Suffix` needs a skinName passed to apply(); `Sprite` does not.
+--
+-- FACE: the camera sits at +Z looking -Z (GameClient), so a sprite is only
+-- visible on a part's `Back` (+Z) face -- Roblox's `Front` is -Z, i.e. facing
+-- away. Every Decal/Texture in this port is created with Face = Back. The image
+-- reads un-mirrored from the camera there, but the face's U axis runs the other
+-- way than on `Front`: a POSITIVE `Texture.OffsetStudsU` slides the image
+-- towards -X (screen-left), while a positive `OffsetStudsV` slides it up.
+-- (Measured in Studio 2026-09-19; `WorldFrogCosmetics`'s pupils negate U.)
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)

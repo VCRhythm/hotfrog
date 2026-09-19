@@ -32,6 +32,31 @@ local Levels = require(ReplicatedStorage.Shared.Levels)
 local Profiles = require(script.Parent.Profiles)
 local Lane = require(script.Parent.Lane)
 
+-- The player's avatar is the frog model, not a Roblox character: the default
+-- character spawns at the origin, standing in front of lane 0's frog art plane
+-- and hiding its sprites. Nothing in this port reads Player.Character. The flag
+-- alone isn't enough -- a player can already have joined (and auto-loaded)
+-- before this script runs, e.g. Studio's play-solo -- so drop any character that
+-- appears anyway.
+Players.CharacterAutoLoads = false
+
+local function dropCharacter(character: Model)
+	character:Destroy()
+end
+
+local function disownCharacter(player: Player)
+	player.CharacterAdded:Connect(dropCharacter)
+	local character = player.Character
+	if character then
+		dropCharacter(character)
+	end
+end
+
+Players.PlayerAdded:Connect(disownCharacter)
+for _, player in Players:GetPlayers() do
+	disownCharacter(player)
+end
+
 -- ---------------------------------------------------------------------------
 -- Remotes (auto-created so you don't have to build them by hand)
 -- ---------------------------------------------------------------------------
@@ -257,7 +282,7 @@ local function flingSplash(step: BasePart)
 	splash.Anchored = false
 	splash.CFrame = step.CFrame
 	local decal = Instance.new("Decal")
-	decal.Face = Enum.NormalId.Front
+	decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 	local flingeeSprite = step:GetAttribute("FlingeeSprite")
 	decal:SetAttribute("Sprite", if typeof(flingeeSprite) == "string" then flingeeSprite else "Flame")
 	decal.Parent = splash
@@ -603,6 +628,11 @@ local function createFrog(player: Player, lane: Lane.Lane)
 	body.CFrame = CFrame.new(lane.origin)
 	frogs[player] = state
 	model.Parent = frogContainer
+	-- This place has instance streaming on, and streaming normally centres on the
+	-- character's root part -- which no longer exists (CharacterAutoLoads is off
+	-- above), leaving the client with an empty workspace. Focus it on this
+	-- player's own frog body, which is always inside their lane.
+	player.ReplicationFocus = body
 end
 
 -- doc 15 item 1: death now ends the run rather than auto-respawning into

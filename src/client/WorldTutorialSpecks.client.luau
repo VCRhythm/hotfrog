@@ -46,7 +46,7 @@ local function createSpeckPart(): BasePart
 	part.Material = Enum.Material.Neon
 	part.Color = WorldConfig.SPECK_COLORS[math.random(1, #WorldConfig.SPECK_COLORS)]
 	local decal = Instance.new("Decal")
-	decal.Face = Enum.NormalId.Front
+	decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 	decal:SetAttribute("Sprite", "Speck")
 	decal.Parent = part
 	SpriteSkin.apply(part)

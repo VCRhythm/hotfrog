@@ -8,8 +8,30 @@ Every system of the original Unity game now has Luau behind it (docs 01–16).
 The whole tree passes `selene`, `stylua`, `rojo build` and `luau-lsp` strict
 analysis (the CI suite in `.github/workflows/ci.yml`).
 
-**Studio testing has only just begun** (2026-09-19: the uploaded frog sprites
-render, Invisible Man's fallback head confirmed). Spawn density, lane spacing,
+**Studio testing has only just begun.** 2026-09-19: the uploaded ids resolve and
+the images load on the client (`ContentProvider:GetAssetFetchStatus` → `Success`),
+and Invisible Man's fallback head is right — but nothing was actually _on screen_
+until the same day's fix: every `Decal`/`Texture` was authored on the part's
+`Front` face, which in Roblox is **-Z**, i.e. pointing away from the camera at
++Z, and the default Roblox character spawned at the origin in front of lane 0's
+frog. Both are fixed (`Face = Back` everywhere; `Players.CharacterAutoLoads =
+false` plus a `ReplicationFocus` on the frog body, since this place has instance
+streaming on). The evidence for those two is computed (face normals vs. the
+camera look vector, a clear raycast from the camera to every frog part), **not
+photographic** — Studio MCP `screen_capture` works in Edit mode (it needs a
+`capture_id`) but times out in Play mode, so no screenshot has yet confirmed the
+frog's own pixels in a run.
+
+The face flip has a horizontal consequence, checked the same day with an
+edit-mode capture of a known-asymmetric sprite at ±¼-tile offsets: on `Back` the
+image still reads **un-mirrored** from the camera, but the face's U axis runs the
+opposite way from `Front` — a **positive `Texture.OffsetStudsU` slides the image
+towards -X (screen-left)**, while a positive `OffsetStudsV` slides it up. Only
+the pupils use those offsets (`WorldFrogCosmetics`), and they now negate U so the
+frog looks _at_ its target; V was already right. Left\*/Right\* parts are
+unaffected — nothing in `src/` rotates or negative-scales a part, and the
+template's limb X signs match the Unity dump in doc 12 (`LeftLimb` at -X).
+Spawn density, lane spacing,
 difficulty, UI scaling and how the game feels are still unverified. Each phase
 doc ends with a "needs a Studio playtest" list:
 
@@ -29,10 +51,13 @@ doc ends with a "needs a Studio playtest" list:
    entries — including the five background/US-map images added the same day —
    are still `id = 0`. Run `tools/write_asset_ids.py` to pull cached ids into
    `SkinAssets` / `SoundAssets`, then spot-check one image in Studio: confirmed
-   2026-09-19 via MCP (`HotFrogBody`, `rbxassetid://132401989626297`, pasted into
-   a test Decal and into the live `Frog_<UserId>`/`BugTemplate` instances during
-   a playtest) — an `assetType=Image` upload id does render directly from
-   script, on both server and client, no `--resolve-only` re-upload needed.
+   2026-09-19 via MCP (`HotFrogBody`, `rbxassetid://132401989626297`, on the live
+   `Frog_<UserId>`/`BugTemplate` instances during a playtest) — an
+   `assetType=Image` upload id loads directly from script, on both server and
+   client, no `--resolve-only` re-upload needed. Note that a non-zero `Texture`
+   property is **not** proof the art is visible: these same instances were
+   invisible for a day because their decals faced away from the camera (see
+   Status above).
 3. **Create products** and paste ids:
    - 4 Game Passes → `src/shared/SkinCatalog.luau` (`gamePassId`)
    - Fly-pack Developer Products → `FLY_PRODUCTS` in

@@ -16,7 +16,7 @@
       },
       "attributes": { "Rojo_Id": "frogBody" },
       "children": [
-        { "name": "Body", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "Body" } }
+        { "name": "Body", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "Body" } }
       ]
     },
     {
@@ -32,26 +32,26 @@
         "Material": "SmoothPlastic"
       },
       "children": [
-        { "name": "Head", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "Head" } },
-        { "name": "Mouth", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "Mouth" } },
-        { "name": "LeftEye", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "LeftEye" } },
-        { "name": "RightEye", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "RightEye" } },
-        { "name": "LowLeftEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LowLeftEyelid" } },
-        { "name": "LowRightEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LowRightEyelid" } },
-        { "name": "LowerLeftEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LowerLeftEyelid" } },
-        { "name": "LowerRightEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LowerRightEyelid" } },
-        { "name": "ClosedLeftEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedLeftEyelid" } },
-        { "name": "ClosedRightEyelid", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedRightEyelid" } },
+        { "name": "Head", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "Head" } },
+        { "name": "Mouth", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "Mouth" } },
+        { "name": "LeftEye", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "LeftEye" } },
+        { "name": "RightEye", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "RightEye" } },
+        { "name": "LowLeftEyelid", "className": "Decal", "properties": { "Face": "Back", "Transparency": 1.0 }, "attributes": { "Suffix": "LowLeftEyelid" } },
+        { "name": "LowRightEyelid", "className": "Decal", "properties": { "Face": "Back", "Transparency": 1.0 }, "attributes": { "Suffix": "LowRightEyelid" } },
+        { "name": "LowerLeftEyelid", "className": "Decal", "properties": { "Face": "Back", "Transparency": 1.0 }, "attributes": { "Suffix": "LowerLeftEyelid" } },
+        { "name": "LowerRightEyelid", "className": "Decal", "properties": { "Face": "Back", "Transparency": 1.0 }, "attributes": { "Suffix": "LowerRightEyelid" } },
+        { "name": "ClosedLeftEyelid", "className": "Decal", "properties": { "Face": "Back", "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedLeftEyelid" } },
+        { "name": "ClosedRightEyelid", "className": "Decal", "properties": { "Face": "Back", "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedRightEyelid" } },
         {
           "name": "LeftPupil",
           "className": "Texture",
-          "properties": { "Face": "Front", "StudsPerTileU": 1.6, "StudsPerTileV": 1.6 },
+          "properties": { "Face": "Back", "StudsPerTileU": 1.6, "StudsPerTileV": 1.6 },
           "attributes": { "Suffix": "LeftPupil" }
         },
         {
           "name": "RightPupil",
           "className": "Texture",
-          "properties": { "Face": "Front", "StudsPerTileU": 1.6, "StudsPerTileV": 1.6 },
+          "properties": { "Face": "Back", "StudsPerTileU": 1.6, "StudsPerTileV": 1.6 },
           "attributes": { "Suffix": "RightPupil" }
         }
       ]
@@ -69,9 +69,9 @@
         "Material": "SmoothPlastic"
       },
       "children": [
-        { "name": "RightLimb", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "RightLimb" } },
-        { "name": "RightHand", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "RightHand" } },
-        { "name": "RightHandGrab", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "RightHandGrab" } }
+        { "name": "RightLimb", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "RightLimb" } },
+        { "name": "RightHand", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "RightHand" } },
+        { "name": "RightHandGrab", "className": "Decal", "properties": { "Face": "Back", "Transparency": 1.0 }, "attributes": { "Suffix": "RightHandGrab" } }
       ]
     },
     {
@@ -87,9 +87,9 @@
         "Material": "SmoothPlastic"
       },
       "children": [
-        { "name": "LeftLimb", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "LeftLimb" } },
-        { "name": "LeftHand", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Suffix": "LeftHand" } },
-        { "name": "LeftHandGrab", "className": "Decal", "properties": { "Face": "Front", "Transparency": 1.0 }, "attributes": { "Suffix": "LeftHandGrab" } }
+        { "name": "LeftLimb", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "LeftLimb" } },
+        { "name": "LeftHand", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "LeftHand" } },
+        { "name": "LeftHandGrab", "className": "Decal", "properties": { "Face": "Back", "Transparency": 1.0 }, "attributes": { "Suffix": "LeftHandGrab" } }
       ]
     }
   ]

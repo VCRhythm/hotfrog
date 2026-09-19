@@ -45,7 +45,7 @@ dot.Transparency = 1
 dot.Color = WorldConfig.TOUCH_INDICATOR_GREEN
 
 local decal = Instance.new("Decal")
-decal.Face = Enum.NormalId.Front
+decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 decal:SetAttribute("Sprite", "Circle")
 decal.Transparency = 1
 decal.Parent = dot

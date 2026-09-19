@@ -14,7 +14,7 @@
         "Material": "Neon"
       },
       "children": [
-        { "name": "Art", "className": "Decal", "properties": { "Face": "Front" }, "attributes": { "Sprite": "LavaSplash" } }
+        { "name": "Art", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Sprite": "LavaSplash" } }
       ]
     },
     { "name": "Steps", "className": "Folder" },

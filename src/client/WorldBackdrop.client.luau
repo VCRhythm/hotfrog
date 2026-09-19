@@ -103,7 +103,7 @@ local function makeBackgroundTile(index: number): BasePart
 	-- Color (tweened below) shows through as the flat-colour fallback, same
 	-- convention SpriteSkin.apply/id=0 use everywhere else in this port.
 	local texture = Instance.new("Texture")
-	texture.Face = Enum.NormalId.Front
+	texture.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 	texture.StudsPerTileU = TILE_WIDTH
 	texture.StudsPerTileV = TILE_HEIGHT
 	texture.Parent = tile
@@ -181,7 +181,7 @@ overlay.Material = Enum.Material.SmoothPlastic
 overlay.Color = WorldConfig.OVERLAY_COLOR
 overlay.Transparency = 1
 local overlayTexture = Instance.new("Texture")
-overlayTexture.Face = Enum.NormalId.Front
+overlayTexture.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 overlayTexture.StudsPerTileU = TILE_WIDTH
 overlayTexture.StudsPerTileV = TILE_HEIGHT
 overlayTexture.Parent = overlay
@@ -214,7 +214,7 @@ sun.CanQuery = false
 sun.Material = Enum.Material.Neon
 sun.Color = WorldConfig.SUN_DAY_COLOR
 local sunDecal = Instance.new("Decal")
-sunDecal.Face = Enum.NormalId.Front
+sunDecal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 sunDecal:SetAttribute("Sprite", "Sun")
 sunDecal.Parent = sun
 SpriteSkin.apply(sun)

@@ -102,7 +102,7 @@ local function build(origin: Vector3): Attract
 		part.Material = Enum.Material.SmoothPlastic
 		part.Color = Color3.fromRGB(190, 190, 170)
 		local decal = Instance.new("Decal")
-		decal.Face = Enum.NormalId.Front
+		decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 		decal:SetAttribute("Sprite", "WhiteRock") -- doc 13: already a SkinAssets stem, flat placeholder until art is uploaded
 		decal.Parent = part
 		SpriteSkin.apply(part)

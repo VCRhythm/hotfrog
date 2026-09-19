@@ -62,7 +62,7 @@ local function createSceneryPart(kindName: string): BasePart
 
 	if kind and kind.sprite then
 		local decal = Instance.new("Decal")
-		decal.Face = Enum.NormalId.Front
+		decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 		decal:SetAttribute("Sprite", kind.sprite)
 		decal.Parent = part
 		SpriteSkin.apply(part)
@@ -114,7 +114,7 @@ local function makeUSLayer(spriteStem: string): (BasePart, Decal)
 	part.CanQuery = false
 	part.Material = Enum.Material.SmoothPlastic
 	local decal = Instance.new("Decal")
-	decal.Face = Enum.NormalId.Front
+	decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 	decal:SetAttribute("Sprite", spriteStem)
 	decal.Parent = part
 	SpriteSkin.apply(part)
