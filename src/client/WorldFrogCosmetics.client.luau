@@ -45,6 +45,10 @@ type FrogState = {
 	leftPupil: Texture?,
 	rightPupil: Texture?,
 	eyelids: Eyelids?,
+	leftHandOpen: Decal?,
+	leftHandGrab: Decal?,
+	rightHandOpen: Decal?,
+	rightHandGrab: Decal?,
 	alive: boolean, -- false once the model is torn down; stops the blink coroutine
 	dead: boolean, -- mirrors the model's Dead attribute
 	pupilU: number,
@@ -198,6 +202,25 @@ local function updatePupils(state: FrogState, dt: number)
 end
 
 -- ---------------------------------------------------------------------------
+-- Hand grab (Limb.cs OpenHand/CloseHand: show the closed-grip decal and hide
+-- the open-hand decal while a limb holds a step, ADAPTED to per-limb held
+-- inference from GrabTarget since the server doesn't replicate which limb
+-- holds a step)
+-- ---------------------------------------------------------------------------
+local function updateHandGrab(state: FrogState)
+	if state.rightLimb and state.rightHandOpen and state.rightHandGrab then
+		local held = GrabTarget.limbHeldPosition(state.body, state.rightLimb, 1) ~= nil
+		state.rightHandOpen.Transparency = if held then 1 else 0
+		state.rightHandGrab.Transparency = if held then 0 else 1
+	end
+	if state.leftLimb and state.leftHandOpen and state.leftHandGrab then
+		local held = GrabTarget.limbHeldPosition(state.body, state.leftLimb, 2) ~= nil
+		state.leftHandOpen.Transparency = if held then 1 else 0
+		state.leftHandGrab.Transparency = if held then 0 else 1
+	end
+end
+
+-- ---------------------------------------------------------------------------
 -- Lifecycle
 -- ---------------------------------------------------------------------------
 local function findDecal(parent: Instance, name: string): Decal?
@@ -222,6 +245,11 @@ local function trackFrog(model: Model)
 	local head = if headInst and headInst:IsA("BasePart") then headInst else nil
 	local rightInst = model:FindFirstChild("RightLimb")
 	local leftInst = model:FindFirstChild("LeftLimb")
+	local rightLimbPart = if rightInst and rightInst:IsA("BasePart") then rightInst else nil
+	local leftLimbPart = if leftInst and leftInst:IsA("BasePart") then leftInst else nil
+
+	local rightHandPart = rightLimbPart and rightLimbPart:FindFirstChild("RightHand")
+	local leftHandPart = leftLimbPart and leftLimbPart:FindFirstChild("LeftHand")
 
 	local eyelids: Eyelids? = nil
 	if head then
@@ -245,11 +273,19 @@ local function trackFrog(model: Model)
 		userId = (model:GetAttribute("UserId") :: number?) or 0,
 		body = body,
 		head = head,
-		rightLimb = if rightInst and rightInst:IsA("BasePart") then rightInst else nil,
-		leftLimb = if leftInst and leftInst:IsA("BasePart") then leftInst else nil,
+		rightLimb = rightLimbPart,
+		leftLimb = leftLimbPart,
 		leftPupil = if head then findTexture(head, "LeftPupil") else nil,
 		rightPupil = if head then findTexture(head, "RightPupil") else nil,
 		eyelids = eyelids,
+		leftHandOpen = if leftHandPart and leftHandPart:IsA("BasePart")
+			then findDecal(leftHandPart, "LeftHand")
+			else nil,
+		leftHandGrab = if leftLimbPart then findDecal(leftLimbPart, "LeftHandGrab") else nil,
+		rightHandOpen = if rightHandPart and rightHandPart:IsA("BasePart")
+			then findDecal(rightHandPart, "RightHand")
+			else nil,
+		rightHandGrab = if rightLimbPart then findDecal(rightLimbPart, "RightHandGrab") else nil,
 		alive = true,
 		dead = model:GetAttribute("Dead") == true,
 		pupilU = 0,
@@ -301,6 +337,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 	for _, state in states do
 		if not state.dead then
 			updatePupilTarget(state, now)
+			updateHandGrab(state)
 		else
 			state.lookTarget = nil
 		end

@@ -75,7 +75,6 @@ doc ends with a "needs a Studio playtest" list:
 | Lava height maps (`Lava_01_H1/H2.tga`) | backdrop | custom Unity shader inputs, no Roblox equivalent | n/a — `LavaGradient` uses the flat `Lava_01` texture |
 | Step / scenery sprite sizing | `StepKinds.luau`, `Levels.luau`, step + scenery parts | the frog rig was re-derived from `HotFrog.prefab`'s real sprite canvases (below), but every step/scenery part is still an arbitrary collider-sized box that stretches a padded Unity canvas into it | dump each step/scenery prefab with UnityPy the same way (sprite `spritePixelsToUnits`, `alignment`, `localScale`) and size the parts `pixels / ppu * UNITY_TO_STUDS` |
 | Attract-mode ladder scale | `WorldConfig.ATTRACT_*` | the vignette's rung size/offsets were tuned beside the old, ~4× too small frog | retune once the corrected frog is seen in Studio |
-| `*HandGrab` decals | frog cosmetics | the open/closed hand sprites exist on the rig but nothing in `src/` swaps them when a limb grabs | swap `Transparency` between `<side>Hand` and `<side>HandGrab` in `WorldFrogCosmetics.client.luau` off the existing held-step inference |
 | Camera aspect for `Movements` offsets | spawning | Unity scaled `Movements` by the runtime screen aspect, which the prefab dump doesn't record; the port assumes the lane's half-width is the screen edge and clamps into the recycle margin | playtest; retune `Levels.luau`'s `MOVEMENTS_*_SCALE` if spawn positions feel wrong |
 
 ### Closed on 2026-09-19
@@ -94,6 +93,7 @@ doc ends with a "needs a Studio playtest" list:
 | Frog rig size and sprite framing | `FrogModel.model.json` rebuilt from `HotFrog.prefab`'s own sprite data (UnityPy dump): head/body/face are one shared 1024 px @ 8 ppu canvas (= 40.23 studs), limbs 1024 px @ 12 ppu (= 26.82 studs), grab hands 256 px @ 12 ppu, each part sized to the **whole** canvas because a `Decal` always stretches and centres the full image. `Config.LIMB_REST` now uses the prefab's real limb offsets × `UNITY_TO_STUDS` (it was Unity/10, i.e. ~3.1× too small) and `WorldConfig.PUPIL_MAX_OFFSET` was rescaled to the new head face |
 | Camera framing | `GameClient.client.luau`: distance 43.2 studs at FOV 40 shows exactly Unity's orthographic size 50 (100 Unity units ≈ 31.43 studs) vertically; it was 60 studs, ~1.4× too much world. With the rig fix the frog now spans ≈93 % of screen height, as in Unity |
 | Opaque sprite backgrounds | every part that only hosts a `Decal`/`Texture` is now `Transparency = 1` (`StepTemplate`/`BugTemplate` `.model.json`, `BugService` fallback, `WorldAttract` rungs, all `FrogModel` parts) — a coloured host part read as an opaque box behind each sprite's alpha |
+| `*HandGrab` decals | `WorldFrogCosmetics.client.luau` toggles `Transparency` between `<side>Hand` and `<side>HandGrab` every Heartbeat, per limb, off `GrabTarget.limbHeldPosition` (the same held-step inference pupil tracking already used) — verified live in Studio for both limbs |
 
 ## Deliberate deviations from Unity
 
