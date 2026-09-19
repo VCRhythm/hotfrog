@@ -66,3 +66,12 @@ files: src/server/Profiles.luau
 test: none
 verified: headless only: stylua --check, selene and tools/luau_check.sh pass on the file; not run in Studio (another fixer was driving Studio)
 review: n/a
+
+## b-20260919-161227-4uzb  ignored  2026-09-19 16:35
+note: AUTO warning (server): DataStore request was added to queue ... Key = u_4272203669
+cause: Roblox's per-key throttle notice, raised while Studio playtests were restarted back to back and Profiles load() kept retrying UpdateAsync on the same key waiting out the previous Studio session's lock. That retry loop no longer runs in Studio after b-20260919-160647-fhkj. Not verified by a repro; if it shows up in a normal single playtest, file it by hand so it gets looked at.
+change: none
+files: none
+test: none
+verified: not run: inferred from timing (16:12, during the repeated playtests, 6 minutes after the session-lock warning on the same key)
+review: n/a
