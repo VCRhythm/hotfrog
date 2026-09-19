@@ -13,18 +13,22 @@
 -- speedModifier -- a parallax multiplier, same tween shape GameServer already
 -- uses for steps. `moving` kinds (Bubble/Chef, MovingScenery.cs) ignore pulls
 -- and drift by their own constant direction*speed instead. Flat anchored,
--- non-collide, CanQuery=false throughout -- must never eat taps or block
--- raycasts to steps/bugs (doc 12 TouchIndicator/GameClient rely on that).
+-- non-collide, CanQuery=false for every kind except `poppable` ones (Bubble,
+-- doc 14 "Bubble pop", further down) -- must never eat taps or block raycasts
+-- to steps/bugs (doc 12 TouchIndicator/GameClient rely on that; see the pop
+-- section's own comment for why CanQuery=true there is still safe).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
+local UserInputService = game:GetService("UserInputService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Levels = require(ReplicatedStorage.Shared.Levels)
 local SceneryKinds = require(ReplicatedStorage.Shared.SceneryKinds)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
+local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 local Pool = require(script.Parent.world.Pool)
 
 local playField = workspace:WaitForChild("PlayField")
@@ -46,7 +50,13 @@ local function createSceneryPart(kindName: string): BasePart
 	part.Size = if kind then kind.size else Vector3.new(2, 2, 0.2)
 	part.Anchored = true
 	part.CanCollide = false
-	part.CanQuery = false
+	-- CanQuery stays false for every kind EXCEPT `poppable` ones (Bubble) -- those
+	-- need to be raycast-hittable by this file's own pop input below. Safe: doc
+	-- 17/this header's "must never eat taps meant for steps/bugs" guarantee comes
+	-- from GameClient's raycast being Include-filtered to the Steps/Bugs folders
+	-- only (scenery parts live directly under workspace, never inside either), so
+	-- CanQuery here is invisible to that raycast regardless of its own value.
+	part.CanQuery = if kind and kind.poppable then true else false
 	part.Material = Enum.Material.SmoothPlastic
 	part.Color = if kind and #kind.colors > 0 then kind.colors[1] else Color3.fromRGB(200, 200, 200)
 
@@ -59,6 +69,81 @@ local function createSceneryPart(kindName: string): BasePart
 	end
 
 	return part
+end
+
+-- ---------------------------------------------------------------------------
+-- "US" levelObject (Country, doc 11 §3 / doc 17 known gap "US map for
+-- Country"): UnitedStates.cs's two-color map cutout -- two SpriteRenderers
+-- (USBlueStates/USRedStates), continuously swapping between the script's own
+-- `colors` array (SceneryKinds.defs.US.colors, extracted doc 14) every 5s
+-- (UnitedStates.cs ChangeColors), staggered one index apart. SceneryKinds
+-- carries the colors/size but not this compound two-sprite/animated-tint
+-- shape, so it's built directly here -- same as Chef.
+-- ---------------------------------------------------------------------------
+local US_SWAP_PERIOD = 5 -- UnitedStates.cs's DOColor(..., 5f) + WaitForSeconds(5f)
+
+local function makeUSColorTweens(part: BasePart, decal: Decal, color: Color3): (Tween, Tween)
+	return TweenService:Create(part, TweenInfo.new(US_SWAP_PERIOD), { Color = color }),
+		TweenService:Create(decal, TweenInfo.new(US_SWAP_PERIOD), { Color3 = color })
+end
+
+-- Loops forever: tween to colors[startIndex], and the instant that finishes,
+-- start tweening to the next one -- mirrors UnitedStates.cs's coroutine (the
+-- next DOColor call happens exactly when WaitForSeconds(5f) elapses, the same
+-- duration as the tween itself, so there's no pause between swaps).
+local function loopUSColor(part: BasePart, decal: Decal, colors: { Color3 }, startIndex: number)
+	local index = startIndex
+	local function step()
+		local color = colors[((index - 1) % #colors) + 1]
+		index += 1
+		local partTween, decalTween = makeUSColorTweens(part, decal, color)
+		decalTween.Completed:Once(step)
+		partTween:Play()
+		decalTween:Play()
+	end
+	step()
+end
+
+local function makeUSLayer(spriteStem: string): (BasePart, Decal)
+	local kind = SceneryKinds.defs.US
+	local part = Instance.new("Part")
+	part.Name = "Scenery_" .. spriteStem
+	part.Size = if kind then kind.size else Vector3.new(9, 5.5, 0.2)
+	part.Anchored = true
+	part.CanCollide = false
+	part.CanQuery = false
+	part.Material = Enum.Material.SmoothPlastic
+	local decal = Instance.new("Decal")
+	decal.Face = Enum.NormalId.Front
+	decal:SetAttribute("Sprite", spriteStem)
+	decal.Parent = part
+	SpriteSkin.apply(part)
+	return part, decal
+end
+
+-- Two thin stacked parts (tiny Z offset, same trick as WorldBackdrop's
+-- background tiles) instead of one part with two overlapping Decals on the
+-- same face -- Roblox doesn't guarantee draw order for that. Both sprites are
+-- cutout shapes covering different pixel regions of the same map, so the
+-- z-order between them barely matters.
+local function createUSPair(position: Vector3): { BasePart }
+	local kind = SceneryKinds.defs.US
+	local colors = if kind and #kind.colors > 0
+		then kind.colors
+		else { Color3.fromRGB(0, 0, 255), Color3.fromRGB(255, 0, 0) }
+
+	local bluePart, blueDecal = makeUSLayer("USBlueStates")
+	bluePart.CFrame = CFrame.new(position + Vector3.new(0, 0, -0.05))
+	bluePart.Parent = workspace
+
+	local redPart, redDecal = makeUSLayer("USRedStates")
+	redPart.CFrame = CFrame.new(position)
+	redPart.Parent = workspace
+
+	loopUSColor(bluePart, blueDecal, colors, 1) -- UnitedStates.cs colorIndices[0] = 0 -> colors[0] = blue
+	loopUSColor(redPart, redDecal, colors, 2) -- colorIndices[1] = numOfBlinks * 1 -> colors[1] = red
+
+	return { bluePart, redPart }
 end
 
 local pools: { [string]: Pool.Pool<BasePart> } = {}
@@ -136,7 +221,7 @@ type LaneScenery = {
 	levelName: string,
 	spawners: { SpawnerRuntime },
 	active: { [BasePart]: string }, -- part -> kind name
-	oneOffs: { [string]: BasePart? }, -- levelObjects (Chef/US), one per lane
+	oneOffs: { [string]: { BasePart }? }, -- levelObjects (Chef/US), one-or-more parts per lane (US is two stacked decal layers, doc 14)
 }
 
 local DEFAULT_CADENCE: SceneryKinds.SpawnerCadence =
@@ -173,25 +258,32 @@ local function updateLevelObjects(lane: LaneScenery)
 		local part = createSceneryPart("Chef")
 		part.CFrame = CFrame.new(lane.origin + Vector3.new(0, Config.DESPAWN_Y * 0.5, -1))
 		part.Parent = workspace
-		lane.oneOffs.Chef = part
+		lane.oneOffs.Chef = { part }
 	elseif not wantChef and lane.oneOffs.Chef then
-		lane.oneOffs.Chef:Destroy()
+		for _, part in lane.oneOffs.Chef do
+			part:Destroy()
+		end
 		lane.oneOffs.Chef = nil
 	end
 
 	local wantUS = lane.levelName == "Country"
 	if wantUS and not lane.oneOffs.US then
-		local part = createSceneryPart("US")
-		part.CFrame = CFrame.new(lane.origin + Vector3.new(Config.LANE_HALF_WIDTH * 0.5, 0, -1))
-		part.Parent = workspace
-		lane.oneOffs.US = part
+		local position = lane.origin + Vector3.new(Config.LANE_HALF_WIDTH * 0.5, 0, -1)
+		lane.oneOffs.US = createUSPair(position)
 	elseif not wantUS and lane.oneOffs.US then
-		lane.oneOffs.US:Destroy()
+		for _, part in lane.oneOffs.US do
+			part:Destroy()
+		end
 		lane.oneOffs.US = nil
 	end
 end
 
 local lanes: { [Folder]: LaneScenery } = {}
+
+-- Every currently-spawned `poppable` part (Bubble), across every lane -- the
+-- pop input below Include-filters its raycast to exactly this set (see "Bubble
+-- pop" further down), so a tap can only ever land on a live poppable item.
+local poppableParts: { [BasePart]: boolean } = {}
 
 local function spawnScenery(lane: LaneScenery, kindName: string, position: Vector3)
 	local kind = SceneryKinds.defs[kindName]
@@ -207,11 +299,15 @@ local function spawnScenery(lane: LaneScenery, kindName: string, position: Vecto
 	part.CFrame = CFrame.new(position)
 	part.Parent = workspace
 	lane.active[part] = kindName
+	if kind and kind.poppable then
+		poppableParts[part] = true
+	end
 end
 
 local function recycleScenery(lane: LaneScenery, part: BasePart)
 	local kindName = lane.active[part]
 	lane.active[part] = nil
+	poppableParts[part] = nil
 	if kindName then
 		poolFor(kindName).release(part)
 	end
@@ -290,11 +386,14 @@ local function untrackLane(folder: Folder)
 	end
 	lanes[folder] = nil
 	for part, kindName in lane.active do
+		poppableParts[part] = nil
 		poolFor(kindName).release(part)
 	end
-	for _, part in lane.oneOffs do
-		if part then
-			part:Destroy()
+	for _, parts in lane.oneOffs do
+		if parts then
+			for _, part in parts do
+				part:Destroy()
+			end
 		end
 	end
 end
@@ -364,5 +463,115 @@ RunService.Heartbeat:Connect(function(dt: number)
 				recycleScenery(lane, part)
 			end
 		end
+	end
+end)
+
+-- ---------------------------------------------------------------------------
+-- Bubble pop (Entities/MovingScenery.cs Grab, gated by Player/Controller.cs's
+-- CheckTouch to its "GrabableScenery" tag -- see SceneryKinds.luau's
+-- `poppable` field doc comment for why that's only Bubble, never Chef). Purely
+-- cosmetic, no gameplay effect (Grab's `playerID` argument goes unused in the
+-- original too) -- its own input -> raycast -> pop pipeline, entirely separate
+-- from (and never touching) GameClient.client.luau's grab raycast.
+--
+-- Coexistence with step grabs: this connects its own UserInputService.
+-- InputBegan listener -- the SAME signal GameClient.client.luau already
+-- listens on. Roblox fires every connected listener for a given input (no
+-- "consume"/stopPropagation between scripts), so a step grab always still
+-- fires from GameClient's own handler no matter what this one does. This
+-- handler's raycast is Include-filtered to exactly `poppableParts` (only
+-- currently-live Bubble parts, CanQuery=true -- see createSceneryPart above),
+-- which can never overlap GameClient's own Include filter (Steps/Bugs folders
+-- only): a poppable scenery part is never parented under either.
+-- ---------------------------------------------------------------------------
+local POP_BURST_COUNT = 8 -- MovingScenery.cs Grab: particles.Play() (Bubble.prefab's ParticleSystem, doc 12 §3)
+local POP_BURST_LIFETIME = 0.25
+local POP_BURST_SPEED = 6
+
+-- ADAPTED: MovingScenery.cs's particle burst is a Unity ParticleSystem; this
+-- port has no 1:1 ParticleEmitter equivalent wired through the pooled-part
+-- style the rest of this file (and WorldLava.client.luau's own splashAt/
+-- LavaSplash burst) already uses, so it's a handful of tinted, pooled Balls
+-- flying outward and fading, same shape as that lava-splash burst.
+local burstPool = Pool.new(function(): BasePart
+	local part = Instance.new("Part")
+	part.Name = "PopBurst"
+	part.Shape = Enum.PartType.Ball
+	part.Size = Vector3.new(0.2, 0.2, 0.2)
+	part.CanCollide = false
+	part.CanQuery = false
+	part.Material = Enum.Material.Neon
+	return part
+end, function(part: BasePart)
+	part.Anchored = true
+	part.AssemblyLinearVelocity = Vector3.zero
+	part.Transparency = 0
+	part.Parent = nil
+end)
+
+local function popBurstAt(position: Vector3, color: Color3)
+	for i = 1, POP_BURST_COUNT do
+		local part = burstPool.acquire()
+		part.Color = color
+		part.Transparency = 0
+		part.Anchored = false
+		part.CFrame = CFrame.new(position)
+		local angle = (i / POP_BURST_COUNT) * math.pi * 2 + math.random() * 0.5
+		local speed = POP_BURST_SPEED * (0.6 + math.random() * 0.4)
+		part.AssemblyLinearVelocity = Vector3.new(math.cos(angle) * speed, math.sin(angle) * speed, 0)
+		part.Parent = workspace
+		TweenService:Create(part, TweenInfo.new(POP_BURST_LIFETIME), { Transparency = 1 }):Play()
+		task.delay(POP_BURST_LIFETIME, function()
+			if part.Parent then
+				burstPool.release(part)
+			end
+		end)
+	end
+end
+
+local function popPart(part: BasePart)
+	if not poppableParts[part] then
+		return -- already popped by another input this frame, or not a poppable part
+	end
+	poppableParts[part] = nil
+	SoundFX.play("pop") -- MovingScenery.cs Grab: AudioManager.Instance.PlayForAll(grabClip) (Pop.wav)
+	popBurstAt(part.Position, part.Color)
+	for _, lane in lanes do
+		if lane.active[part] then
+			recycleScenery(lane, part) -- MovingScenery.cs Grab: Destroy(0, 0, 1f)
+			return
+		end
+	end
+end
+
+local popRayParams = RaycastParams.new()
+popRayParams.FilterType = Enum.RaycastFilterType.Include
+
+local function tryPop(screenX: number, screenY: number)
+	local camera = workspace.CurrentCamera
+	if not camera then
+		return
+	end
+	local filter: { Instance } = {}
+	for part in poppableParts do
+		table.insert(filter, part)
+	end
+	if #filter == 0 then
+		return
+	end
+	popRayParams.FilterDescendantsInstances = filter
+	local unitRay = camera:ScreenPointToRay(screenX, screenY)
+	local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 300, popRayParams)
+	if result then
+		popPart(result.Instance :: BasePart)
+	end
+end
+
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+	if gameProcessed then
+		return
+	end
+	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+		tryPop(input.Position.X, input.Position.Y)
 	end
 end)

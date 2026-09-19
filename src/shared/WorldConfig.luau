@@ -153,4 +153,21 @@ WorldConfig.SPECK_COLORS = { -- SpeckManager.prefab colorOptions (doc 11 §3): 8
 	Color3.fromRGB(255, 60, 60),
 }
 
+-- ---------------------------------------------------------------------------
+-- Attract mode (Player/FrogAI.cs): while a lane's RunState == "Menu", a
+-- decorative ladder + cosmetic frog climb it on a loop, beside the parked
+-- real (server-owned) frog -- see WorldAttract.client.luau.
+-- ---------------------------------------------------------------------------
+WorldConfig.ATTRACT_STEP_COUNT = 3 -- "a few steps" (FrogAI plays on 2-3 in Unity's menu scene)
+WorldConfig.ATTRACT_STEP_SIZE = Vector3.new(2.4, 1.6, 0.6) -- smaller than StepTemplate's real (4,3,1) -- reads as a toy-scale prop, never mistaken for a grabbable step
+-- Offset from the lane origin: the real parked frog (GameServer/
+-- WorldFrogCosmetics, untouched by this file) sits AT the origin, so this
+-- whole vignette is shifted a few studs to the side to avoid rendering a
+-- second frog on top of the first. z is nudged slightly off the gameplay
+-- plane (Config.PLANE_Z = 0), same direction as WorldScenery's own z=-1 dressing.
+WorldConfig.ATTRACT_ANCHOR_OFFSET = Vector3.new(7, 0, -0.2)
+WorldConfig.ATTRACT_STEP_X = 2.2 -- zig-zag half-width per rung (same shape as Lane.luau's Tutorial ladder: Config.TUTORIAL_STEP_X, alternating sign)
+WorldConfig.ATTRACT_STEP_Y_GAP = 3.2 -- vertical rise per rung (same shape as Config.TUTORIAL_STEP_GAP, independently tuned smaller for a compact decorative ladder)
+WorldConfig.ATTRACT_DECISION_TIME = 1.0 -- FrogAI.cs: nextDecisionTime is initialized to 1f and never reassigned -- despite the "next" name it's a literal fixed 1s cadence, not randomized
+
 return WorldConfig

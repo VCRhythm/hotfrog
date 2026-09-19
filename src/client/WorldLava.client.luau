@@ -25,7 +25,6 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
-local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 local Pool = require(script.Parent.world.Pool)
 
 local player = Players.LocalPlayer
@@ -96,8 +95,14 @@ end, function(part: BasePart)
 	part.Parent = nil
 end)
 
+-- `hurt` used to play here too (Lava.cs FallSplash: AudioManager.Instance.
+-- PlayForAll(hurtSound)), off this same proxy -- removed (doc 16 §6 follow-up,
+-- 2026-09-19): SfxEvents.client.luau now plays `hurt` off the GameOver remote's
+-- `cause` argument instead (the real per-death signal, not a proxy), so this
+-- was a duplicate. The proxy itself (step-recycled-near-the-despawn-line /
+-- frog-Dead) stays -- it's still the only signal this file has for WHERE to
+-- place the splash burst below, which is still purely visual.
 local function splashAt(position: Vector3)
-	SoundFX.play("hurt") -- Lava.cs FallSplash: AudioManager.Instance.PlayForAll(hurtSound)
 	for _ = 1, WorldConfig.LAVA_SPLASH_COUNT do
 		local part = splashPool.acquire()
 		part.CFrame = CFrame.new(position + Vector3.new((math.random(-10, 10)) / 10, 0.2, 0))

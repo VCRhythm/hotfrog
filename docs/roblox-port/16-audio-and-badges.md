@@ -87,14 +87,14 @@ Every `AudioManager.Instance.Play*` call site found by grepping
 | **awakeSound** | `Player/Frog.cs` Rise (spawn + every respawn) | not wired | **wired** — `SfxEvents.client.luau`, off the `Dead` Attribute's false-transitions |
 | **splashSound** | `Core/LevelManager.cs` Tutorial-end lava reveal (level-scripted timer, twice — live and once dead/commented) | not wired | **wired to `GameOver` instead**, per task brief ("splash on death/GameOver") — see caveat below |
 | **leafSound → "leaves"** | `FirstTree*.prefab`'s own `AudioSource` (`playOnAwake`, NOT routed through `AudioManager`) | not wired | **wired** — `SfxEvents.client.luau`, on a new own-lane Step with `Sprite == "Acorn"` |
-| hurtSound | `Entities/Lava.cs` FallSplash (a lava-specific death only) | not wired | **blocked** — no server signal distinguishes a lava death from any other `GameOver`; not hacked onto plain `GameOver` since that would mislabel every non-lava death |
+| hurtSound | `Entities/Lava.cs` FallSplash (a lava-specific death only) | not wired | **wired** (2026-09-19 follow-up, closes the doc 17 gap) — `GameServer.server.luau`'s `killFrog` now fires `GameOver`/`RunSummary` with a `cause` argument (`DEATH_CAUSE_LAVA = "Lava"`); `SfxEvents.client.luau` plays `hurt` when `cause == "Lava"`. See "3. Follow-up: doc 17 gap closures" below, including a flagged duplicate with `WorldLava.client.luau`'s own separate `hurt` trigger |
 | holdOnVoiceSound | `Entities/Step.cs` ShowGuidance, **inside a fully commented-out method body** | not wired | **not wired — dead code in the original**, same as `leafSound`'s dangling name-lookup (doc 12 already flags that pattern) |
 | boilVoiceSound ("BoilAFrogVO") | *no call site found anywhere in the grepped C#* | not wired | **not wired — orphaned clip, unused even in Unity** (parallel to doc 12's `leafSound`/`HotFrogVO` findings) |
 | selectSound | `Core/VariableManager.cs` ToggleMusic, `UI/MenuManager.cs` | not wired | **UI-owned, left as a hook** — `SoundFX.play("select")` for the menus agent to call from its music-toggle / menu-select handlers |
 | blinkSound | `UI/MenuManager.cs` | not wired | **UI-owned, left as a hook** — `SoundFX.play("blink")` |
 | newSound | `UI/MenuManager.cs` (skin-unlock feedback); the one gameplay call site (`Player/Player.cs` `TouchStepEnhanced`) is itself inside a commented-out method | not wired | **UI-owned / dead code** — leave to the menus/store agent (`StoreUI.client.luau` is off-limits here) |
 | hotFrogVO (`audioIntroduction`) | `UI/FrogPackages.cs` (skin equip/preview) | not wired | **UI-owned, out of scope** — store/skins territory (`StoreUI.client.luau` off-limits) |
-| popSound (Bubble's `grabClip`) | `Entities/MovingScenery.cs` PlayForAll(grabClip) | not wired | **blocked** — Bubble/scenery grabbing isn't implemented yet (`Levels.luau`'s `scenerySpawners` are explicitly DATA ONLY per doc 13 item 2); nothing to hook until that phase lands |
+| popSound (Bubble's `grabClip`) | `Entities/MovingScenery.cs` PlayForAll(grabClip) | not wired | **wired** (2026-09-19 follow-up, closes the doc 17 "Bubble pop" gap) — `WorldScenery.client.luau` gained its own tap-to-pop input for `SceneryKinds.luau`'s new `poppable` kinds (Bubble only); see doc 14 |
 
 \* `crumbleSound` is referenced in `Effects.client.luau`'s header comment as
 already wired; this phase didn't touch that file (off-limits) so it's left
@@ -103,11 +103,11 @@ as-is either way.
 **Result:** 9 clips already wired before this phase (unchanged), 6 newly
 wired this phase (`fly`, OK/Great/Perfect voice lines, `base10`, `highScore`,
 `awake`, `splash`, `leaves` — 8 total counting the 3 voice lines separately),
-1 blocked on a genuinely missing signal (`hurt` / lava-specific death cause),
+2 wired in later 2026-09-19 follow-ups (`hurt` / lava-specific death cause —
+see §3 below; `pop` / Bubble scenery — see doc 14 "Bubble pop"),
 2 confirmed dead code in the original (`holdOnVoice`, `boilVoice` — not a
 port gap, they don't play in Unity either), 4 left as explicit UI hooks for
-the menus/store agent (`select`, `blink`, `new`, `hotFrogVO`), 1 blocked on an
-unimplemented gameplay system (`pop` / Bubble scenery).
+the menus/store agent (`select`, `blink`, `new`, `hotFrogVO`).
 
 ## 3. SoundFX hardening
 
@@ -183,3 +183,59 @@ covered the full `AudioManager.cs` roster (doc 12 §5). No stems were added,
 renamed, or removed, so `tools/build_manifest.py` and `tools/write_asset_ids.py`
 were re-run only to confirm that (both reported "already up to date" / no
 unknown keys — see the phase report for the exact command output).
+
+## 6. Follow-up (2026-09-19): three doc 17 gap closures
+
+A later pass closed three items from doc 17's "Known gaps" table without
+touching `Lane.luau`, `Levels.luau`, `World*.client.luau`, or doc 17 itself.
+
+**`hurt` sound / death cause.** `GameServer.server.luau`'s `killFrog` now
+fires both `GameOver` and `RunSummary` with a trailing `cause` argument
+(`local DEATH_CAUSE_LAVA = "Lava"`). The fall loop's only death mechanism is
+the frog's head dropping past `Config.DESPAWN_Y` — this port's stand-in for
+Unity's lava line — so there's only one cause today; the argument is still
+explicit (not hardcoded per call site) so a future second cause only needs a
+new value, not a new remote. `SfxEvents.client.luau`'s `GameOver` listener
+plays `hurt` when `cause == "Lava"`, alongside the existing `splash` cue.
+Neither `Effects.client.luau` (`GameOver.OnClientEvent:Connect(function()
+...)`) nor `MenuClient.client.luau`'s `RunSummary` listener (both outside
+this pass's file ownership) needed edits — Lua ignores an extra trailing
+argument on a handler that doesn't declare a parameter for it.
+
+**Duplicate `hurt`, since fixed:** `WorldLava.client.luau` independently
+played `hurt` off a local proxy — this player's frog `Dead` attribute
+flipping true, or a step recycling near the despawn line inside this lane's
+X band. That predated the `cause` argument above and wasn't written with it
+in mind, so a death played `hurt` twice (once from each script). A later
+pass (2026-09-19) removed that proxy `hurt` call from `WorldLava.client.luau`'s
+`splashAt` — the visual splash burst it drives stays, keyed to the same
+proxy; only the sound was dropped. `SfxEvents.client.luau`'s `GameOver`
+listener is now the sole place `hurt` plays.
+
+**Bugs-this-run counter.** `BugService.server.luau`'s `CatchBug` handler now
+fires a dedicated `ServerStorage/BugCaughtServer` `BindableEvent` (`player`
+only) right alongside its existing `AwardFlys`/`BugCaught` calls, using the
+same get-or-create-in-`ServerStorage` pattern as `AwardFlys`/`SpawnBugAt`.
+`GameServer.server.luau` listens on it directly for its `bugsThisRun` counter
+(feeding `RunSummary`), replacing the old inference of "amount fired on
+`AwardFlys` == `Config.BUG_FLYS`" — a heuristic that would have silently
+miscounted if that amount, or another faucet's amount, ever collided with it.
+The `flysThisRun` counter is untouched (summing every `AwardFlys` amount was
+always correct, never a heuristic — every source is genuine currency). The
+HUD's own bug count (`GameClient.client.luau`) was already exact before this
+pass — it counts `BugCaught` `RemoteEvent` events directly (doc 15 §"Bugs-
+caught / Flys-earned this run"), never the `BUG_FLYS` heuristic doc 17
+described — so it needed no change.
+
+**Music toggle save debounce.** `Config.MUSIC_SAVE_DEBOUNCE = 5` (seconds).
+`GameServer.server.luau`'s `SetMusicOn` handler still applies the setting
+immediately every call (`profile.musicOn` and the `MusicOn` Attribute both
+update unconditionally), but only calls `Profiles.save` at most once per
+`MUSIC_SAVE_DEBOUNCE` seconds per player (`lastMusicSave: { [Player]: number
+}`, cleared on `PlayerRemoving`). Verified this can't lose the final toggle
+value: `Profiles.luau`'s `Players.PlayerRemoving` handler and `BindToClose`
+both call `doSave(player, true)` unconditionally (no debounce awareness),
+reading whatever `profile.musicOn` holds in memory at that moment; the
+120s periodic autosave (`AUTOSAVE_INTERVAL`) covers everything in between. The
+debounce only ever skips a save superseded by a newer one, never the value
+itself.

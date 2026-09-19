@@ -26,6 +26,15 @@ export type SceneryKind = {
 	moving: boolean,
 	moveDirection: Vector2,
 	moveSpeed: number,
+	-- MovingScenery.cs's IGrabable.Grab, but only for prefabs Player/Controller.cs's
+	-- CheckTouch actually routes a tap to -- the "GrabableScenery" tag, which the
+	-- prefab dump (Prefabs/Spawns/Scenery/*.prefab.json) shows ONLY Bubble wears
+	-- (Chef also carries MovingScenery.cs, for its own-drift, but is tagged
+	-- "Untagged" and has a null grabClip, so Controller.cs never reaches its
+	-- Grab). A tap pops a `poppable` item: SoundFX "pop" (MovingScenery.cs Grab's
+	-- grabClip, Audio/Pop.wav), a short particle burst (Grab's particles.Play()),
+	-- and recycles it (Grab's Destroy(0, 0, 1f)) -- doc 14 "Bubble pop".
+	poppable: boolean,
 }
 
 local function kind(def: {
@@ -37,6 +46,7 @@ local function kind(def: {
 	moving: boolean?,
 	moveDirection: Vector2?,
 	moveSpeed: number?,
+	poppable: boolean?,
 }): SceneryKind
 	return {
 		sprite = def.sprite,
@@ -47,6 +57,7 @@ local function kind(def: {
 		moving = def.moving == true,
 		moveDirection = def.moveDirection or Vector2.zero,
 		moveSpeed = def.moveSpeed or 0,
+		poppable = def.poppable == true,
 	}
 end
 
@@ -104,7 +115,9 @@ local SceneryKinds: { [string]: SceneryKind } = {
 		speedModifier = 1.0,
 	}),
 	-- Multiplayer-only UpScenerySpawner override (doc 11): MovingScenery.cs, own
-	-- constant upward drift independent of pulls.
+	-- constant upward drift independent of pulls. Also the only "GrabableScenery"-
+	-- tagged prefab (prefab dump), so it's `poppable` -- world/WorldScenery pops
+	-- it on tap (doc 14 "Bubble pop").
 	Bubble = kind({
 		sprite = "Bubble",
 		size = Vector3.new(0.9, 0.9, 0.2),
@@ -112,6 +125,7 @@ local SceneryKinds: { [string]: SceneryKind } = {
 		moving = true,
 		moveDirection = Vector2.new(0, 1),
 		moveSpeed = 5,
+		poppable = true,
 	}),
 
 	-- Kitchen / Country (Level3/4)
@@ -131,13 +145,24 @@ local SceneryKinds: { [string]: SceneryKind } = {
 		moveDirection = Vector2.new(0, 1),
 		moveSpeed = 3,
 	}),
-	-- UnitedStates.cs's USRedStates/USBlueStates two-color cutout (doc 11 §3) has
-	-- no single sprite stem in SkinAssets -- represented as two overlaid flat
-	-- color panels instead (ADAPTED).
+	-- UnitedStates.cs's USRedStates/USBlueStates two-color cutout (doc 11 §3,
+	-- doc 17 known gap "US map for Country"). `colors` here is UnitedStates.cs's
+	-- own `colors` array, extracted from
+	-- Prefabs/Levels/Level4/Objects/US.prefab.json (dump_prefabs.py, doc 14):
+	-- [blue(0,0,1,1), red(1,0,0,1)]. The two SpriteRenderer children
+	-- (USRedStates/USBlueStates) continuously swap between these two tints
+	-- every 5s (UnitedStates.cs ChangeColors: DOColor(colors[i], 5f) +
+	-- WaitForSeconds(5f), staggered one index apart so exactly one layer is
+	-- blue and the other red at any moment) -- world/WorldScenery.client.luau
+	-- reproduces this with a looping TweenService crossfade per layer. `sprite`
+	-- stays nil: US is TWO separate sprite stems (USRedStates/USBlueStates, now
+	-- real SkinAssets keys, doc 14), not the single stem this generic
+	-- SceneryKind.sprite field can express -- WorldScenery special-cases "US"
+	-- entirely, the same way it already does for Chef.
 	US = kind({
 		sprite = nil,
 		size = Vector3.new(9, 5.5, 0.2),
-		colors = { Color3.fromRGB(180, 60, 60), Color3.fromRGB(60, 90, 180) },
+		colors = { Color3.fromRGB(0, 0, 255), Color3.fromRGB(255, 0, 0) }, -- [blue, red], UnitedStates.cs `colors`
 		speedModifier = 0.1,
 	}),
 }

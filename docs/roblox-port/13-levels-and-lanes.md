@@ -105,9 +105,20 @@ Spawn position follows from the same "opposite of travel" logic (verified
 against doc 11 §2a's Level3 `LeftStepSpawner`, whose Movements sit past the
 *right* edge despite its leftward direction): new steps enter from the edge
 opposite `spawnDirection`, diagonals from the matching top corner
-(`Lane.spawnPosition`). Doc 11 only kept one example Movements list ("omitted
-from the table for width"), so exact per-spawner offsets aren't recoverable —
-positions are generated procedurally along the same edge/shape instead.
+(`Lane.spawnPosition`). **Update (closing the "Per-spawner `Movements` lists"
+gap, doc 17):** every level's raw prefab data was re-extracted from the
+Unity prefab dump (`spawners_extracted.json`) and every step spawner's own
+`Movements` list is now in `Levels.luau` as `StepSpawnerDef.movements`, in
+studs, offset from the lane's origin — see the "Movements-list conversion"
+comment above `Levels.luau`'s `list: { Level } = {}` for the exact formula
+and its derivation (it collapses to `x_stud = Movements.x *
+Config.LANE_HALF_WIDTH`, `y_stud = Movements.y * 50 * Config.UNITY_TO_STUDS`,
+plus a `* 2/3` on X for scenery spawners, mirroring `StepSpawner`/
+`ScenerySpawner`'s own `SetMovementToScreenSize`). `Lane.spawnPosition` now
+uses that list whenever it's non-empty (currently: every step spawner) and
+only falls back to the procedural edge/shape placement described above for a
+spawner with an empty list (none currently, kept for robustness/future
+data). The procedural formula itself is unchanged.
 
 `Levels.luau`'s own spawner `direction` fields are the **literal** Unity
 values from doc 11 §2a (kept for traceability), independent of the arrow-name
@@ -172,12 +183,25 @@ uploaded — no new keys were needed).
 
 ## What doc 11/12 data could not be honoured exactly
 
-- **Discrete Movements lists**: doc 11 kept only one worked example
-  (Level3 `LeftStepSpawner`); the rest were "omitted from the table for
-  width" and aren't recoverable from this port's source docs. Spawn positions
-  are generated procedurally (edge + random offset within the lane's bounds)
-  instead of literal per-spawner offsets — same *shape*, not the same exact
-  numbers.
+- **Discrete Movements lists — CLOSED.** Doc 11's table only kept one worked
+  example (Level3 `LeftStepSpawner`); the full per-spawner `Movements` data
+  was re-extracted from the prefab dump (`spawners_extracted.json`) and is
+  now in `Levels.luau` (`StepSpawnerDef.movements`/`SceneryDef.movements`),
+  converted to studs — see the "Movements-list conversion" comment in
+  `Levels.luau` and the "Direction / arrow semantics" section above.
+  `Lane.luau` consumes it: discrete spawners jump between list entries
+  (random destination ≠ current, mirroring `Spawner.cs`'s `Move()`
+  coroutine), continuous spawners tween between entries over `moveSpeed`
+  seconds, and `spawnAllOnAwake` spawners (the Tutorial's 3 trees) spawn one
+  entity per `Movements` entry at that exact position, index-matched with
+  `pool` (`Spawner.cs`'s `CycleThroughMovementsAndSpawn`). One deliberate
+  deviation: the converted values are, like Unity's own off-screen
+  `adjustedMovements`, meant as staging points a *continuous* per-frame pull
+  drags on screen — this port only pulls on a discrete per-grab tween, so
+  `Lane.spawnPosition` clamps them into `Lane.isOutOfBounds`' recycle margin
+  before use rather than placing steps at the literal converted offset. The
+  old procedural edge/shape placement is kept as the fallback for any
+  spawner whose list is empty (none currently).
 - **Menu / scenery / Bug spawners**: kept as complete, typed data
   (`Levels.luau`'s `scenerySpawners`/`levelObjects`) but not spawned — per doc
   13's explicit scope, a later phase renders scenery and the Menu level.
@@ -205,6 +229,14 @@ uploaded — no new keys were needed).
   expected small server sizes, unverified beyond that.
 - The Tutorial's "pull the field back up by 3" retry has no Studio-verified
   feel for how visually jarring the snap-back tween is.
+- The Movements-list conversion (`Levels.luau`) assumes a specific Unity
+  camera aspect ratio (the one that makes `halfScreenWidth` equal the
+  playfield's own border bound) to turn doc 11's raw per-axis fractions into
+  studs; the real aspect ratio is unresolvable from the prefab dump. Combined
+  with `Lane.spawnPosition`'s clamp into `Lane.isOutOfBounds`' margin, this
+  is a best-effort reconstruction of each spawner's *shape*, not a verified
+  match to how it looked in Unity — needs a playtest to see whether entry
+  points read as natural or need hand-tuning.
 
 ## What was not completed
 

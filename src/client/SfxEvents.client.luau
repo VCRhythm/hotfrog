@@ -66,13 +66,28 @@ end)
 -- this phase's file ownership) rather than a per-death cue; GameOver is the
 -- closest already-existing "a run just ended" signal.
 --
--- Lava.FallSplash's hurtSound (a lava-specific death) is deliberately NOT
--- wired here: GameOver fires uniformly for every death cause, and there is no
--- server signal today that distinguishes "died in the lava" from any other
--- fall -- see doc 16's coverage table (blocked, needs a death-cause signal).
+-- hurt (Lava.FallSplash's hurtSound, a lava-specific death cue): doc 16/17
+-- flagged this as blocked because GameOver used to fire uniformly for every
+-- death with no way to tell "died in the lava" apart from any other fall.
+-- GameServer.server.luau now fires GameOver with a `cause` argument
+-- (DEATH_CAUSE_LAVA = "Lava" today -- the fall loop's only death mechanism is
+-- the frog dropping past Config.DESPAWN_Y, this port's stand-in for Unity's
+-- lava line, so every death is currently a lava death; the argument exists so
+-- a future second cause doesn't need a new remote). `hurt` is already declared
+-- in SoundAssets.luau (paste in its rbxassetid once uploaded).
+--
+-- WorldLava.client.luau used to also play "hurt" itself, off a local proxy
+-- (this player's frog Dead attribute flipping true / a step recycling near
+-- the despawn line) -- written before this GameOver-cause signal existed,
+-- which meant a death played "hurt" twice. That proxy playback has since been
+-- removed (doc 16 §6 follow-up, 2026-09-19); this GameOver listener is now the
+-- only place `hurt` plays.
 -- ---------------------------------------------------------------------------
-GameOver.OnClientEvent:Connect(function()
+GameOver.OnClientEvent:Connect(function(cause: string?)
 	SoundFX.play("splash")
+	if cause == "Lava" then
+		SoundFX.play("hurt")
+	end
 end)
 
 -- ---------------------------------------------------------------------------

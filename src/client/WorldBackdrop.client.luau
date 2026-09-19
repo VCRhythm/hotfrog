@@ -33,6 +33,7 @@ local TweenService = game:GetService("TweenService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
+local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
 
 local player = Players.LocalPlayer
 local playField = workspace:WaitForChild("PlayField")
@@ -48,15 +49,44 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Background: two wide tiles wrapping along Y (see header ADAPTED note).
+--
+-- Colours/textures below are extracted straight from the Unity project's
+-- Assets/Materials/*.mat (dump_materials.py against the scratchpad's UnityPy
+-- venv, doc 14 "Background materials" section — not guessed):
+--   PotBack.mat / KitchenTile.mat -- real textures (Materials/Textures/
+--     PotBack.jpg, KitchenTile.png), plain Sprites-Diffuse-style shader,
+--     _Color=white (no tint). `PotBack`/`KitchenTile` below are the average
+--     pixel colour of each texture (Pillow), used only while the id is still
+--     0 -- SkinAssets.image() below wins once art is uploaded.
+--   Sky.mat -- texture-less (_MainTex unset), _Color=(0.609,1,1,1): the
+--     DEFAULT_BACKGROUND_COLOR fallback for `background = nil` levels.
+--   LavaGradient.mat -- also a real texture (Materials/Textures/Lava_01.tga,
+--     converted to PNG by build_manifest.py) but not referenced by any
+--     Levels.luau `background` key yet -- kept here so it lights up the
+--     moment a level does (same "kept complete" pattern SceneryKinds.luau
+--     already uses for the unreachable Menu level).
 -- ---------------------------------------------------------------------------
 local BACKGROUND_COLORS: { [string]: Color3 } = {
-	PotBack = Color3.fromRGB(94, 42, 30),
-	KitchenTile = Color3.fromRGB(214, 206, 188),
+	PotBack = Color3.fromRGB(197, 197, 195),
+	KitchenTile = Color3.fromRGB(220, 216, 209),
+	LavaGradient = Color3.fromRGB(199, 69, 3),
 }
-local DEFAULT_BACKGROUND_COLOR = Color3.fromRGB(38, 42, 58) -- Sky.mat placeholder
+local DEFAULT_BACKGROUND_COLOR = Color3.fromRGB(155, 255, 255) -- Sky.mat's own _Color
 
 local TILE_HEIGHT = (Config.SPAWN_Y - Config.DESPAWN_Y) + WorldConfig.SCENERY_BOUNDS_MARGIN
 local TILE_WIDTH = Config.LANE_HALF_WIDTH * 2 + 40
+
+-- StudsPerTileU/V for the Texture instance below, derived from each
+-- material's _MainTex tiling `scale` (dump_materials.py's tex_env dump):
+-- PotBack.mat scale=(1,1) -> one full image spans the whole tile; KitchenTile.mat
+-- scale=(2,2) -> the pattern repeats twice across each axis. LavaGradient.mat's
+-- only tiling knob (`_MainTexTile`) is a custom shader float, not a portable
+-- Material tiling vector, so it renders untiled (fills once) like PotBack.
+local BACKGROUND_TILING: { [string]: { u: number, v: number } } = {
+	PotBack = { u = TILE_WIDTH, v = TILE_HEIGHT },
+	KitchenTile = { u = TILE_WIDTH / 2, v = TILE_HEIGHT / 2 },
+	LavaGradient = { u = TILE_WIDTH, v = TILE_HEIGHT },
+}
 
 local function makeBackgroundTile(index: number): BasePart
 	local tile = Instance.new("Part")
@@ -67,9 +97,16 @@ local function makeBackgroundTile(index: number): BasePart
 	tile.CanQuery = false
 	tile.Material = Enum.Material.SmoothPlastic
 	tile.Color = DEFAULT_BACKGROUND_COLOR
-	local decal = Instance.new("Decal")
-	decal.Face = Enum.NormalId.Front
-	decal.Parent = tile
+	-- Texture (not Decal): only Texture exposes StudsPerTileU/V, needed for
+	-- KitchenTile's real 2x2 tiling (see BACKGROUND_TILING above). Left with an
+	-- empty .Texture until setBackground() resolves an id -- the part's own
+	-- Color (tweened below) shows through as the flat-colour fallback, same
+	-- convention SpriteSkin.apply/id=0 use everywhere else in this port.
+	local texture = Instance.new("Texture")
+	texture.Face = Enum.NormalId.Front
+	texture.StudsPerTileU = TILE_WIDTH
+	texture.StudsPerTileV = TILE_HEIGHT
+	texture.Parent = tile
 	tile.Parent = workspace
 	return tile
 end
@@ -84,8 +121,14 @@ layoutBackgroundTiles()
 
 local function setBackground(key: string?)
 	local color = if key then (BACKGROUND_COLORS[key] or DEFAULT_BACKGROUND_COLOR) else DEFAULT_BACKGROUND_COLOR
+	local tiling = if key then BACKGROUND_TILING[key] else nil
+	local image = if key then SkinAssets.image(key) else nil -- nil until the id is uploaded (SkinAssets convention)
 	for _, tile in bgTiles do
 		TweenService:Create(tile, TweenInfo.new(WorldConfig.TRANSITION_SOFT_CROSSFADE_TIME), { Color = color }):Play()
+		local texture = tile:FindFirstChildOfClass("Texture") :: Texture
+		texture.StudsPerTileU = if tiling then tiling.u else TILE_WIDTH
+		texture.StudsPerTileV = if tiling then tiling.v else TILE_HEIGHT
+		texture.Texture = image or "" -- "" leaves the tweened flat Color visible (fallback)
 	end
 end
 
@@ -113,7 +156,21 @@ end
 -- Overlay (Entities/Overlay.cs Fade) -- one layer; overlay2 has no data in this
 -- port either (doc 11 §1 note: overlay2Material is never serialized by any
 -- level), so there's nothing to render for it.
+--
+-- Water.mat is the only overlay key any level actually sets (Tutorial/Pot,
+-- "overlay = Water" in Levels.luau). Its own _MainTex is a third-party paid
+-- asset-pack texture (First Fantasy for Mobile's Water_01.tga) that isn't in
+-- this project and can't be exported -- but Sprites/Scenery/Water.png (already
+-- a SkinAssets stem, doc 14) is this same overlay's actual sprite art, so
+-- that's used as the Texture below once uploaded. OVERLAY_COLORS.Water is
+-- Water.mat's own extracted _Color (dump_materials.py) -- an orange/red
+-- "boiling" tint -- replacing WorldConfig.OVERLAY_COLOR's guessed blue as the
+-- flat-colour fallback while the id is still 0.
 -- ---------------------------------------------------------------------------
+local OVERLAY_COLORS: { [string]: Color3 } = {
+	Water = Color3.fromRGB(255, 69, 0),
+}
+
 local overlay = Instance.new("Part")
 overlay.Name = "LevelOverlay"
 overlay.Size = Vector3.new(TILE_WIDTH, TILE_HEIGHT, 0.2)
@@ -123,6 +180,11 @@ overlay.CanQuery = false
 overlay.Material = Enum.Material.SmoothPlastic
 overlay.Color = WorldConfig.OVERLAY_COLOR
 overlay.Transparency = 1
+local overlayTexture = Instance.new("Texture")
+overlayTexture.Face = Enum.NormalId.Front
+overlayTexture.StudsPerTileU = TILE_WIDTH
+overlayTexture.StudsPerTileV = TILE_HEIGHT
+overlayTexture.Parent = overlay
 overlay.Parent = workspace
 
 local function layoutOverlay()
@@ -133,7 +195,10 @@ layoutOverlay()
 
 local function setOverlay(key: string?)
 	local target = if key then WorldConfig.OVERLAY_TRANSPARENCY else 1
-	TweenService:Create(overlay, TweenInfo.new(WorldConfig.OVERLAY_FADE_TIME), { Transparency = target }):Play()
+	local color = if key then (OVERLAY_COLORS[key] or WorldConfig.OVERLAY_COLOR) else WorldConfig.OVERLAY_COLOR
+	TweenService:Create(overlay, TweenInfo.new(WorldConfig.OVERLAY_FADE_TIME), { Transparency = target, Color = color })
+		:Play()
+	overlayTexture.Texture = (key and SkinAssets.image(key)) or ""
 end
 
 -- ---------------------------------------------------------------------------

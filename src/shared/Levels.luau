@@ -17,6 +17,8 @@
 -- separate scene: Pot gets its extra UpScenerySpawner, Kitchen gets its Chef
 -- levelObject, and Country exists as a 5th level entry.
 
+local Config = require(script.Parent.Config)
+
 export type StepSpawnerDef = {
 	name: string,
 	direction: Vector2, -- Unity's literal spawnDirection (doc 11 §2a); Lane matches by SIGN only
@@ -30,6 +32,12 @@ export type StepSpawnerDef = {
 	spawningSpeedMax: number,
 	spawnAllOnAwake: boolean,
 	pool: { string }, -- ordered Shared/StepKinds names (Spawner.cs pooledObjectPrefabs)
+	-- Spawner.cs's own `Movements` list (raw prefab data, per-spawner), converted to stud
+	-- offsets from the lane's origin -- see the "Movements-list conversion" comment below for
+	-- the formula. Empty for a spawner this doc's re-extraction couldn't source (none,
+	-- currently -- every step spawner actually referenced by a level has one); Lane.luau falls
+	-- back to its existing procedural placement when this is empty.
+	movements: { Vector3 },
 }
 
 -- Scenery/Bug spawners: DATA ONLY (doc 13 item 2). Not consumed by Lane.luau yet.
@@ -38,6 +46,10 @@ export type SceneryDef = {
 	kind: string, -- "Scenery" | "Bug" (Spawner.Type, doc 11 §2)
 	direction: Vector2,
 	pool: { string }, -- pooled prefab names, data only (not Shared/StepKinds -- no behavior)
+	-- Same conversion as StepSpawnerDef.movements, but through ScenerySpawner's own X*(2/3)
+	-- scale (see `smv` below). Data only, like the rest of this type -- nothing spawns scenery
+	-- yet (doc 13 item 2).
+	movements: { Vector3 },
 }
 
 export type Level = {
@@ -64,6 +76,65 @@ Levels.COUNTRY = 5
 local list: { Level } = {}
 
 -- ---------------------------------------------------------------------------
+-- Movements-list conversion (closes doc 17's "Per-spawner `Movements` lists" gap).
+--
+-- Unity's raw Spawner.Movements (Spawning/Spawner.cs L26, a per-prefab List<Vector3>) are NOT
+-- world positions -- Awake() -> SetMovementToScreenSize() (Spawner.cs L64, L162-166) rescales
+-- each entry into `adjustedMovements` by the camera's half-extents:
+--   halfScreenHeight = 50                                    (fixed: ortho camera size, doc 11 §4 "Cameras")
+--   halfScreenWidth  = 50 * (Screen.width / Screen.height)   (aspect-dependent, unresolved from the dump)
+-- StepSpawner (Spawning/StepSpawner.cs L34-43) applies those two factors as-is, with no extra
+-- per-axis multiplier. ScenerySpawner (Spawning/ScenerySpawner.cs L24-33) additionally scales X
+-- by 2/3. BugSpawner (Spawning/BugSpawner.cs L68-77) scales both axes by 1.2 -- moot here since
+-- no Bug spawner appears in any level's live spawner list (doc 11 §2/§2b: Bug spawners only
+-- exist in the unused "General/Spawners" legacy prefabs and the always-on global BugSpawner
+-- BugService.server.luau drives directly, neither of which is level data).
+--
+-- The real aspect ratio can't be recovered from the dump, so this port assumes the camera was
+-- framed so halfScreenWidth lands exactly on the playfield's own horizontal catch/border bound
+-- in Unity units (doc 11 §3 "Borders", ~70.5) -- the SAME assumption Config.UNITY_TO_STUDS /
+-- Config.LANE_HALF_WIDTH already make when deriving the lane's own half-width from that same
+-- border bound (doc 13, "Unity -> studs scale, and lane spacing"). Under that assumption the
+-- two Unity multipliers collapse to flat per-axis stud scales with no separate aspect term:
+--   x_stud = Movements.x * LANE_HALF_WIDTH          (== 22, matches Config.LANE_HALF_WIDTH)
+--   y_stud = Movements.y * (50 * UNITY_TO_STUDS)    (== ~15.714, halfScreenHeight * Config.UNITY_TO_STUDS)
+-- (Scenery's extra `* 2/3` on X is folded into `smv` below.)
+--
+-- The values below are a faithful stud-space conversion of doc 11's raw data, but -- like
+-- Unity's own off-screen `adjustedMovements`, which the level scroll continuously drags
+-- onscreen (Spawning/SpawnManager.cs Pull/PullStep, every frame while pulling) -- several
+-- entries land well outside the lane's *visible* play area (Config.LANE_HALF_WIDTH / SPAWN_Y /
+-- DESPAWN_Y) by design: they're staging/entry points, not on-screen rest positions. This port's
+-- steps only move on a discrete per-grab pull (GameServer.pullLane), not Unity's continuous
+-- per-frame drag, so `Lane.spawnPosition` clamps them into `Lane.isOutOfBounds`' recycle margin
+-- when actually placing a spawn instead of using these raw offsets verbatim -- see the comment
+-- there.
+--
+-- Raw Z values (Unity render-order artifacts -- Spawner.cs's Vector3.z is carried through
+-- unscaled by SetMovementToScreenSize) carry no spatial meaning in Roblox and are dropped
+-- (always 0 below).
+local MOVEMENTS_X_SCALE = Config.LANE_HALF_WIDTH
+local MOVEMENTS_Y_SCALE = 50 * Config.UNITY_TO_STUDS -- halfScreenHeight (doc 11 §4) in studs
+
+-- StepSpawner.SetMovementToScreenSize (Spawning/StepSpawner.cs L34-43): no extra per-axis factor.
+local function mv(pairs: { { number } }): { Vector3 }
+	local out: { Vector3 } = {}
+	for _, xy in pairs do
+		table.insert(out, Vector3.new(xy[1] * MOVEMENTS_X_SCALE, xy[2] * MOVEMENTS_Y_SCALE, 0))
+	end
+	return out
+end
+
+-- ScenerySpawner.SetMovementToScreenSize (Spawning/ScenerySpawner.cs L24-33): X * 2/3.
+local function smv(pairs: { { number } }): { Vector3 }
+	local out: { Vector3 } = {}
+	for _, xy in pairs do
+		table.insert(out, Vector3.new(xy[1] * MOVEMENTS_X_SCALE * (2 / 3), xy[2] * MOVEMENTS_Y_SCALE, 0))
+	end
+	return out
+end
+
+-- ---------------------------------------------------------------------------
 -- Menu (doc 11 §1, index 0). Not played yet (doc 13 item 5 starts a run at
 -- Tutorial/Pot) -- kept complete so a future menu phase can consume it.
 -- ---------------------------------------------------------------------------
@@ -75,14 +146,44 @@ list[Levels.MENU] = {
 	initialSpawnDirection = Vector2.new(0, -1),
 	stepSpawners = {},
 	scenerySpawners = {
-		{ name = "BackGrassSpawner", kind = "Scenery", direction = Vector2.new(0, 1), pool = { "BackGrass" } },
-		{ name = "CloudSpawner", kind = "Scenery", direction = Vector2.new(-1, 0), pool = { "Cloud3" } },
-		{ name = "GrassSpawner", kind = "Scenery", direction = Vector2.new(0, 1), pool = { "Grass" } },
+		{
+			name = "BackGrassSpawner",
+			kind = "Scenery",
+			direction = Vector2.new(0, 1),
+			pool = { "BackGrass" },
+			movements = smv({ { -1.0, -1.5 }, { 1.0, -1.5 } }),
+		},
+		{
+			name = "CloudSpawner",
+			kind = "Scenery",
+			direction = Vector2.new(-1, 0),
+			pool = { "Cloud3" },
+			movements = smv({ { 4.0, 0.8 }, { 4.0, 0.5 } }),
+		},
+		{
+			name = "GrassSpawner",
+			kind = "Scenery",
+			direction = Vector2.new(0, 1),
+			pool = { "Grass" },
+			movements = smv({ { -1.0, -1.3 }, { 1.0, -1.3 } }),
+		},
 		-- Unity's P2 duplicates (split-screen only) -- kept as data for parity,
 		-- unused by the per-lane port (doc 13: one lane per player already gives
 		-- everyone their own copy, so no P2-specific spawner is needed).
-		{ name = "BackGrassSpawnerP2", kind = "Scenery", direction = Vector2.new(0, 1), pool = { "BackGrassP2" } },
-		{ name = "GrassSpawnerP2", kind = "Scenery", direction = Vector2.new(0, 1), pool = { "GrassP2" } },
+		{
+			name = "BackGrassSpawnerP2",
+			kind = "Scenery",
+			direction = Vector2.new(0, 1),
+			pool = { "BackGrassP2" },
+			movements = smv({ { 1.0, -1.5 }, { 3.0, -1.5 } }),
+		},
+		{
+			name = "GrassSpawnerP2",
+			kind = "Scenery",
+			direction = Vector2.new(0, 1),
+			pool = { "GrassP2" },
+			movements = smv({ { 1.0, -1.3 }, { 3.0, -1.3 } }),
+		},
 	},
 	levelObjects = { "Clouds" },
 }
@@ -113,10 +214,16 @@ list[Levels.TUTORIAL] = {
 			spawningSpeedMax = 1,
 			spawnAllOnAwake = true,
 			pool = { "TutorialFirstTree", "TutorialSecondTree", "TutorialLastTree" },
+			-- Player1TreeDownStepSpawner's own Movements (doc 11 §2a); Player2's copy (a
+			-- purely x-shifted duplicate for split-screen) is dropped -- one lane per player
+			-- already gives everyone their own ladder (see the header comment above).
+			movements = mv({ { 2.5, -0.2 }, { -2.5, 1.0 }, { 2.5, 2.2 } }),
 		},
 	},
 	scenerySpawners = {
-		{ name = "Stars", kind = "Scenery", direction = Vector2.new(0, 0), pool = { "Stars" } },
+		-- "Stars" here is a `LevelObject`/`Scenery.cs` decoration (doc 11 §3 "Stars"), not an
+		-- actual `Spawner`-derived prefab -- no Movements list exists for it to extract.
+		{ name = "Stars", kind = "Scenery", direction = Vector2.new(0, 0), pool = { "Stars" }, movements = {} },
 	},
 	levelObjects = { "Stars", "SpeckManager" },
 }
@@ -146,6 +253,7 @@ list[Levels.POT] = {
 			spawningSpeedMax = 0.7,
 			spawnAllOnAwake = false,
 			pool = { "Potato", "Carrot", "UpRock" },
+			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
 			name = "DownRightStepSpawner",
@@ -160,6 +268,7 @@ list[Levels.POT] = {
 			spawningSpeedMax = 0.7,
 			spawnAllOnAwake = false,
 			pool = { "Carrot", "Potato", "UpRock" },
+			movements = mv({ { -1.0, 0.5 }, { -1.0, 1.25 }, { 0.0, 1.25 } }),
 		},
 		{
 			name = "DownStepSpawner",
@@ -174,12 +283,36 @@ list[Levels.POT] = {
 			spawningSpeedMax = 0.35,
 			spawnAllOnAwake = false,
 			pool = { "Potato", "Carrot", "UpLeftRock", "UpRightRock" },
+			movements = mv({ { -0.5, 1.25 }, { 1.5, 1.25 }, { 2.5, 1.25 } }),
 		},
 	},
 	scenerySpawners = {
-		{ name = "FlameScenerySpawner", kind = "Scenery", direction = Vector2.new(0, 1), pool = { "Flame" } },
+		{
+			name = "FlameScenerySpawner",
+			kind = "Scenery",
+			direction = Vector2.new(0, 1),
+			pool = { "Flame" },
+			movements = smv({
+				{ -1.0, -1.0 },
+				{ -0.5, -1.0 },
+				{ 0.0, -1.0 },
+				{ 0.5, -1.0 },
+				{ 1.0, -1.0 },
+				{ 1.5, -1.0 },
+				{ 2.0, -1.0 },
+				{ 2.5, -1.0 },
+				{ 3.0, -1.0 },
+				{ 3.5, -1.0 },
+			}),
+		},
 		-- Multiplayer-only override (doc 11): Level2 gets a 5th spawner appended.
-		{ name = "UpScenerySpawner", kind = "Scenery", direction = Vector2.new(0, 1), pool = { "Bubble" } },
+		{
+			name = "UpScenerySpawner",
+			kind = "Scenery",
+			direction = Vector2.new(0, 1),
+			pool = { "Bubble" },
+			movements = smv({ { -0.5, -1.25 }, { 1.5, -1.25 }, { 2.5, -1.25 } }),
+		},
 	},
 	levelObjects = {},
 }
@@ -208,6 +341,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" },
+			movements = mv({ { -1.0, 0.5 }, { -1.0, 1.25 }, { 0.0, 1.25 } }),
 		},
 		{
 			name = "DownLeftStepSpawner",
@@ -222,6 +356,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" },
+			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
 			name = "RightStepSpawner",
@@ -236,6 +371,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" },
+			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
 			name = "LeftStepSpawner",
@@ -250,6 +386,9 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" },
+			-- doc 13's worked example: this is the spawner whose Movements sit past the
+			-- RIGHT edge despite a leftward spawnDirection (see "Direction / arrow semantics").
+			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
 		},
 		{
 			name = "DownStepSpawner",
@@ -267,10 +406,17 @@ list[Levels.KITCHEN] = {
 			-- Left/Right spawners unreachable from a downward scroll; adding them here is
 			-- what makes sideways travel actually happen (doc 13).
 			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpLeftRock", "UpRightRock", "LeftRock", "RightRock" },
+			movements = mv({ { 0.0, 1.25 }, { 1.5, 1.25 }, { 2.0, 1.25 } }),
 		},
 	},
 	scenerySpawners = {
-		{ name = "DownScenerySpawner", kind = "Scenery", direction = Vector2.new(0, -1), pool = { "Window" } },
+		{
+			name = "DownScenerySpawner",
+			kind = "Scenery",
+			direction = Vector2.new(0, -1),
+			pool = { "Window" },
+			movements = smv({ { -0.5, 1.25 }, { 1.5, 1.25 }, { 2.5, 1.25 } }),
+		},
 	},
 	-- Multiplayer-only override (doc 11): Level3 gets a Chef levelObject appended.
 	levelObjects = { "Chef" },
@@ -306,8 +452,10 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMax = 3,
 			spawnAllOnAwake = false,
 			pool = { "Rocket", "Balloon" },
+			movements = mv({ { 1.0, -1.25 }, { 1.5, -1.25 }, { 2.5, -1.25 } }),
 		},
-		-- Kitchen's (Level3) spawners, reused wholesale (doc 11).
+		-- Kitchen's (Level3) spawners, reused wholesale (doc 11) -- same Movements as their
+		-- Kitchen counterparts above, since it's literally the same shipped prefab.
 		{
 			name = "DownLeftStepSpawner",
 			direction = Vector2.new(-0.5, -1),
@@ -321,6 +469,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" },
+			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
 			name = "RightStepSpawner",
@@ -335,6 +484,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" },
+			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
 			name = "LeftStepSpawner",
@@ -349,6 +499,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" },
+			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
 		},
 		{
 			name = "DownStepSpawner",
@@ -366,10 +517,17 @@ list[Levels.COUNTRY] = {
 			-- Left/Right spawners unreachable from a downward scroll; adding them here is
 			-- what makes sideways travel actually happen (doc 13).
 			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpLeftRock", "UpRightRock", "LeftRock", "RightRock" },
+			movements = mv({ { 0.0, 1.25 }, { 1.5, 1.25 }, { 2.0, 1.25 } }),
 		},
 	},
 	scenerySpawners = {
-		{ name = "DownScenerySpawner", kind = "Scenery", direction = Vector2.new(0, -1), pool = { "Window" } },
+		{
+			name = "DownScenerySpawner",
+			kind = "Scenery",
+			direction = Vector2.new(0, -1),
+			pool = { "Window" },
+			movements = smv({ { -0.5, 1.25 }, { 1.5, 1.25 }, { 2.5, 1.25 } }),
+		},
 	},
 	levelObjects = { "US" },
 }

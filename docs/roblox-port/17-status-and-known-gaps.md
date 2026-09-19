@@ -23,9 +23,12 @@ doc ends with a "needs a Studio playtest" list:
    Pot, Kitchen (200 steps) and Country (500), with two players.
 2. **Upload assets** — the `tools/` pipeline (see `tools/README.md`, doc 10).
    Needs an Open Cloud API key with Assets read/write and
-   `legacy-asset:manage`. **Upload one test image first** and confirm it
-   renders in Studio: the decal → image id resolution has never run against
-   the live API.
+   `legacy-asset:manage`. As of 2026-09-19 `tools/asset_ids.json` (gitignored)
+   already holds ~100 uploaded ids (`status: resolved-direct`); the remaining
+   entries — including the five background/US-map images added the same day —
+   are still `id = 0`. Run `tools/write_asset_ids.py` to pull cached ids into
+   `SkinAssets` / `SoundAssets`, then spot-check one image in Studio: whether an
+   `assetType=Image` upload id renders directly is still unverified.
 3. **Create products** and paste ids:
    - 4 Game Passes → `src/shared/SkinCatalog.luau` (`gamePassId`)
    - Fly-pack Developer Products → `FLY_PRODUCTS` in
@@ -37,17 +40,25 @@ doc ends with a "needs a Studio playtest" list:
 
 | Gap | Where | Why | What would close it |
 |---|---|---|---|
-| Attract mode (`Player/FrogAI.cs`) | menu | skipped as low priority | client-side idle climb on a couple of decorative steps while in `Menu` state |
-| `hurt` sound (`Entities/Lava.cs` FallSplash) | audio | `GameOver` doesn't say *how* the frog died | add a death-cause argument to `GameOver` / `RunSummary` |
-| Bubble `pop` sound | audio | scenery isn't grabbable in the port | grabbable scenery (`StepAndScenery.cs`) |
-| Background textures (`PotBack`, `KitchenTile`, `Sky`, `Water`, `HeatBackground`, `LavaGradient`) | backdrop | Unity *materials*, not sprites — not in `/Sprites` or the manifest | export their textures from the Unity project's `Assets/Materials`, add to `tools/build_manifest.py` + `SkinAssets` |
-| `US` map for Country | scenery | two-layer material cutout, no single sprite | render `USRedStates`/`USBlueStates` as two tinted decals |
 | Skin thumbnails for Blue / Space / Mystery Frog | store | no thumbnail file in `Sprites/Menu` | draw them; the UI falls back to the Head sprite meanwhile |
-| Music toggle saves the profile on every click | settings | no debounce | throttle `SetMusicOn` saves (e.g. 5 s) |
 | "Drugged" frog effect (`Frog.cs MakeDrugged`) | cosmetics | nothing in the port triggers it | only if a step type re-introduces it |
-| Per-spawner `Movements` lists | spawning | doc 11 only kept one example | re-extract from the prefab dump if procedural positions feel wrong |
 | Invisible Man inherits Hot Frog's head | skins | `SkinAssets.part()` falls back to Hot Frog like the Unity prefabs | if it looks wrong in game, add a per-skin "no fallback" flag |
-| Bugs-this-run counter | HUD | identified by Fly amount `== Config.BUG_FLYS` | a dedicated server signal if faucet amounts ever change |
+| `HeatBackground` / `LavaGradient` materials | backdrop | wired in `WorldBackdrop` but no level references them (same as Unity) | nothing, unless a level is retuned to use them |
+| Lava height maps (`Lava_01_H1/H2.tga`) | backdrop | custom Unity shader inputs, no Roblox equivalent | n/a — `LavaGradient` uses the flat `Lava_01` texture |
+| Camera aspect for `Movements` offsets | spawning | Unity scaled `Movements` by the runtime screen aspect, which the prefab dump doesn't record; the port assumes the lane's half-width is the screen edge and clamps into the recycle margin | playtest; retune `Levels.luau`'s `MOVEMENTS_*_SCALE` if spawn positions feel wrong |
+
+### Closed on 2026-09-19
+
+| Gap | How |
+|---|---|
+| Attract mode (`Player/FrogAI.cs`) | `WorldAttract.client.luau`: cosmetic frog clone climbs a 3-rung ladder while the lane is in `Menu` (doc 15) |
+| `hurt` sound | `GameOver` / `RunSummary` carry a death-cause argument (`"Lava"`); `SfxEvents` plays it; the old `WorldLava` proxy sound was removed (doc 16 §6) |
+| Bubble `pop` | Bubble is the only `GrabableScenery` in Unity; a client-side tap raycast against live bubbles pops it (doc 14) |
+| Background textures | `PotBack.jpg`, `KitchenTile.png` (2×2 tiled), `Lava_01.tga`→PNG in the manifest and `SkinAssets`; `Sky`/`Water`/`HeatBackground` colours taken from the `.mat` files (doc 14) |
+| `US` map | `USRedStates` / `USBlueStates` as two layers crossfading blue↔red every 5 s, per `UnitedStates.cs` (doc 14) |
+| Music toggle save spam | `Config.MUSIC_SAVE_DEBOUNCE` (5 s); the value applies immediately, the leave/BindToClose save is unconditional |
+| Per-spawner `Movements` | all step and scenery spawner lists in `Levels.luau`; `Lane.luau` mirrors `Spawner.Move()` (discrete jump vs. tween) (doc 13) |
+| Bugs-this-run counter | `BugService` fires a `BugCaughtServer` bindable; the `AwardFlys` amount heuristic is gone |
 
 ## Deliberate deviations from Unity
 
@@ -55,6 +66,9 @@ doc ends with a "needs a Studio playtest" list:
 |---|---|---|---|
 | Level progression | never advanced past Pot (`nextLevelIndex` written, never read) | Pot → Kitchen at 200 steps, Kitchen → Country at 500 (`Config.LEVEL_THRESHOLDS`) | Kitchen/Country were built but unreachable; owner's choice |
 | Multiplayer field | local split-screen, one field per controller | one **lane** per player, side by side along X (doc 13) | per-player levels and sideways travel are impossible on a shared field |
+| Spawner `Movements` offsets | off-screen staging points dragged on screen by the continuous per-frame pull | converted to studs with a fixed aspect assumption and **clamped** into the recycle margin | the port pulls per grab, not per frame, so an off-screen spawn would be recycled before it was ever seen |
+| Attract-mode frog | drives the real frog with random screen taps (`FrogAI.cs`) | a separate cosmetic clone on a fixed 3-rung ladder, 1 s cadence | the real frog is server-owned; the demo must not fight replication |
+| Bubble pop particles | Unity `ParticleSystem` | pooled part burst (same style as the lava splash) | |
 | Tutorial | every run | once per profile (`profile.tutorialDone`), replayable from Settings | |
 | Ads | watch-ad-for-Flys branch after a run | **dropped**, no replacement | owner's choice |
 | Left / Right arrow steps | `SpawnDirection` = the arrow's own sign, inconsistent with Up/UpLeft/UpRight | all arrows point the way the frog appears to travel (Left/Right swapped vs. Unity's literal values) | see `StepBehaviors.luau` |

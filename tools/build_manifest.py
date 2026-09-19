@@ -232,8 +232,12 @@ SCENERY_TABLE = {
 }
 SCENERY_SKIP_REASONS = {
     "NorthAmerica": "not referenced by any extracted Unity prefab/script data; not in the task's scenery inclusion list — likely unused minigame/easter-egg art",
-    "USBlueStates": "not referenced by any extracted Unity prefab/script data; not in the task's scenery inclusion list — likely unused minigame/easter-egg art",
-    "USRedStates": "not referenced by any extracted Unity prefab/script data; not in the task's scenery inclusion list — likely unused minigame/easter-egg art",
+    # USRedStates/USBlueStates WERE previously skipped for the same reason, but
+    # Prefabs/Levels/Level4/Objects/US.prefab.json (dump_prefabs.py) shows both
+    # ARE referenced -- two SpriteRenderers on the "US" levelObject's
+    # USRedStates/USBlueStates children, tinted by UnitedStates.cs's `colors`
+    # array (doc 17 known gap "US map for Country", doc 14). No longer skipped —
+    # see collect_other_and_scenery()'s normal Sprites/Scenery walk below.
 }
 
 MENU_UI_SKIP = set()  # non-thumbnail Menu files are all included as "ui"
@@ -268,6 +272,72 @@ def collect_other_and_scenery() -> tuple[list[dict], list[dict]]:
             continue
         table = SCENERY_TABLE.get(stem, "scenery")
         entries.append(image_entry(stem, png, table))
+
+    return entries, skips
+
+
+# ---------------------------------------------------------------------------
+# Background materials (doc 17 known gap "Background textures"): PotBack,
+# KitchenTile and LavaGradient are Unity *materials* under the external Unity
+# project's Assets/Materials/*.mat, not /Sprites — their real textures live
+# alongside in Assets/Materials/Textures/. Sky/Water/HeatBackground turned out
+# to be texture-less gradient/colour shaders once dumped with
+# dump_materials.py (see docs/roblox-port/14-world-dressing.md for the
+# extracted _Color values); there's no image asset to upload for those three,
+# so they're not manifest entries — src/client/WorldBackdrop.client.luau
+# hardcodes their extracted flat colours directly instead.
+# ---------------------------------------------------------------------------
+
+
+def collect_background_materials(materials_dir: Path | None) -> tuple[list[dict], list[dict]]:
+    entries: list[dict] = []
+    skips: list[dict] = []
+
+    if materials_dir is None or not materials_dir.is_dir():
+        reason = f"source Materials/Textures directory not found ({materials_dir}) — set --audio-dir/$ROBLOX_AUDIO_SRC (a sibling of Assets/Materials/Textures)"
+        for key in ("PotBack", "KitchenTile", "LavaGradient"):
+            skips.append(skipped(key, materials_dir or "(unresolved)", reason))
+        return entries, skips
+
+    direct = [
+        ("PotBack", materials_dir / "PotBack.jpg"),
+        ("KitchenTile", materials_dir / "KitchenTile.png"),
+    ]
+    for key, path in direct:
+        if not path.is_file():
+            skips.append(skipped(key, path, "expected file not found on disk"))
+            continue
+        entries.append(image_entry(key, path, "scenery", note="Materials/*.mat backdrop texture (doc 17 known gap 'Background textures')"))
+
+    # LavaGradient.mat's _MainTex is Materials/Textures/Lava_01.tga — convert to
+    # PNG (Pillow, already a tools/ dependency per tools/README.md's Setup
+    # section) since the upload pipeline wants PNG, not TGA. Cached under
+    # tools/.asset_cache/ (gitignored) like upload_to_roblox.py's ffmpeg output.
+    lava_tga = materials_dir / "Lava_01.tga"
+    if not lava_tga.is_file():
+        skips.append(skipped("LavaGradient", lava_tga, "expected file not found on disk"))
+    else:
+        try:
+            from PIL import Image
+        except ImportError:
+            skips.append(skipped("LavaGradient", lava_tga, "Pillow not installed — pip install -r tools/requirements.txt"))
+        else:
+            converted_dir = REPO_ROOT / "tools" / ".asset_cache" / "converted_images"
+            converted_dir.mkdir(parents=True, exist_ok=True)
+            out_path = converted_dir / "LavaGradient.png"
+            try:
+                if not out_path.exists() or out_path.stat().st_mtime < lava_tga.stat().st_mtime:
+                    Image.open(lava_tga).convert("RGBA").save(out_path)
+                entries.append(
+                    image_entry(
+                        "LavaGradient",
+                        out_path,
+                        "scenery",
+                        note="converted from Materials/Textures/Lava_01.tga (LavaGradient.mat's _MainTex) via Pillow — Roblox's upload pipeline wants PNG, not TGA",
+                    )
+                )
+            except Exception as e:  # noqa: BLE001
+                skips.append(skipped("LavaGradient", lava_tga, f"Pillow conversion to PNG failed: {e!r}"))
 
     return entries, skips
 
@@ -484,6 +554,15 @@ def build(audio_dir: Path | None) -> dict:
 
     all_entries.extend(collect_menu_ui(skin_names))
     all_entries.extend(collect_top_level_ui())
+
+    # Materials/Textures lives alongside Assets/Audio in the same external Unity
+    # project (Assets/Materials/Textures, Assets/Audio) — reuse audio_dir's
+    # resolved location (its own --audio-dir/$ROBLOX_AUDIO_SRC override already
+    # covers relocating both) instead of a second machine-specific flag.
+    materials_dir = (audio_dir.parent / "Materials" / "Textures") if audio_dir else None
+    bg_entries, bg_skips = collect_background_materials(materials_dir)
+    all_entries.extend(bg_entries)
+    all_skips.extend(bg_skips)
 
     audio_entries, audio_skips = collect_audio(audio_dir)
     all_entries.extend(audio_entries)

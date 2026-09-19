@@ -125,9 +125,43 @@ counts are derived **additively**, never by editing those scripts:
    Menu buttons are all `Selectable = true`; `GuiService.SelectedObject` is
    set to a sensible default whenever a panel opens while gamepad is the last
    input type, and engine default spatial navigation handles the rest.
-8. **Attract mode (FrogAI)** — **skipped**, as explicitly allowed (low
-   priority, "otherwise skip and say so"). The parked Menu frog just sits at
-   the lane origin.
+8. **Attract mode (FrogAI)** — closed (doc 17's gap). `src/client/
+   WorldAttract.client.luau`; see "Attract mode" below.
+
+## Attract mode
+
+Ports `Player/FrogAI.cs`, a `Controller` subclass that plays the main menu
+instead of a human: every fixed `nextDecisionTime` (1s — initialized once and
+never reassigned in Unity, despite the name) it grabs a step under a random
+on-screen point, and `Controller.cs`'s `MoveLimbs` snaps a held limb straight
+to that step's transform or `SmoothDamp`s a free one back to rest.
+
+`src/client/WorldAttract.client.luau` (new, client-only, local player's own
+lane only — unlike `WorldScenery`/`WorldFrogCosmetics` this vignette is never
+useful to render for anyone else's screen) builds a small fixed decorative
+ladder (`WorldConfig.ATTRACT_STEP_COUNT` rungs, same zig-zag shape as
+`Lane.luau`'s own Tutorial ladder) plus a **local, purely cosmetic** clone of
+the frog rig — never the server-owned model at
+`workspace.PlayField.Frogs.Frog_<userId>` — the instant this player's lane
+`RunState` attribute reads `"Menu"`. It's shifted a few studs off the lane
+origin (`WorldConfig.ATTRACT_ANCHOR_OFFSET`) so it never overlaps the real
+parked frog, which stays exactly where `GameServer.server.luau` already
+leaves it. On the same 1s cadence the cosmetic frog's two limbs alternate
+grabbing the next rung up the ladder, wrapping back to the bottom once it
+reaches the top — an endless climb loop. Rendering mirrors `MoveLimbs`
+exactly, in the same shape `GameServer`'s own frog-render Heartbeat already
+uses for the real frog: a held limb snaps to `CFrame.new(rung.Position)`, a
+free one `Lerp`s toward `body.CFrame * Config.LIMB_REST[i]` over
+`Config.LIMB_RETURN_TIME`. Torn down (both the ladder and the clone
+destroyed) the instant `RunState` leaves `"Menu"`.
+
+Simplified vs. Unity: no raycast/miss branch (the ladder is fixed, so every
+decision is a "hit"), no screen-space randomness, and the frog's body itself
+never moves (matching `FrogAI.cs`, where only `MoveLimbs`' limbs do). The
+cosmetic clone doesn't blink (`WorldFrogCosmetics.client.luau`'s job for every
+*real* frog; out of scope for a throwaway demo model) but does track the
+player's currently-equipped skin (`ProfileChanged`/`SkinCatalog`), so it
+always shows whichever frog the player has selected.
 
 ## Input mapping table
 
@@ -180,9 +214,12 @@ in-progress work outside this phase's file ownership; left untouched.
   is correct against the current `BugService`/`GiftService` amounts (5 vs.
   100) but would silently miscount if either amount is retuned later without
   updating this comment — flagged in the code, not otherwise enforced.
+- **Attract mode's fixed decorative-ladder offset** (`WorldConfig.
+  ATTRACT_ANCHOR_OFFSET`) was chosen analytically to sit clear of the parked
+  real frog, not visually verified — check it reads as a small demo vignette
+  rather than clipping the frog or drifting off-camera once art exists.
 
 ## What wasn't built
 
-- **Attract mode (item 8)** — skipped per the task's explicit low-priority/
-  time-box language. The parked Menu/Dead frog is static at the lane origin
-  rather than idly climbing a couple of decorative steps.
+Nothing remaining from this phase's item list — Attract mode (item 8) closed
+in a follow-up pass; see "Attract mode" above.

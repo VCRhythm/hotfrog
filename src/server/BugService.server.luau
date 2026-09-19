@@ -63,6 +63,20 @@ if not spawnBugAt then
 	spawnBugAt.Parent = ServerStorage
 end
 
+-- Confirmed-catch fan-out to GameServer (doc 17 gap: GameServer's own
+-- bugsThisRun counter, for the end-of-run RunSummary, used to infer a catch
+-- from the Fly award amount matching Config.BUG_FLYS -- a heuristic that would
+-- silently miscount if that amount, or another faucet's amount, ever changed.
+-- This reports a confirmed catch directly, with no inference. Get-or-create in
+-- ServerStorage, same pattern as AwardFlys/SpawnBugAt above, so load order
+-- between BugService and GameServer stays moot.
+local bugCaughtServer = ServerStorage:FindFirstChild("BugCaughtServer") :: BindableEvent?
+if not bugCaughtServer then
+	bugCaughtServer = Instance.new("BindableEvent")
+	bugCaughtServer.Name = "BugCaughtServer"
+	bugCaughtServer.Parent = ServerStorage
+end
+
 -- ---------------------------------------------------------------------------
 -- Container + template (self-provisioned so the scene needs no extra manual
 -- setup; replace Assets/BugTemplate with real art whenever you like)
@@ -258,5 +272,6 @@ CatchBug.OnServerEvent:Connect(function(player, bug)
 	local position = bug.Position
 	releaseBug(bug)
 	awardFlys:Fire(player, Config.BUG_FLYS)
+	bugCaughtServer:Fire(player) -- GameServer's exact bugsThisRun counter (doc 17 gap)
 	BugCaught:FireClient(player, position) -- feedback hook (squish sound / flash)
 end)

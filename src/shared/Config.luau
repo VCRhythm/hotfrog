@@ -119,6 +119,12 @@ local Config = {
 	-- Tongue (Entities/Tongue.cs expand/retract, scaled to tween times)
 	TONGUE_EXPAND_TIME = 0.12,
 	TONGUE_RETRACT_TIME = 0.18,
+
+	-- Settings persistence (doc 17 gap: SetMusicOn used to save the profile on
+	-- every toggle click). The Attribute/in-memory value still applies
+	-- instantly; only the DataStore write is throttled to at most once per this
+	-- many seconds (see GameServer.server.luau's SetMusicOn handler).
+	MUSIC_SAVE_DEBOUNCE = 5,
 }
 
 return Config

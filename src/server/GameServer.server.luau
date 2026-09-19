@@ -65,7 +65,7 @@ end
 local GrabStep = ensureRemote("GrabStep") -- client -> server: tapped a step (step, tap world point)
 local ReleaseStep = ensureRemote("ReleaseStep") -- client -> server: released a limb
 local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/best/quality/grabQuality
-local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart
+local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart (score, cause)
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
 local LevelChanged = ensureRemote("LevelChanged") -- server -> client: this lane's level/transition changed
 
@@ -75,7 +75,7 @@ local LevelChanged = ensureRemote("LevelChanged") -- server -> client: this lane
 -- LevelChanged's own contracts, only gates when they fire.
 local StartRun = ensureRemote("StartRun") -- client -> server: begin a run from Menu (rate-limited, Menu-only)
 local RunStateChanged = ensureRemote("RunStateChanged") -- server -> client: this player's Menu/Playing/Dead state
-local RunSummary = ensureRemote("RunSummary") -- server -> client: end-of-run stats for the end-of-run panel
+local RunSummary = ensureRemote("RunSummary") -- server -> client: end-of-run stats for the end-of-run panel (score, newBest, isNewBest, quality, bugs, flys, cause)
 local SetMusicOn = ensureRemote("SetMusicOn") -- client -> server: settings toggle (writes profile.musicOn)
 local ReplayTutorial = ensureRemote("ReplayTutorial") -- client -> server: settings action (Menu-only)
 local GetTopScores = ensureRemoteFunction("GetTopScores") -- client -> server: cached global top-10 (name, score)
@@ -97,6 +97,23 @@ end
 -- as the AwardFlys faucet (SkinService/BugService/GiftService) -- get-or-create
 -- so load order between GameServer and BugService is moot.
 local spawnBugAt = ensureBindable("SpawnBugAt")
+
+-- Confirmed-catch fan-in from BugService (doc 17 gap: the bugs-this-run counter
+-- below used to be inferred from the Fly award amount, see the note further
+-- down). Same get-or-create-in-ServerStorage pattern as SpawnBugAt/AwardFlys --
+-- BugService fires this directly, with no inference, right alongside its own
+-- AwardFlys/BugCaught calls (src/server/BugService.server.luau).
+local bugCaughtServer = ensureBindable("BugCaughtServer")
+
+-- Death cause (doc 17 gap: `GameOver`/`RunSummary` never said *how* the frog
+-- died, so `hurt` -- Entities/Lava.cs FallSplash's hurtSound, a lava-specific
+-- death cue -- couldn't be wired). The fall loop below has exactly one death
+-- mechanism: the frog's head drops past Config.DESPAWN_Y, this port's stand-in
+-- for Unity's lava line (see the fall loop's own comment). So there is only
+-- ever one cause today, but it's still threaded through as an explicit
+-- argument (not hardcoded at each call site) so a future second cause (e.g. a
+-- border/out-of-bounds kill) only needs a new value here, not a new remote.
+local DEATH_CAUSE_LAVA = "Lava"
 
 -- ---------------------------------------------------------------------------
 -- Run state (doc 15): Menu -> Playing -> Dead -> Menu, per player. In Menu the
@@ -123,21 +140,30 @@ end
 -- to the same ServerStorage/AwardFlys BindableEvent SkinService already
 -- creates and fires on every bug catch (BugService) / gift claim
 -- (GiftService) / IAP grant -- purely additive, never touches those scripts.
--- A caught bug is identified by its Fly amount matching Config.BUG_FLYS (the
--- only other source, gifts, grants a much larger GIFT_FLYS=100 -- see
--- GiftService.server.luau); good enough for an end-of-run counter, not a
--- security-sensitive value.
+-- Every source is genuine Fly currency, so summing every amount here is
+-- correct regardless of which faucet it came from -- unlike bugsThisRun below,
+-- this was never a heuristic.
 local flysThisRun: { [Player]: number } = {}
-local bugsThisRun: { [Player]: number } = {}
 local awardFlysBindable = ensureBindable("AwardFlys")
 awardFlysBindable.Event:Connect(function(player: Player, amount: number)
 	if typeof(player) ~= "Instance" or not player:IsA("Player") or typeof(amount) ~= "number" then
 		return
 	end
 	flysThisRun[player] = (flysThisRun[player] or 0) + amount
-	if amount == Config.BUG_FLYS then
-		bugsThisRun[player] = (bugsThisRun[player] or 0) + 1
+end)
+
+-- doc 17 gap: this counter used to be inferred from the AwardFlys amount
+-- matching Config.BUG_FLYS (5) -- correct only as long as no other faucet
+-- (GiftService's 100, a Developer Product grant, ...) ever happened to reuse
+-- that exact number. BugService now fires BugCaughtServer directly on every
+-- confirmed catch (see its CatchBug handler), so this is an exact count, not
+-- an inference.
+local bugsThisRun: { [Player]: number } = {}
+bugCaughtServer.Event:Connect(function(player: Player)
+	if typeof(player) ~= "Instance" or not player:IsA("Player") then
+		return
 	end
+	bugsThisRun[player] = (bugsThisRun[player] or 0) + 1
 end)
 
 -- ---------------------------------------------------------------------------
@@ -598,8 +624,10 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 	flysThisRun[player] = 0
 
 	resetScore(player)
-	GameOver:FireClient(player) -- unchanged: Effects.client.luau's fall-sound hook
-	RunSummary:FireClient(player, score, newBest, isNewBest, qualitySnapshot, bugs, flys)
+	-- DEATH_CAUSE_LAVA on both: Effects.client.luau's fall-sound hook ignores the
+	-- extra argument (unchanged), SfxEvents.client.luau's new `hurt` cue reads it.
+	GameOver:FireClient(player, DEATH_CAUSE_LAVA)
+	RunSummary:FireClient(player, score, newBest, isNewBest, qualitySnapshot, bugs, flys, DEATH_CAUSE_LAVA)
 
 	clearLaneSteps(lane) -- leave the lane empty/idle for the Menu, not littered with the just-ended run's steps
 	local profile = Profiles.get(player)
@@ -832,6 +860,20 @@ end)
 -- Settings (doc 15 item 3): music on/off is the whole MusicOn attribute
 -- contract another agent's client music system reads -- this script never
 -- plays anything, it only validates, persists, and republishes the attribute.
+--
+-- doc 17 gap: a settings toggle used to call Profiles.save on every single
+-- click, which is a DataStore write a player mashing the toggle could spam.
+-- The Attribute (what Music.client.luau actually reacts to) and the in-memory
+-- profile field both still apply IMMEDIATELY on every call -- only the
+-- DataStore write itself is throttled to at most once per
+-- Config.MUSIC_SAVE_DEBOUNCE seconds. This can never lose the final value:
+-- Profiles.save's skip here only skips a save that's about to be superseded by
+-- a newer one anyway, and Profiles.luau already does its own unconditional
+-- final save on PlayerRemoving/BindToClose (see Profiles.luau's doSave(...,
+-- true) calls) reading whatever `p.musicOn` holds at that moment, plus its own
+-- 120s periodic autosave in between -- so the debounce below only ever skips a
+-- write, never the value.
+local lastMusicSave: { [Player]: number } = {}
 SetMusicOn.OnServerEvent:Connect(function(player, value)
 	if typeof(value) ~= "boolean" then
 		return
@@ -841,8 +883,15 @@ SetMusicOn.OnServerEvent:Connect(function(player, value)
 		return
 	end
 	p.musicOn = value
+	player:SetAttribute("MusicOn", value) -- applied immediately, independent of the save debounce below
+
+	local now = os.clock()
+	local last = lastMusicSave[player]
+	if last and (now - last) < Config.MUSIC_SAVE_DEBOUNCE then
+		return -- too soon since the last write; the in-memory value above is already correct
+	end
+	lastMusicSave[player] = now
 	Profiles.save(player)
-	player:SetAttribute("MusicOn", value)
 end)
 
 -- "Replay tutorial" settings action (doc 15 item 3): only from Menu, so it
@@ -964,4 +1013,5 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	lastStartRun[player] = nil
 	flysThisRun[player] = nil
 	bugsThisRun[player] = nil
+	lastMusicSave[player] = nil
 end)

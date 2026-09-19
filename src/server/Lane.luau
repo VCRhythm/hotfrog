@@ -23,6 +23,17 @@ export type SpawnerState = {
 	spawnCount: number,
 	timer: number, -- seconds until the next spawn attempt (continuous spawners)
 	awoken: boolean, -- spawnAllOnAwake spawners fire once, then stay dormant
+	-- Movements-list cycling (only meaningful when #def.movements > 0 -- see
+	-- Lane.updateMovement / Lane.currentMovementOffset below). Mirrors Spawner.cs's own
+	-- `transform.position`, which the Move() coroutine (Spawner.cs L123-147) advances
+	-- independently of spawning itself; CreateSpawn() (L192-214) just reads whatever that
+	-- position currently is when it fires.
+	moveToIndex: number, -- 1-based index into def.movements `moveTo` was picked from; 0 = not yet started
+	moveFrom: Vector3, -- tween start point (continuous movers only; unused when discrete)
+	moveTo: Vector3, -- current leg's destination / settle point
+	moveElapsed: number, -- seconds into the current leg
+	moveTweenTime: number, -- this leg's tween duration (0 = discrete instant jump)
+	moveWaitTime: number, -- total leg length before the next re-pick (tweenTime + nextMoveTime)
 }
 
 local Lane = {}
@@ -142,7 +153,18 @@ function Lane.setLevel(self: Lane, levelIndex: number)
 
 	local states: { SpawnerState } = {}
 	for _, def in level.stepSpawners do
-		table.insert(states, { def = def, spawnCount = 0, timer = 0, awoken = false })
+		table.insert(states, {
+			def = def,
+			spawnCount = 0,
+			timer = 0,
+			awoken = false,
+			moveToIndex = 0,
+			moveFrom = Vector3.zero,
+			moveTo = Vector3.zero,
+			moveElapsed = 0,
+			moveTweenTime = 0,
+			moveWaitTime = 0,
+		})
 	end
 	self.spawnerStates = states
 	self.activeSpawners = self:spawnersForDirection(self.spawnDirection)
@@ -220,16 +242,133 @@ function Lane.pickKind(self: Lane, state: SpawnerState): string?
 end
 
 -- ---------------------------------------------------------------------------
--- Spawn position (doc 13 item 4): new steps enter from the edge the lane's
--- steps travel AWAY from -- i.e. the side opposite spawnDirection (verified
--- against doc 11 §2a's Level3 LeftStepSpawner Movements, which sit past the
--- RIGHT edge for a spawner whose direction is leftward). Diagonals enter from
--- the matching top corner. Exact per-spawner Movements lists aren't in doc 11
--- (only one example was kept, "omitted from the table for width") -- positions
--- here are generated procedurally along the same edge/shape instead of copying
--- literal Unity offsets.
+-- Movements-list cycling (Spawning/Spawner.cs Move() coroutine, L123-147). Only
+-- touches spawners whose Levels.luau `def.movements` is non-empty -- see
+-- Lane.spawnPosition below for the empty-list procedural fallback this replaces.
+-- Unity's Move() runs on its own clock, fully independent of spawning/spawnBudget
+-- (Activate() L86-97 starts Move() and StartSpawning as two separate coroutines);
+-- updateMovement mirrors that by always advancing on the full Heartbeat `dt`,
+-- not the pull-earned `spend` budget tickSpawners' spawn cadence uses below.
+--
+-- `Lane.spawnPosition` clamps the result into Lane.isOutOfBounds' recycle margin
+-- (BOUNDS_MARGIN) before adding it to the lane's origin: the converted Movements
+-- offsets (Levels.luau) are deliberately off-screen "staging" positions, matching
+-- Unity's own adjustedMovements, but Unity drags those onscreen with a continuous
+-- per-frame PullVector (Spawning/SpawnManager.cs Pull/PullStep) while this port's
+-- steps only move on a discrete per-grab tween (GameServer.pullLane) -- an
+-- unclamped literal offset would be recycled before ever being pulled in.
+-- ---------------------------------------------------------------------------
+local BOUNDS_MARGIN = 6 -- also used by Lane.isOutOfBounds below -- keep in sync
+
+local function clampToLane(offset: Vector3): Vector3
+	return Vector3.new(
+		math.clamp(offset.X, -(Config.LANE_HALF_WIDTH + 3), Config.LANE_HALF_WIDTH + 3),
+		math.clamp(offset.Y, Config.DESPAWN_Y, Config.SPAWN_Y),
+		0
+	)
+end
+
+-- Spawner.cs Move(), L128-131: `do { destination = movements[rand] } while (destination ==
+-- transform.position && movements.Count > 1)`. Compared by INDEX here (not value) -- strictly
+-- safer than Unity's value compare (guaranteed to terminate even if two entries happen to
+-- share a value) while producing the same observable "don't repeat the current one" behavior.
+local function pickMovementIndex(count: number, excludeIndex: number): number
+	if count <= 1 then
+		return 1
+	end
+	local idx: number
+	repeat
+		idx = math.random(1, count)
+	until idx ~= excludeIndex
+	return idx
+end
+
+-- Advances one spawner's Movements cycle by `dt` seconds. First call snaps straight to
+-- movements[1] with no tween-in (Spawner.cs Activate() L88-93: SetPosition(adjustedMovements[0])
+-- runs BEFORE Move() starts), matching Unity's own "no tween on the very first position" quirk.
+local function updateMovement(state: SpawnerState, dt: number)
+	local list = state.def.movements
+	local count = #list
+	if count == 0 then
+		return
+	end
+
+	if state.moveToIndex == 0 then
+		state.moveToIndex = 1
+		state.moveTo = list[1]
+		state.moveFrom = list[1]
+		state.moveElapsed = 0
+		state.moveTweenTime = 0
+		state.moveWaitTime = state.def.moveTimeMin
+			+ math.random() * math.max(0, state.def.moveTimeMax - state.def.moveTimeMin)
+		return
+	end
+
+	state.moveElapsed += dt
+	if state.moveElapsed < state.moveWaitTime then
+		return
+	end
+
+	-- leg finished: pick the next destination and start a new one (Spawner.cs Move(), L133-145)
+	local nextIndex = pickMovementIndex(count, state.moveToIndex)
+	local speed = state.def.moveSpeedMin + math.random() * math.max(0, state.def.moveSpeedMax - state.def.moveSpeedMin)
+	local nextMoveTime = state.def.moveTimeMin
+		+ math.random() * math.max(0, state.def.moveTimeMax - state.def.moveTimeMin)
+
+	state.moveFrom = state.moveTo
+	state.moveTo = list[nextIndex]
+	state.moveToIndex = nextIndex
+	state.moveElapsed = 0
+	if state.def.discreteMovement then
+		state.moveTweenTime = 0 -- instant SetPosition (Spawner.cs L142-144)
+		state.moveWaitTime = nextMoveTime
+	else
+		state.moveTweenTime = speed -- DOLocalMove(destination, speed) (Spawner.cs L138)
+		state.moveWaitTime = speed + nextMoveTime -- WaitForSeconds(speed + nextMoveTime) (Spawner.cs L139)
+	end
+end
+
+-- The spawner's current logical position (Spawner.cs's own `transform.position`, which
+-- CreateSpawn() just reads whenever it fires, L206) -- linearly interpolated mid-tween for
+-- continuous movers, otherwise the settle point. Falls back to the first list entry if
+-- updateMovement hasn't run yet this lane's lifetime (e.g. Lane.prefill's synthetic rows).
+local function currentMovementOffset(state: SpawnerState): Vector3
+	local list = state.def.movements
+	if #list == 0 then
+		return Vector3.zero
+	end
+	if state.moveToIndex == 0 then
+		return list[1]
+	end
+	if state.moveTweenTime <= 0 or state.moveElapsed >= state.moveTweenTime then
+		return state.moveTo
+	end
+	return state.moveFrom:Lerp(state.moveTo, state.moveElapsed / state.moveTweenTime)
+end
+
+-- ---------------------------------------------------------------------------
+-- Spawn position (doc 13 item 4). When `state.def.movements` is populated (every step
+-- spawner as of the doc 17 Movements re-extraction), a regular spawn uses the spawner's
+-- current Movements-cycle position (currentMovementOffset) and a spawnAllOnAwake batch
+-- spawns one entity per Movements entry, positioned exactly there (Spawner.cs
+-- CycleThroughMovementsAndSpawn, L110-117 -- SetPosition(adjustedMovements[i]) then
+-- CreateSpawn(i), a strict 1:1 index match with `pool`). Otherwise (an empty list) this falls
+-- back to the original procedural placement: new steps enter from the edge the lane's steps
+-- travel AWAY from -- i.e. the side opposite spawnDirection -- with diagonals entering from the
+-- matching top/bottom corner.
 -- ---------------------------------------------------------------------------
 function Lane.spawnPosition(self: Lane, state: SpawnerState, indexInBatch: number?): Vector3
+	local movements = state.def.movements
+
+	if indexInBatch and #movements > 0 then
+		local idx = ((indexInBatch - 1) % #movements) + 1
+		return self.origin + clampToLane(movements[idx])
+	end
+
+	if not indexInBatch and #movements > 0 then
+		return self.origin + clampToLane(currentMovementOffset(state))
+	end
+
 	local dir = state.def.direction
 	local ex, ey = -signOf(dir.X), -signOf(dir.Y) -- entry edge = opposite the travel direction
 
@@ -249,9 +388,9 @@ function Lane.spawnPosition(self: Lane, state: SpawnerState, indexInBatch: numbe
 	end
 
 	if indexInBatch then
-		-- spawnAllOnAwake (Tutorial's 3 trees, StepAndScenerySpawner): a ladder
-		-- climbing away from the frog's start, alternating sides, so the first
-		-- one is an easy reach and each next one needs the previous pull
+		-- spawnAllOnAwake with an empty Movements list: a ladder climbing away from the
+		-- frog's start, alternating sides, so the first one is an easy reach and each next
+		-- one needs the previous pull
 		x = (if indexInBatch % 2 == 1 then 1 else -1) * Config.TUTORIAL_STEP_X
 		y = Config.TUTORIAL_FIRST_STEP_Y + (indexInBatch - 1) * Config.TUTORIAL_STEP_GAP
 	end
@@ -284,6 +423,13 @@ function Lane.tickSpawners(
 
 	for _, state in self.activeSpawners do
 		local def = state.def
+		-- Move() runs on its own clock (full dt), independent of the spend-gated spawn
+		-- cadence below (Spawner.cs Activate() starts Move()/StartSpawning as two separate
+		-- coroutines, L86-97) -- moot for spawnAllOnAwake defs, whose positions come
+		-- straight from `def.movements[i]` (see Lane.spawnPosition), not this cycle.
+		if not def.spawnAllOnAwake and #def.movements > 0 then
+			updateMovement(state, dt)
+		end
 		if def.spawnAllOnAwake then
 			if not state.awoken then
 				state.awoken = true
@@ -354,13 +500,12 @@ end
 -- ANY side, not just the bottom lava line. Only X is lane-relative -- Y bounds
 -- are shared world coordinates (lanes only offset along X, doc 13 item 1).
 function Lane.isOutOfBounds(self: Lane, step: BasePart): boolean
-	local margin = 6
 	local relX = step.Position.X - self.origin.X
-	if relX < -(Config.LANE_HALF_WIDTH + margin) or relX > (Config.LANE_HALF_WIDTH + margin) then
+	if relX < -(Config.LANE_HALF_WIDTH + BOUNDS_MARGIN) or relX > (Config.LANE_HALF_WIDTH + BOUNDS_MARGIN) then
 		return true
 	end
 	local y = step.Position.Y
-	return y < Config.DESPAWN_Y or y > (Config.SPAWN_Y + margin)
+	return y < Config.DESPAWN_Y or y > (Config.SPAWN_Y + BOUNDS_MARGIN)
 end
 
 -- ---------------------------------------------------------------------------
