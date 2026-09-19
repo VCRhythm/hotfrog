@@ -13,8 +13,12 @@ local Config = {
 	GRAVITY_ACCEL = 0.6, -- added to the multiplier per second (scaled from per-frame 0.02)
 	MAX_FALL_SPEED = 60, -- clamp, studs/s
 
-	-- Limbs (Player/Controller.cs: limbReturnPos / limbReturnTime, scaled to studs)
-	LIMB_REST = { Vector2.new(2.0, -4.0), Vector2.new(-2.0, -4.0) }, -- [1]=Right, [2]=Left
+	-- Limbs (Player/Controller.cs: limbReturnPos / limbReturnTime, scaled to studs).
+	-- The rest offsets are HotFrog.prefab's own RightLimb/LeftLimb local positions
+	-- ((20, -44.1) / (-20, -43.6) Unity units -- Controller.cs' limbReturnPos
+	-- (+/-20, -40) is the same pose rounded), times UNITY_TO_STUDS below. They used
+	-- to be Unity/10, which made the frog rig ~3x smaller than the world it climbs.
+	LIMB_REST = { Vector2.new(6.2857, -13.8566), Vector2.new(-6.2857, -13.7595) }, -- [1]=Right, [2]=Left
 	LIMB_RETURN_TIME = 0.3,
 
 	-- Grab quality buckets by squared distance (Player/Controller.cs: TouchStep)

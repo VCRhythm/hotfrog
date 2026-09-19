@@ -22,9 +22,11 @@ WorldConfig.BLINK_FRAME_TIME = 0.05 -- Frog.cs blinkAnimateCounter (WaitForSecon
 -- SmoothDamp (clamp 3 "Unity units", smoothTime .3s). The Roblox rig has no
 -- separate pupil parts (doc: only Decal-flat facial art) -- pupils are ported
 -- as Texture instances on the Head so they can be nudged via OffsetStudsU/V
--- (a "local visual property", never a part CFrame). Range is a fraction of the
--- Head part's own face size, not a literal stud/Unity-unit conversion.
-WorldConfig.PUPIL_MAX_OFFSET = 0.14 -- studs of OffsetStudsU/V travel, each axis
+-- (a "local visual property", never a part CFrame). The Head part's face is now
+-- the pupil sprite's own Unity canvas (1024 px / 8 px-per-unit = 128 units,
+-- FrogModel.model.json), so the offset IS a literal unit->stud conversion:
+-- Frog.cs pupilClamp 3 * Config.UNITY_TO_STUDS.
+WorldConfig.PUPIL_MAX_OFFSET = 0.9429 -- studs of OffsetStudsU/V travel, each axis
 WorldConfig.PUPIL_LERP_RATE = 10 -- higher = snappier tracking (per-second lerp factor)
 
 -- How far a limb must sit from its Config.LIMB_REST offset to count as

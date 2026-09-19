@@ -5,7 +5,7 @@
     "CFrame": [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
     "Anchored": true,
     "CanCollide": false,
-    "Color": [0.45, 0.45, 0.48],
+    "Transparency": 1.0,
     "Material": "SmoothPlastic"
   },
   "children": [

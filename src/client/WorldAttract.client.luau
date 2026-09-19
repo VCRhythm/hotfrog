@@ -100,7 +100,7 @@ local function build(origin: Vector3): Attract
 		part.CanCollide = false
 		part.CanQuery = false -- decorative only, must never eat taps (same rule WorldScenery follows)
 		part.Material = Enum.Material.SmoothPlastic
-		part.Color = Color3.fromRGB(190, 190, 170)
+		part.Transparency = 1 -- host for the Decal only (see BugService/StepTemplate)
 		local decal = Instance.new("Decal")
 		decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 		decal:SetAttribute("Sprite", "WhiteRock") -- doc 13: already a SkinAssets stem, flat placeholder until art is uploaded
@@ -121,9 +121,21 @@ local function build(origin: Vector3): Attract
 	model.Name = "AttractFrog_" .. player.UserId
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
-			descendant.Anchored = true
 			descendant.CanCollide = false
 			descendant.CanQuery = false
+			-- Same rule as GameServer.createFrog: the arm/hand sprite parts hang
+			-- off their limb part (off-centre Unity sprite pivots) and ride along
+			-- welded, since only the limb itself is ever posed.
+			local host = descendant.Parent
+			if host and host:IsA("BasePart") then
+				descendant.Anchored = false
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = host
+				weld.Part1 = descendant
+				weld.Parent = descendant
+			else
+				descendant.Anchored = true
+			end
 		end
 	end
 	applyCurrentSkin(model)

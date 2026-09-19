@@ -102,7 +102,7 @@ if not template then
 	part.Name = "BugTemplate"
 	part.Size = Vector3.new(2, 2, 0.4)
 	part.CanCollide = false
-	part.Color = Color3.fromRGB(60, 60, 60)
+	part.Transparency = 1 -- host for the Decal only; a coloured part reads as an opaque sprite background
 	local decal = Instance.new("Decal")
 	decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 	decal:SetAttribute("Sprite", "Bug") -- Sprites/Other/Bug.png via SkinAssets

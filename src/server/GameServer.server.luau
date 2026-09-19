@@ -591,9 +591,24 @@ local function createFrog(player: Player, lane: Lane.Lane)
 	model:SetAttribute("Dead", false)
 	for _, descendant in model:GetDescendants() do
 		if descendant:IsA("BasePart") then
-			descendant.Anchored = true -- kinematic, like the steps
 			descendant.CanCollide = false
 			descendant.CanQuery = false -- frogs must not eat taps
+			-- The arm/hand sprites are the only frog art whose Unity canvas pivot
+			-- isn't centred (the arm hangs below its limb, the open hand sits
+			-- above it), so FrogModel.model.json authors them as CHILD parts of
+			-- the limb. Weld those to the limb instead of anchoring them: the
+			-- Heartbeat loop below only ever poses the limb part itself, and an
+			-- anchored root drags its welded parts along with no physics.
+			local host = descendant.Parent
+			if host and host:IsA("BasePart") then
+				descendant.Anchored = false
+				local weld = Instance.new("WeldConstraint")
+				weld.Part0 = host
+				weld.Part1 = descendant
+				weld.Parent = descendant
+			else
+				descendant.Anchored = true -- kinematic, like the steps
+			end
 		end
 	end
 

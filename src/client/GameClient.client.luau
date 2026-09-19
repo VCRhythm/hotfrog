@@ -74,6 +74,13 @@ local camera = workspace.CurrentCamera
 camera.CameraType = Enum.CameraType.Scriptable
 camera.FieldOfView = 40 -- far + narrow FOV fakes an orthographic look
 
+-- Framing: every Unity camera is orthographic size 50 (doc 11 §4), i.e. a fixed
+-- 100-Unity-unit vertical view = 100 * Config.UNITY_TO_STUDS ~= 31.43 studs.
+-- Roblox's FieldOfView is vertical, so the distance that shows exactly that much
+-- is (31.43 / 2) / tan(40/2 deg) ~= 43.2 studs. (It used to be 60, which showed
+-- ~1.4x too much world and left the frog far smaller on screen than Unity's.)
+local CAMERA_DISTANCE = 43.2
+
 -- ---------------------------------------------------------------------------
 -- Spectate (doc 15 item 6): while not Playing, left/right buttons walk the
 -- camera through every OCCUPIED lane's Origin (read straight from
@@ -114,7 +121,7 @@ local function spectateOrigin(): Vector3
 end
 
 local function updateCamera()
-	camera.CFrame = CFrame.lookAt(spectateOrigin() + Vector3.new(0, 0, 60), spectateOrigin())
+	camera.CFrame = CFrame.lookAt(spectateOrigin() + Vector3.new(0, 0, CAMERA_DISTANCE), spectateOrigin())
 end
 updateCamera()
 myLane:GetAttributeChangedSignal("Origin"):Connect(updateCamera)

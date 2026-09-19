@@ -73,6 +73,9 @@ doc ends with a "needs a Studio playtest" list:
 | "Drugged" frog effect (`Frog.cs MakeDrugged`) | cosmetics | nothing in the port triggers it | only if a step type re-introduces it |
 | `HeatBackground` / `LavaGradient` materials | backdrop | wired in `WorldBackdrop` but no level references them (same as Unity) | nothing, unless a level is retuned to use them |
 | Lava height maps (`Lava_01_H1/H2.tga`) | backdrop | custom Unity shader inputs, no Roblox equivalent | n/a — `LavaGradient` uses the flat `Lava_01` texture |
+| Step / scenery sprite sizing | `StepKinds.luau`, `Levels.luau`, step + scenery parts | the frog rig was re-derived from `HotFrog.prefab`'s real sprite canvases (below), but every step/scenery part is still an arbitrary collider-sized box that stretches a padded Unity canvas into it | dump each step/scenery prefab with UnityPy the same way (sprite `spritePixelsToUnits`, `alignment`, `localScale`) and size the parts `pixels / ppu * UNITY_TO_STUDS` |
+| Attract-mode ladder scale | `WorldConfig.ATTRACT_*` | the vignette's rung size/offsets were tuned beside the old, ~4× too small frog | retune once the corrected frog is seen in Studio |
+| `*HandGrab` decals | frog cosmetics | the open/closed hand sprites exist on the rig but nothing in `src/` swaps them when a limb grabs | swap `Transparency` between `<side>Hand` and `<side>HandGrab` in `WorldFrogCosmetics.client.luau` off the existing held-step inference |
 | Camera aspect for `Movements` offsets | spawning | Unity scaled `Movements` by the runtime screen aspect, which the prefab dump doesn't record; the port assumes the lane's half-width is the screen edge and clamps into the recycle margin | playtest; retune `Levels.luau`'s `MOVEMENTS_*_SCALE` if spawn positions feel wrong |
 
 ### Closed on 2026-09-19
@@ -88,6 +91,9 @@ doc ends with a "needs a Studio playtest" list:
 | Per-spawner `Movements` | all step and scenery spawner lists in `Levels.luau`; `Lane.luau` mirrors `Spawner.Move()` (discrete jump vs. tween) (doc 13) |
 | Bugs-this-run counter | `BugService` fires a `BugCaughtServer` bindable; the `AwardFlys` amount heuristic is gone |
 | Invisible Man inherits Hot Frog's head | checked in Studio with the uploaded sprites — looks right, the Unity-style `SkinAssets.part()` fallback stays |
+| Frog rig size and sprite framing | `FrogModel.model.json` rebuilt from `HotFrog.prefab`'s own sprite data (UnityPy dump): head/body/face are one shared 1024 px @ 8 ppu canvas (= 40.23 studs), limbs 1024 px @ 12 ppu (= 26.82 studs), grab hands 256 px @ 12 ppu, each part sized to the **whole** canvas because a `Decal` always stretches and centres the full image. `Config.LIMB_REST` now uses the prefab's real limb offsets × `UNITY_TO_STUDS` (it was Unity/10, i.e. ~3.1× too small) and `WorldConfig.PUPIL_MAX_OFFSET` was rescaled to the new head face |
+| Camera framing | `GameClient.client.luau`: distance 43.2 studs at FOV 40 shows exactly Unity's orthographic size 50 (100 Unity units ≈ 31.43 studs) vertically; it was 60 studs, ~1.4× too much world. With the rig fix the frog now spans ≈93 % of screen height, as in Unity |
+| Opaque sprite backgrounds | every part that only hosts a `Decal`/`Texture` is now `Transparency = 1` (`StepTemplate`/`BugTemplate` `.model.json`, `BugService` fallback, `WorldAttract` rungs, all `FrogModel` parts) — a coloured host part read as an opaque box behind each sprite's alpha |
 
 ## Deliberate deviations from Unity
 
@@ -109,4 +115,5 @@ doc ends with a "needs a Studio playtest" list:
 | Crumble step (`ActionType.Crumble`) | in the enum; `CrumblyRock.prefab` is actually `None` | behaviour kept, weight 0 / in no pool | no Unity prefab ever used it |
 | Unused `ActionType`s (Launch, SlideOff, MakeFunky, MakeTarget, Move, RiseAndFall, Castle, Helper, PullByLocation, StepFlinging) | enum values with no code or no prefab | not ported | nothing to port |
 | Scoring | +1 per step, quality tracked separately | same; Perfect/Great/OK counts sent with `ScoreChanged` and shown on the end-of-run panel | (the earlier audit's "partial" rating was wrong) |
+| Frog head / body draw order | `SpriteRenderer` sorting order puts Head (−4) *behind* Body (−3) but the face sprites (+9…+13) in front of both | the whole Head part, face decals included, sits behind the Body part (Z −0.3 vs 0) | the face art (eyes ≈ +20…+29 u, mouth ≈ −14…−11 u) never overlaps the body art (−64…−36 u), so one part per layer is faithful and avoids a third plane |
 | Gamepad snap-assist | n/a | nearest step is grabbed but the **cursor** position is graded | keeps Perfect meaningful |
