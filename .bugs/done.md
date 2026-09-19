@@ -8,3 +8,7 @@ files: src/server/GameServer.server.luau
 test: none
 verified: tools/luau_check.sh clean on the file and on src/; not run in Studio
 review: n/a
+
+## b-20260919-135837-n9hp  closed-by-user  2026-09-19 13:59
+note: I'm not seeing the frog sprites on load. the flies are also just placeholders, not using the actual sprites
+resolved: from dashboard
