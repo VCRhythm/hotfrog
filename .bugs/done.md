@@ -42,7 +42,7 @@ review: n/a
 
 ## b-20260919-160006-wj5q  ignored  2026-09-19 16:05
 note: AUTO error (server): StreamingMinRadius is not a valid member of Workspace "Workspace"
-cause: not game code. The stack is 'AssistantCommand', a Luau probe the b-20260919-150613-2ehi fixer ran through the Studio MCP with a wrong property name; the repo does not reference the property.
+cause: not game code. The stack is 'AssistantCommand', a Luau probe the sprite fixer (entry ...150613-2ehi) ran through the Studio MCP with a wrong property name; the repo does not reference the property.
 change: none
 files: none
 test: none
@@ -56,4 +56,13 @@ change: none
 files: none
 test: none
 verified: grep for StreamingTargetRadius across the repo returns nothing
+review: n/a
+
+## b-20260919-160647-fhkj  fixed  2026-09-19 16:20
+note: AUTO warning (server): [Profiles] FrequencyGames (4272203669): session lock still held by studio-... after waiting -- proceeding anyway.
+cause: every Studio play session mints a fresh random SESSION_ID (game.JobId is "" in Studio), so back-to-back playtests looked like foreign live servers to each other and paid the full stale-lock wait, then warned.
+change: in load(), a foreign lock whose owner starts with "studio-" is taken over immediately and without the warning, gated by RunService:IsStudio() so production servers are unaffected.
+files: src/server/Profiles.luau
+test: none
+verified: headless only: stylua --check, selene and tools/luau_check.sh pass on the file; not run in Studio (another fixer was driving Studio)
 review: n/a

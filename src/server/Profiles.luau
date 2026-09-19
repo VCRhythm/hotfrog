@@ -59,7 +59,8 @@ Profiles.Loaded = loadedEvent.Event -- fires (player, profile) once a profile is
 -- Identifies this server for the session lock. game.JobId is "" in Studio, so
 -- fall back to a per-run GUID (only meaningful if the Studio probe below finds
 -- API access actually enabled).
-local SESSION_ID = if game.JobId ~= "" then game.JobId else "studio-" .. HttpService:GenerateGUID(false)
+local STUDIO_OWNER_PREFIX = "studio-"
+local SESSION_ID = if game.JobId ~= "" then game.JobId else STUDIO_OWNER_PREFIX .. HttpService:GenerateGUID(false)
 
 local AUTOSAVE_INTERVAL = 120 -- seconds between periodic full-profile autosaves
 local SAVE_ATTEMPTS, SAVE_RETRY_BASE = 3, 1 -- ~1s, 2s backoff (bounded ~3s worst case)
@@ -365,7 +366,22 @@ local function load(player: Player)
 			store:UpdateAsync(key, function(old: any)
 				seen = old
 				local lock = unwrapLock(old)
-				free = lock == nil or lock.owner == SESSION_ID or (os.time() - lock.at) >= LOCK_STALE_SECONDS
+				-- Every Studio Play session mints a fresh random SESSION_ID (game.JobId
+				-- is "" in Studio), so back-to-back playtests always look like a foreign
+				-- server to each other even though there's only ever one tester. A lock
+				-- left by a *previous Studio session* can never be a live production
+				-- server (those always own game.JobId, never "studio-" prefixed), so
+				-- it's safe to take over immediately instead of paying the full
+				-- stale-lock wait -- this can't weaken the lock for real servers since
+				-- IsStudio() is false there.
+				local staleStudioLock = RunService:IsStudio()
+					and lock ~= nil
+					and lock.owner ~= SESSION_ID
+					and lock.owner:sub(1, #STUDIO_OWNER_PREFIX) == STUDIO_OWNER_PREFIX
+				free = lock == nil
+					or lock.owner == SESSION_ID
+					or (os.time() - lock.at) >= LOCK_STALE_SECONDS
+					or staleStudioLock
 				if not free and not forceSteal then
 					return nil
 				end
@@ -406,7 +422,11 @@ local function load(player: Player)
 	end
 
 	local lock = unwrapLock(data)
-	if lock and lock.owner ~= SESSION_ID and (os.time() - lock.at) < LOCK_STALE_SECONDS then
+	local wasStaleStudioLock = RunService:IsStudio()
+		and lock ~= nil
+		and lock.owner ~= SESSION_ID
+		and lock.owner:sub(1, #STUDIO_OWNER_PREFIX) == STUDIO_OWNER_PREFIX
+	if lock and lock.owner ~= SESSION_ID and (os.time() - lock.at) < LOCK_STALE_SECONDS and not wasStaleStudioLock then
 		warn(
 			("[Profiles] %s (%d): session lock still held by %s after waiting -- proceeding anyway."):format(
 				player.Name,
