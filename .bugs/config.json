@@ -1,0 +1,9 @@
+{
+    "mode": "in-place",
+    "autoCommit": true,
+    "maxPerTick": 3,
+    "tickInterval": "10m",
+    "signalNotify": true,
+    "autoCompact": "200k",
+    "port": 8644
+}

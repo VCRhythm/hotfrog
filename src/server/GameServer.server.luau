@@ -542,6 +542,20 @@ end
 
 local frogTemplate = ReplicatedStorage.Assets.FrogModel
 
+-- FrogModel.model.json wires PrimaryPart -> Body via Rojo's attribute-based
+-- Ref convention (Rojo_Id / Rojo_Target_PrimaryPart), which the Rojo Studio
+-- plugin resolves on sync. That resolution can lose the race against the
+-- model's own children being created (rojo-rbx/rojo#928), leaving
+-- PrimaryPart nil on first sync and crashing createFrog below when it reads
+-- body.CFrame. Guard it here so a clone always has a PrimaryPart regardless
+-- of whether the plugin's Ref-attribute pass won that race.
+if not frogTemplate.PrimaryPart then
+	local frogBody = frogTemplate:FindFirstChild("Body")
+	if frogBody and frogBody:IsA("BasePart") then
+		frogTemplate.PrimaryPart = frogBody
+	end
+end
+
 local function createFrog(player: Player, lane: Lane.Lane)
 	if frogs[player] then
 		return
