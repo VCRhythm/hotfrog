@@ -58,6 +58,10 @@ export type Lane = typeof(setmetatable(
 		-- distance (addPull), never by wall-clock time -- steps don't move between
 		-- pulls, and a free-running timer would pile them up at the entry edge.
 		spawnBudget: number,
+		-- Net forward scroll (studs) accumulated since this level began, floored at 0.
+		-- Exists so the Tutorial "no death" retry (GameServer.tutorialRetry) can never
+		-- undo more scroll than has actually happened -- see Lane.addPull below.
+		netPull: number,
 		runSteps: number, -- steps climbed this run, across levels (drives LEVEL_THRESHOLDS)
 		tutorialStepsClimbed: number,
 		-- called explicitly by whichever method changes the level, WITH the
@@ -150,6 +154,7 @@ function Lane.setLevel(self: Lane, levelIndex: number)
 	local level = Levels.list[levelIndex]
 	self.level = level
 	self.spawnDirection = level.initialSpawnDirection
+	self.netPull = 0 -- fresh scroll baseline for this level (see Lane.addPull)
 
 	local states: { SpawnerState } = {}
 	for _, def in level.stepSpawners do
@@ -399,11 +404,18 @@ function Lane.spawnPosition(self: Lane, state: SpawnerState, indexInBatch: numbe
 end
 
 -- A pull of `distance` studs earns the spawners that much running time
--- (Config.PULL_SPAWN_SPEED = how fast Unity's field moves during a pull).
+-- (Config.PULL_SPAWN_SPEED = how fast Unity's field moves during a pull). Also
+-- tracks net forward scroll since this level began (floored at 0) so a later
+-- negative "undo" pull -- GameServer.tutorialRetry's Tutorial "no death" rule --
+-- can be capped against it and never overshoot past the level's start (doc 17
+-- gap: an uncapped retry pull-back permanently scrolled the Tutorial's one-shot
+-- ladder, which never respawns, off the top of the field before it was ever
+-- climbed).
 function Lane.addPull(self: Lane, distance: number)
 	if distance > 0 then
 		self.spawnBudget += distance / Config.PULL_SPAWN_SPEED
 	end
+	self.netPull = math.max(0, self.netPull + distance)
 end
 
 -- ---------------------------------------------------------------------------
@@ -589,6 +601,7 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		activeSpawners = {},
 		active = {},
 		spawnBudget = 0,
+		netPull = 0,
 		runSteps = 0,
 		tutorialStepsClimbed = 0,
 		notify = notify,

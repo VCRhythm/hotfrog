@@ -695,11 +695,22 @@ end
 -- 13 item 5): pull the field back up by TUTORIAL_PULL_BACK pulls' worth of
 -- distance and let the frog retry from its lane's origin -- no GameOver, no
 -- score reset, no respawn delay.
+--
+-- Capped at lane.netPull (studs actually pulled forward since this level
+-- began, doc 17 gap): an uncapped retreat undoes scroll that never happened on
+-- a fall before any grab, dragging the Tutorial's one-shot spawnAllOnAwake
+-- ladder -- which never respawns -- past the top bound, where the ordinary
+-- out-of-bounds check permanently recycles it. Capping means a fall with no
+-- prior grabs this level is a pure no-op pull, leaving the still-unclimbed
+-- ladder exactly where it was.
 local function tutorialRetry(lane: Lane.Lane, f: FrogState)
 	for i = #f.held, 1, -1 do
 		forceReleaseStep(lane, f.held[i])
 	end
-	pullLane(lane, -Config.PULL_DISTANCE * Config.TUTORIAL_PULL_BACK, 0.6)
+	local retreat = -math.min(Config.PULL_DISTANCE * Config.TUTORIAL_PULL_BACK, lane.netPull)
+	if retreat < 0 then
+		pullLane(lane, retreat, 0.6)
+	end
 	f.pos = lane.origin
 	f.gravityMult = Config.GRAVITY_MULT_START
 end
