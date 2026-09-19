@@ -52,6 +52,27 @@ These layer on top of the core loop once it's solid:
     source layout, the pinned toolchain (Rojo/stylua/selene/luau-lsp), CI, and how
     to sync it into Studio and play it.
 
+### The full port (levels, world, menus, audio)
+
+Built on top of the basic version from the original project's prefab data:
+
+11. **[11-unity-level-data.md](11-unity-level-data.md)** and
+    **[12-unity-spawn-and-audio-data.md](12-unity-spawn-and-audio-data.md)** —
+    the level, spawner, step, frog and audio data extracted from the Unity
+    prefabs (the source of truth for the numbers below).
+12. **[13-levels-and-lanes.md](13-levels-and-lanes.md)** — one lane per player,
+    data-driven levels (Tutorial → Pot → Kitchen → Country) and
+    direction-keyed spawners.
+13. **[14-world-dressing.md](14-world-dressing.md)** — scenery, backdrops,
+    lava, popups, touch indicator, frog cosmetics.
+14. **[15-menus-and-input.md](15-menus-and-input.md)** — run states, main menu,
+    end-of-run panel, race rail, spectating, gamepad/keyboard input.
+15. **[16-audio-and-badges.md](16-audio-and-badges.md)** — music, remaining
+    SFX, badges.
+16. **[17-status-and-known-gaps.md](17-status-and-known-gaps.md)** — **start
+    here for what is done, what is untested, the remaining gaps and every
+    deliberate deviation from Unity.**
+
 Throughout, each Roblox system is cross-referenced to the original Unity source
 file (e.g. `Player/Frog.cs`) so contributors can trace behavior back to the
 original.
@@ -78,11 +99,9 @@ These are out of the *core loop* but now have (or will have) their own docs:
 - Frog skins, currency & store/monetization → **[08](08-frog-skins-and-store.md)**.
 - Free-currency faucets (gifts & ads) → **[09](09-gifts-and-ads.md)**.
 
-Deliberately not covered:
-
-- Scripted level progression / timed events
-  (`Core/LevelManager.cs`, `Core/LevelEvent.cs`) — the original's authored campaign
-  is out of scope for this port effort.
+Level progression (`Core/LevelManager.cs`, `Core/LevelEvent.cs`), originally
+out of scope, is now ported → **[13](13-levels-and-lanes.md)**. The only
+system dropped on purpose is ads (see [17](17-status-and-known-gaps.md)).
 
 > These docs are a living design reference, not a finished tutorial. Luau snippets
 > are **illustrative scaffolding** meant to convey the approach — they are not a
