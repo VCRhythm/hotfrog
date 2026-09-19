@@ -39,3 +39,21 @@ files: none
 test: none
 verified: grep for GameDefs across the repo returns nothing
 review: n/a
+
+## b-20260919-160006-wj5q  ignored  2026-09-19 16:05
+note: AUTO error (server): StreamingMinRadius is not a valid member of Workspace "Workspace"
+cause: not game code. The stack is 'AssistantCommand', a Luau probe the b-20260919-150613-2ehi fixer ran through the Studio MCP with a wrong property name; the repo does not reference the property.
+change: none
+files: none
+test: none
+verified: grep for StreamingMinRadius across the repo returns nothing
+review: n/a
+
+## b-20260919-160013-geyo  ignored  2026-09-19 16:05
+note: AUTO error (server): StreamingTargetRadius is not a valid member of Workspace "Workspace"
+cause: same MCP probe as b-20260919-160006-wj5q ('AssistantCommand' stack), not game code.
+change: none
+files: none
+test: none
+verified: grep for StreamingTargetRadius across the repo returns nothing
+review: n/a
