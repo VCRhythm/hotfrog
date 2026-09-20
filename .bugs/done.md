@@ -156,3 +156,12 @@ files: none
 test: none
 verified: not run: stack names only AssistantCommand, which does not exist in the repo
 review: n/a
+
+## b-20260919-210748-vlyq  fixed  2026-09-19 21:55
+note: the controls of hot frog are essential-- on kbm, one mouse key must be down at all times. right click works as well as left click to control the right hand. left click controls the left hand
+cause: GameClient only listened for MouseButton1/Touch, so right click never grabbed, and an input-up freed "the most recently grabbed slot" instead of the limb that input held; GameServer kept held steps in a packed array rendered positionally against f.limbs = {RightLimb, LeftLimb}, so which hand reached a step depended on grab order and a release shuffled the other hand's step onto the freed limb.
+change: GameClient treats both mouse buttons as grab inputs with a fixed hand (left button = LeftLimb slot 2, right = RightLimb slot 1; touch keeps Unity's "whichever limb is free" rule), remembers which limb each live input holds, releases exactly that limb on its own input-up and sends the limb index with GrabStep. GameServer keys f.held by limb index, isHolding() replaces #f.held == 0, and GrabStep / ReleaseStep validate the raw client value with isLimbIndex (exactly 1 or 2) before any score/pull/state change. Run-end and fall-on-both-free rules untouched. Doc 17 records the button-to-hand mapping.
+files: src/client/GameClient.client.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene src/, tools/luau_check.sh and rojo build pass after the final edit. Studio via MCP playtest: GrabStep with limb 2 then 1 put steps under LeftLimb then RightLimb, releasing limb 1 left the left hand's step in place; GrabStep with 0/0, 0, 3, "2", math.huge, 1.5 and a table, and ReleaseStep with 0/0 and "1", were all refused with score 0 and a clean console, then a valid grab worked. NOT exercised: real mouse buttons (headless Studio delivers no mouse events); a human should confirm right click grabs in a real client.
+review: concern: limb index validation let NaN through (score/pull applied, then a NaN table key error) -- confirmed and fixed in the follow-up with strict 1-or-2 validation on both remotes

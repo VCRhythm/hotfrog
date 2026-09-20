@@ -87,8 +87,8 @@ local function ensureRemoteFunction(name: string): RemoteFunction
 	return r :: RemoteFunction
 end
 
-local GrabStep = ensureRemote("GrabStep") -- client -> server: tapped a step (step, tap world point)
-local ReleaseStep = ensureRemote("ReleaseStep") -- client -> server: released a limb
+local GrabStep = ensureRemote("GrabStep") -- client -> server: tapped a step (step, tap world point, limb index 1=Right 2=Left)
+local ReleaseStep = ensureRemote("ReleaseStep") -- client -> server: released a limb (limb index, step)
 local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/best/quality/grabQuality
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart (score, cause)
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
@@ -228,7 +228,12 @@ type FrogState = {
 	pos: Vector3,
 	gravityMult: number,
 	dead: boolean,
-	held: { BasePart }, -- steps this player holds (max Config.MAX_HELD_STEPS)
+	-- The step each LIMB holds, keyed the same way `limbs` is (1=Right, 2=Left),
+	-- or nil for a free limb. Keyed by limb rather than packed in grab order so
+	-- the hand the player grabbed with is the hand that reaches the step (the
+	-- client's mouse buttons each drive a fixed limb) and so releasing one limb
+	-- never shuffles the other limb's step onto it.
+	held: { [number]: BasePart },
 }
 local frogs: { [Player]: FrogState } = {}
 
@@ -245,13 +250,34 @@ local function forceReleaseStep(lane: Lane.Lane, step: BasePart)
 	if not f then
 		return
 	end
-	for i = #f.held, 1, -1 do
+	for i = 1, Config.MAX_HELD_STEPS do
 		if f.held[i] == step then
-			table.remove(f.held, i)
+			f.held[i] = nil
 			ForceRelease:FireClient(lane.player, step)
 			return
 		end
 	end
+end
+
+-- A limb index off a remote is only ever 1 (Right) or 2 (Left), the frog's two
+-- limbs (Config.MAX_HELD_STEPS). Compared against the RAW client value: NaN
+-- (a client can send 0/0) survives range checks like `< 1` / `> 2` and only
+-- blows up later as a table key -- `f.held[0/0] = step` raises -- so nothing
+-- unvalidated may reach `f.held` at all.
+local function isLimbIndex(value: any): boolean
+	return value == 1 or value == 2
+end
+
+-- Unity's Controller.HasStep: is either limb on a step? (A frog holding
+-- nothing falls -- on keyboard+mouse that means at least one mouse button has
+-- to stay down.)
+local function isHolding(f: FrogState): boolean
+	for i = 1, Config.MAX_HELD_STEPS do
+		if f.held[i] then
+			return true
+		end
+	end
+	return false
 end
 
 -- Destroy this step's live "Flingee", if it has one (ActionType.SplashFlinging
@@ -665,8 +691,11 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 	f.dead = true
 	f.model:SetAttribute("Dead", true)
 	-- drop anything still held (e.g. a step dragged out of bounds with us)
-	for i = #f.held, 1, -1 do
-		forceReleaseStep(lane, f.held[i])
+	for i = 1, Config.MAX_HELD_STEPS do
+		local step = f.held[i]
+		if step then
+			forceReleaseStep(lane, step)
+		end
 	end
 
 	local score = sessionScore[player] or 0
@@ -723,8 +752,11 @@ end
 -- prior grabs this level is a pure no-op pull, leaving the still-unclimbed
 -- ladder exactly where it was.
 local function tutorialRetry(lane: Lane.Lane, f: FrogState)
-	for i = #f.held, 1, -1 do
-		forceReleaseStep(lane, f.held[i])
+	for i = 1, Config.MAX_HELD_STEPS do
+		local step = f.held[i]
+		if step then
+			forceReleaseStep(lane, step)
+		end
 	end
 	local retreat = -math.min(Config.PULL_DISTANCE * Config.TUTORIAL_PULL_BACK, lane.netPull)
 	if retreat < 0 then
@@ -757,7 +789,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 		-- it, so it just sits at whatever f.pos it was left at; the rendering
 		-- below still runs every tick so limbs ease back to rest normally).
 		if not f.dead and runState[plr] == RunState.Playing then
-			if #f.held == 0 then
+			if not isHolding(f) then
 				f.gravityMult += Config.GRAVITY_ACCEL * dt
 				local speed = math.min(Config.GRAVITY * f.gravityMult, Config.MAX_FALL_SPEED)
 				f.pos = Vector3.new(f.pos.X, f.pos.Y - speed * dt, Config.PLANE_Z)
@@ -824,7 +856,7 @@ local function grabAllowed(player: Player): boolean
 	return true
 end
 
-GrabStep.OnServerEvent:Connect(function(player, step, tapPos)
+GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- validate: a real, still-active step FROM THIS PLAYER'S OWN LANE, from a
 	-- live frog with a limb to spare (doc 13 item 1: GrabStep must reject steps
 	-- from another lane)
@@ -839,13 +871,22 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos)
 		return -- doc 15 item 1: no grabs outside an active run (Menu/Dead lanes are idle/empty anyway)
 	end
 	local f = frogs[player]
-	if not f or f.dead or #f.held >= Config.MAX_HELD_STEPS then
+	if not f or f.dead then
 		ForceRelease:FireClient(player, step)
 		return
 	end
+	-- Which limb grabbed: the client owns that choice (a mouse button drives a
+	-- fixed hand, a finger takes whichever hand is free), but it's validated
+	-- here -- a bad index, or a limb already on a step, is refused rather than
+	-- overwriting the other hand's hold.
+	if not isLimbIndex(limbIndex) or f.held[limbIndex] then
+		ForceRelease:FireClient(player, step)
+		return
+	end
+	local limb: number = limbIndex
 	-- reject a step someone already holds, or grabs faster than humanly possible;
 	-- ForceRelease corrects the client that optimistically snapped a limb on
-	for _, held in f.held do
+	for _, held in pairs(f.held) do
 		if held == step then
 			ForceRelease:FireClient(player, step)
 			return
@@ -871,18 +912,18 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos)
 
 	lane:onStepClimbed() -- level-threshold / tutorial progress; fires LevelChanged("soft") itself (doc 13 item 5)
 
-	-- step behaviors (doc 05): track the holder, then dispatch onGrab
-	table.insert(f.held, step)
+	-- step behaviors (doc 05): track the holding limb, then dispatch onGrab
+	f.held[limb] = step
 	local b = behaviorOf(step)
 	if b.onGrab then
 		b.onGrab(makeCtx(lane, step, player))
 	end
 end)
 
-ReleaseStep.OnServerEvent:Connect(function(player, _limbIndex, step)
+ReleaseStep.OnServerEvent:Connect(function(player, limbIndex, step)
 	-- only the recorded holder may release; ForceRelease already dropped it from
 	-- f.held, so the client's echo after a forced drop lands here as a no-op
-	if typeof(step) ~= "Instance" or not step:IsA("BasePart") then
+	if typeof(step) ~= "Instance" or not step:IsA("BasePart") or not isLimbIndex(limbIndex) then
 		return
 	end
 	local lane = Lane.get(player)
@@ -891,9 +932,9 @@ ReleaseStep.OnServerEvent:Connect(function(player, _limbIndex, step)
 		return
 	end
 	local held = false
-	for i = #f.held, 1, -1 do
+	for i = 1, Config.MAX_HELD_STEPS do
 		if f.held[i] == step then
-			table.remove(f.held, i)
+			f.held[i] = nil
 			held = true
 			break
 		end
@@ -1073,8 +1114,8 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	local f = frogs[player]
 	local lane = Lane.get(player)
 	if f then
-		for i = #f.held, 1, -1 do
-			table.remove(f.held, i) -- no ForceRelease: the holder is leaving
+		for i = 1, Config.MAX_HELD_STEPS do
+			f.held[i] = nil -- no ForceRelease: the holder is leaving
 		end
 		frogs[player] = nil
 		f.model:Destroy()

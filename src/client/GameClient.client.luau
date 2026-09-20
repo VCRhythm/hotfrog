@@ -185,16 +185,20 @@ local function frogIsDead(): boolean
 end
 
 -- ---------------------------------------------------------------------------
--- Limb slots: an optimistic mirror of what we hold, used only to gate input
--- (two limbs). The server is the truth; ForceRelease corrects us.
+-- Limb slots: an optimistic mirror of what we hold, used to gate input and to
+-- tell the server WHICH limb grabbed. The server is the truth; ForceRelease
+-- corrects us. Slot 1 = the frog's RightLimb, 2 = its LeftLimb -- the ordering
+-- GameServer's f.limbs and Config.LIMB_REST both use (rest pose [1] sits at
+-- +X, i.e. the right of the screen, matching Unity's limbReturnPos[0]).
 -- ---------------------------------------------------------------------------
 type Slot = { heldStep: BasePart? }
 local slots: { Slot } = { { heldStep = nil }, { heldStep = nil } }
+local RIGHT_SLOT, LEFT_SLOT = 1, 2
 
-local function getFreeSlot(): Slot?
-	for _, slot in ipairs(slots) do
+local function getFreeSlotIndex(): number?
+	for i, slot in ipairs(slots) do
 		if not slot.heldStep then
-			return slot
+			return i -- Controller.cs GetFreeLimb: limbs[0] first, then limbs[1]
 		end
 	end
 	return nil
@@ -336,9 +340,11 @@ local function expandTongue(targetPos: Vector3)
 	grow:Play()
 end
 
-local function tryGrab(screenX: number, screenY: number)
+-- Returns the limb slot the grab consumed, or nil (bug catch, miss, or that
+-- limb is already holding something). `slotIndex` is the limb the input owns.
+local function tryGrab(screenX: number, screenY: number, slotIndex: number?): number?
 	if frogIsDead() then
-		return
+		return nil
 	end
 
 	-- bugs are caught with the tongue, not a limb (Controller.TouchBug)
@@ -347,45 +353,79 @@ local function tryGrab(screenX: number, screenY: number)
 	if result and result.Instance:GetAttribute("Kind") == "Bug" then
 		CatchBug:FireServer(result.Instance)
 		expandTongue(result.Instance.Position)
-		return
+		return nil -- bugs are caught with the tongue: no limb is consumed
 	end
 
 	local worldPos = planePoint(screenX, screenY)
 	local step = if worldPos then stepAt(worldPos) else nil
 	if not (worldPos and step) then
 		ClientSettings.playIfEnabled(SoundFX, "miss") -- Controller.CheckTouch miss feedback
-		return
+		return nil
 	end
 
-	local slot = getFreeSlot()
-	if not slot then
-		return
+	if not slotIndex or slots[slotIndex].heldStep then
+		return nil -- no free limb / this input's limb is already on a step
 	end
-	slot.heldStep = step -- optimistic; the server corrects via ForceRelease
+	slots[slotIndex].heldStep = step -- optimistic; the server corrects via ForceRelease
 	ClientSettings.playIfEnabled(SoundFX, "grab") -- Step.cs PlayGrabSound
-	GrabStep:FireServer(step, worldPos) -- server grades quality from the tap point
+	GrabStep:FireServer(step, worldPos, slotIndex) -- server grades quality from the tap point
+	return slotIndex
+end
+
+-- Mouse/touch -> limb (Input/MouseInput.cs + Input/TouchInput.cs: two "touch
+-- indices" polled every frame, each one holding a limb until it lifts).
+--
+-- Unity's MouseInput reports InputCount == 2 -- index 0 is the LEFT button,
+-- index 1 the RIGHT -- so both buttons are first-class grab inputs and the
+-- climb is a hand-over-hand hold: at least one button must stay down or the
+-- frog has no limb on a step and falls. Unity then picks the limb with
+-- GetFreeLimb (whichever is free), but per the owner's ruling each mouse
+-- button drives a FIXED hand here: left button = left limb, right button =
+-- right limb. Touch keeps Unity's rule -- each new finger takes whichever limb
+-- is free -- since fingers have no left/right identity.
+local function slotForInput(input: InputObject): number?
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		return LEFT_SLOT
+	elseif input.UserInputType == Enum.UserInputType.MouseButton2 then
+		return RIGHT_SLOT
+	end
+	return getFreeSlotIndex() -- Touch
+end
+
+local function isGrabInput(input: InputObject): boolean
+	return input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.MouseButton2
+		or input.UserInputType == Enum.UserInputType.Touch
+end
+
+-- Which limb each live input holds, so an input-up frees ITS OWN limb rather
+-- than the most recent one (Player.cs Update: !IsInputOn(i) -> FreeTouch(i)).
+-- Touches are distinct InputObjects; the two mouse buttons key off their type.
+local heldByInput: { [any]: number } = {}
+local function inputKey(input: InputObject): any
+	return if input.UserInputType == Enum.UserInputType.Touch then input else input.UserInputType
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
-	if gameProcessed then
+	if gameProcessed or not isGrabInput(input) then
 		return
 	end
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		tryGrab(input.Position.X, input.Position.Y)
+	local used = tryGrab(input.Position.X, input.Position.Y, slotForInput(input))
+	if used then
+		heldByInput[inputKey(input)] = used
 	end
 end)
 
--- release a limb when its input lifts (Controller.FreeUnusedTouches). The basic
--- loop frees a slot on any relevant input-up; refine per-finger tracking later.
+-- release a limb when its own input lifts (Controller.FreeUnusedTouches)
 UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
-		-- free the most-recently-grabbed held slot
-		for i = #slots, 1, -1 do
-			if slots[i].heldStep then
-				releaseSlot(i)
-				break
-			end
-		end
+	if not isGrabInput(input) then
+		return
+	end
+	local key = inputKey(input)
+	local slotIndex = heldByInput[key]
+	heldByInput[key] = nil
+	if slotIndex then
+		releaseSlot(slotIndex)
 	end
 end)
 
@@ -480,8 +520,8 @@ local function gamepadGrab()
 	if frogIsDead() or runState ~= "Playing" then
 		return
 	end
-	local slot = getFreeSlot()
-	if not slot then
+	local slotIndex = getFreeSlotIndex()
+	if not slotIndex then
 		return
 	end
 	local worldPos = laneOrigin() + Vector3.new(cursorWorld.X, cursorWorld.Y, 0)
@@ -489,9 +529,9 @@ local function gamepadGrab()
 	if not step then
 		return
 	end
-	slot.heldStep = step -- optimistic; the server corrects via ForceRelease
+	slots[slotIndex].heldStep = step -- optimistic; the server corrects via ForceRelease
 	ClientSettings.playIfEnabled(SoundFX, "grab")
-	GrabStep:FireServer(step, worldPos) -- snap-assist picks the step; the cursor's accuracy still grades the grab
+	GrabStep:FireServer(step, worldPos, slotIndex) -- snap-assist picks the step; the cursor's accuracy still grades the grab
 end
 
 local function gamepadRelease()
