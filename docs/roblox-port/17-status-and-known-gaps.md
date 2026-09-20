@@ -77,7 +77,6 @@ doc ends with a "needs a Studio playtest" list:
 | Oversized canvases vs. lane spacing | `SceneryKinds.luau` | `Chef` (64 studs) and the `US` map (≈129 × 112 studs) are genuinely that big in Unity, which is wider than `Config.LANE_SPACING` (46), so in multiplayer they overhang the neighbouring lane | per-lane culling or a scenery-only lane offset; harmless single-player |
 | Tall steps pop IN at spawn | `Lane.spawnPosition` / `Config.SPAWN_Y` | spawn lines are fixed at `SPAWN_Y = 25` while the camera shows ±15.7 studs, so a step whose art is taller than ~18.6 studs (`Rocket` 27.2, `Balloon` 25.6, the unused `Castle` 32.2) is already partly on screen the frame it spawns. Recycling now measures the step's extent, but raising the spawn line would delay every one of those steps' arrival, i.e. change spawn timing | spawn tall kinds at `SPAWN_Y + halfY` and retune their spawner cadence together |
 | `Flingee` splash size | `GameServer.flingSplash` | the fling/splash part is a hard-coded `1.2 × 1.2 × 0.4`, so `Fork`/`Spoon`/`Flame` canvases are still squashed into it | same derivation as the steps (`Fork`/`Spoon` 512 px @ 20 = 8.046 studs) |
-| Attract-mode ladder scale | `WorldConfig.ATTRACT_*` | the vignette's rung size/offsets were tuned beside the old, ~4× too small frog | retune once the corrected frog is seen in Studio |
 | Camera aspect for `Movements` offsets | spawning | Unity scaled `Movements` by the runtime screen aspect, which the prefab dump doesn't record; the port assumes the lane's half-width is the screen edge and clamps into the recycle margin | playtest; retune `Levels.luau`'s `MOVEMENTS_*_SCALE` if spawn positions feel wrong |
 
 ### Closed on 2026-09-19
@@ -85,6 +84,7 @@ doc ends with a "needs a Studio playtest" list:
 | Gap | How |
 |---|---|
 | Attract mode (`Player/FrogAI.cs`) | `WorldAttract.client.luau`: cosmetic frog clone climbs a 3-rung ladder while the lane is in `Menu` (doc 15) |
+| Attract-mode ladder scale (b-20260919-192618-ge28) | `WorldConfig.ATTRACT_*` rescaled off `Config.LIMB_REST`'s own growth (the frog rig fix above) instead of the pre-fix, ~4× too small frog: `ATTRACT_STEP_SIZE` now `StepKinds`' `WhiteRock` canvas (7.314²); `ATTRACT_STEP_Y_GAP` centred on the anchor (`WorldAttract` climbs `±STEP_Y_GAP`, not `1..COUNT × STEP_Y_GAP`) so it still fits the camera's ±15.7-stud band; `ATTRACT_STEP_X`/`ATTRACT_ANCHOR_OFFSET.X` capped short of the same ratio to stay inside `Config.LANE_HALF_WIDTH` — verified in Studio (rung/anchor/limb positions), still worth a human look once art is uploaded |
 | `hurt` sound | `GameOver` / `RunSummary` carry a death-cause argument (`"Lava"`); `SfxEvents` plays it; the old `WorldLava` proxy sound was removed (doc 16 §6) |
 | Bubble `pop` | Bubble is the only `GrabableScenery` in Unity; a client-side tap raycast against live bubbles pops it (doc 14) |
 | Background textures | `PotBack.jpg`, `KitchenTile.png` (2×2 tiled), `Lava_01.tga`→PNG in the manifest and `SkinAssets`; `Sky`/`Water`/`HeatBackground` colours taken from the `.mat` files (doc 14) |

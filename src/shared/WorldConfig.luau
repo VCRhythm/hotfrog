@@ -161,15 +161,44 @@ WorldConfig.SPECK_COLORS = { -- SpeckManager.prefab colorOptions (doc 11 §3): 8
 -- real (server-owned) frog -- see WorldAttract.client.luau.
 -- ---------------------------------------------------------------------------
 WorldConfig.ATTRACT_STEP_COUNT = 3 -- "a few steps" (FrogAI plays on 2-3 in Unity's menu scene)
-WorldConfig.ATTRACT_STEP_SIZE = Vector3.new(2.4, 1.6, 0.6) -- smaller than StepTemplate's real (4,3,1) -- reads as a toy-scale prop, never mistaken for a grabbable step
+-- b-20260919-192618-ge28: this whole block used to be tuned against the
+-- pre-7607a9d frog (arbitrary sprite boxes, LIMB_REST at Unity/10) -- rescaled
+-- here to match that commit's corrected rig. WhiteRock's own canvas (see
+-- StepKinds.luau's ART_ROCK / SlowFallRock/FallingRock, the two kinds that
+-- actually use the "WhiteRock" sprite this rung Decal requests) replaces the
+-- old guessed box, same "size = the sprite's whole Unity canvas" rule every
+-- other Decal host in this port now follows.
+WorldConfig.ATTRACT_STEP_SIZE = Vector3.new(7.314, 7.314, 0.6) -- StepKinds' WhiteRock canvas (256px @ 11); z kept thin, purely cosmetic depth
 -- Offset from the lane origin: the real parked frog (GameServer/
 -- WorldFrogCosmetics, untouched by this file) sits AT the origin, so this
--- whole vignette is shifted a few studs to the side to avoid rendering a
--- second frog on top of the first. z is nudged slightly off the gameplay
--- plane (Config.PLANE_Z = 0), same direction as WorldScenery's own z=-1 dressing.
-WorldConfig.ATTRACT_ANCHOR_OFFSET = Vector3.new(7, 0, -0.2)
-WorldConfig.ATTRACT_STEP_X = 2.2 -- zig-zag half-width per rung (same shape as Lane.luau's Tutorial ladder: Config.TUTORIAL_STEP_X, alternating sign)
-WorldConfig.ATTRACT_STEP_Y_GAP = 3.2 -- vertical rise per rung (same shape as Config.TUTORIAL_STEP_GAP, independently tuned smaller for a compact decorative ladder)
+-- whole vignette -- and the cosmetic frog built on top of this same anchor,
+-- WorldAttract.client.luau's `build()` -- is shifted to the side to avoid
+-- rendering a second frog on top of the first. X grows with the now-bigger
+-- parked frog's own reach (Config.LIMB_REST.X went from 2.0 to 6.2857, a
+-- ~3.14x jump) but is capped well short of a literal 3.14x on 7 -- that would
+-- put the far rung (+ STEP_X below) past Config.LANE_HALF_WIDTH (22), this
+-- lane's own catch bound and the start of the neighbour lane's 2-stud gap.
+-- 15 clears the parked frog's new RightLimb reach (6.2857) with room to
+-- spare and keeps the far rung's edge (+STEP_X below, +half ATTRACT_STEP_SIZE)
+-- inside 22. Y is left at 0 -- the attract frog's own body sits at this
+-- anchor, so it stays level with the real parked frog; WorldAttract centres
+-- the rung ladder around this same Y (not stacked one-sided above it) so 3
+-- rungs at a proportionate STEP_Y_GAP still fit the camera's fixed
+-- +/-15.7-stud vertical view (31.43 studs total, GameClient.client.luau
+-- CAMERA_DISTANCE) instead of climbing to 3 * STEP_Y_GAP. z is nudged
+-- slightly off the gameplay plane (Config.PLANE_Z = 0), same direction as
+-- WorldScenery's own z=-1 dressing.
+WorldConfig.ATTRACT_ANCHOR_OFFSET = Vector3.new(15.0, 0, -0.2)
+-- Vertical rise between adjacent rungs (WorldAttract centres the ladder on
+-- the anchor, so the +/-15.7 budget only has to fit half the stack each way):
+-- old 3.2 * (new/old LIMB_REST.Y ~= 13.808/4.0 ~= 3.452), same proportionate
+-- scale ANCHOR_OFFSET.X would have used were it not capped -- there's no
+-- lane-width-style bound on Y, only the camera band, and this already fits
+-- it. The outermost rung lands +/-11.05 off the anchor, +3.657 (its own
+-- half-height) = 14.71 studs, inside the 15.7 band with a little headroom,
+-- and 11.05 > ATTRACT_STEP_SIZE's 7.314 so adjacent rungs don't overlap.
+WorldConfig.ATTRACT_STEP_Y_GAP = 11.05
+WorldConfig.ATTRACT_STEP_X = 3.0 -- zig-zag half-width per rung -- same shape as Lane.luau's own Tutorial ladder (Config.TUTORIAL_STEP_X, alternating sign). Also capped (see ANCHOR_OFFSET.X above): the far rung sits at ANCHOR_OFFSET.X + STEP_X + half ATTRACT_STEP_SIZE = 15 + 3 + 3.657 = 21.657, just inside LANE_HALF_WIDTH (22); the near rung at 15 - 3 = 12 still clears the parked frog's RightLimb (6.2857)
 WorldConfig.ATTRACT_DECISION_TIME = 1.0 -- FrogAI.cs: nextDecisionTime is initialized to 1f and never reassigned -- despite the "next" name it's a literal fixed 1s cadence, not randomized
 
 return WorldConfig

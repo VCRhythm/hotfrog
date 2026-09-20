@@ -109,9 +109,15 @@ local function build(origin: Vector3): Attract
 
 		-- Zig-zag ladder, same shape as Lane.luau's own Tutorial ladder
 		-- (Config.TUTORIAL_STEP_X alternating sign / Config.TUTORIAL_STEP_GAP
-		-- rise per rung), independently scaled down for this decorative one.
+		-- rise per rung), independently scaled for this decorative one.
+		-- Centred on the anchor's own Y (rung 2 of 3 sits level with the
+		-- anchor, rung 1 below, rung 3 above) rather than stacked entirely
+		-- above it -- see WorldConfig.ATTRACT_STEP_Y_GAP: a proportionate gap
+		-- for the corrected (b-20260919-192618-ge28) frog scale doesn't fit
+		-- three one-sided rungs inside the camera's fixed vertical view.
 		local sign = if i % 2 == 1 then 1 else -1
-		local position = anchor + Vector3.new(sign * WorldConfig.ATTRACT_STEP_X, i * WorldConfig.ATTRACT_STEP_Y_GAP, 0)
+		local rise = (i - (WorldConfig.ATTRACT_STEP_COUNT + 1) / 2) * WorldConfig.ATTRACT_STEP_Y_GAP
+		local position = anchor + Vector3.new(sign * WorldConfig.ATTRACT_STEP_X, rise, 0)
 		part.CFrame = CFrame.new(position)
 		part.Parent = workspace
 		table.insert(rungs, part)
