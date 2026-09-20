@@ -71,8 +71,8 @@ end)
 -- death with no way to tell "died in the lava" apart from any other fall.
 -- GameServer.server.luau now fires GameOver with a `cause` argument
 -- (DEATH_CAUSE_LAVA = "Lava" today -- the fall loop's only death mechanism is
--- the frog dropping past Config.DESPAWN_Y, this port's stand-in for Unity's
--- lava line, so every death is currently a lava death; the argument exists so
+-- the frog sinking onto the lava surface at Config.LAVA_Y (Unity's -50 u), so
+-- every death is currently a lava death; the argument exists so
 -- a future second cause doesn't need a new remote). `hurt` is already declared
 -- in SoundAssets.luau (paste in its rbxassetid once uploaded).
 --

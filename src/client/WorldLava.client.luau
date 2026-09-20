@@ -136,12 +136,16 @@ stepsFolder.ChildRemoved:Connect(function(child)
 	if math.abs(pos.X - origin.X) > Config.LANE_HALF_WIDTH + WorldConfig.SCENERY_BOUNDS_MARGIN then
 		return
 	end
-	splashAt(Vector3.new(pos.X, Config.DESPAWN_Y, pos.Z))
+	-- burst on the lava SURFACE, not at the recycle line: Step.cs's own call is
+	-- `lava.Splash(new Vector2(transform.position.x, -50f), ...)` -- the step is
+	-- recycled at the bottom net (Config.DESPAWN_Y) but the splash is drawn at
+	-- Unity's -50 u = Config.LAVA_Y, which is the visible bottom of the band.
+	splashAt(Vector3.new(pos.X, Config.LAVA_Y, pos.Z))
 end)
 
--- The local frog dropping past the bottom (server sets Dead=true at that point).
+-- The local frog sinking onto the lava (server sets Dead=true at Config.LAVA_Y).
 myFrog:GetAttributeChangedSignal("Dead"):Connect(function()
 	if myFrog:GetAttribute("Dead") == true then
-		splashAt(Vector3.new(body.Position.X, Config.DESPAWN_Y, body.Position.Z))
+		splashAt(Vector3.new(body.Position.X, Config.LAVA_Y, body.Position.Z))
 	end
 end)

@@ -4,14 +4,26 @@
 -- Unity original (Player/Frog.cs, Player/Controller.cs, Spawning/SpawnManager.cs);
 -- treat them as a starting point and tune in studs.
 
+-- Unity unit -> stud factor. Declared up here (and re-exported as
+-- Config.UNITY_TO_STUDS below, where its derivation is documented) so the
+-- Unity-unit constants declared before it in the table can convert with it.
+local UNITY_TO_STUDS = 55 / 175
+
 local Config = {
 	PLANE_Z = 0, -- everything lives on this XY plane
 
-	-- Frog gravity (Player/Frog.cs: gravity / gravityMultiplier / gravityAcceleration)
-	GRAVITY = 20, -- base fall factor
+	-- Frog gravity (Player/Frog.cs: gravity / gravityMultiplier / gravityAcceleration).
+	-- Unity's `gravity`/fall speeds are Unity units per second, so -- exactly like
+	-- LIMB_REST below -- they only make sense here multiplied by UNITY_TO_STUDS.
+	-- They used to be the raw Unity numbers read as studs (20 / 60), i.e. ~3.2x too
+	-- fast: the frog cleared the camera's whole 31.4-stud band in ~1.5 s and sank
+	-- out of sight before the player could reach the first step.
+	-- `gravityAcceleration` is a unitless multiplier, so it doesn't scale -- but it
+	-- is added once per FixedUpdate (50 Hz), i.e. +1.0 per second, not 0.6.
+	GRAVITY = 20 * UNITY_TO_STUDS, -- Frog.cs gravity = 20 u/s -> 6.2857 studs/s
 	GRAVITY_MULT_START = 0.5, -- multiplier resets to this on a successful grab (Bob)
-	GRAVITY_ACCEL = 0.6, -- added to the multiplier per second (scaled from per-frame 0.02)
-	MAX_FALL_SPEED = 60, -- clamp, studs/s
+	GRAVITY_ACCEL = 1.0, -- Frog.cs gravityAcceleration 0.02 per FixedUpdate * 50 Hz
+	MAX_FALL_SPEED = 60 * UNITY_TO_STUDS, -- clamp, studs/s (no Unity equivalent; never binds above LAVA_Y)
 
 	-- Limbs (Player/Controller.cs: limbReturnPos / limbReturnTime, scaled to studs).
 	-- The rest offsets are HotFrog.prefab's own RightLimb/LeftLimb local positions
@@ -28,8 +40,19 @@ local Config = {
 	-- Spawning (Spawning/StepSpawner.cs + SpawnManager.cs)
 	SPAWN_INTERVAL = 0.6, -- seconds between steps
 	SPAWN_Y = 25, -- spawn above the top of view
-	DESPAWN_Y = -30, -- recycle / lava line
+	DESPAWN_Y = -30, -- recycle line for steps/scenery (Borders' bottom catch, y=-100 u)
 	SPAWN_X_RANGE = 12, -- horizontal spread (+/-)
+
+	-- The lava SURFACE, and with it the lowest the frog can ever go. Unity puts
+	-- both at y = -50 units: Frog.cs SteadilyLowerHead only lowers the head
+	-- `while (HeadPosition.y > -50)`, and Step.cs draws the lava splash at
+	-- `new Vector2(transform.position.x, -50f)` when a step reaches the bottom
+	-- net. -50 u is also exactly the bottom of the ortho-size-50 camera, so in
+	-- Unity a sinking frog stops at the bottom edge of the screen, on the lava.
+	-- The port's frog death check used DESPAWN_Y (-30) instead -- that's the
+	-- *step* recycle line (Borders at -100 u), a whole half-screen BELOW the
+	-- view, so the frog spent the last third of every fall invisible.
+	LAVA_Y = -50 * UNITY_TO_STUDS, -- = -15.714 studs, the bottom of the camera band
 
 	-- Pull / world-scroll (Spawning/SpawnManager.cs: PullStep / PullVector)
 	PULL_DISTANCE = 6, -- studs the field scrolls down per successful grab
@@ -55,7 +78,7 @@ local Config = {
 	-- port's already-tuned vertical numbers were, coincidentally or not,
 	-- already close to this same factor, which is why it's trusted here rather
 	-- than copying Unity's raw units.
-	UNITY_TO_STUDS = 55 / 175,
+	UNITY_TO_STUDS = UNITY_TO_STUDS, -- = 55 / 175, declared at the top of this file
 	LANE_HALF_WIDTH = 22, -- one lane's horizontal catch bound (+/-), studs
 	-- adjacent lanes sit edge to edge with a small 2-stud gap so a bug/step
 	-- drifting to a lane's edge doesn't visually clip into its neighbour.

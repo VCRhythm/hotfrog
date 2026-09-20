@@ -133,8 +133,8 @@ local bugCaughtServer = ensureBindable("BugCaughtServer")
 -- Death cause (doc 17 gap: `GameOver`/`RunSummary` never said *how* the frog
 -- died, so `hurt` -- Entities/Lava.cs FallSplash's hurtSound, a lava-specific
 -- death cue -- couldn't be wired). The fall loop below has exactly one death
--- mechanism: the frog's head drops past Config.DESPAWN_Y, this port's stand-in
--- for Unity's lava line (see the fall loop's own comment). So there is only
+-- mechanism: the frog sinks onto the lava surface at Config.LAVA_Y (see the
+-- fall loop's own comment). So there is only
 -- ever one cause today, but it's still threaded through as an explicit
 -- argument (not hardcoded at each call site) so a future second cause (e.g. a
 -- border/out-of-bounds kill) only needs a new value here, not a new remote.
@@ -734,10 +734,17 @@ local function tutorialRetry(lane: Lane.Lane, f: FrogState)
 	f.gravityMult = Config.GRAVITY_MULT_START
 end
 
--- The fall loop (Frog.cs SteadilyLowerHead) + bounds check (Lava.cs, per-lane
--- via Config.DESPAWN_Y -- lanes only offset along X, so Y bounds stay shared)
--- + rendering: limbs snap to their held step or ease back to rest, exactly as
+-- The fall loop (Frog.cs SteadilyLowerHead) + lava check (per-lane via
+-- Config.LAVA_Y -- lanes only offset along X, so Y bounds stay shared) +
+-- rendering: limbs snap to their held step or ease back to rest, exactly as
 -- the client used to do locally.
+--
+-- Config.LAVA_Y (-15.714 studs = Unity's -50 units) is where Frog.cs stops
+-- lowering the head and where Step.cs draws the lava splash -- i.e. the lava
+-- surface, which is also the bottom edge of the camera band. This check used
+-- Config.DESPAWN_Y (-30), the *step* recycle line half a screen lower, so the
+-- frog sank out of sight and kept falling for ~a third of each fall before the
+-- run ended (b-20260919-200543-yixb).
 RunService.Heartbeat:Connect(function(dt: number)
 	for plr, f in pairs(frogs) do
 		local lane = Lane.get(plr)
@@ -755,7 +762,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 				local speed = math.min(Config.GRAVITY * f.gravityMult, Config.MAX_FALL_SPEED)
 				f.pos = Vector3.new(f.pos.X, f.pos.Y - speed * dt, Config.PLANE_Z)
 			end
-			if f.pos.Y <= Config.DESPAWN_Y then
+			if f.pos.Y <= Config.LAVA_Y then
 				if lane.levelIndex == Levels.TUTORIAL then
 					tutorialRetry(lane, f)
 				else
