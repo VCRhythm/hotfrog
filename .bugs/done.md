@@ -165,3 +165,12 @@ files: src/client/GameClient.client.luau, src/server/GameServer.server.luau, doc
 test: none
 verified: stylua --check, selene src/, tools/luau_check.sh and rojo build pass after the final edit. Studio via MCP playtest: GrabStep with limb 2 then 1 put steps under LeftLimb then RightLimb, releasing limb 1 left the left hand's step in place; GrabStep with 0/0, 0, 3, "2", math.huge, 1.5 and a table, and ReleaseStep with 0/0 and "1", were all refused with score 0 and a clean console, then a valid grab worked. NOT exercised: real mouse buttons (headless Studio delivers no mouse events); a human should confirm right click grabs in a real client.
 review: concern: limb index validation let NaN through (score/pull applied, then a NaN table key error) -- confirmed and fixed in the follow-up with strict 1-or-2 validation on both remotes
+
+## b-20260919-210638-sp3q  fixed  2026-09-19 22:05
+note: the frog is missing the whites of his eyes
+cause: Unity's HotFrog.prefab has separate LeftSclera/RightSclera SpriteRenderers (sortingOrder 0, behind the eyes at order 1) that the rebuild of FrogModel.model.json in 7607a9d dropped, so only the eyelid-crease "Eye" decal and the black pupil texture were rigged; the white fill layer never existed.
+change: added LeftSclera/RightSclera Decal children under Head (Suffix-driven, resolved through SkinAssets.part's fallback to Universal art, since Hot Frog has no skin-specific sclera) and renumbered the eye-layer ZIndex stack (Head 0 < Mouth 1 < Sclera 2 < Eye 3 < Pupil 4 < Eyelids 5) to match Unity's sorting order.
+files: src/assets/FrogModel.model.json
+test: none
+verified: rojo build passes. Studio via MCP in Edit mode: cloned the FrogModel asset, applied SpriteSkin.apply(clone, "Hot Frog"), both sclera decals resolved to non-zero asset ids, and an edit-mode screen capture shows white sclera ovals behind the pupils and eyelid creases. Other skins not checked (same fallback code path). Not seen in a live run.
+review: n/a
