@@ -1,7 +1,7 @@
 {
   "className": "Part",
   "properties": {
-    "Size": [4, 3, 1],
+    "Size": [7.314, 7.314, 1],
     "CFrame": [0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 0, 1],
     "Anchored": true,
     "CanCollide": false,

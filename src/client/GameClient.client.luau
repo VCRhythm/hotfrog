@@ -222,12 +222,68 @@ end)
 -- ---------------------------------------------------------------------------
 -- Input -> intents (Player/Controller.cs: CheckTouch / DecipherTouch / TouchStep)
 -- ---------------------------------------------------------------------------
+local stepsFolder = playField:WaitForChild("Steps")
+
+-- Bugs only. A step PART is its sprite's whole (often heavily padded) Unity
+-- canvas -- a Decal stretches the full image across the face it sits on -- so
+-- raycasting steps would grab empty padding, and the big parts would also swallow
+-- taps meant for a bug behind them. Steps are hit-tested against their `HitSize`
+-- collider rectangle in stepAt() instead, which is exactly what Unity does:
+-- Physics2D.Raycast(worldPos, Vector2.zero) is a point overlap against the
+-- Collider2D (Player/Controller.cs CheckTouch), never against the sprite.
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Include
 rayParams.FilterDescendantsInstances = {
-	playField:WaitForChild("Steps"),
 	playField:WaitForChild("Bugs"), -- created by BugService at startup
 }
+
+-- Where a screen tap meets the play plane (everything lives on Z = PLANE_Z).
+local function planePoint(screenX: number, screenY: number): Vector3?
+	local unitRay = camera:ScreenPointToRay(screenX, screenY)
+	if math.abs(unitRay.Direction.Z) < 1e-4 then
+		return nil
+	end
+	local t = (Config.PLANE_Z - unitRay.Origin.Z) / unitRay.Direction.Z
+	if t <= 0 then
+		return nil
+	end
+	return unitRay.Origin + unitRay.Direction * t
+end
+
+-- Point-overlap the tap against every one of THIS lane's live steps, using the
+-- Unity Collider2D each carries as `HitSize` (Shared/StepKinds) rather than the
+-- part's sprite-canvas size. Steps are never rotated (GameServer sets a plain
+-- CFrame.new), so an axis-aligned rectangle test is exact. Nearest centre wins
+-- when two colliders overlap the tap.
+local function stepAt(worldPos: Vector3): BasePart?
+	local best: BasePart? = nil
+	local bestDist = math.huge
+	for _, inst in stepsFolder:GetChildren() do
+		if
+			inst:IsA("BasePart")
+			and inst:GetAttribute("Kind") == "Step"
+			and inst:GetAttribute("LaneUserId") == player.UserId
+		then
+			local hit = inst:GetAttribute("HitSize")
+			local halfX, halfY
+			if typeof(hit) == "Vector2" then
+				halfX, halfY = hit.X / 2, hit.Y / 2
+			else
+				halfX, halfY = inst.Size.X / 2, inst.Size.Y / 2 -- no collider data: the part itself
+			end
+			local dx = worldPos.X - inst.Position.X
+			local dy = worldPos.Y - inst.Position.Y
+			if math.abs(dx) <= halfX and math.abs(dy) <= halfY then
+				local d = dx * dx + dy * dy
+				if d < bestDist then
+					bestDist = d
+					best = inst
+				end
+			end
+		end
+	end
+	return best
+end
 
 -- Tongue visual (Entities/Tongue.cs Expand/FixedUpdate): a thin part stretches
 -- from the head to the tap point, then retracts. Pure local cosmetics -- the
@@ -285,32 +341,29 @@ local function tryGrab(screenX: number, screenY: number)
 		return
 	end
 
+	-- bugs are caught with the tongue, not a limb (Controller.TouchBug)
 	local unitRay = camera:ScreenPointToRay(screenX, screenY)
 	local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 300, rayParams)
-	if not result then
-		ClientSettings.playIfEnabled(SoundFX, "miss") -- Controller.CheckTouch miss feedback
-		return
-	end
-
-	local kind = result.Instance:GetAttribute("Kind")
-
-	-- bugs are caught with the tongue, not a limb (Controller.TouchBug)
-	if kind == "Bug" then
+	if result and result.Instance:GetAttribute("Kind") == "Bug" then
 		CatchBug:FireServer(result.Instance)
 		expandTongue(result.Instance.Position)
 		return
 	end
 
-	if kind == "Step" then
-		local slot = getFreeSlot()
-		if not slot then
-			return
-		end
-		local step = result.Instance :: BasePart
-		slot.heldStep = step -- optimistic; the server corrects via ForceRelease
-		ClientSettings.playIfEnabled(SoundFX, "grab") -- Step.cs PlayGrabSound
-		GrabStep:FireServer(step, result.Position) -- server grades quality from the tap point
+	local worldPos = planePoint(screenX, screenY)
+	local step = if worldPos then stepAt(worldPos) else nil
+	if not (worldPos and step) then
+		ClientSettings.playIfEnabled(SoundFX, "miss") -- Controller.CheckTouch miss feedback
+		return
 	end
+
+	local slot = getFreeSlot()
+	if not slot then
+		return
+	end
+	slot.heldStep = step -- optimistic; the server corrects via ForceRelease
+	ClientSettings.playIfEnabled(SoundFX, "grab") -- Step.cs PlayGrabSound
+	GrabStep:FireServer(step, worldPos) -- server grades quality from the tap point
 end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)

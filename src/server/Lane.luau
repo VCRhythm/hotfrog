@@ -511,13 +511,27 @@ end
 -- Recycle bound (Borders.prefab.json Left/Right/Top/Bottom catch, doc 11 §3):
 -- ANY side, not just the bottom lava line. Only X is lane-relative -- Y bounds
 -- are shared world coordinates (lanes only offset along X, doc 13 item 1).
+--
+-- Measured against the step's own EXTENT, not just its centre: a step part is
+-- its sprite's whole Unity canvas (StepKinds.size), which for Rocket/Balloon/
+-- Castle is ~32 studs, so a centre-only test recycles them while a good chunk of
+-- the art is still on screen -- the fixed BOUNDS_MARGIN was tuned when every step
+-- was a ~6-stud box. Unity has the same property for free: Spawning/Spawn.cs
+-- recycles on `OnTriggerEnter2D` against the Borders.prefab catch colliders, i.e.
+-- when the step's own collider EDGE reaches the border, never its centre. This
+-- only ever keeps a step alive longer (by at most its half-extent) and changes no
+-- spawn cadence; the extra life is spent entirely outside the view, and an
+-- off-screen step stays untappable because GameClient resolves a tap to a point
+-- on the play plane inside the camera frustum before testing any step.
 function Lane.isOutOfBounds(self: Lane, step: BasePart): boolean
+	local halfX, halfY = step.Size.X / 2, step.Size.Y / 2
 	local relX = step.Position.X - self.origin.X
-	if relX < -(Config.LANE_HALF_WIDTH + BOUNDS_MARGIN) or relX > (Config.LANE_HALF_WIDTH + BOUNDS_MARGIN) then
+	local boundX = Config.LANE_HALF_WIDTH + BOUNDS_MARGIN
+	if relX + halfX < -boundX or relX - halfX > boundX then
 		return true
 	end
 	local y = step.Position.Y
-	return y < Config.DESPAWN_Y or y > (Config.SPAWN_Y + BOUNDS_MARGIN)
+	return (y + halfY) < Config.DESPAWN_Y or (y - halfY) > (Config.SPAWN_Y + BOUNDS_MARGIN)
 end
 
 -- ---------------------------------------------------------------------------

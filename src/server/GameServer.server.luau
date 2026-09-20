@@ -373,7 +373,11 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3)
 	step:SetAttribute("Behavior", if kind then kind.behavior else "None")
 	step:SetAttribute("Sprite", if kind then kind.sprite else nil)
 	step:SetAttribute("FlingeeSprite", if kind then kind.flingeeSprite else nil)
+	-- The part is the sprite's whole Unity canvas (a Decal stretches the full
+	-- image across it); `HitSize` carries the smaller Unity Collider2D, which is
+	-- what GameClient tap-tests -- see the header of Shared/StepKinds.
 	step.Size = if kind and kind.size then kind.size else DEFAULT_STEP_SIZE
+	step:SetAttribute("HitSize", if kind then kind.hitSize else nil)
 	SpriteSkin.apply(step) -- texture from its `Sprite` attribute (no-op until ids are set)
 
 	step.CFrame = CFrame.new(worldPos)

@@ -66,6 +66,12 @@ local function createSceneryPart(kindName: string): BasePart
 		decal:SetAttribute("Sprite", kind.sprite)
 		decal.Parent = part
 		SpriteSkin.apply(part)
+		-- SceneryKinds.size is the sprite's whole (usually heavily padded) Unity
+		-- canvas, because a Decal stretches the full image across the face -- so
+		-- the host part must not be a visible box behind it. Only hide it once the
+		-- sprite actually resolved (SkinAssets id 0 leaves Texture empty), keeping
+		-- the flat placeholder colour as the fallback for un-uploaded art.
+		part.Transparency = if decal.Texture ~= "" then 1 else 0
 	end
 
 	return part
@@ -118,6 +124,11 @@ local function makeUSLayer(spriteStem: string): (BasePart, Decal)
 	decal:SetAttribute("Sprite", spriteStem)
 	decal.Parent = part
 	SpriteSkin.apply(part)
+	-- Same rule as createSceneryPart: the part is the sprite's whole canvas, so it
+	-- must not show as a box behind the cutout. The tinting below still works --
+	-- loopUSColor tweens the Decal's Color3, and the part's Color only matters in
+	-- the un-uploaded fallback where the box is left visible.
+	part.Transparency = if decal.Texture ~= "" then 1 else 0
 	return part, decal
 end
 
@@ -193,14 +204,21 @@ local function spawnPosition(origin: Vector3, direction: Vector2): Vector3
 	return origin + Vector3.new(x, y, -1)
 end
 
+-- Measured against the part's own EXTENT, not just its centre: a scenery part is
+-- its sprite's whole Unity canvas (SceneryKinds.size), up to 64 studs for Chef and
+-- ~129 for the US map, so a centre-only test would recycle one while most of it is
+-- still on screen. Same rule as Lane.isOutOfBounds server-side, and the same one
+-- Unity gets from recycling on collider/border contact rather than on centres.
 local function isOutOfBounds(origin: Vector3, part: BasePart): boolean
 	local margin = WorldConfig.SCENERY_BOUNDS_MARGIN
+	local halfX, halfY = part.Size.X / 2, part.Size.Y / 2
 	local relX = part.Position.X - origin.X
-	if relX < -(Config.LANE_HALF_WIDTH + margin) or relX > (Config.LANE_HALF_WIDTH + margin) then
+	local boundX = Config.LANE_HALF_WIDTH + margin
+	if relX + halfX < -boundX or relX - halfX > boundX then
 		return true
 	end
 	local y = part.Position.Y
-	return y < (Config.DESPAWN_Y - margin) or y > (Config.SPAWN_Y + margin)
+	return (y + halfY) < (Config.DESPAWN_Y - margin) or (y - halfY) > (Config.SPAWN_Y + margin)
 end
 
 -- ---------------------------------------------------------------------------

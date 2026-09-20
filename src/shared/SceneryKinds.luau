@@ -11,9 +11,18 @@
 -- Analogous to Shared/StepKinds.luau but for Spawning/ScenerySpawner.cs +
 -- Entities/Scenery.cs / MovingScenery.cs (doc 11 §2a, doc 12 §3).
 
+-- SIZES: every `size` below is the sprite's WHOLE Unity canvas, in studs --
+-- `<png pixels> / <the .png.meta's spritePixelsToUnits> * Config.UNITY_TO_STUDS`,
+-- times the prefab's own localScale (only BackGrass (1,2,1), Stars (2,1,1) and US
+-- (1,0.8709,1) have one that isn't identity). A Roblox Decal always stretches the
+-- full image across the face it sits on, so a part that isn't the canvas squashes
+-- the art -- the same rule the frog rig (FrogModel.model.json) and StepKinds were
+-- rebuilt under. Most of these canvases are heavily padded around the visible art,
+-- which is why the numbers look large next to the old placeholders; scenery is
+-- CanQuery=false, so a big part can't eat a tap.
 export type SceneryKind = {
 	sprite: string?, -- SkinAssets stem (nil = no direct 1:1 sprite; flat color only)
-	size: Vector3,
+	size: Vector3, -- the sprite's whole Unity canvas in studs (see SIZES above)
 	colors: { Color3 }, -- Scenery prefab's own colorOptions (doc 11 §2a); size 1 if none
 	-- Parallax: scrolls with the lane's PullDelta * speedModifier (Entities/Scenery.cs
 	-- `speed => base.speed * speedModifier`). Ignored for `moving` kinds.
@@ -81,17 +90,28 @@ local CLOUD_TINTS = {
 local SceneryKinds: { [string]: SceneryKind } = {
 	-- Menu (Level0, doc 11 §2a) -- not reachable yet (doc 13: Menu isn't played),
 	-- kept complete for when it is.
-	BackGrass = kind({ sprite = "Grass", size = Vector3.new(5, 2.4, 0.2), colors = GREENS, speedModifier = 1.0 }),
-	Grass = kind({ sprite = "Grass", size = Vector3.new(4, 3, 0.2), colors = GREENS, speedModifier = 1.0 }),
+	-- Grass.png 256px @ 10 = 25.6u; BackGrass.prefab scales it (1,2,1).
+	BackGrass = kind({
+		sprite = "Grass",
+		size = Vector3.new(8.046, 16.091, 0.2),
+		colors = GREENS,
+		speedModifier = 1.0,
+	}),
+	Grass = kind({ sprite = "Grass", size = Vector3.new(8.046, 8.046, 0.2), colors = GREENS, speedModifier = 1.0 }),
 	-- P2 duplicates exist in Levels.luau for parity with Unity's split-screen data
 	-- but are skipped at spawn time (world/WorldScenery.client.luau) -- one lane
 	-- per player already gives everyone their own copy (same reasoning as the
 	-- Tutorial's tree spawners, doc 13).
-	BackGrassP2 = kind({ sprite = "Grass", size = Vector3.new(5, 2.4, 0.2), colors = GREENS, speedModifier = 1.0 }),
-	GrassP2 = kind({ sprite = "Grass", size = Vector3.new(4, 3, 0.2), colors = GREENS, speedModifier = 1.0 }),
+	BackGrassP2 = kind({
+		sprite = "Grass",
+		size = Vector3.new(8.046, 16.091, 0.2),
+		colors = GREENS,
+		speedModifier = 1.0,
+	}),
+	GrassP2 = kind({ sprite = "Grass", size = Vector3.new(8.046, 8.046, 0.2), colors = GREENS, speedModifier = 1.0 }),
 	Cloud3 = kind({
 		sprite = "Cloud3",
-		size = Vector3.new(6, 3, 0.2),
+		size = Vector3.new(32.183, 8.046, 0.2), -- 1024x256px @ 10
 		colors = CLOUD_TINTS,
 		speedModifier = 0.4,
 		autoMove = Vector2.new(-1.5, 0), -- Scenery.cs autoMovement (-5,0)/(-5,0), scaled (ADAPTED)
@@ -102,7 +122,7 @@ local SceneryKinds: { [string]: SceneryKind } = {
 	-- treats its "Stars" pseudo-spawner as a one-shot (spawnAllOnAwake-like).
 	Stars = kind({
 		sprite = "Stars",
-		size = Vector3.new(2.2, 1.1, 0.2),
+		size = Vector3.new(49.512, 24.756, 0.2), -- 1024px @ 13, prefab scale (2,1,1)
 		colors = { Color3.fromRGB(235, 235, 150) },
 		speedModifier = 0.05,
 	}),
@@ -110,7 +130,7 @@ local SceneryKinds: { [string]: SceneryKind } = {
 	-- Pot (Level2)
 	Flame = kind({
 		sprite = "Flame",
-		size = Vector3.new(1.3, 2.8, 0.2),
+		size = Vector3.new(5.029, 5.029, 0.2), -- 64px @ 4
 		colors = { Color3.fromRGB(255, 130, 40) },
 		speedModifier = 1.0,
 	}),
@@ -120,7 +140,7 @@ local SceneryKinds: { [string]: SceneryKind } = {
 	-- it on tap (doc 14 "Bubble pop").
 	Bubble = kind({
 		sprite = "Bubble",
-		size = Vector3.new(0.9, 0.9, 0.2),
+		size = Vector3.new(8.046, 8.046, 0.2), -- 512px @ 20
 		colors = { Color3.fromRGB(190, 225, 255) },
 		moving = true,
 		moveDirection = Vector2.new(0, 1),
@@ -131,7 +151,7 @@ local SceneryKinds: { [string]: SceneryKind } = {
 	-- Kitchen / Country (Level3/4)
 	Window = kind({
 		sprite = "Window",
-		size = Vector3.new(3, 4, 0.2),
+		size = Vector3.new(12.873, 12.873, 0.2), -- 2048px @ 50
 		colors = { Color3.fromRGB(215, 228, 236) },
 		speedModifier = 0.5,
 	}),
@@ -140,7 +160,7 @@ local SceneryKinds: { [string]: SceneryKind } = {
 	-- when a lane enters the level and removed on leaving it.
 	Chef = kind({
 		sprite = "Chef",
-		size = Vector3.new(2.6, 5, 0.2),
+		size = Vector3.new(64.366, 64.366, 0.2), -- 2048px @ 10
 		moving = true,
 		moveDirection = Vector2.new(0, 1),
 		moveSpeed = 3,
@@ -161,7 +181,7 @@ local SceneryKinds: { [string]: SceneryKind } = {
 	-- entirely, the same way it already does for Chef.
 	US = kind({
 		sprite = nil,
-		size = Vector3.new(9, 5.5, 0.2),
+		size = Vector3.new(128.731, 112.112, 0.2), -- 2048px @ 5, prefab scale (1,0.8709,1)
 		colors = { Color3.fromRGB(0, 0, 255), Color3.fromRGB(255, 0, 0) }, -- [blue, red], UnitedStates.cs `colors`
 		speedModifier = 0.1,
 	}),
