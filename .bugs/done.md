@@ -147,3 +147,12 @@ files: src/shared/Config.luau, src/server/GameServer.server.luau, src/client/Wor
 test: none
 verified: stylua --check on touched files, selene src/, tools/luau_check.sh and rojo build pass. Studio via MCP playtest: camera band +/-15.72; after StartRun the frog falls 0 to about -14.7 and resets at about 1.8 s (Tutorial retry), never leaving the band (before: ran to -30); GrabStep on the lowest tree (y=-3.1) with the frog at y=-2.3 was accepted and the lane pulled. No console errors. NOT confirmed: anything by picture, horizontal framing, and the non-Tutorial death path (LAVA_Y to GameOver to Menu).
 review: looks-right
+
+## b-20260919-211853-u7zb  ignored  2026-09-19 21:25
+note: AUTO error (client:FrequencyGames): AssistantCommand:19: attempt to index nil with 'Position'
+cause: not game code. 'AssistantCommand' is a Luau probe a fixer ran through the Studio MCP during its own playtest (same as the earlier StreamingMinRadius entries); the nil index is in the probe, not in src/.
+change: none
+files: none
+test: none
+verified: not run: stack names only AssistantCommand, which does not exist in the repo
+review: n/a
