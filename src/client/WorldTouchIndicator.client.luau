@@ -1,17 +1,31 @@
 --!strict
 -- StarterPlayerScripts/Client/WorldTouchIndicator (LocalScript)
--- Phase 4 world dressing, item 6: the coloured dot at the local player's tap
--- point (Player/TouchIndicator.cs: Show/SetPosition/Hide + SetColor). Runs its
--- own read-only input listener (mirrors GameClient's raycast against
+-- Phase 4 world dressing, item 6: the tap-point feedback at the local player's
+-- click/touch (Player/TouchIndicator.cs: Show/SetPosition/Hide + SetColor).
+-- Runs its own read-only input listener (mirrors GameClient's raycast against
 -- Steps/Bugs) rather than touching GameClient.client.luau -- multiple
 -- UserInputService connections are fine side by side, and this one never fires
 -- a remote or otherwise affects gameplay.
 --
--- ADAPTED colour rule: Unity ships three mutually-exclusive SetColorBy* helpers
--- (distance / time-held / Y) and Controller.cs (outside this phase's read list)
--- decides which is live at runtime. This port uses distance from the local
--- frog, scaled against the existing Config.MAX_GRAB_DISTANCE reach check, so
--- "red" means "probably out of reach" -- the closest in spirit to all three.
+-- ADAPTED: Unity's TouchIndicator.prefab is a single Sprites/Other/Circle.png
+-- recolored green/yellow/red by whichever of three mutually-exclusive
+-- SetColorBy* strategies Controller.cs (outside this phase's read list) has
+-- live at runtime. The owner's wanted feedback (b-20260921-183321-iide,
+-- reopening b-20260921-182233-97n6) is simpler and binary: a green circle
+-- when the tap is within grab reach, a red X when it isn't -- no yellow
+-- middle state. There's no dedicated X sprite under Sprites/ (TouchIndicator
+-- only ever used Circle.png; checked docs/roblox-port/12 sec.6 and the Sprites
+-- tree), so the X reuses the "X" glyph/red styling doc 12 records for
+-- TouchQualityTextMiss.prefab, rendered as a TextLabel the same way
+-- WorldQualityPopup.client.luau already renders its quality-popup glyphs --
+-- avoids inventing new art up front. Reach uses the same Config.MAX_GRAB_DISTANCE
+-- threshold GameClient.client.luau checks for the real grab (line ~581).
+--
+-- Previous bug: a translucent, tinted backing Part was left visible behind the
+-- circle decal, so in-reach/near-reach taps showed as a green/yellow square
+-- (b-20260921-182233-97n6) instead of just the circle. Fixed by keeping the
+-- anchor Part fully transparent at all times -- only the Decal/TextLabel ever
+-- carry color or opacity.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local UserInputService = game:GetService("UserInputService")
@@ -21,13 +35,6 @@ local Players = game:GetService("Players")
 local Config = require(ReplicatedStorage.Shared.Config)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
-
--- Owner doesn't want the coloured tap indicator squares (b-20260921-182233-97n6).
--- Flip back to true to restore Unity's TouchIndicator behaviour.
-local ENABLED = false
-if not ENABLED then
-	return
-end
 
 local player = Players.LocalPlayer
 local playField = workspace:WaitForChild("PlayField")
@@ -40,7 +47,8 @@ local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Include
 rayParams.FilterDescendantsInstances = { playField:WaitForChild("Steps"), playField:WaitForChild("Bugs") }
 
--- Flat quad, faded out at rest (TouchIndicator.prefab: SpriteRenderer alpha=0).
+-- Anchor part: always fully transparent (see header) -- it only carries
+-- position, never a visible fill.
 local dot = Instance.new("Part")
 dot.Name = "TouchIndicator"
 dot.Size = Vector3.new(1.4, 1.4, 0.1)
@@ -49,34 +57,49 @@ dot.CanCollide = false
 dot.CanQuery = false
 dot.Material = Enum.Material.SmoothPlastic
 dot.Transparency = 1
-dot.Color = WorldConfig.TOUCH_INDICATOR_GREEN
 
+-- In-reach state: the circle decal (Sprites/Other/Circle.png), tinted green.
 local decal = Instance.new("Decal")
 decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 decal:SetAttribute("Sprite", "Circle")
+decal.Color3 = WorldConfig.TOUCH_INDICATOR_GREEN
 decal.Transparency = 1
 decal.Parent = dot
 SpriteSkin.apply(dot)
+
+-- Out-of-reach state: a red "X" glyph (no dedicated sprite exists -- see
+-- header), styled like WorldQualityPopup's quality-popup text.
+local missGui = Instance.new("BillboardGui")
+missGui.Name = "MissIndicator"
+missGui.Size = UDim2.fromOffset(60, 60)
+missGui.AlwaysOnTop = true
+missGui.Parent = dot
+
+local missLabel = Instance.new("TextLabel")
+missLabel.Name = "Label"
+missLabel.BackgroundTransparency = 1
+missLabel.Size = UDim2.fromScale(1, 1)
+missLabel.Font = Enum.Font.GothamBlack
+missLabel.TextScaled = true
+missLabel.Text = "X"
+missLabel.TextColor3 = WorldConfig.TOUCH_INDICATOR_RED
+missLabel.TextTransparency = 1
+missLabel.TextStrokeTransparency = 1
+missLabel.Parent = missGui
+
 dot.Parent = workspace
 
-local fadeTween: Tween? = nil
+local decalFadeTween: Tween? = nil
+local labelFadeTween: Tween? = nil
 
 local function cancelFade()
-	if fadeTween then
-		fadeTween:Cancel()
-		fadeTween = nil
+	if decalFadeTween then
+		decalFadeTween:Cancel()
+		decalFadeTween = nil
 	end
-end
-
-local function colorForDistance(dist: number): Color3
-	local greenMax = Config.MAX_GRAB_DISTANCE * WorldConfig.TOUCH_INDICATOR_GREEN_FRACTION
-	local yellowMax = Config.MAX_GRAB_DISTANCE * WorldConfig.TOUCH_INDICATOR_YELLOW_FRACTION
-	if dist <= greenMax then
-		return WorldConfig.TOUCH_INDICATOR_GREEN
-	elseif dist <= yellowMax then
-		return WorldConfig.TOUCH_INDICATOR_YELLOW
-	else
-		return WorldConfig.TOUCH_INDICATOR_RED
+	if labelFadeTween then
+		labelFadeTween:Cancel()
+		labelFadeTween = nil
 	end
 end
 
@@ -84,19 +107,26 @@ local function show(worldPos: Vector3)
 	cancelFade()
 	dot.CFrame = CFrame.new(worldPos.X, worldPos.Y, Config.PLANE_Z + 0.6)
 	local dist = (Vector2.new(worldPos.X, worldPos.Y) - Vector2.new(body.Position.X, body.Position.Y)).Magnitude
-	local color = colorForDistance(dist)
-	dot.Color = color
-	decal.Color3 = color
-	dot.Transparency = 0.35
-	decal.Transparency = 0
+	local inReach = dist <= Config.MAX_GRAB_DISTANCE
+	if inReach then
+		decal.Transparency = 0
+		missLabel.TextTransparency = 1
+		missLabel.TextStrokeTransparency = 1
+	else
+		decal.Transparency = 1
+		missLabel.TextTransparency = 0
+		missLabel.TextStrokeTransparency = 0.4
+	end
 end
 
 local function hide()
 	local info = TweenInfo.new(WorldConfig.TOUCH_INDICATOR_FADE_TIME)
-	local tween = TweenService:Create(dot, info, { Transparency = 1 })
-	fadeTween = tween
-	TweenService:Create(decal, info, { Transparency = 1 }):Play()
-	tween:Play()
+	local decalTween = TweenService:Create(decal, info, { Transparency = 1 })
+	local labelTween = TweenService:Create(missLabel, info, { TextTransparency = 1, TextStrokeTransparency = 1 })
+	decalFadeTween = decalTween
+	labelFadeTween = labelTween
+	decalTween:Play()
+	labelTween:Play()
 end
 
 -- Resolve a screen tap to a world point on the play plane: prefer a real
