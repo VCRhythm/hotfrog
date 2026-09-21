@@ -76,6 +76,12 @@ export type Lane = typeof(setmetatable(
 		-- Classic drift scrolled since the last settled chunk (studs, seconds).
 		driftDistance: number,
 		driftTime: number,
+		-- Seconds of actual Classic drift (Lane.driftSpeed) since this run's
+		-- ramp last reset (Lane.setMode / Lane.resetRun) -- feeds the Classic
+		-- speed ramp (Config.CLASSIC_SCROLL_ACCEL_RATE). Carries across this
+		-- run's level transitions; never advances outside Classic mode or on a
+		-- level with no CLASSIC_SCROLL_SPEED entry (e.g. Tutorial).
+		driftElapsed: number,
 		runSteps: number, -- steps climbed this run, across levels (drives LEVEL_THRESHOLDS)
 		tutorialStepsClimbed: number,
 		-- called explicitly by whichever method changes the level, WITH the
@@ -621,21 +627,36 @@ function Lane.addPull(self: Lane, distance: number, duration: number): Vector3?
 	return delta
 end
 
--- Set the run mode (StartRun); anything but a known Config.RUN_MODES value is Normal.
+-- Set the run mode (StartRun). Classic is the default (owner's request
+-- b-20260921-182325-3jtz): only a literal "Normal" opts out, anything else
+-- (missing/garbage/an old client) falls back to Classic.
 function Lane.setMode(self: Lane, mode: string)
-	self.mode = if mode == Config.RUN_MODES.Classic then Config.RUN_MODES.Classic else Config.RUN_MODES.Normal
+	self.mode = if mode == Config.RUN_MODES.Normal then Config.RUN_MODES.Normal else Config.RUN_MODES.Classic
 	self.driftDistance = 0
 	self.driftTime = 0
+	self.driftElapsed = 0
 	self.folder:SetAttribute("Mode", self.mode)
 end
 
--- Classic mode's constant scroll speed for the current level (studs/s), 0 when
--- this lane isn't Classic or the level doesn't drift (Config.CLASSIC_SCROLL_SPEED).
-function Lane.driftSpeed(self: Lane): number
+-- Classic mode's scroll speed for the current level right now (studs/s), 0
+-- when this lane isn't Classic or the level doesn't drift at all
+-- (Config.CLASSIC_SCROLL_SPEED has no entry for it, e.g. Tutorial). Ramps
+-- gently the longer this run's drift has run (Config.CLASSIC_SCROLL_ACCEL_RATE,
+-- self.driftElapsed), capped at CLASSIC_SCROLL_MAX_MULT times the level's base.
+-- `dt` advances the ramp clock; callers only invoke this once per tick they
+-- actually mean to drift (GameServer's Heartbeat, gated on the frog being
+-- armed and alive), so the ramp only runs while drift itself runs.
+function Lane.driftSpeed(self: Lane, dt: number): number
 	if self.mode ~= Config.RUN_MODES.Classic then
 		return 0
 	end
-	return Config.CLASSIC_SCROLL_SPEED[self.level.name] or 0
+	local base = Config.CLASSIC_SCROLL_SPEED[self.level.name]
+	if not base or base <= 0 then
+		return 0
+	end
+	self.driftElapsed += dt
+	local speed = base + base * Config.CLASSIC_SCROLL_ACCEL_RATE * self.driftElapsed
+	return math.min(speed, base * Config.CLASSIC_SCROLL_MAX_MULT)
 end
 
 -- Classic mode: scroll every live step `speed * dt` studs along the spawn
@@ -889,6 +910,7 @@ function Lane.resetRun(self: Lane, tutorialDone: boolean)
 	table.clear(self.motions) -- the lane was just emptied (GameServer.clearLaneSteps)
 	self.driftDistance = 0
 	self.driftTime = 0
+	self.driftElapsed = 0
 	self:setLevel(if tutorialDone then Levels.POT else Levels.TUTORIAL)
 	if self.notify then
 		self.notify(self, "death")
@@ -934,6 +956,7 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		mode = Config.RUN_MODES.Normal,
 		driftDistance = 0,
 		driftTime = 0,
+		driftElapsed = 0,
 		runSteps = 0,
 		tutorialStepsClimbed = 0,
 		notify = notify,

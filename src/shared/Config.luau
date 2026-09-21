@@ -175,8 +175,11 @@ local Config = {
 	-- "Classic" run mode (owner's request b-20260921-164458-8liv; doc 17): the
 	-- world keeps scrolling along the lane's spawn direction whether or not the
 	-- frog holds anything, on top of the normal per-grab pull, so the player has
-	-- to keep climbing or be carried into the lava. The default "Normal" mode
-	-- only scrolls on grabs. Chosen per run on the main menu (StartRun payload).
+	-- to keep climbing or be carried into the lava. "Normal" only scrolls on
+	-- grabs. Chosen per run on the main menu (StartRun payload); Classic is the
+	-- default (owner's request b-20260921-182325-3jtz) -- only an explicit
+	-- "Normal" selection opts out, anything else (missing/garbage) also falls
+	-- back to Classic (Lane.setMode).
 	RUN_MODES = { Normal = "Normal", Classic = "Classic" },
 	-- Constant scroll speed per level, in Unity units/s converted to studs.
 	-- Unity never scrolls on its own (Rigidbody2D drag = 2 stops the steps once a
@@ -197,6 +200,22 @@ local Config = {
 	-- lane's cosmetics scroll with it.
 	CLASSIC_SPAWN_PER_STUD = 1 / 8,
 	CLASSIC_CHUNK_TIME = 0.5,
+	-- Classic ramp (owner's request b-20260921-182325-3jtz: "the steps should
+	-- slowly get faster and faster"): once a Classic run's drift has started
+	-- (Lane.driftElapsed, seconds since the run's first grab armed the frog),
+	-- the scroll speed grows by this fraction of the CURRENT level's own base
+	-- CLASSIC_SCROLL_SPEED per second, so the ramp scales with each level
+	-- instead of one flat number. At 1/120 a run reaches ~2x its level's base
+	-- speed after about 2 minutes of continuous drifting; it keeps climbing
+	-- gently after that, hard-capped at CLASSIC_SCROLL_MAX_MULT times the base
+	-- so a long run can never run away. Gentle by design -- there is no Unity
+	-- equivalent (Unity never scrolls on its own, see CLASSIC_SCROLL_SPEED
+	-- above). The ramp carries across a run's level transitions (Pot -> Kitchen
+	-- -> Country) but resets on every new run (Lane.resetRun); Tutorial never
+	-- drifts at all (no entry in CLASSIC_SCROLL_SPEED), so the ramp is inert
+	-- there regardless of mode.
+	CLASSIC_SCROLL_ACCEL_RATE = 1 / 120, -- fraction of the level's base speed added per second
+	CLASSIC_SCROLL_MAX_MULT = 3, -- hard cap, as a multiple of the level's base speed
 
 	-- Grab anti-abuse (doc 07 hardening): cap grabs per rolling window per player.
 	-- Two limbs + fast chaining is maybe ~6/s for a human; 10 leaves headroom.

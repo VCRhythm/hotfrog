@@ -100,7 +100,7 @@ local LevelChanged = ensureRemote("LevelChanged") -- server -> client: this lane
 -- -> Menu run-state machine + its remotes. Everything below is additive on top
 -- of the existing loop; it never changes GrabStep/ScoreChanged/GameOver/
 -- LevelChanged's own contracts, only gates when they fire.
-local StartRun = ensureRemote("StartRun") -- client -> server: begin a run from Menu (rate-limited, Menu-only) (mode: "Normal" | "Classic", optional, default Normal; mirrored as the lane's Mode attribute)
+local StartRun = ensureRemote("StartRun") -- client -> server: begin a run from Menu (rate-limited, Menu-only) (mode: "Normal" | "Classic" | "Tutorial", optional, default Classic; "Tutorial" forces the Tutorial level via the same reset ReplayTutorial uses, then the run itself is Classic; anything else/missing also falls back to Classic; the lane's Mode attribute mirrors the resulting Classic/Normal scroll mode)
 local RunStateChanged = ensureRemote("RunStateChanged") -- server -> client: this player's Menu/Playing/Dead state
 local RunSummary = ensureRemote("RunSummary") -- server -> client: end-of-run stats for the end-of-run panel (score, newBest, isNewBest, quality, bugs, flys, cause)
 local SetMusicOn = ensureRemote("SetMusicOn") -- client -> server: settings toggle (writes profile.musicOn)
@@ -584,7 +584,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 		-- carries them in, like a grab's -- and is replicated for the cosmetics.
 		local f = frogs[lane.player]
 		if f and f.canFall and not f.dead then
-			local chunk, chunkTime = lane:drift(dt, lane:driftSpeed())
+			local chunk, chunkTime = lane:drift(dt, lane:driftSpeed(dt))
 			if chunk and chunkTime then
 				local dir = lane.spawnDirection
 				publishPull(lane, Vector3.new(dir.X, dir.Y, 0).Unit * chunk, chunkTime)
@@ -1417,6 +1417,21 @@ ReachEmpty.OnServerEvent:Connect(function(player, tapPos, limbIndex)
 	limbPart:SetAttribute("Reaching", true)
 end)
 
+-- Force this player's next run to start at the Tutorial level, whatever their
+-- profile's tutorialDone already says (doc 15 item 3 / the Settings "Replay
+-- Tutorial" action, b-20260921-182830-2c73: also reused by the menu's mode
+-- picker so picking "Tutorial" there doesn't duplicate this). Only meaningful
+-- from Menu -- callers gate that themselves.
+local function forceTutorial(player: Player, lane: Lane.Lane)
+	local p = Profiles.get(player)
+	if not p then
+		return
+	end
+	p.tutorialDone = false
+	Profiles.save(player)
+	lane:resetRun(false) -- back to Tutorial; fires LevelChanged for the client's level-name toast
+end
+
 -- doc 15 item 1: begin a run from the main menu. Only valid from Menu (a
 -- client stuck mid-Playing or mid-death-beat can't re-trigger it), and
 -- rate-limited the same way grabs are so a bot can't hammer it.
@@ -1436,6 +1451,20 @@ StartRun.OnServerEvent:Connect(function(player, mode)
 	if not lane or not f then
 		return
 	end
+
+	-- Run mode (doc 17 "Classic mode" / b-20260921-182325-3jtz, b-20260921-182830-2c73):
+	-- Classic is the default -- only a literal "Normal" opts out. "Tutorial" is
+	-- the menu's third pick (b-20260921-182830-2c73): it's not a scroll mode at
+	-- all, it forces this run to (re)start at the Tutorial level the same way
+	-- Settings' "Replay Tutorial" does, then plays out as an ordinary Classic
+	-- run (Tutorial itself never drifts either way -- no CLASSIC_SCROLL_SPEED
+	-- entry for it).
+	local modeStr = if typeof(mode) == "string" then mode else Config.RUN_MODES.Classic
+	if modeStr == "Tutorial" then
+		forceTutorial(player, lane)
+		modeStr = Config.RUN_MODES.Classic
+	end
+
 	f.pos = lane.origin
 	f.gravityMult = Config.GRAVITY_MULT_START
 	cancelBob(f)
@@ -1444,9 +1473,7 @@ StartRun.OnServerEvent:Connect(function(player, mode)
 	f.model:SetAttribute("Dead", false)
 	flysThisRun[player] = 0
 	bugsThisRun[player] = 0
-	-- Run mode (doc 17 "Classic mode"): only a known mode string is honoured;
-	-- anything else (nil from an old client, garbage) starts a Normal run.
-	lane:setMode(if typeof(mode) == "string" then mode else Config.RUN_MODES.Normal)
+	lane:setMode(modeStr)
 	prefillLane(lane)
 	setRunState(player, RunState.Playing)
 end)
@@ -1495,15 +1522,9 @@ ReplayTutorial.OnServerEvent:Connect(function(player)
 	if runState[player] ~= RunState.Menu then
 		return
 	end
-	local p = Profiles.get(player)
-	if not p then
-		return
-	end
-	p.tutorialDone = false
-	Profiles.save(player)
 	local lane = Lane.get(player)
 	if lane then
-		lane:resetRun(false) -- back to Tutorial; fires LevelChanged for the client's level-name toast
+		forceTutorial(player, lane)
 	end
 end)
 

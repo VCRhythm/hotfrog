@@ -190,16 +190,29 @@ local lastSummary: {
 }? =
 	nil
 
--- The run mode Play/Replay will ask for (GameServer validates it).
-local selectedMode = "Normal"
+-- The run mode Play/Replay will ask for (GameServer validates it). Classic is
+-- the default (owner's request b-20260921-182325-3jtz), cycled Classic ->
+-- Normal -> Tutorial -> Classic. "Tutorial" isn't a scroll mode -- picking it
+-- (re)starts the run at the Tutorial level (GameServer.forceTutorial, the same
+-- path Settings' "Replay Tutorial" uses, b-20260921-182830-2c73) and plays out
+-- as Classic once it's done. This is a per-session choice only (not saved to
+-- the profile), so it resets to Classic on a fresh join, per the owner's call
+-- that a client-only variable is enough here.
+local selectedMode = "Classic"
 local function refreshModeButton()
 	modeButton.Text = "Mode: " .. selectedMode
-	modeButton.BackgroundColor3 = if selectedMode == "Classic" then UIKit.WARN else UIKit.DARK
+	modeButton.BackgroundColor3 = if selectedMode == "Classic"
+		then UIKit.WARN
+		elseif selectedMode == "Tutorial" then UIKit.ACCENT
+		else UIKit.DARK
 	modeButton.TextColor3 = if selectedMode == "Classic" then Color3.new(0, 0, 0) else UIKit.TEXT
 end
 refreshModeButton()
 modeButton.Activated:Connect(function()
-	selectedMode = if selectedMode == "Classic" then "Normal" else "Classic"
+	selectedMode = if selectedMode == "Classic"
+		then "Normal"
+		elseif selectedMode == "Normal" then "Tutorial"
+		else "Classic"
 	refreshModeButton()
 end)
 

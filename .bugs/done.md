@@ -547,3 +547,21 @@ files: src/shared/StepKinds.luau
 test: none
 verified: see b-20260921-152537-l4vl
 review: n/a
+
+## b-20260921-182325-3jtz  fixed  2026-09-21 19:05
+note: classic should be the default mode and on classic the steps should slowly get faster and faster
+cause: Normal was the default on the menu and in the server fallback, and Classic's speed was a flat per-level constant.
+change: menu picker defaults to Classic (cycle Classic -> Normal -> Tutorial); StartRun / Lane.setMode fall back to Classic. Lane.driftElapsed ramps speed as base + base * CLASSIC_SCROLL_ACCEL_RATE (1/120 per s) * elapsed, capped at CLASSIC_SCROLL_MAX_MULT (3x); carries across levels, resets each run. Doc 17 Classic row updated.
+files: src/client/MenuClient.client.luau, src/shared/Config.luau, src/server/Lane.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check, rojo build pass. Studio not run (a play session was live).
+review: n/a
+
+## b-20260921-182830-2c73  fixed  2026-09-21 19:05
+note: I should be able to pick the tutorial as a game mode
+cause: the tutorial was reachable only automatically (new profile) or via Settings > Replay Tutorial.
+change: Tutorial added to the menu's mode picker; StartRun("Tutorial") and the ReplayTutorial remote share a new GameServer forceTutorial helper. New players still get the tutorial automatically. Doc 17 Tutorial row updated.
+files: src/client/MenuClient.client.luau, src/server/GameServer.server.luau, src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check, rojo build pass. Studio not run (a play session was live).
+review: n/a
