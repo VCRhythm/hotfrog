@@ -574,3 +574,12 @@ files: src/client/WorldTouchIndicator.client.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; Studio MCP playtest: in-reach click shows the green circle, no square, no console errors. Red X branch not triggerable on screen (whole view within reach); code/type-check only.
 review: n/a
+
+## b-20260921-182534-oy7p  fixed  2026-09-21 19:20
+note: rocks are still white on the demo (reopens b-20260921-164509-uork)
+cause: the main-menu attract ladder (GameServer buildAttract) builds its own WhiteRock Part+Decal and never set Color3; the earlier fix only covered pooled steps in acquireStep.
+change: buildAttract tints its rung decals with StepKinds.FallingRock.color (white fallback). No other WhiteRock art path found (flingSplash, BugService decals use other art).
+files: src/server/GameServer.server.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass. Studio not run (play session live).
+review: n/a

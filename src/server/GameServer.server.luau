@@ -877,6 +877,14 @@ local function buildAttract(origin: Vector3): AttractState
 		decal:SetAttribute("Sprite", "WhiteRock")
 		decal.Parent = part
 		SpriteSkin.apply(part)
+		-- WhiteRock.png is a blank white silhouette Unity tints per-prefab
+		-- (StepKinds `color`, doc 12 §1); acquireStep does this for pooled steps
+		-- but these decorative rungs bypass it, so they rendered untinted white
+		-- (b-20260921-182534-oy7p, reopening b-20260921-164509-uork). Reuse
+		-- FallingRock's tint -- the WhiteRock kind WorldConfig.ATTRACT_STEP_SIZE
+		-- is itself sized after -- rather than hard-coding a new colour.
+		local rockKind = StepKinds.FallingRock
+		decal.Color3 = if rockKind and rockKind.color then rockKind.color else Color3.new(1, 1, 1)
 		-- Zig-zag ladder (Lane.luau's Tutorial ladder shape) about the frog's
 		-- own Y: rung 2 level with the body, 1 below, 3 above, 4 off-screen.
 		local sign = if i % 2 == 1 then 1 else -1
