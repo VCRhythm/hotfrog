@@ -85,7 +85,16 @@ local HIT_ACORN = Vector2.new(8.046, 8.046) -- BoxCollider2D size=(25.6,25.6), t
 -- Carrot.png.meta: alignment 9 (Custom), spritePivot=(0.30466288, 0.3970804) --
 -- the art sits low-left of its padded canvas, so Unity's transform.position
 -- (where Limb.Move snaps the held hand) is that far from our canvas-centred part.
-local GRIP_CARROT = Vector2.new(-3.1433, -1.6561)
+-- **Deliberate deviation from that Unity pivot** (owner's ruling
+-- b-20260921-182516-5kv7, reopening b-20260921-152537-l4vl "the frog is
+-- holding the carrot on the very end rather than its middle"): the pivot
+-- above sits near the blunt end of the carrot's small, low-left art, so a
+-- fist snapped exactly there reads as gripping the tip, not the carrot's
+-- body. GRIP_CARROT is now targeted at the art's own geometric middle within
+-- the padded canvas (~canvas-fraction (0.27, 0.37), about 0.7 studs off the
+-- Unity pivot toward the canvas centre) instead of the literal pivot -- see
+-- doc 17 "Deliberate deviations from Unity".
+local GRIP_CARROT = Vector2.new(-3.7009, -2.0918)
 
 -- Hit offsets: gripOffset + (Collider2D.offset * UNITY_TO_STUDS), from doc 12 §1.
 -- Carrot's BoxCollider2D carries offset=(-0.091,0.547) *on top of* the pivot

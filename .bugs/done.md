@@ -511,3 +511,39 @@ files: src/client/WorldTouchIndicator.client.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; screenshot confirmed the square is the indicator. Studio not run.
 review: n/a
+
+## b-20260921-152818-f5bf  fixed  2026-09-21 18:50
+note: the frog's hand when not grabbing, is a little far off the arm (so there's a small gap)
+cause: owner ruling b-20260921-182453-9s6z: "it's a hairline. let's try a" (overlap the hand toward the arm). Hand and arm met exactly edge-to-edge, which renders as a hairline seam; the weld keeps the model's authored offset at runtime.
+change: RightHand/LeftHand CFrame Y moved 0.0393 studs (~1.5 source px) toward the arm in FrogModel; doc 17 deviation row "Open hand / arm seam".
+files: src/assets/FrogModel.model.json, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: JSON parses; rojo build passes. Studio not run.
+review: n/a
+
+## b-20260921-182453-9s6z  fixed  2026-09-21 18:50
+note: DECISION: it's a hairline. let's try a
+cause: owner ruling on b-20260921-152818-f5bf; applied there.
+change: see b-20260921-152818-f5bf
+files: src/assets/FrogModel.model.json
+test: none
+verified: see b-20260921-152818-f5bf
+review: n/a
+
+## b-20260921-152537-l4vl  fixed  2026-09-21 18:50
+note: the frog is holding the carrot on the very end rather than its middle
+cause: owner ruling b-20260921-182516-5kv7: "a" (move the grip toward the art's middle). GRIP_CARROT used Unity's literal pivot near the blunt end.
+change: GRIP_CARROT moved to the art's geometric middle (canvas ~0.27, 0.37), ~0.7 studs; HIT_OFFSET_CARROT is derived from it and follows. Doc 17 deviation row "Carrot grip point"; stale closed-gap numbers marked superseded.
+files: src/shared/StepKinds.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check, rojo build pass. Studio not run.
+review: n/a
+
+## b-20260921-182516-5kv7  fixed  2026-09-21 18:50
+note: DECISION: a
+cause: owner ruling on b-20260921-152537-l4vl; applied there.
+change: see b-20260921-152537-l4vl
+files: src/shared/StepKinds.luau
+test: none
+verified: see b-20260921-152537-l4vl
+review: n/a
