@@ -417,3 +417,12 @@ files: none
 test: none
 verified: trace points at an AssistantCommand, not a src/ script
 review: n/a
+
+## b-20260921-164251-ho4b  answered  2026-09-21 17:10
+note: what is the green square with a circle in it?
+cause: not a bug: it is the ported TouchIndicator (Player/TouchIndicator.cs), a dot drawn where you tap or click, coloured by reach (green = within grab range). Drawn by src/client/WorldTouchIndicator.client.luau for the local lane only.
+change: none
+files: none
+test: none
+verified: triage read of WorldTouchIndicator and the screenshot
+review: n/a
