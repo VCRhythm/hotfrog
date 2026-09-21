@@ -9,44 +9,44 @@
 
 local Ids: { [string]: number } = {
 	-- one-shots (AudioManager.cs fields, minus the "Sound" suffix)
-	grab = 0, -- grabSound: limb grips a step
-	crumble = 0, -- crumbleSound: step destroyed by the lava
-	crumbleShort = 0, -- crumbleShortSound: step explodes / shrugs you off
-	fall = 0, -- fallSound: the frog drops (death beat)
-	fly = 0, -- flySound: a bug buzzes / is collected by a tame bug
-	slurp = 0, -- slurpSound: tongue extends
-	squish = 0, -- squishSound: tongue catches a bug
-	awake = 0, -- awakeSound: frog rises
-	miss = 0, -- missSound: tap hit nothing
-	holdOnVoice = 0, -- holdOnVoiceSound: tutorial "Hold on!"
+	grab = 73108433873246, -- grabSound: limb grips a step
+	crumble = 110518003299500, -- crumbleSound: step destroyed by the lava
+	crumbleShort = 100610021589583, -- crumbleShortSound: step explodes / shrugs you off
+	fall = 75340992287340, -- fallSound: the frog drops (death beat)
+	fly = 83624192055113, -- flySound: a bug buzzes / is collected by a tame bug
+	slurp = 129746971606694, -- slurpSound: tongue extends
+	squish = 135825820732891, -- squishSound: tongue catches a bug
+	awake = 80000324613456, -- awakeSound: frog rises
+	miss = 90981200443162, -- missSound: tap hit nothing
+	holdOnVoice = 99276810667754, -- holdOnVoiceSound: tutorial "Hold on!"
 
 	-- music (AudioManager crossfades by musicIndex per level)
-	music1 = 0,
-	music2 = 0,
-	music3 = 0,
+	music1 = 77652599137287,
+	music2 = 135676407745412,
+	music3 = 130591680122369,
 
 	-- ==== Auto-added by tools/write_asset_ids.py — keys from tools/asset_manifest.json not yet listed above.
 	-- Re-running regenerates this block; hand-organize above the sentinel if you want a key to stay put. ====
 
 	-- one-shots (auto)
-	base10 = 0,
-	blink = 0,
-	boilVoice = 0,
-	greatVoice = 0,
-	highScore = 0,
-	hotFrogVO = 0,
-	hurt = 0,
-	leaves = 0,
-	new = 0,
-	okVoice = 0,
-	perfectVoice = 0,
-	pop = 0,
-	select = 0,
-	splash = 0,
+	base10 = 138857525055183,
+	blink = 120161436532837,
+	boilVoice = 78513594088362,
+	greatVoice = 111189315835604,
+	highScore = 111151171883625,
+	hotFrogVO = 87593120929445,
+	hurt = 113097634312056,
+	leaves = 137434649313793,
+	new = 100681368854534,
+	okVoice = 116142283148706,
+	perfectVoice = 111376508107588,
+	pop = 107730930869486,
+	select = 94150736478475,
+	splash = 99385317094275,
 
 	-- music (auto)
-	music4 = 0,
-	music5 = 0,
+	music4 = 116586551716598,
+	music5 = 70897771387242,
 }
 
 local SoundAssets = {}

@@ -24,4 +24,8 @@ __pycache__/
 # file sizes/hashes) and/or a local cache — regenerate, don't commit.
 tools/asset_manifest.json
 tools/asset_ids.json
+tools/decal_image_ids.json
 tools/.asset_cache/
+
+# Roblox credentials + experience ids for tools/ (see .env.example)
+.env

@@ -24,23 +24,26 @@ Two ways to drive it:
        python tools/upload_to_roblox.py "Sprites/Frogs" --recursive \\
            --creator-id 1234567 --creator-type user -o sprite_ids.json
 
-Setup:
+Setup (all of it can live in <repo>/.env — see .env.example; tools/roblox_web.py
+loads it, and a value already exported in the shell wins):
   pip install -r tools/requirements.txt
-  - Create an Open Cloud API key (create.roblox.com -> Creator Hub -> Open Cloud
-    -> API Keys) with:
-      * the **assets** API, Read + Write (create.roblox.com/docs/cloud/guides/usage-assets;
-        for OAuth apps the equivalent scopes are asset:read / asset:write) — required
-        for every upload;
-      * the **legacy-asset:manage** scope — required for the decal->image id
-        resolution step below (Asset Delivery API). If you don't want to grant
-        that scope, use --no-resolve and the tools/resolve_decals.luau Studio
-        fallback instead (see tools/README.md).
-    Add your IP range (or use a key with no IP restriction for local runs).
-  - Note your creator id: your user id, or a group id if the assets belong to a
-    group. Assets you upload are owned by that creator.
-  - export ROBLOX_API_KEY=...  (or pass --api-key). Never pass it as a bare CLI
-    literal in a shared shell history if you can avoid it; the key is only ever
-    read into memory here — this script never writes it to a file or log.
+  - ROBLOX_API_KEY: an Open Cloud API key (create.roblox.com -> Creator Hub ->
+    Open Cloud -> API Keys) with the **assets** API, Read + Write (for OAuth apps
+    the equivalent scopes are asset:read / asset:write) — required for every
+    image upload and for --status. Add your IP range (or no IP restriction).
+  - ROBLOX_USER_ID (or pass --creator-id / --creator-type group): the owning
+    creator. Assets you upload are owned by that creator.
+  - ROBLOSECURITY: the logged-in .ROBLOSECURITY cookie of that same account.
+    Optional but strongly recommended — it enables (a) the WEBSITE audio upload
+    path, which clears moderation in seconds where the Open Cloud audio path is
+    widely reported to sit in "Reviewing" indefinitely, and (b) cookie-based
+    decal->image id resolution (see below). It is a full login credential:
+    keep it in .env only, never commit or paste it anywhere.
+  - ROBLOX_UNIVERSE_ID + ROBLOX_PLACE_ID: the HotFrog experience (published at
+    least once). Only needed for `--resolve-only --via luau`, the headless
+    Studio-equivalent resolver (tools/luau_exec.py); the key then also needs the
+    `universe.place.luau-execution-session:write` scope for that experience.
+  None of the secrets are ever written to a file or log by this script.
 
 Roblox Open Cloud Assets API limits (create.roblox.com/docs/cloud/guides/usage-assets,
 confirmed from Roblox's own creator-docs source for this change): max 20MB per
@@ -67,46 +70,60 @@ IMPORTANT: Decal ids vs. Image ids (read this before uploading ~173 assets).
   What this script actually does about it:
     - The Open Cloud Assets API's format table (create.roblox.com/docs/cloud/guides/usage-assets)
       lists "Decal, Image" together as accepted assetType values for the exact
-      same file formats — CONFIRMED from Roblox's docs source. Whether
-      assetType="Image" returns a usable image id directly (skipping the whole
-      decal problem) is UNVERIFIED: no example of anyone actually using
-      assetType="Image" for a create call was found in DevForum threads or
-      community tooling (rblx-open-cloud, Asphalt, the "OpenCloud | Assets
-      API" community tutorial) — they all use "Decal". By default
-      (--image-asset-type auto) this script tries "Image" first anyway (since
-      it's documented) and falls back to "Decal" only if the API rejects that
-      assetType outright; either way the id that lands in asset_ids.json is
-      recorded honestly (assetType field) so you can tell which path was used.
-    - When a Decal is uploaded, the script resolves it to its Image id via the
-      Open Cloud **Asset Delivery API**
-      (`GET https://apis.roblox.com/asset-delivery-api/v1/assetId/{decalId}`,
-      scope `legacy-asset:manage` — endpoint and scope CONFIRMED from Roblox's
-      creator-docs source (github.com/Roblox/creator-docs PR #1056) and a
-      DevForum reply from Roblox community contributor Maximum_ADHD that it
-      streams the asset's raw content back for an authorized caller). For a
-      Decal, that content is the classic Roblox legacy asset format containing
-      either `rbxassetid://<imageId>` or `http://www.roblox.com/asset/?id=
-      <imageId>` — this exact byte-for-byte shape is long-standing, widely
-      documented Roblox community knowledge but was NOT independently
-      confirmed against a live response while writing this (no API key was
-      available). The parser (`resolve_decal_to_image`) is deliberately
-      loose — a regex over the raw response bytes — so it should survive minor
-      format differences; if it doesn't work for you, use the
-      tools/resolve_decals.luau Studio fallback instead (`InsertService:LoadAsset`,
-      Studio-only, always works because Studio does this resolution for real).
+      same file formats. VERIFIED 2026-09-19 on this account: uploading with
+      assetType="Image" returns a genuine Image asset (economy API
+      AssetTypeId 1, CDN serves the PNG bytes, Open Cloud reports it Approved
+      within minutes) — no Decal wrapper, nothing to resolve. So the default
+      (--image-asset-type auto) tries "Image" first and only falls back to
+      "Decal" + resolution if the API ever rejects that assetType; the id that
+      lands in asset_ids.json records which path was used (assetType field).
+      Everything below about resolution is therefore the FALLBACK path.
+    - When a Decal is uploaded, the script resolves it to its Image id. Three
+      strategies, tried in this order (--via picks one explicitly):
+        cookie    GET https://assetdelivery.roblox.com/v1/asset/?id=<decalId>
+                  with the .ROBLOSECURITY cookie. The CDN returns the Decal's
+                  XML, whose "Texture" property names the Image. VERIFIED
+                  working on the scare project (tools/roblox_web.py).
+        opencloud GET https://apis.roblox.com/asset-delivery-api/v1/assetId/<decalId>
+                  with the API key (scope legacy-asset:manage). Kept as a
+                  fallback, but scare live-checked this route and it returned
+                  403 to the API key — expect it NOT to work. Every endpoint
+                  that carries the Texture is a first-party website API.
+        luau      `--resolve-only --via luau`: runs tools/resolve_decals.luau
+                  headlessly in the HotFrog experience via the Open Cloud Luau
+                  Execution API (tools/luau_exec.py, needs ROBLOX_UNIVERSE_ID /
+                  ROBLOX_PLACE_ID). Same InsertService:LoadAsset resolution
+                  Studio does, no Studio round-trip. Always works once the
+                  decal has cleared moderation.
+      The manual Studio Command Bar paste (tools/resolve_decals.luau +
+      --emit-studio-resolver + --decal-image-ids) remains as the last resort.
     - Freshly uploaded images are often not yet moderated, so resolution can
       fail with "not available yet" right after upload; the script retries
       (--resolve-retries / --resolve-wait) and, if still unresolved, caches the
       decal id with status "pending-resolution" — re-run with --resolve-only
-      later (no re-upload).
+      later (no re-upload). `--status` shows each cached id's moderation state.
     - `tools/write_asset_ids.py` will ONLY ever write a resolved imageId into
       SkinAssets.luau's Ids table; a key with a decal id but no image id is
       left untouched (and a warning is printed with the count), so a bad
       decal-as-image id can never land in the Luau tables silently.
 
-  Audio is uploaded as assetType "Audio"; the returned id works directly in
-  Sound.SoundId as "rbxassetid://<id>" (audio has no Decal/Image split) — what
-  SoundAssets.id() assumes. Audio entries are unaffected by any of the above.
+  Audio has no Decal/Image split — the returned id works directly in
+  Sound.SoundId as "rbxassetid://<id>", which is what SoundAssets.id() assumes.
+  BUT the upload path matters (--audio-via):
+    website   (default whenever ROBLOSECURITY is set) the cookie-authenticated
+              publish.roblox.com endpoint the Creator Hub itself uses. Clears
+              the automated audio-moderation pipeline in seconds. The creator
+              is the cookie's user (pass --creator-type group to upload to a
+              group). Accepts .wav directly — no ffmpeg needed for wav.
+    opencloud the Assets API. Widely reported (and observed on scare) to leave
+              audio in "Reviewing" moderation indefinitely. Used only when no
+              cookie is available, with a loud warning.
+  Cached audio entries record which path was used ("via").
+
+  Audio permissions per experience: audio is permission-gated per EXPERIENCE.
+  Sounds you own normally play in experiences you own, but after publishing to
+  a NEW experience run tools/grant_audio_to_experience.py if anything stays
+  silent — it bulk-adds the experience to every sound's allow-list.
 
 Notes:
   - Uploaded assets go through Roblox moderation -- a freshly returned id may
@@ -140,9 +157,14 @@ from typing import Any
 
 import requests
 
+import roblox_web  # loads <repo>/.env into os.environ on import
+
 ASSETS_URL = "https://apis.roblox.com/assets/v1/assets"
 OPERATION_URL = "https://apis.roblox.com/assets/v1/operations/{}"
+# Open Cloud decal->image route. Kept as a fallback only: the scare project
+# live-checked it and it 403s the API key (see the module docstring).
 ASSET_DELIVERY_URL = "https://apis.roblox.com/asset-delivery-api/v1/assetId/{}"
+RESOLVE_DECALS_LUAU = Path(__file__).resolve().parent / "resolve_decals.luau"
 
 IMAGE_MIME_BY_SUFFIX = {
     ".png": "image/png",
@@ -366,13 +388,32 @@ def upload_image(path: Path, api_key: str, creator_field: str, creator_id: str, 
     raise last_error
 
 
-def resolve_decal_to_image(decal_id: int, api_key: str, retries: int, wait: float) -> int | None:
-    """Resolve a Decal asset id to its underlying Image asset id via the Open
-    Cloud Asset Delivery API. See the "IMPORTANT: Decal ids vs. Image ids"
-    section of this module's docstring for exactly what's confirmed vs. not
-    about this endpoint and response format. Returns None (after `retries`
-    attempts, with increasing backoff) if it can't be resolved yet — most
-    commonly because the asset hasn't cleared moderation."""
+def resolve_decal_to_image(decal_id: int, api_key: str | None, retries: int, wait: float, cookie: str | None = None, via: str = "auto") -> int | None:
+    """Resolve a Decal asset id to its underlying Image asset id.
+
+    via="auto" tries the cookie path (assetdelivery CDN, verified working) when
+    a cookie is available, then the Open Cloud Asset Delivery API (known to 403
+    the API key, kept as a fallback). via="cookie" / "opencloud" forces one.
+    Returns None (after `retries` attempts, with increasing backoff) if it can't
+    be resolved yet — most commonly because the asset hasn't cleared moderation.
+    """
+    if via in ("auto", "cookie") and cookie:
+        image_id = roblox_web.resolve_decal_image_id(decal_id, cookie, attempts=retries, backoff=wait)
+        if image_id:
+            return image_id
+        print(f"[resolve] decal {decal_id}: cookie/CDN path could not resolve it after {retries} attempt(s) (not moderated yet, or cookie expired)", file=sys.stderr)
+        if via == "cookie" or not api_key:
+            return None
+    elif via == "cookie":
+        print(f"[resolve] decal {decal_id}: --via cookie but ROBLOSECURITY is not set", file=sys.stderr)
+        return None
+    if not api_key:
+        print(f"[resolve] decal {decal_id}: no cookie and no API key — cannot resolve", file=sys.stderr)
+        return None
+    return _resolve_via_open_cloud(decal_id, api_key, retries, wait)
+
+
+def _resolve_via_open_cloud(decal_id: int, api_key: str, retries: int, wait: float) -> int | None:
     headers = {"x-api-key": api_key}
     last_status = "no attempts made"
     for attempt in range(1, retries + 1):
@@ -414,8 +455,44 @@ def resolve_decal_to_image(decal_id: int, api_key: str, retries: int, wait: floa
         if attempt < retries:
             time.sleep(wait * attempt)
 
-    print(f"[resolve] decal {decal_id}: not resolved after {retries} attempt(s) ({last_status})", file=sys.stderr)
+    print(f"[resolve] decal {decal_id}: Open Cloud path not resolved after {retries} attempt(s) ({last_status})", file=sys.stderr)
     return None
+
+
+def resolve_via_luau(decal_ids: list[int], args: argparse.Namespace) -> dict[str, int | None]:
+    """Run tools/resolve_decals.luau headlessly in the HotFrog experience via
+    the Open Cloud Luau Execution API and return {decalId: imageId|None}."""
+    import luau_exec  # local import: only needed for this path
+
+    universe = args.universe or roblox_web.env_id("ROBLOX_UNIVERSE_ID")
+    place = args.place or roblox_web.env_id("ROBLOX_PLACE_ID")
+    if not universe or not place:
+        print("--via luau needs the experience: pass --universe/--place or set ROBLOX_UNIVERSE_ID / ROBLOX_PLACE_ID in .env.", file=sys.stderr)
+        return {}
+    if not args.api_key:
+        print("--via luau needs ROBLOX_API_KEY (with the luau-execution-session:write scope for that experience).", file=sys.stderr)
+        return {}
+
+    template = RESOLVE_DECALS_LUAU.read_text(encoding="utf-8")
+    literal = "{ " + ", ".join(str(i) for i in decal_ids) + " }"
+    script, n = re.subn(r"^local DECAL_IDS: \{ number \} = \{.*?\}$", f"local DECAL_IDS: {{ number }} = {literal}", template, count=1, flags=re.MULTILINE)
+    if n != 1:
+        print(f"Could not find the DECAL_IDS line in {RESOLVE_DECALS_LUAU}.", file=sys.stderr)
+        return {}
+
+    res = luau_exec.run_script(args.api_key, universe, place, script, timeout="300s", label="resolve_decals")
+    for line in res["logs"]:
+        print(f"  [luau] {line}", file=sys.stderr)
+    if res["state"] != "COMPLETE":
+        print(f"Luau task ended {res['state']}: {json.dumps(res['error'])[:500]}", file=sys.stderr)
+        return {}
+    results = res["results"]
+    if isinstance(results, list):
+        results = results[0] if results else {}
+    if not isinstance(results, dict):
+        print(f"Unexpected Luau result shape: {json.dumps(results)[:300]}", file=sys.stderr)
+        return {}
+    return {str(k): (int(v) if v else None) for k, v in results.items()}
 
 
 # ---------------------------------------------------------------------------
@@ -434,14 +511,35 @@ def run_manifest(args: argparse.Namespace) -> int:
 
     cache = load_cache(args.cache)
     creator_field = "userId" if args.creator_type == "user" else "groupId"
+    cookie = args.cookie
+
+    # Audio path: website (cookie) unless told otherwise / no cookie.
+    audio_via = args.audio_via
+    if audio_via == "auto":
+        audio_via = "website" if cookie else "opencloud"
+    if audio_via == "website" and not cookie:
+        print("--audio-via website needs a .ROBLOSECURITY cookie: set ROBLOSECURITY in .env or pass --cookie.", file=sys.stderr)
+        return 2
 
     dry = args.dry_run
-    if not dry and not args.api_key:
+    has_images = any(e["kind"] == "image" for e in entries)
+    has_audio = any(e["kind"] == "audio" for e in entries)
+    needs_open_cloud = has_images or (has_audio and audio_via == "opencloud")
+    if not dry and needs_open_cloud and not args.api_key:
         print("No API key: pass --api-key, set ROBLOX_API_KEY, or use --dry-run.", file=sys.stderr)
         return 2
-    if not dry and not args.creator_id:
-        print("No creator id: pass --creator-id, or use --dry-run.", file=sys.stderr)
+    if not dry and needs_open_cloud and not args.creator_id:
+        print("No creator id: pass --creator-id, set ROBLOX_USER_ID, or use --dry-run.", file=sys.stderr)
         return 2
+    if has_audio and audio_via == "opencloud" and not dry:
+        print(
+            "WARNING: uploading audio via the Open Cloud Assets API. This path is widely reported to leave "
+            "audio in 'Reviewing' moderation indefinitely. Set ROBLOSECURITY in .env to use the website path "
+            "that clears moderation in seconds (see the module docstring).",
+            file=sys.stderr,
+        )
+    # Website audio uploads to a group need the group id; to a user it's implied by the cookie.
+    website_group_id = args.creator_id if (audio_via == "website" and args.creator_type == "group") else None
 
     uploaded = skipped_unchanged = converted = failed = missing_ffmpeg = pending_resolution = 0
 
@@ -482,7 +580,7 @@ def run_manifest(args: argparse.Namespace) -> int:
 
         if dry:
             state = "new" if not cached else "changed"
-            hint = "assetType=Image, falls back to Decal+resolve" if is_image else "assetType=Audio"
+            hint = "assetType=Image, falls back to Decal+resolve" if is_image else f"Audio via {audio_via}"
             print(f"{tag}: DRY-RUN would upload ({state}, {hint}, {upload_path.stat().st_size} bytes)", file=sys.stderr)
             continue
 
@@ -507,11 +605,11 @@ def run_manifest(args: argparse.Namespace) -> int:
             if asset_type_used == "Image":
                 entry_cache["decalId"] = None
                 entry_cache["imageId"] = int(asset_id)
-                entry_cache["status"] = "resolved-direct (assetType=Image; unverified whether this differs from Decal — spot-check in Studio)"
+                entry_cache["status"] = "resolved-direct (assetType=Image returns a real Image asset, AssetTypeId 1 — verified 2026-09-19)"
                 print(f"{tag}: -> image {asset_id} (assetType=Image, no resolution needed)", file=sys.stderr)
             else:
                 entry_cache["decalId"] = int(asset_id)
-                image_id = None if args.no_resolve else resolve_decal_to_image(int(asset_id), args.api_key, args.resolve_retries, args.resolve_wait)
+                image_id = None if args.no_resolve else resolve_decal_to_image(int(asset_id), args.api_key, args.resolve_retries, args.resolve_wait, cookie=cookie, via=args.via)
                 entry_cache["imageId"] = image_id
                 if image_id:
                     entry_cache["status"] = "resolved"
@@ -527,10 +625,16 @@ def run_manifest(args: argparse.Namespace) -> int:
             cache[key] = entry_cache
         else:
             try:
-                asset_id = upload(upload_path, args.api_key, creator_field, args.creator_id, description)
+                if audio_via == "website":
+                    asset_id, _ = roblox_web.web_upload_audio(cookie, upload_path.stem[:50], upload_path.read_bytes(), website_group_id)
+                else:
+                    asset_id = upload(upload_path, args.api_key, creator_field, args.creator_id, description)
             except Exception as e:
                 failed += 1
                 print(f"{tag}: FAILED: {e}", file=sys.stderr)
+                if isinstance(e, roblox_web.RobloxWebError) and "unauthorized" in str(e):
+                    print("Cookie rejected — stopping the run rather than failing every remaining audio entry.", file=sys.stderr)
+                    break
                 time.sleep(args.delay)
                 continue
             cache[key] = {
@@ -539,8 +643,9 @@ def run_manifest(args: argparse.Namespace) -> int:
                 "assetId": int(asset_id),
                 "sourceHash": file_hash,
                 "uploadedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
+                "via": audio_via,
             }
-            print(f"{tag}: -> {asset_id}", file=sys.stderr)
+            print(f"{tag}: -> {asset_id} (via {audio_via})", file=sys.stderr)
 
         save_cache(args.cache, cache)  # persist after every success so a crash mid-run loses nothing
         uploaded += 1
@@ -553,7 +658,9 @@ def run_manifest(args: argparse.Namespace) -> int:
         file=sys.stderr,
     )
     if pending_resolution:
-        print("Run `python tools/upload_to_roblox.py --resolve-only` again in a bit to pick up moderation-cleared ids.", file=sys.stderr)
+        print("Run `python tools/upload_to_roblox.py --resolve-only` again in a bit to pick up moderation-cleared ids (or `--resolve-only --via luau`).", file=sys.stderr)
+    if uploaded:
+        print("Check moderation with `python tools/upload_to_roblox.py --status` before playtesting.", file=sys.stderr)
     return 0 if failed == 0 and missing_ffmpeg == 0 else 1
 
 
@@ -604,20 +711,39 @@ def run_resolve_only(args: argparse.Namespace) -> int:
         print("No pending image entries need resolution.", file=sys.stderr)
         return 0
 
-    if not args.api_key:
+    resolved = still_pending = 0
+
+    if args.via == "luau":
+        decal_ids = sorted({int(e["decalId"]) for _, e in pending})
+        print(f"Resolving {len(decal_ids)} decal id(s) headlessly via the Luau Execution API...", file=sys.stderr)
+        mapping = resolve_via_luau(decal_ids, args)
+        for key, entry in pending:
+            image_id = mapping.get(str(entry["decalId"]))
+            if image_id:
+                cache[key]["imageId"] = image_id
+                cache[key]["status"] = "resolved (via luau_exec)"
+                resolved += 1
+                print(f"{key}: decal {entry['decalId']} -> image {image_id}", file=sys.stderr)
+            else:
+                still_pending += 1
+                print(f"{key}: still not resolvable (decal {entry['decalId']})", file=sys.stderr)
+        if resolved:
+            save_cache(args.cache, cache)
+        print(f"\nResolve-only (luau): {resolved} resolved, {still_pending} still pending.", file=sys.stderr)
+        return 0 if still_pending == 0 else 1
+
+    if not args.cookie and not args.api_key:
         keys_preview = ", ".join(k for k, _ in pending[:20]) + (", ..." if len(pending) > 20 else "")
         print(
-            f"{len(pending)} entries still need resolution but no API key is set ({keys_preview}). "
-            f"Pass --api-key/$ROBLOX_API_KEY to retry via the Asset Delivery API, or use "
-            f"tools/resolve_decals.luau in Studio and save its output as {args.decal_image_ids}, "
-            f"then re-run --resolve-only.",
+            f"{len(pending)} entries still need resolution but neither ROBLOSECURITY nor ROBLOX_API_KEY is set ({keys_preview}). "
+            f"Set one in .env, use `--resolve-only --via luau`, or run tools/resolve_decals.luau in Studio and save its "
+            f"output as {args.decal_image_ids}, then re-run --resolve-only.",
             file=sys.stderr,
         )
         return 1
 
-    resolved = still_pending = 0
     for key, entry in pending:
-        image_id = resolve_decal_to_image(entry["decalId"], args.api_key, args.resolve_retries, args.resolve_wait)
+        image_id = resolve_decal_to_image(entry["decalId"], args.api_key, args.resolve_retries, args.resolve_wait, cookie=args.cookie, via=args.via)
         if image_id:
             cache[key]["imageId"] = image_id
             cache[key]["status"] = "resolved"
@@ -629,7 +755,96 @@ def run_resolve_only(args: argparse.Namespace) -> int:
             print(f"{key}: still not resolvable (decal {entry['decalId']})", file=sys.stderr)
 
     print(f"\nResolve-only: {resolved} resolved, {still_pending} still pending.", file=sys.stderr)
+    if still_pending:
+        print("Tip: `--resolve-only --via luau` resolves through the experience itself once ROBLOX_UNIVERSE_ID/ROBLOX_PLACE_ID are set.", file=sys.stderr)
     return 0 if still_pending == 0 else 1
+
+
+# ---------------------------------------------------------------------------
+# --status: moderation state of every cached id
+# ---------------------------------------------------------------------------
+
+
+def run_status(args: argparse.Namespace) -> int:
+    """Print the moderation state (Reviewing / Approved / Rejected) of every id
+    in the cache via the Open Cloud asset-metadata GET. With --wait-approved,
+    poll each non-terminal id until it resolves or --approve-timeout expires.
+    Exit 2 if anything was Rejected, 1 if anything is still Reviewing."""
+    if not args.api_key:
+        print("--status needs ROBLOX_API_KEY (asset:read).", file=sys.stderr)
+        return 2
+    cache = load_cache(args.cache)
+    items: list[tuple[str, str, int]] = []  # (key, label, id)
+    for key, entry in sorted(cache.items()):
+        if not isinstance(entry, dict):
+            continue
+        if args.keys and key not in set(args.keys):
+            continue
+        if entry.get("kind") == "image":
+            # The Image is what renders; moderation is reported on whichever id we have.
+            if entry.get("imageId"):
+                items.append((key, "image", int(entry["imageId"])))
+            elif entry.get("decalId"):
+                items.append((key, "decal", int(entry["decalId"])))
+        elif entry.get("assetId"):
+            items.append((key, "audio", int(entry["assetId"])))
+    if not items:
+        print("Nothing in the cache to check.", file=sys.stderr)
+        return 0
+
+    # Two signals. Open Cloud's moderationState tracks the slow human-review
+    # queue (Reviewing for hours/days) and is authoritative for "Rejected". The
+    # cookie develop API's moderationStatus (Green/Red) is the automated pass
+    # that actually gates whether the asset loads — live-checked 2026-09-19
+    # (see roblox_web.fetch_automated_moderation). Show both when we can.
+    automated: dict[str, dict] = {}
+    if args.cookie:
+        automated = roblox_web.fetch_automated_moderation([i for _, _, i in items], args.cookie)
+
+    counts: dict[str, int] = {}
+    usable = 0
+    rows: list[str] = []
+    for key, label, asset_id in items:
+        state, detail = roblox_web.fetch_moderation_state(asset_id, args.api_key)
+        # Open Cloud rate-limits the metadata GET after ~120 quick reads; back off and retry.
+        for backoff in (5, 15, 30):
+            if state is not None or not detail.startswith("HTTP 429"):
+                break
+            time.sleep(backoff)
+            state, detail = roblox_web.fetch_moderation_state(asset_id, args.api_key)
+        auto = automated.get(str(asset_id), {})
+        auto_status = auto.get("moderationStatus")
+        if args.wait_approved and state not in ("Approved", "Rejected") and auto_status != "Green":
+            state = roblox_web.wait_for_moderation(asset_id, args.api_key, args.approve_timeout, quiet=True)
+        shown = state or "unknown"
+        counts[shown] = counts.get(shown, 0) + 1
+        if auto_status == "Green" or state == "Approved":
+            usable += 1
+        auto_col = f"{auto_status or '-':<6}" if args.cookie else ""
+        extra = "" if state else f"  ({detail[:80]})"
+        rows.append(f"{shown:<10} {auto_col}{label:<6} {asset_id:<16} {key}{extra}")
+        cache[key]["moderation"] = shown
+        if auto_status:
+            cache[key]["automatedModeration"] = auto_status
+        cache[key]["moderationCheckedAt"] = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime())
+        time.sleep(0.5)
+    save_cache(args.cache, cache)
+
+    header = f"{'opencloud':<10} {'auto  ' if args.cookie else ''}{'kind':<6} {'id':<16} key"
+    print(header)
+    print("\n".join(rows))
+    summary = f"\n{len(items)} checked: " + ", ".join(f"{n} {s}" for s, n in sorted(counts.items()))
+    if args.cookie:
+        summary += f"; {usable} usable now (automated Green or Approved)"
+        if counts.get("Reviewing") and usable == len(items):
+            summary += ". 'Reviewing' is the human-review queue — it does not block your own audio in your own experience."
+    print(summary, file=sys.stderr)
+    if counts.get("Rejected") or any(a.get("moderationStatus") == "Red" for a in automated.values()):
+        print("Rejected assets will never load in-game — re-export/rename and re-upload those keys (delete them from tools/asset_ids.json first).", file=sys.stderr)
+        return 2
+    if usable < len(items):
+        return 1
+    return 0
 
 
 def run_emit_studio_resolver(args: argparse.Namespace) -> int:
@@ -682,9 +897,17 @@ def main() -> int:
     ap.add_argument("--kind", choices=("image", "audio"), default=None, help="Manifest mode: only upload this kind.")
     ap.add_argument("--keys", nargs="*", default=None, help="Manifest mode / --resolve-only: only touch these specific keys (e.g. to upload or resolve one test image first).")
     ap.add_argument("--delay", type=float, default=0.5, help="Seconds to sleep between uploads (manifest mode). Default: 0.5")
-    ap.add_argument("--api-key", default=os.environ.get("ROBLOX_API_KEY"), help="Open Cloud key (or $ROBLOX_API_KEY). Never written to disk/logs by this script.")
-    ap.add_argument("--creator-id", default=None, help="Owning user id or group id. Required unless --dry-run.")
-    ap.add_argument("--creator-type", choices=("user", "group"), default="user")
+    ap.add_argument("--api-key", default=os.environ.get("ROBLOX_API_KEY"), help="Open Cloud key (or $ROBLOX_API_KEY / .env). Never written to disk/logs by this script.")
+    ap.add_argument("--cookie", default=None, help=".ROBLOSECURITY cookie value (or $ROBLOSECURITY / .env). Enables the website audio path and cookie decal resolution.")
+    ap.add_argument("--creator-id", default=roblox_web.env_id("ROBLOX_USER_ID") or roblox_web.env_id("ROBLOX_GROUP_ID"), help="Owning user id or group id (default: $ROBLOX_USER_ID, else $ROBLOX_GROUP_ID). Required for Open Cloud uploads unless --dry-run.")
+    ap.add_argument("--creator-type", choices=("user", "group"), default="group" if (not roblox_web.env_id("ROBLOX_USER_ID") and roblox_web.env_id("ROBLOX_GROUP_ID")) else "user")
+    ap.add_argument("--audio-via", choices=("auto", "website", "opencloud"), default="auto", help="Audio upload path. 'auto' (default) = website when a cookie is set (fast moderation), else Open Cloud (slow/stuck moderation).")
+    ap.add_argument("--via", choices=("auto", "cookie", "opencloud", "luau"), default="auto", help="Decal->image resolution strategy. 'auto' = cookie CDN if a cookie is set, then Open Cloud. 'luau' (only with --resolve-only) runs tools/resolve_decals.luau headlessly in the experience via tools/luau_exec.py.")
+    ap.add_argument("--universe", default=None, help="--via luau: universe id (or $ROBLOX_UNIVERSE_ID).")
+    ap.add_argument("--place", default=None, help="--via luau: place id (or $ROBLOX_PLACE_ID).")
+    ap.add_argument("--status", action="store_true", help="Report the moderation state of every cached id (Reviewing/Approved/Rejected) and exit. Needs the API key.")
+    ap.add_argument("--wait-approved", action="store_true", help="With --status: poll each pending id until it is Approved/Rejected or --approve-timeout expires.")
+    ap.add_argument("--approve-timeout", type=float, default=120.0, help="Seconds per asset for --wait-approved (default 120).")
     ap.add_argument("--pattern", default="*.png", help="Legacy mode: glob for directory inputs. Default: *.png")
     ap.add_argument("--recursive", action="store_true", help="Legacy mode: recurse into directory inputs.")
     ap.add_argument("--output", "-o", type=Path, default=None, help="Legacy mode: write the JSON {stem: {decalId, imageId}} map here.")
@@ -708,9 +931,17 @@ def main() -> int:
     ap.add_argument("--decal-image-ids", type=Path, default=DEFAULT_DECAL_IMAGE_IDS_PATH, help=f"JSON {{decalId: imageId}} produced by tools/resolve_decals.luau, merged by --resolve-only (default: {DEFAULT_DECAL_IMAGE_IDS_PATH}).")
 
     args = ap.parse_args()
+    args.cookie = roblox_web.resolve_cookie(args.cookie)
+
+    if args.via == "luau" and not args.resolve_only:
+        print("--via luau only applies to --resolve-only (upload first, then resolve headlessly).", file=sys.stderr)
+        return 2
 
     if args.emit_studio_resolver:
         return run_emit_studio_resolver(args)
+
+    if args.status:
+        return run_status(args)
 
     if args.resolve_only:
         return run_resolve_only(args)
@@ -747,7 +978,7 @@ def main() -> int:
                 results[path.stem] = {"decalId": None, "imageId": int(asset_id)}
                 print(f"[{i}/{len(files)}] {path.name} -> image {asset_id} (assetType=Image)", file=sys.stderr)
             else:
-                image_id = None if args.no_resolve else resolve_decal_to_image(int(asset_id), args.api_key, args.resolve_retries, args.resolve_wait)
+                image_id = None if args.no_resolve else resolve_decal_to_image(int(asset_id), args.api_key, args.resolve_retries, args.resolve_wait, cookie=args.cookie, via=args.via)
                 results[path.stem] = {"decalId": int(asset_id), "imageId": image_id}
                 if image_id:
                     print(f"[{i}/{len(files)}] {path.name} -> decal {asset_id}, image {image_id}", file=sys.stderr)

@@ -12,7 +12,12 @@
 -- when you paste a decal id into a Texture property in the property editor),
 -- so running this in Studio is a reliable fallback.
 --
--- HOW TO USE:
+-- HEADLESS (preferred once ROBLOX_UNIVERSE_ID/ROBLOX_PLACE_ID are in .env):
+--   python tools/upload_to_roblox.py --resolve-only --via luau
+-- runs this file for you through the Open Cloud Luau Execution API. The
+-- manual Studio route below is the fallback.
+--
+-- HOW TO USE (manually, in Studio):
 --   1. Generate the id list (network-free):
 --        python tools/upload_to_roblox.py --emit-studio-resolver
 --      This prints (or writes, with --studio-resolver-out) a Lua array
@@ -86,3 +91,9 @@ for decalId, imageId in results do
 	table.insert(lines, `\t"{decalId}": {if imageId then tostring(imageId) else "null"}`)
 end
 print("{\n" .. table.concat(lines, ",\n") .. "\n}")
+
+-- Also hand the table back so the Open Cloud Luau Execution API path
+-- (`python tools/upload_to_roblox.py --resolve-only --via luau`, via
+-- tools/luau_exec.py) receives it as the task's returned value. Harmless in
+-- the Command Bar.
+return results

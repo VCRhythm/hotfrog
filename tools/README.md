@@ -10,10 +10,25 @@ Run all commands from the **project root**.
 
 ```bat
 pip install -r tools/requirements.txt
+copy .env.example .env
 ```
 
 (`Pillow` for the converters, `numpy` for `pixel_pass.py`, `requests` for
-`upload_to_catbox.py`.)
+`upload_to_catbox.py` / `upload_to_roblox.py` / `luau_exec.py` / `list_assets.py`.)
+
+Fill in `.env` (gitignored; loaded by every Roblox script via
+`tools/roblox_web.py`, an exported shell variable wins over the file):
+
+| Variable | Secret? | Used for |
+|----------|---------|----------|
+| `ROBLOX_USER_ID` | no | the creator that owns uploads (`--creator-id` default) |
+| `ROBLOX_UNIVERSE_ID`, `ROBLOX_PLACE_ID` | no | the HotFrog experience: headless decal resolution (`--resolve-only --via luau`) and the audio-grant target |
+| `ROBLOX_API_KEY` | **yes** | Open Cloud: image uploads, `--status`, Luau execution |
+| `ROBLOSECURITY` | **yes** | website audio upload (fast moderation), cookie decal resolution, `list_assets.py`, `grant_audio_to_experience.py` |
+
+`.env.example` documents where each value comes from and which API-key scopes
+are needed. `ROBLOSECURITY` is a full login credential — treat it like a
+password; nothing in `tools/` ever writes it to a file or log.
 
 ---
 
@@ -97,29 +112,33 @@ python tools/build_manifest.py --audio-dir "D:\path\to\Assets\Audio"
 python tools/upload_to_roblox.py --manifest tools/asset_manifest.json ^
     --creator-id 1234567 --creator-type user --dry-run
 
-:: 3. The real upload. Needs an Open Cloud API key (create.roblox.com ->
-::    Creator Hub -> Open Cloud -> API Keys) with:
-::      - the **assets** API, Read+Write, and your IP range added (required
-::        for every upload; OAuth apps use scopes asset:read/asset:write)
-::      - the **legacy-asset:manage** scope (required for the decal->image id
-::        resolution step below — see "IMAGE IDS, NOT DECAL IDS")
-::    and your creator id (your user id, or a group id if the assets should
-::    belong to a group). Results are cached in tools/asset_ids.json (image
-::    keys get decalId+imageId+status, audio keys get assetId), so a
-::    failed/partial run just resumes — re-run the same command and
-::    unchanged/already-uploaded files are skipped.
+:: 3. The real upload. Needs ROBLOX_API_KEY (assets Read+Write), ROBLOX_USER_ID
+::    and — strongly recommended — ROBLOSECURITY in .env (see Setup). With the
+::    cookie set, audio goes through the website path (moderates in seconds)
+::    and decal->image resolution works; without it, audio goes through Open
+::    Cloud and is likely to sit in "Reviewing" forever. Results are cached in
+::    tools/asset_ids.json (image keys get decalId+imageId+status, audio keys
+::    get assetId+via), so a failed/partial run just resumes — re-run the same
+::    command and unchanged/already-uploaded files are skipped.
 ::
 ::    STRONGLY RECOMMENDED before running the full ~173-image batch: upload
 ::    ONE image first and confirm it actually renders on a part in Studio —
 ::    catching a bad id/scope/resolution problem on 1 asset is a lot cheaper
 ::    than on 173:
-::      python tools/upload_to_roblox.py --manifest tools/asset_manifest.json ^
-::          --creator-id 1234567 --creator-type user --keys HotFrogBody
+::      python tools/upload_to_roblox.py --manifest tools/asset_manifest.json --keys HotFrogBody
 ::      python tools/write_asset_ids.py
 ::      :: then in Studio: put that one id on a test Decal/ImageLabel and look at it.
-set ROBLOX_API_KEY=...
-python tools/upload_to_roblox.py --manifest tools/asset_manifest.json ^
-    --creator-id 1234567 --creator-type user
+python tools/upload_to_roblox.py --manifest tools/asset_manifest.json
+
+:: 3b. Moderation. Two columns: "opencloud" (Reviewing/Approved/Rejected —
+::     the slow human-review queue, authoritative for Rejected) and "auto"
+::     (Green/Red from the cookie develop API — the automated pass that
+::     actually gates loading; a website audio upload went Green within two
+::     minutes while Open Cloud still said Reviewing, and Reviewing does not
+::     block your own audio in your own experience). Exit 0 = everything
+::     usable now, 1 = something still pending, 2 = something Rejected.
+::     --wait-approved polls the pending ones.
+python tools/upload_to_roblox.py --status
 
 :: 4. Write the cached ids into SkinAssets.luau / SoundAssets.luau in place —
 ::    idempotent, preserves hand-written comments/formatting, and adds
@@ -148,32 +167,38 @@ resolution). See
 id directly from an upload.
 
 `upload_to_roblox.py` handles this for you:
-- By default (`--image-asset-type auto`) it tries uploading with assetType
-  `"Image"` first — the Assets API's format table
-  (create.roblox.com/docs/cloud/guides/usage-assets) lists `Image` as an
-  accepted type alongside `Decal` for the exact same file formats — and falls
-  back to `"Decal"` if the API rejects that. (Whether `"Image"` actually
-  returns a directly-usable id, skipping the whole problem, is *unverified* —
-  no example of anyone doing this was found anywhere online while building
-  this; spot-check the very first id you get back in Studio either way.)
-- When a Decal is uploaded, it resolves the decal id to its image id via the
-  Open Cloud **Asset Delivery API**
-  (`GET https://apis.roblox.com/asset-delivery-api/v1/assetId/{decalId}`,
-  scope `legacy-asset:manage`), retrying a few times since a freshly uploaded
-  asset can take a moment to become resolvable (moderation). Both ids are
-  cached in `tools/asset_ids.json` (`decalId`, `imageId`, `status`).
+- By default (`--image-asset-type auto`) it uploads with assetType `"Image"`
+  first and falls back to `"Decal"` only if the API rejects that. **Verified
+  2026-09-19:** `"Image"` returns a genuine Image asset (AssetTypeId 1, the CDN
+  serves the PNG, Approved within minutes) — no Decal wrapper, nothing to
+  resolve. Everything below about resolution is the fallback path in case
+  Roblox ever stops accepting `"Image"`.
+- When a Decal is uploaded, it resolves the decal id to its image id, retrying
+  a few times since a freshly uploaded asset can take a moment to become
+  resolvable (moderation). Three strategies (`--via`):
+  - **`cookie`** (default when `ROBLOSECURITY` is set): the asset-delivery CDN
+    returns the Decal's XML, whose `Texture` property names the Image. Verified
+    working on the `scare` project — this is the path to rely on.
+  - **`opencloud`**: the Open Cloud Asset Delivery API with the API key. Kept as
+    a fallback only — `scare` live-checked it and it returns 403 to the API key.
+  - **`luau`** (`--resolve-only --via luau`): runs `resolve_decals.luau`
+    headlessly inside the HotFrog experience through the Open Cloud Luau
+    Execution API (`luau_exec.py`, needs `ROBLOX_UNIVERSE_ID`/`ROBLOX_PLACE_ID`
+    and the Luau-execution scope on the key). Same `InsertService:LoadAsset`
+    resolution Studio does, no Studio round-trip. Use it if the cookie path
+    ever stops working.
+  Both ids are cached in `tools/asset_ids.json` (`decalId`, `imageId`, `status`).
 - `write_asset_ids.py` **only ever writes a resolved `imageId`** into
   `SkinAssets.luau`. A key that only got as far as `decalId` (still
   moderating, or resolution failed) is left untouched — 0, or whatever was
   already there — and the script prints a warning with the count, so a bad
   decal-as-image id can never land in the game silently.
-- If resolution doesn't work for you (no `legacy-asset:manage` scope, the
-  endpoint is unavailable, etc.), re-run later with `--resolve-only` (retries
-  cached decal ids without re-uploading anything), or fall back to
-  **[`tools/resolve_decals.luau`](resolve_decals.luau)** — a small Studio
-  Command Bar snippet that resolves decal ids via `InsertService:LoadAsset`
-  (this always works, since it's exactly what Studio's own property editor
-  does):
+- If resolution lags (still moderating), re-run later with `--resolve-only`
+  (retries cached decal ids without re-uploading anything) or
+  `--resolve-only --via luau`. The last resort is running
+  **[`tools/resolve_decals.luau`](resolve_decals.luau)** by hand in Studio's
+  Command Bar (`InsertService:LoadAsset`, exactly what Studio's own property
+  editor does):
   ```bat
   python tools/upload_to_roblox.py --emit-studio-resolver
   :: paste the printed { ... } array into resolve_decals.luau's DECAL_IDS line,
@@ -183,8 +208,15 @@ id directly from an upload.
   python tools/write_asset_ids.py
   ```
 
-Audio is unaffected by any of this — an uploaded audio asset's id is directly
-usable in `Sound.SoundId` (no Decal/Image split).
+Audio has no Decal/Image split — an uploaded audio asset's id is directly
+usable in `Sound.SoundId`. **But the upload path matters** (`--audio-via`):
+with `ROBLOSECURITY` set, audio goes through the cookie-authenticated
+**website** endpoint the Creator Hub itself uses (`publish.roblox.com`), which
+clears automated moderation in seconds and accepts `.wav` directly. The Open
+Cloud path is widely reported (and observed on `scare`) to leave audio in
+"Reviewing" indefinitely, so it is only used when no cookie is available, with
+a warning. Audio is also permission-gated per experience — see
+`grant_audio_to_experience.py` below if sounds stay silent after publishing.
 
 **Audio conversion:** the Open Cloud Assets API caps uploads at 20MB and 7
 minutes of audio. Only `Music/BrusselSprouts.wav` (~34MB) currently exceeds
@@ -201,11 +233,12 @@ of unreferenced VO/music files (listed as `optional`/skipped with a reason,
 not silently dropped).
 
 Uploaded assets go through Roblox moderation — a fresh id can render/play
-blank until approved. Never commit `tools/asset_manifest.json` or
-`tools/asset_ids.json` (both gitignored: the former embeds a machine-specific
-absolute path to the external Audio folder, the latter is a local cache); the
-API key is read from `$ROBLOX_API_KEY` (or `--api-key`) and is never written
-to either file or logged.
+blank until approved (`upload_to_roblox.py --status` shows where each one
+stands). Never commit `.env`, `tools/asset_manifest.json` or
+`tools/asset_ids.json` (all gitignored: the manifest embeds a machine-specific
+absolute path to the external Audio folder, the ids file is a local cache);
+secrets are read from the environment / `.env` and never written to any file
+or log.
 
 ## `upload_to_roblox.py`
 
@@ -261,10 +294,63 @@ warning naming every key left pending). See the 4-command pipeline above.
 
 ## `resolve_decals.luau`
 
-Studio Command Bar fallback for turning Decal ids into Image ids
-(`InsertService:LoadAsset`) when `upload_to_roblox.py`'s Asset Delivery API
-resolution isn't available to you. Generate its input with
-`upload_to_roblox.py --emit-studio-resolver`, run it in Studio, save the
-printed JSON as `tools/decal_image_ids.json`, then
+Turns Decal ids into Image ids with `InsertService:LoadAsset`. Normally run for
+you, headlessly, by `upload_to_roblox.py --resolve-only --via luau` (through
+`luau_exec.py`). Manual fallback: generate its input with
+`upload_to_roblox.py --emit-studio-resolver`, paste and run it in Studio's
+Command Bar, save the printed JSON as `tools/decal_image_ids.json`, then
 `upload_to_roblox.py --resolve-only`. See "IMAGE IDS, NOT DECAL IDS" above.
+
+## `roblox_web.py`
+
+Shared module (not a command): `.env` loading, the `.ROBLOSECURITY` cookie +
+CSRF dance, the website audio upload, cookie-based decal->image resolution and
+Open Cloud moderation-state polling. Ported from `scare`'s `upload_asset.py`,
+where each of these was verified against the live endpoints. Every other
+Roblox script here imports it.
+
+## `luau_exec.py`
+
+Run a Luau script headlessly in the published HotFrog place via the Open Cloud
+**Luau Execution API** — the equivalent of pasting into Studio's Command Bar,
+with the script's `return` value printed as JSON and its `print`/`warn` output
+on stderr. Needs `ROBLOX_UNIVERSE_ID`, `ROBLOX_PLACE_ID` and an API key with
+the Luau-execution write scope for that experience. Used by
+`upload_to_roblox.py --resolve-only --via luau`; also handy for one-off
+inspection of the live DataModel.
+
+```bat
+python tools/luau_exec.py --script "return game.PlaceId"
+python tools/luau_exec.py --script-file tools/resolve_decals.luau
+```
+
+## `grant_audio_to_experience.py`
+
+Roblox audio is permission-gated **per experience**. Sounds you own normally
+play in experiences you own, but after publishing to a new experience id some
+can stay silent. This adds the experience (`ROBLOX_UNIVERSE_ID` or
+`--universe-id`) to the allow-list of every sound id known to
+`tools/asset_ids.json` and `src/shared/SoundAssets.luau`. Needs the owner's
+`ROBLOSECURITY` cookie (website API, not Open Cloud). Only run it if sounds
+are actually silent, and smoke-test one first — the endpoint shape was
+reconstructed from the Creator Dashboard on `scare` and is flagged
+verify-before-trust in the script.
+
+```bat
+python tools/grant_audio_to_experience.py --list             :: no network
+python tools/grant_audio_to_experience.py                    :: dry run
+python tools/grant_audio_to_experience.py --apply --limit 1  :: smoke test, then check the Dashboard
+python tools/grant_audio_to_experience.py --apply            :: all, resume-safe
+```
+
+## `list_assets.py`
+
+Dump the account's (or a group's) Asset Manager inventory as a markdown table
+(name, id, `rbxassetid://`). Needs `ROBLOSECURITY`. Useful for checking what
+actually landed after an upload run, or recovering ids if the local cache is
+lost.
+
+```bat
+python tools/list_assets.py -t Image -t Audio -o docs/asset_inventory.md
+```
 
