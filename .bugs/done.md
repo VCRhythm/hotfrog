@@ -192,3 +192,12 @@ files: src/client/GameClient.client.luau
 test: none
 verified: stylua, selene, luau_check pass; offending instance located live in Studio (inspect only); fix not verified live (user mid-playtest).
 review: n/a
+
+## b-20260921-100739-ldv9  fixed  2026-09-21 10:50
+note: I'm running out of platforms to climb
+cause: Lane.spawnPosition's clampToLane clamped Movements offsets per axis, so corner spawns landed beyond Config.MAX_GRAB_DISTANCE and were never grabbable (Tutorial's 3rd tree every run; 2 of 3 positions of Pot's DownStepSpawner and DownLeftStepSpawner).
+change: After the per-axis clamp, corners still beyond MAX_GRAB_DISTANCE are pulled back onto the reach circle; in-range spawns unchanged. Doc 17 entry added.
+files: src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check pass; clamp math re-derived via execute_luau against real Config (35.4->30, 31.8->30). Not playtested live (user in Play mode).
+review: n/a
