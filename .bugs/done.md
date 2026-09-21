@@ -336,3 +336,12 @@ files: src/assets/FrogModel.model.json
 test: none
 verified: rojo build passes; Studio MCP confirmed the synced FrogModel has the new CFrames; the visual check was not completed (screen_capture returned a black frame); offset derived from sprite .meta pivots and cross-checked against pixel bounds.
 review: n/a
+
+## b-20260921-113838-9b90  fixed  2026-09-21 13:15
+note: DECISION: A (reopens b-20260921-111337-hqcb)
+cause: User's ruling on hqcb: full Frog.Bob port, with gravity continuing while holding.
+change: Applied in commit fd231a1; see the b-20260921-111337-hqcb block above.
+files: src/server/GameServer.server.luau, src/shared/Config.luau, src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md, docs/roblox-port/15-menus-and-input.md
+test: none
+verified: see hqcb block.
+review: looks-right
