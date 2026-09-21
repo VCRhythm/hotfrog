@@ -426,3 +426,12 @@ files: none
 test: none
 verified: triage read of WorldTouchIndicator and the screenshot
 review: n/a
+
+## b-20260921-164534-v6fo  fixed  2026-09-21 17:25
+note: the step feedback "perfect" "great" etc should appear right on the grabbed step
+cause: WorldQualityPopup only used a grab position captured before ScoreChanged arrived; the held limb replicates a little later than the remote, so the match often missed and the popup fell back to the frog's head/body.
+change: the match now also works the other way: a ScoreChanged with no captured position is parked as pendingQuality and resolved at the next limb-extend transition within QUALITY_POPUP_MATCH_WINDOW; head/body fallback only when the window lapses.
+files: src/client/WorldQualityPopup.client.luau
+test: none
+verified: stylua, selene, luau_check pass. Not playtested (MCP not attached for this fixer).
+review: n/a

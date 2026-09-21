@@ -10,9 +10,17 @@
 -- is off-limits for this phase), so the popup's location is recovered with the
 -- same world/GrabTarget "limb extended past its rest pose" heuristic
 -- WorldFrogCosmetics uses for pupils: the instant a limb snaps onto a step is
--- remembered, and the next ScoreChanged within QUALITY_POPUP_MATCH_WINDOW
--- reuses that position. Falls back to the frog's head position if the window
--- lapsed (e.g. a very late remote).
+-- remembered, and a ScoreChanged within QUALITY_POPUP_MATCH_WINDOW reuses that
+-- position. The match has to work in EITHER arrival order: a held limb's
+-- CFrame is an unanchored BasePart replicating from the server, so it can lag
+-- a frame or more behind the (reliable, immediate) ScoreChanged remote --
+-- b-20260921-164534-v6fo was this exact race, landing the popup on the frog's
+-- body because ScoreChanged arrived before any transition had been captured.
+-- So a ScoreChanged that finds no recent captured position doesn't fall back
+-- immediately -- it waits (as `pendingQuality`) for the next transition within
+-- the window, and only THEN falls back to the frog's head position if the
+-- window truly lapses with no grab detected at all (e.g. a miss with no limb
+-- movement, or a very late remote).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
@@ -69,32 +77,6 @@ end, function(popup: Popup)
 end)
 
 -- ---------------------------------------------------------------------------
--- Grab-location heuristic (see header): watch both limbs each Heartbeat and
--- remember the position + time whenever one transitions from "at rest" to
--- "extended" -- that's the moment a grab visually lands.
--- ---------------------------------------------------------------------------
-local wasExtended = { [1] = false, [2] = false }
-local lastGrabPos: Vector3? = nil
-local lastGrabTime = -math.huge
-
-RunService.Heartbeat:Connect(function()
-	local right, left = rightLimbPart, leftLimbPart
-	if not right or not left then
-		return
-	end
-	local limbs: { [number]: BasePart } = { [1] = right, [2] = left }
-	for index, limb in limbs do
-		local pos = GrabTarget.limbHeldPosition(body, limb, index)
-		local extended = pos ~= nil
-		if extended and not wasExtended[index] then
-			lastGrabPos = pos
-			lastGrabTime = os.clock()
-		end
-		wasExtended[index] = extended
-	end
-end)
-
--- ---------------------------------------------------------------------------
 -- Popup spawn/animate (QualityText.cs OnEnable: Invoke("Destroy", lifetime))
 -- ---------------------------------------------------------------------------
 local function spawnPopup(quality: string, position: Vector3)
@@ -128,17 +110,72 @@ local function spawnPopup(quality: string, position: Vector3)
 	end)
 end
 
+-- ---------------------------------------------------------------------------
+-- Grab-location heuristic (see header): watch both limbs each Heartbeat and
+-- remember the position + time whenever one transitions from "at rest" to
+-- "extended" -- that's the moment a grab visually lands.
+-- ---------------------------------------------------------------------------
+local wasExtended = { [1] = false, [2] = false }
+local lastGrabPos: Vector3? = nil
+local lastGrabTime = -math.huge
+
+-- A ScoreChanged that arrived before any grab position was captured for it
+-- (see header) parks its quality here until the next Heartbeat transition
+-- resolves a position, or the match window lapses and it falls back.
+local pendingQuality: string? = nil
+local pendingQualityTime = -math.huge
+
+local function withinWindow(since: number): boolean
+	return (os.clock() - since) <= WorldConfig.QUALITY_POPUP_MATCH_WINDOW
+end
+
+local function fallbackPosition(): Vector3
+	if head then
+		return head.Position
+	end
+	return body.Position
+end
+
+RunService.Heartbeat:Connect(function()
+	local right, left = rightLimbPart, leftLimbPart
+	if not right or not left then
+		return
+	end
+	local limbs: { [number]: BasePart } = { [1] = right, [2] = left }
+	for index, limb in limbs do
+		local pos = GrabTarget.limbHeldPosition(body, limb, index)
+		local extended = pos ~= nil
+		if extended and not wasExtended[index] and pos then
+			lastGrabPos = pos
+			lastGrabTime = os.clock()
+			if pendingQuality and withinWindow(pendingQualityTime) then
+				spawnPopup(pendingQuality, pos)
+				pendingQuality = nil
+			end
+		end
+		wasExtended[index] = extended
+	end
+
+	if pendingQuality and not withinWindow(pendingQualityTime) then
+		spawnPopup(pendingQuality, fallbackPosition())
+		pendingQuality = nil
+	end
+end)
+
+-- ---------------------------------------------------------------------------
+-- ScoreChanged: use a position already captured for this grab if we have one
+-- (the common case -- the limb's transition is usually seen first); otherwise
+-- park the quality as `pendingQuality` and let the Heartbeat loop above
+-- resolve it the instant the transition lands, instead of guessing now.
+-- ---------------------------------------------------------------------------
 ScoreChanged.OnClientEvent:Connect(function(_score, _best, quality)
 	if typeof(quality) ~= "string" then
 		return
 	end
-	local position: Vector3
-	if lastGrabPos and (os.clock() - lastGrabTime) <= WorldConfig.QUALITY_POPUP_MATCH_WINDOW then
-		position = lastGrabPos
-	elseif head then
-		position = head.Position
-	else
-		position = body.Position
+	if lastGrabPos and withinWindow(lastGrabTime) then
+		spawnPopup(quality, lastGrabPos)
+		return
 	end
-	spawnPopup(quality, position)
+	pendingQuality = quality
+	pendingQualityTime = os.clock()
 end)
