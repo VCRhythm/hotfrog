@@ -569,7 +569,7 @@ review: n/a
 ## b-20260921-183321-iide  fixed  2026-09-21 19:05
 note: touch indicator is wanted: in Unity it was a circle and an X, not coloured squares (owner: "green circle and a red x")
 cause: the previous fix (a496be8) wrongly disabled the indicator; the real bug was a translucent tinted backing Part rendering as a square, plus a green/yellow/red gradient Unity doesn't have.
-change: re-enabled; backing Part always transparent; two states on Config.MAX_GRAB_DISTANCE: green-tinted Circle.png in reach, red "X" TextLabel (styled like WorldQualityPopup's miss X) out of reach. No X sprite exists in Unity's art; follow-up b-20260921-183648-aeap filed.
+change: re-enabled; backing Part always transparent; two states on Config.MAX_GRAB_DISTANCE: green-tinted Circle.png in reach, red "X" TextLabel (styled like WorldQualityPopup's miss X) out of reach. No X sprite exists in Unity's art; follow-up entry filed (aeap: painted X art).
 files: src/client/WorldTouchIndicator.client.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; Studio MCP playtest: in-reach click shows the green circle, no square, no console errors. Red X branch not triggerable on screen (whole view within reach); code/type-check only.
