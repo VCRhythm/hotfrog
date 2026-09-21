@@ -98,7 +98,9 @@ end
 -- ---------------------------------------------------------------------------
 -- Bottom bar: Flys balance, Shop toggle, Gift button
 -- ---------------------------------------------------------------------------
-local flysLabel = label("Flys", "Flys: 0", UDim2.fromOffset(160, 36), UDim2.new(1, -172, 0, 12), gui)
+-- Sits just above the Shop button (bottom-right) rather than the top-right
+-- corner, which the Roblox player list already occupies.
+local flysLabel = label("Flys", "Flys: 0", UDim2.fromOffset(160, 36), UDim2.new(1, -172, 1, -104), gui)
 flysLabel.TextXAlignment = Enum.TextXAlignment.Right
 
 local shopToggle = button("Shop", "Shop", UDim2.fromOffset(120, 44), UDim2.new(1, -132, 1, -56), gui)

@@ -228,3 +228,12 @@ files: src/assets/BugTemplate.model.json, src/server/BugService.server.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; not seen live.
 review: n/a
+
+## b-20260921-110833-b3kt  fixed  2026-09-21 11:40
+note: HUD shows placeholder text 'Label' under Best, and 'Flys: 145' overlaps the Roblox player list top-right
+cause: GameClient's makeLabel never set initial Text, so a label showed Roblox's default "Label" until ProfileChanged fired; StoreUI's Flys balance label was pinned to the top-right corner under the player list.
+change: makeLabel takes an explicit initial text; StoreUI's Flys label moved just above the Shop button, bottom-right.
+files: src/client/GameClient.client.luau, src/client/StoreUI.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; not seen live.
+review: n/a

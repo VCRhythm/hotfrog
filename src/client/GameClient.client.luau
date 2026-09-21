@@ -642,7 +642,7 @@ end)
 local playerGui = player:WaitForChild("PlayerGui")
 local hud = UIKit.screenGui("HUD")
 
-local function makeLabel(name: string, posY: number): TextLabel
+local function makeLabel(name: string, posY: number, text: string): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Name = name
 	label.Size = UDim2.fromOffset(220, 32)
@@ -652,14 +652,15 @@ local function makeLabel(name: string, posY: number): TextLabel
 	label.TextScaled = true
 	label.Font = Enum.Font.GothamBold
 	label.TextColor3 = Color3.new(1, 1, 1)
+	label.Text = text
 	label.Parent = hud
 	return label
 end
 
-local scoreLabel = makeLabel("ScoreLabel", 12)
-local bestLabel = makeLabel("HighScoreLabel", 48)
-local flysLabel = makeLabel("FlysLabel", 84)
-local bugsLabel = makeLabel("BugsLabel", 120)
+local scoreLabel = makeLabel("ScoreLabel", 12, "0")
+local bestLabel = makeLabel("HighScoreLabel", 48, "Best: 0")
+local flysLabel = makeLabel("FlysLabel", 84, "Flys: 0")
+local bugsLabel = makeLabel("BugsLabel", 120, "Bugs: 0")
 flysLabel.TextColor3 = UIKit.SUBTEXT
 bugsLabel.TextColor3 = UIKit.SUBTEXT
 
