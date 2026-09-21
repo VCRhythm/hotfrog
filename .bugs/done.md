@@ -592,3 +592,12 @@ files: src/client/MenuClient.client.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass. Not checked visually in Studio. If the list itself still shows nothing, reopen with a screenshot.
 review: n/a
+
+## b-20260921-182207-9efx  cannot-reproduce  2026-09-21 19:40
+note: the hand isn't gripping
+cause: not reproduced: in a live Studio session, grabs on a plain step and on the carrot (new grip offset) swapped the open hand to the fist every time; a reach that missed a step correctly stays an open hand. The screenshot (open hand between two potato steps, nothing directly under the tap) matches a missed reach.
+change: none
+files: none
+test: none
+verified: Studio MCP playtest firing GrabStep; server limb position and Reaching attribute, client RightHand/RightHandGrab transparency checked after each grab and after a miss.
+review: n/a
