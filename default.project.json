@@ -1,35 +1,59 @@
 {
-	"name": "hotfrog-roblox",
-	"tree": {
-		"$className": "DataModel",
-
-		"Workspace": {
-			"$className": "Workspace",
-			"$ignoreUnknownInstances": true,
-			"PlayField": { "$path": "src/workspace/PlayField.model.json" }
-		},
-
-		"ReplicatedStorage": {
-			"$className": "ReplicatedStorage",
-			"$ignoreUnknownInstances": true,
-			"Shared": { "$path": "src/shared" },
-			"Assets": { "$path": "src/assets" }
-		},
-
-		"ServerScriptService": {
-			"$className": "ServerScriptService",
-			"$ignoreUnknownInstances": true,
-			"Server": { "$path": "src/server" }
-		},
-
-		"StarterPlayer": {
-			"$className": "StarterPlayer",
-			"$ignoreUnknownInstances": true,
-			"StarterPlayerScripts": {
-				"$className": "StarterPlayerScripts",
-				"$ignoreUnknownInstances": true,
-				"Client": { "$path": "src/client" }
-			}
-		}
-	}
+    "name": "hotfrog-roblox",
+    "tree": {
+        "$className": "DataModel",
+        "Workspace": {
+            "$className": "Workspace",
+            "$ignoreUnknownInstances": true,
+            "PlayField": {
+                "$path": "src/workspace/PlayField.model.json"
+            }
+        },
+        "ReplicatedStorage": {
+            "$className": "ReplicatedStorage",
+            "$ignoreUnknownInstances": true,
+            "Shared": {
+                "$path": "src/shared"
+            },
+            "Assets": {
+                "$path": "src/assets"
+            }
+        },
+        "ServerScriptService": {
+            "$className": "ServerScriptService",
+            "$ignoreUnknownInstances": true,
+            "Server": {
+                "$path": "src/server"
+            },
+            "Bugloop": {
+                "$path": "bugloop/server",
+                "Config": {
+                    "$path": "bugloop/Config.luau"
+                }
+            }
+        },
+        "StarterPlayer": {
+            "$className": "StarterPlayer",
+            "$ignoreUnknownInstances": true,
+            "StarterPlayerScripts": {
+                "$className": "StarterPlayerScripts",
+                "$ignoreUnknownInstances": true,
+                "Client": {
+                    "$path": "src/client"
+                },
+                "Bugloop": {
+                    "$path": "bugloop/client",
+                    "Config": {
+                        "$path": "bugloop/Config.luau"
+                    }
+                }
+            }
+        },
+        "HttpService": {
+            "$className": "HttpService",
+            "$properties": {
+                "HttpEnabled": true
+            }
+        }
+    }
 }

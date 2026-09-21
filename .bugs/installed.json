@@ -9,15 +9,25 @@
   "sha256": "7f7274fc043d6b88613e5574a034087df4fa0820d1ba80c87681816cc8b20a13",
   "template": "bugloop.sh"
  },
- "src/client/BugReportClient.luau": {
+ "bugloop/client/BugReportClient.luau": {
   "installed": "2026-09-19",
-  "sha256": "e1280811c235a7ec4c0cdb70b6e20c413b1feea4788c4df40661d2eeebc3efbc",
+  "sha256": "d3e38f83f171f0b84e0fad8740ce5a42e6a4c8ea29e03660c73825fd423a824d",
   "template": "roblox/BugReportClient.luau"
  },
- "src/server/BugReportService.luau": {
+ "bugloop/client/Bugloop.client.luau": {
   "installed": "2026-09-19",
-  "sha256": "88b262a3cd1ca83b91f3105ff8e89d51fce5c7088c3314b2fe282e7f628d311f",
+  "sha256": "e04bdac97d37b670b11f92af02d58fd6e906253837cfa84b134651c5be0dbeb3",
+  "template": "roblox/Bugloop.client.luau"
+ },
+ "bugloop/server/BugReportService.luau": {
+  "installed": "2026-09-19",
+  "sha256": "638531fb1f59ae24815233fb1930f4ced707245ab9fcdba4282c59f9b6df62a4",
   "template": "roblox/BugReportService.luau"
+ },
+ "bugloop/server/Bugloop.server.luau": {
+  "installed": "2026-09-19",
+  "sha256": "c1e990d497376a558506a1d4507b4573a7e98763cf726e907726262abb9a74d4",
+  "template": "roblox/Bugloop.server.luau"
  },
  "tools/luau_check.sh": {
   "installed": "2026-09-19",
