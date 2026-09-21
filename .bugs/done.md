@@ -327,3 +327,12 @@ files: src/client/GameClient.client.luau
 test: none
 verified: stylua, selene, luau_check pass; not seen in Studio.
 review: n/a
+
+## b-20260921-114209-vhv6  fixed  2026-09-21 13:40
+note: hands are the right size now but they are detached from the arms when grabbing (reopens b-20260921-110054-r51c)
+cause: r51c placed RightHandGrab/LeftHandGrab at RightHand/LeftHand's X/Y, but Unity's sprite metadata pivots the open hands BottomCenter (alignment 7) and the grab sprites Center (alignment 0), so the grab hand rendered about 13.4 studs from the arm end.
+change: RightHandGrab/LeftHandGrab CFrames moved down by half the open-hand canvas (13.4095 studs) to (±6.2857, -13.8566/-13.7595, 0.3), which is exactly each limb root's position; size and Z +0.3 kept.
+files: src/assets/FrogModel.model.json
+test: none
+verified: rojo build passes; Studio MCP confirmed the synced FrogModel has the new CFrames; the visual check was not completed (screen_capture returned a black frame); offset derived from sprite .meta pivots and cross-checked against pixel bounds.
+review: n/a

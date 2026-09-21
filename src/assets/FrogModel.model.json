@@ -108,7 +108,7 @@
           "className": "Part",
           "properties": {
             "Size": [6.705, 6.705, 0.2],
-            "CFrame": [6.2857, -0.4471, 0.3, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+            "CFrame": [6.2857, -13.8566, 0.3, 1, 0, 0, 0, 1, 0, 0, 0, 1],
             "Anchored": true,
             "CanCollide": false,
             "CanQuery": false,
@@ -171,7 +171,7 @@
           "className": "Part",
           "properties": {
             "Size": [6.705, 6.705, 0.2],
-            "CFrame": [-6.2857, -0.35, 0.3, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+            "CFrame": [-6.2857, -13.7595, 0.3, 1, 0, 0, 0, 1, 0, 0, 0, 1],
             "Anchored": true,
             "CanCollide": false,
             "CanQuery": false,
