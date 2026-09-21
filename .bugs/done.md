@@ -300,3 +300,12 @@ files: src/shared/Config.luau, src/shared/Levels.luau, src/server/Lane.luau, doc
 test: none
 verified: headless sim, 10 runs x 50 grabs: Pot visible spawns 13%->44% (75% within 16:9 view), starved grabs 173->57/500, overlaps 67%->0%; Kitchen/Country similar. stylua, selene, luau_check, rojo build pass. Residual: some grabs still find no visible step; Tutorial trees now at x≈±8.8.
 review: n/a
+
+## b-20260921-114520-qvqh  fixed  2026-09-21 13:00
+note: HUD still shows 'Flys: 0' after the t2ly fix (balance was 145) (reopens b-20260921-112735-t2ly)
+cause: ProfileChanged is a one-shot FireClient push from Profiles.Loaded; if it fires before GameClient connects (DataStore load race, not closed by t2ly's earlier connect), the profile is lost for the session and the HUD keeps its 0 default.
+change: SkinService adds a GetProfile RemoteFunction (returns Profiles.get(player)), mirroring GiftService's GetGiftStatus; GameClient pulls it once at startup unless a push already landed, keeping the ProfileChanged connection.
+files: src/server/SkinService.server.luau, src/client/GameClient.client.luau
+test: none
+verified: stylua, selene, rojo build, luau_check pass; live in Studio via MCP: server flys=145, client FlysLabel "Flys: 145" (Bugs: 0 is the per-run catch counter, correct); no console errors.
+review: n/a

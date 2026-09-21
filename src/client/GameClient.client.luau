@@ -34,6 +34,7 @@ local CatchBug = remotes:WaitForChild("CatchBug") :: RemoteEvent
 local RunStateChanged = remotes:WaitForChild("RunStateChanged") :: RemoteEvent
 local LevelChanged = remotes:WaitForChild("LevelChanged") :: RemoteEvent
 local ProfileChanged = remotes:WaitForChild("ProfileChanged") :: RemoteEvent
+local GetProfile = remotes:WaitForChild("GetProfile") :: RemoteFunction
 local BugCaught = remotes:WaitForChild("BugCaught") :: RemoteEvent
 
 -- doc 15 (menus-and-input) item 7: this player's current run state (kept in
@@ -55,10 +56,26 @@ end)
 -- itself in case the event already fired before it existed.
 local latestProfile: any = nil
 local flysLabel: TextLabel? = nil
-ProfileChanged.OnClientEvent:Connect(function(profile: any)
+local function applyProfile(profile: any)
 	latestProfile = profile
 	if flysLabel then
 		flysLabel.Text = "Flys: " .. tostring((profile and profile.flys) or 0)
+	end
+end
+ProfileChanged.OnClientEvent:Connect(applyProfile)
+
+-- Profiles.Loaded's one-shot ProfileChanged push can fire (right after the
+-- DataStore load finishes) before this LocalScript reaches the connection
+-- above, and FireClient never queues -- so the push is lost for the rest of
+-- the session (same race GiftService's GetGiftStatus pull fixed for
+-- b-20260921-110937-uesm). Pull the current profile directly so the HUD
+-- isn't solely dependent on having caught the push in time.
+task.spawn(function()
+	local ok, profile = pcall(function()
+		return GetProfile:InvokeServer()
+	end)
+	if ok and profile and not latestProfile then
+		applyProfile(profile)
 	end
 end)
 

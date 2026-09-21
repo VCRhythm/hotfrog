@@ -44,12 +44,23 @@ end
 local SelectSkin = ensure("SelectSkin", "RemoteEvent") :: RemoteEvent
 local BuyWithFlys = ensure("BuyWithFlys", "RemoteFunction") :: RemoteFunction
 local ProfileChanged = ensure("ProfileChanged", "RemoteEvent") :: RemoteEvent
+local GetProfile = ensure("GetProfile", "RemoteFunction") :: RemoteFunction
 
 local function push(player: Player)
 	local p = Profiles.get(player)
 	if p then
 		ProfileChanged:FireClient(player, p)
 	end
+end
+
+-- Pull-based counterpart to the push above: Profiles.Loaded's one-shot
+-- ProfileChanged push can fire (right after the DataStore load) before a
+-- client LocalScript has reached its OnClientEvent connection, and is lost
+-- forever since FireClient never queues (same shape as GiftService's
+-- GetGiftStatus fix for b-20260921-110937-uesm). Clients that need the
+-- profile at startup should invoke this instead of only trusting the push.
+GetProfile.OnServerInvoke = function(player: Player)
+	return Profiles.get(player)
 end
 
 -- ---------------------------------------------------------------------------
