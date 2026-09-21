@@ -291,9 +291,13 @@ end
 
 -- Point-overlap the tap against every one of THIS lane's live steps, using the
 -- Unity Collider2D each carries as `HitSize` (Shared/StepKinds) rather than the
--- part's sprite-canvas size. Steps are never rotated (GameServer sets a plain
--- CFrame.new), so an axis-aligned rectangle test is exact. Nearest centre wins
--- when two colliders overlap the tap.
+-- part's sprite-canvas size. `HitOffset` recentres that rectangle on the
+-- collider's actual Unity position when a kind's sprite pivot/collider isn't
+-- canvas-centred (Carrot) -- without it the box sat on the padded canvas
+-- centre, mostly missing the small off-centre art (b-20260921-142133-wica).
+-- Steps are never rotated (GameServer sets a plain CFrame.new), so an
+-- axis-aligned rectangle test is exact. Nearest centre wins when two colliders
+-- overlap the tap.
 local function stepAt(worldPos: Vector3): BasePart?
 	local best: BasePart? = nil
 	local bestDist = math.huge
@@ -304,14 +308,19 @@ local function stepAt(worldPos: Vector3): BasePart?
 			and inst:GetAttribute("LaneUserId") == player.UserId
 		then
 			local hit = inst:GetAttribute("HitSize")
+			local offset = inst:GetAttribute("HitOffset")
+			local cx, cy = inst.Position.X, inst.Position.Y
+			if typeof(offset) == "Vector2" then
+				cx, cy = cx + offset.X, cy + offset.Y
+			end
 			local halfX, halfY
 			if typeof(hit) == "Vector2" then
 				halfX, halfY = hit.X / 2, hit.Y / 2
 			else
 				halfX, halfY = inst.Size.X / 2, inst.Size.Y / 2 -- no collider data: the part itself
 			end
-			local dx = worldPos.X - inst.Position.X
-			local dy = worldPos.Y - inst.Position.Y
+			local dx = worldPos.X - cx
+			local dy = worldPos.Y - cy
 			if math.abs(dx) <= halfX and math.abs(dy) <= halfY then
 				local d = dx * dx + dy * dy
 				if d < bestDist then

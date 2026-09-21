@@ -354,3 +354,12 @@ files: src/shared/StepKinds.luau, src/server/GameServer.server.luau, docs/roblox
 test: none
 verified: stylua --check, selene, luau_check.sh, rojo build pass. Not confirmed in game: a Studio play session was live (inspect only; it still ran the pre-fix module).
 review: n/a
+
+## b-20260921-142133-wica  fixed  2026-09-21 15:00
+note: make sure hit detection on steps is pretty generous (especially for carrots)
+cause: GameClient.stepAt centred the HitSize tap rectangle on the carrot's canvas centre, but Unity's collider offset is relative to the off-centre sprite pivot, so the carrot hitbox sat ~3.2 studs right / 1.5 up of the visible art and taps mostly missed.
+change: optional StepKinds hitOffset (Carrot = gripOffset + Collider2D.offset in studs = (-3.17, -1.48)), published as a HitOffset attribute in acquireStep and used by stepAt to recentre the tap rectangle; other kinds unchanged. Server GrabStep does no tap hit-test, so it accepts whatever the picker offers. Hitbox sizes and snap-assist tolerance not enlarged. Doc 17 updated.
+files: src/shared/StepKinds.luau, src/server/GameServer.server.luau, src/client/GameClient.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene, luau_check.sh, rojo build pass. Not playtested: a Studio play session was live (inspect only; console clean).
+review: n/a

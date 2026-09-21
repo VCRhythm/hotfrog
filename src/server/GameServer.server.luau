@@ -456,6 +456,7 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3)
 	-- what GameClient tap-tests -- see the header of Shared/StepKinds.
 	step.Size = if kind and kind.size then kind.size else DEFAULT_STEP_SIZE
 	step:SetAttribute("HitSize", if kind then kind.hitSize else nil)
+	step:SetAttribute("HitOffset", if kind then kind.hitOffset else nil)
 	step:SetAttribute("GripOffset", if kind then kind.gripOffset else nil)
 	SpriteSkin.apply(step) -- texture from its `Sprite` attribute (no-op until ids are set)
 

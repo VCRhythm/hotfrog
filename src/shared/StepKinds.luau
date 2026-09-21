@@ -30,6 +30,14 @@
 --                needs `(pivot - 0.5) * canvasSize` here or the hand lands
 --                wherever the padding put the canvas centre instead of on the
 --                art (doc 17 "Sprite pivots / non-centre alignment").
+--   `hitOffset` -- where GameClient centres the `hitSize` tap-test rectangle,
+--                relative to the part's canvas centre. Unity's Collider2D
+--                itself carries an `offset` field (doc 12 §1), always
+--                relative to the prefab's `transform.position` -- the same
+--                off-canvas-centre point `gripOffset` targets on a non-centre
+--                pivot -- so `hitOffset = gripOffset + offset * UNITY_TO_STUDS`.
+--                nil (collider centred on the canvas) for every kind whose
+--                collider offset is (0,0) and whose sprite pivot is centred.
 --
 -- This table + Shared/Levels' per-spawner `pool` lists REPLACE the old global
 -- Config.BEHAVIOR_WEIGHTS roll (doc 13 item 2): a step's behavior is a function
@@ -43,6 +51,7 @@ export type Kind = {
 	hitSize: Vector2, -- the Unity Collider2D in studs: the grabbable rectangle (see header)
 	flingeeSprite: string?, -- SplashFlinging's "Flingee" child sprite (doc 12 §1 "Children of note")
 	gripOffset: Vector2?, -- held-limb snap point offset from canvas centre, non-centre pivots only (see header)
+	hitOffset: Vector2?, -- hitSize tap-test rectangle centre offset from canvas centre (see header)
 }
 
 -- Sprite canvases: <png pixels> / <.meta spritePixelsToUnits> * Config.UNITY_TO_STUDS.
@@ -72,6 +81,15 @@ local HIT_ACORN = Vector2.new(8.046, 8.046) -- BoxCollider2D size=(25.6,25.6), t
 -- (where Limb.Move snaps the held hand) is that far from our canvas-centred part.
 local GRIP_CARROT = Vector2.new(-3.1433, -1.6561)
 
+-- Hit offsets: gripOffset + (Collider2D.offset * UNITY_TO_STUDS), from doc 12 §1.
+-- Carrot's BoxCollider2D carries offset=(-0.091,0.547) *on top of* the pivot
+-- shift above (doc 12 §1's Collider column is relative to transform.position,
+-- not the canvas) -- left uncorrected, GameClient's tap-test rectangle sat
+-- centred on the canvas, i.e. ~3.2 studs right and ~1.5 studs up of the actual
+-- (small, low-left) carrot art, so a tap ON the visible carrot mostly missed
+-- the hit box entirely (b-20260921-142133-wica).
+local HIT_OFFSET_CARROT = GRIP_CARROT + Vector2.new(-0.091, 0.547) * (55 / 175) -- Config.UNITY_TO_STUDS
+
 local StepKinds: { [string]: Kind } = {
 	-- Pot (Level2) pools (doc 11 §2a)
 	Potato = {
@@ -88,6 +106,7 @@ local StepKinds: { [string]: Kind } = {
 		size = ART_CARROT,
 		hitSize = HIT_CARROT,
 		gripOffset = GRIP_CARROT,
+		hitOffset = HIT_OFFSET_CARROT,
 	},
 	UpRock = {
 		behavior = "ChangeDirectionUp",
