@@ -95,6 +95,7 @@ local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/bes
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart (score, cause)
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
 local LevelChanged = ensureRemote("LevelChanged") -- server -> client: this lane's level/transition changed
+local ScreenObstruction = ensureRemote("ScreenObstruction") -- client -> server: rough lane-relative world rectangle of the open Roblox PlayerList (minX, minY, maxX, maxY studs), or no args when closed; rate-limited and validated, grab pulls are lengthened to keep steps out of it (doc 17)
 
 -- Phase 5 (docs/roblox-port/15-menus-and-input.md): the Menu -> Playing -> Dead
 -- -> Menu run-state machine + its remotes. Everything below is additive on top
@@ -1334,6 +1335,10 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	local gripRest = lane:restPosition(step) + Vector3.new(grip.X, grip.Y, 0)
 	local distance =
 		PullMath.pullDistance(Vector2.new(gripRest.X - lane.origin.X, gripRest.Y - lane.origin.Y), lane.spawnDirection)
+	-- ...then a little further while any step would come to rest under the
+	-- client's open Roblox PlayerList (owner's decision b-20260921-182502-qgbw,
+	-- Lane.obstructionExtra; never shorter, not while the lane drifts).
+	distance += lane:obstructionExtra(distance)
 	pullLane(lane, distance, PullMath.pullTime(distance))
 	addScore(player, 1, quality)
 
@@ -1386,6 +1391,47 @@ ReleaseStep.OnServerEvent:Connect(function(player, limbIndex, step)
 	if b.onRelease and lane.active[step] then
 		b.onRelease(makeCtx(lane, step, player))
 	end
+end)
+
+-- The client's open Roblox PlayerList, as a lane-relative world rectangle
+-- (owner's decision b-20260921-182502-qgbw, doc 17). The server can't see the
+-- screen, so it trusts only the shape: four finite numbers, min < max, no bigger
+-- than the lane's own view, clamped to it, and only ever stored on the sender's
+-- own lane (the rectangle is lane-relative, so it can't name another lane). A
+-- lie can at worst lengthen the sender's own pulls by OBSTRUCTION_MAX_EXTRA_PULL.
+-- No arguments clears it. Updates faster than OBSTRUCTION_MIN_INTERVAL are
+-- dropped (GameClient sends only on change, at most every PLAYERLIST_POLL s).
+local lastObstruction: { [Player]: number } = {}
+
+local function finite(v: any): boolean
+	return type(v) == "number" and v == v and math.abs(v) < 1e6
+end
+
+ScreenObstruction.OnServerEvent:Connect(function(player, minX, minY, maxX, maxY)
+	local now = os.clock()
+	if now - (lastObstruction[player] or -math.huge) < Config.OBSTRUCTION_MIN_INTERVAL then
+		return
+	end
+	lastObstruction[player] = now
+	local lane = Lane.get(player)
+	if not lane then
+		return
+	end
+	if minX == nil and minY == nil and maxX == nil and maxY == nil then
+		lane:setObstruction(nil)
+		return
+	end
+	if not (finite(minX) and finite(minY) and finite(maxX) and finite(maxY)) then
+		return
+	end
+	local x0, y0, x1, y1 = minX :: number, minY :: number, maxX :: number, maxY :: number
+	local hw, hh = Config.LANE_HALF_WIDTH, Config.VIEW_HALF_HEIGHT
+	if x0 >= x1 or y0 >= y1 or x1 - x0 > 2 * hw or y1 - y0 > 2 * hh then
+		return
+	end
+	x0, x1 = math.clamp(x0, -hw, hw), math.clamp(x1, -hw, hw)
+	y0, y1 = math.clamp(y0, -hh, hh), math.clamp(y1, -hh, hh)
+	lane:setObstruction(if x1 > x0 and y1 > y0 then Rect.new(x0, y0, x1, y1) else nil)
 end)
 
 -- A tap that hit no step or bug (Controller.CheckTouch's miss branch): the free
@@ -1633,6 +1679,7 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	sessionScore[player] = nil
 	grabQuality[player] = nil
 	grabTimes[player] = nil
+	lastObstruction[player] = nil
 	runState[player] = nil
 	lastStartRun[player] = nil
 	flysThisRun[player] = nil

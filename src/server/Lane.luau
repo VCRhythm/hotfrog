@@ -82,6 +82,11 @@ export type Lane = typeof(setmetatable(
 		-- run's level transitions; never advances outside Classic mode or on a
 		-- level with no CLASSIC_SCROLL_SPEED entry (e.g. Tutorial).
 		driftElapsed: number,
+		-- The client's Roblox PlayerList rectangle (lane-relative studs, validated
+		-- by GameServer's ScreenObstruction handler), nil while the list is closed
+		-- or unknown. Grab pulls and spawns keep step grab boxes out of it while
+		-- the lane isn't drifting (Lane.obstructionExtra / Lane.clearSpot).
+		obstruction: Rect?,
 		runSteps: number, -- steps climbed this run, across levels (drives LEVEL_THRESHOLDS)
 		tutorialStepsClimbed: number,
 		-- called explicitly by whichever method changes the level, WITH the
@@ -575,18 +580,26 @@ end
 -- that is clear. nil when that would leave the lane's bounds, and the spawn is
 -- skipped. Without this one spawner's consecutive steps can land 2-3 studs apart
 -- and overlap (b-20260921-112713-7mxu).
+-- Also keeps the new step's grab box out of the client's PlayerList rectangle
+-- (self.obstruction) while the lane isn't drifting -- a drifting step never
+-- stops under it (Lane.obstructionExtra, doc 17).
 function Lane.clearSpot(self: Lane, pos: Vector3, kindName: string, travel: Vector3): Vector3?
 	local kind = StepKinds[kindName]
 	local size = if kind then kind.size else DEFAULT_SIZE
 	local hit = if kind and kind.hitSize then kind.hitSize else Vector2.new(size.X, size.Y)
+	local hitOffset = if kind and kind.hitOffset then kind.hitOffset else Vector2.zero
+	local avoidObstruction = self.obstruction ~= nil and not self:drifts()
 	local shift = 0
 	while shift <= NUDGE_MAX do
 		local p = pos - travel * shift
 		if outOfBounds(self, p, size) then
 			return nil
 		end
-		local clear = true
+		local clear = not (avoidObstruction and self:obstructs(p, hit, hitOffset))
 		for step in self.active do
+			if not clear then
+				break
+			end
 			local other = (step:GetAttribute("HitSize") :: Vector2?) or Vector2.new(step.Size.X, step.Size.Y)
 			local d = self:restPosition(step) - p
 			if
@@ -684,6 +697,85 @@ function Lane.drift(self: Lane, dt: number, speed: number): (number?, number?)
 	self.driftDistance = 0
 	self.driftTime = 0
 	return chunk, chunkTime
+end
+
+-- ---------------------------------------------------------------------------
+-- Roblox PlayerList keep-out (owner's decision b-20260921-182502-qgbw, doc 17).
+-- The client reports the list's rough rectangle (self.obstruction, lane-relative
+-- studs); a grab's pull is lengthened until no step's grab box rests inside it.
+-- Only while the lane is NOT drifting: under Classic drift every step keeps
+-- moving, so none can stop under the list, and a longer pull there would only
+-- cost the player height against the lava.
+-- ---------------------------------------------------------------------------
+
+-- True when this lane's steps scroll on their own (Classic on a level with a
+-- CLASSIC_SCROLL_SPEED entry).
+function Lane.drifts(self: Lane): boolean
+	if self.mode ~= Config.RUN_MODES.Classic then
+		return false
+	end
+	local base = Config.CLASSIC_SCROLL_SPEED[self.level.name]
+	return base ~= nil and base > 0
+end
+
+-- Record (or clear, nil) the client's PlayerList rectangle. GameServer validates it.
+function Lane.setObstruction(self: Lane, rect: Rect?)
+	self.obstruction = rect
+end
+
+-- Does a grab box of `hit` studs, centred `hitOffset` from a step at world
+-- position `pos`, overlap the obstruction rectangle (padded by OBSTRUCTION_PAD)?
+function Lane.obstructs(self: Lane, pos: Vector3, hit: Vector2, hitOffset: Vector2): boolean
+	local r = self.obstruction
+	if not r then
+		return false
+	end
+	local pad = Config.OBSTRUCTION_PAD
+	local cx = pos.X - self.origin.X + hitOffset.X
+	local cy = pos.Y - self.origin.Y + hitOffset.Y
+	local hx, hy = hit.X / 2, hit.Y / 2
+	return cx + hx > r.Min.X - pad and cx - hx < r.Max.X + pad and cy + hy > r.Min.Y - pad and cy - hy < r.Max.Y + pad
+end
+
+-- How much LONGER (studs, >= 0) a grab pull of `distance` should be so that no
+-- live step's grab box ends up resting inside the obstruction: the smallest
+-- extension in [0, OBSTRUCTION_MAX_EXTRA_PULL] that leaves none inside, or, when
+-- none within the cap does, the one leaving the fewest (ties: the shortest).
+-- Call before the pull is added (restPosition then still excludes it).
+function Lane.obstructionExtra(self: Lane, distance: number): number
+	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
+	if not self.obstruction or self:drifts() or distance <= 0 or dir3.Magnitude < 1e-4 then
+		return 0
+	end
+	local travel = dir3.Unit
+	type Box = { rest: Vector3, hit: Vector2, offset: Vector2 }
+	local boxes: { Box } = {}
+	for step in self.active do
+		table.insert(boxes, {
+			rest = self:restPosition(step),
+			hit = (step:GetAttribute("HitSize") :: Vector2?) or Vector2.new(step.Size.X, step.Size.Y),
+			offset = (step:GetAttribute("HitOffset") :: Vector2?) or Vector2.zero,
+		})
+	end
+	local bestExtra, bestCount = 0, math.huge
+	local extra = 0
+	while extra <= Config.OBSTRUCTION_MAX_EXTRA_PULL + 1e-6 do
+		local shift = travel * (distance + extra)
+		local count = 0
+		for _, b in boxes do
+			if self:obstructs(b.rest + shift, b.hit, b.offset) then
+				count += 1
+			end
+		end
+		if count < bestCount then
+			bestExtra, bestCount = extra, count
+			if count == 0 then
+				break
+			end
+		end
+		extra += Config.OBSTRUCTION_SEARCH_STEP
+	end
+	return bestExtra
 end
 
 -- ---------------------------------------------------------------------------
@@ -957,6 +1049,7 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		driftDistance = 0,
 		driftTime = 0,
 		driftElapsed = 0,
+		obstruction = nil,
 		runSteps = 0,
 		tutorialStepsClimbed = 0,
 		notify = notify,

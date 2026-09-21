@@ -15,6 +15,8 @@ local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
+local GuiService = game:GetService("GuiService")
+local StarterGui = game:GetService("StarterGui")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
@@ -36,6 +38,7 @@ local LevelChanged = remotes:WaitForChild("LevelChanged") :: RemoteEvent
 local ProfileChanged = remotes:WaitForChild("ProfileChanged") :: RemoteEvent
 local GetProfile = remotes:WaitForChild("GetProfile") :: RemoteFunction
 local BugCaught = remotes:WaitForChild("BugCaught") :: RemoteEvent
+local ScreenObstruction = remotes:WaitForChild("ScreenObstruction") :: RemoteEvent
 
 -- doc 15 (menus-and-input) item 7: this player's current run state (kept in
 -- sync purely for the camera/gamepad logic below -- MenuClient owns the actual
@@ -209,6 +212,89 @@ lanesFolder.ChildAdded:Connect(refreshSpectateVisibility)
 lanesFolder.ChildRemoved:Connect(refreshSpectateVisibility)
 refreshSpectateVisibility()
 spectateGui.Parent = player:WaitForChild("PlayerGui")
+
+-- ---------------------------------------------------------------------------
+-- Roblox PlayerList keep-out (owner's decision b-20260921-182502-qgbw, doc 17).
+-- The core PlayerList sits over the top-right of the view and can't be moved,
+-- and a grab's pull can stop a step under it. The server can't see the screen,
+-- so this reports the list's rough rectangle in lane-relative world studs
+-- (ScreenObstruction) and GameServer lengthens grab pulls to keep steps out of
+-- it. The size is estimated (Config.PLAYERLIST_*: measured off the live list,
+-- height from the player count); game scripts can't read CoreGui.
+--
+-- "Open" is a best guess: StarterGui:GetCoreGuiEnabled(PlayerList) is readable,
+-- but the player's own show/hide toggle is not. The guess starts open on a
+-- keyboard device (the list's desktop default), closed on touch-only and
+-- ten-foot (console) screens where it starts collapsed, and flips on each Tab
+-- press outside a text box (the desktop toggle key). Opening or closing the list
+-- any other way (e.g. from the Roblox menu) desyncs it until the next Tab.
+-- Nothing is reported while spectating another lane.
+-- ---------------------------------------------------------------------------
+local playerListGuess = UserInputService.KeyboardEnabled and not GuiService:IsTenFootInterface()
+
+UserInputService.InputBegan:Connect(function(input: InputObject)
+	if input.KeyCode == Enum.KeyCode.Tab and not UserInputService:GetFocusedTextBox() then
+		playerListGuess = not playerListGuess
+	end
+end)
+
+-- Where GUI pixel (x, y) lands on the play plane, lane-relative.
+local function guiToLane(x: number, y: number): Vector2?
+	local ray = camera:ScreenPointToRay(x, y)
+	if math.abs(ray.Direction.Z) < 1e-6 then
+		return nil
+	end
+	local t = (Config.PLANE_Z - ray.Origin.Z) / ray.Direction.Z
+	local hit = ray.Origin + ray.Direction * t
+	local origin = laneOrigin()
+	return Vector2.new(hit.X - origin.X, hit.Y - origin.Y)
+end
+
+-- The list's rough lane-relative rectangle, or nil when it's (probably) closed.
+local function playerListRect(): Rect?
+	if spectateIndex ~= 0 or not playerListGuess then
+		return nil
+	end
+	local ok, enabled = pcall(StarterGui.GetCoreGuiEnabled, StarterGui, Enum.CoreGuiType.PlayerList)
+	if not ok or not enabled then
+		return nil
+	end
+	local insetTL, insetBR = GuiService:GetGuiInset()
+	local guiWidth = camera.ViewportSize.X - insetTL.X - insetBR.X
+	local height = math.min(
+		Config.PLAYERLIST_HEADER_PX + Config.PLAYERLIST_ROW_PX * #Players:GetPlayers(),
+		Config.PLAYERLIST_MAX_HEIGHT_PX
+	)
+	local a = guiToLane(guiWidth - Config.PLAYERLIST_WIDTH_PX, 0)
+	local b = guiToLane(guiWidth, height)
+	if not a or not b then
+		return nil
+	end
+	-- quantised so camera jitter doesn't resend
+	local function q(v: number): number
+		return math.floor(v * 4 + 0.5) / 4
+	end
+	return Rect.new(q(math.min(a.X, b.X)), q(math.min(a.Y, b.Y)), q(math.max(a.X, b.X)), q(math.max(a.Y, b.Y)))
+end
+
+-- Poll (cheap) and send only on change: covers the toggle, the player count,
+-- window resizes and spectating, none of which has a single reliable signal.
+task.spawn(function()
+	local sent: Rect? = nil
+	local sentAny = false
+	while true do
+		local rect = playerListRect()
+		if not sentAny or rect ~= sent then
+			if rect then
+				ScreenObstruction:FireServer(rect.Min.X, rect.Min.Y, rect.Max.X, rect.Max.Y)
+			else
+				ScreenObstruction:FireServer()
+			end
+			sent, sentAny = rect, true
+		end
+		task.wait(Config.PLAYERLIST_POLL)
+	end
+end)
 
 -- ---------------------------------------------------------------------------
 -- My server-owned frog (for the tongue origin and the Dead gate)

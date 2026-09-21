@@ -105,6 +105,25 @@ local Config = {
 	VIEW_HALF_HEIGHT = 50 * UNITY_TO_STUDS, -- = 15.714 studs
 	SLIDE_IN_TIME = 0.6, -- a prefilled screenful / the Tutorial ladder scrolls in over this
 
+	-- Roblox PlayerList keep-out (owner's decision b-20260921-182502-qgbw, doc 17):
+	-- while the core PlayerList is (probably) open, GameClient sends its rough
+	-- lane-relative world rectangle (ScreenObstruction remote) and a non-drifting
+	-- lane's grab pull is lengthened, never shortened, by up to
+	-- OBSTRUCTION_MAX_EXTRA_PULL studs (about one ordinary pull) until no step's
+	-- grab box rests inside it; new spawns are nudged out of it too (Lane.clearSpot).
+	-- Pixel sizes were measured off the live CoreGui PlayerList (2026-09-21):
+	-- 320 px wide, 4 px from the right/top edges under the top bar, a ~42 px
+	-- header, ~40 px per player row, ~8 px footer, capped at ~436 px (it scrolls).
+	OBSTRUCTION_MAX_EXTRA_PULL = 8,
+	OBSTRUCTION_PAD = 0.25, -- studs of slack around the rectangle
+	OBSTRUCTION_SEARCH_STEP = 0.25, -- studs per candidate extension tried
+	OBSTRUCTION_MIN_INTERVAL = 0.2, -- server: seconds between accepted updates per player
+	PLAYERLIST_WIDTH_PX = 340, -- 320 px list + its 4 px edge margin + slack
+	PLAYERLIST_HEADER_PX = 4 + 42 + 8, -- top margin + header + footer
+	PLAYERLIST_ROW_PX = 40,
+	PLAYERLIST_MAX_HEIGHT_PX = 440,
+	PLAYERLIST_POLL = 0.5, -- client: seconds between checks (and the send throttle)
+
 	-- Reach: how far a limb can grab from the frog (sanity check on the server)
 	MAX_GRAB_DISTANCE = 30,
 

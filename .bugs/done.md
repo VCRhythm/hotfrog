@@ -601,3 +601,21 @@ files: none
 test: none
 verified: Studio MCP playtest firing GrabStep; server limb position and Reaching attribute, client RightHand/RightHandGrab transparency checked after each grab and after a miss.
 review: n/a
+
+## b-20260921-152729-o03u  fixed  2026-09-21 19:55
+note: the roblox leaderboard modal gets in the way of steps. I don't want to move the modal. can we make sure steps don't stop behind it?
+cause: owner ruling b-20260921-182502-qgbw: "b" (client-reported PlayerList rectangle + longer pull). Each pull could stop a step anywhere, including under the list.
+change: GameClient estimates the PlayerList's lane-relative rectangle (CoreGui enabled + keyboard + Tab toggle; measured 320 px wide, 42 px header + 40 px per player) and sends it over a new rate-limited ScreenObstruction remote; GameServer validates it per lane; Lane.obstructionExtra lengthens a grab pull by at most OBSTRUCTION_MAX_EXTRA_PULL (8 studs) until no step's grab box rests inside it, and Lane.clearSpot keeps new spawns out of it. Off while the lane drifts (Classic). Doc 17 deviation row.
+files: src/server/GameServer.server.luau, src/client/GameClient.client.luau, src/server/Lane.luau, src/shared/Config.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check, rojo build pass; PlayerList geometry and ScreenPointToRay mapping measured in a live Play session. The longer pull itself not played (session ran old code).
+review: concern (y coordinates missing the top-bar inset) -> fixer showed not-a-bug: ScreenPointToRay already works in inset-relative coordinates, same origin as the PlayerList (measured).
+
+## b-20260921-182502-qgbw  fixed  2026-09-21 19:55
+note: DECISION: b
+cause: owner ruling on b-20260921-152729-o03u; applied there.
+change: see b-20260921-152729-o03u
+files: see b-20260921-152729-o03u
+test: none
+verified: see b-20260921-152729-o03u
+review: see b-20260921-152729-o03u
