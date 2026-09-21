@@ -183,3 +183,12 @@ files: src/assets/BugTemplate.model.json, src/server/BugService.server.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; root cause confirmed live in Studio (bug had one Decal, no Wings); fix not seen rendering live (playtest in progress, not restarted).
 review: n/a
+
+## b-20260921-101338-hfvp  fixed  2026-09-21 10:40
+note: there's a visible scroll bar to the right of the screen
+cause: The multiplayer race rail (GameClient, doc 15 item 5) is a thin full-height translucent Frame on the right edge, shown even when the player is alone, so it reads as a stray scrollbar.
+change: Rail starts hidden and each poll tick shows it only when another player is present.
+files: src/client/GameClient.client.luau
+test: none
+verified: stylua, selene, luau_check pass; offending instance located live in Studio (inspect only); fix not verified live (user mid-playtest).
+review: n/a

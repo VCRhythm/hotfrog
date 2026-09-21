@@ -342,19 +342,26 @@ local function expandTongue(targetPos: Vector3)
 	grow:Play()
 end
 
+-- Bugs are caught with the tongue, not a limb (Controller.TouchBug). True if
+-- the tap hit a bug (and the catch was sent).
+local function tryCatchBug(screenX: number, screenY: number): boolean
+	local unitRay = camera:ScreenPointToRay(screenX, screenY)
+	local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 300, rayParams)
+	if result and result.Instance:GetAttribute("Kind") == "Bug" then
+		CatchBug:FireServer(result.Instance)
+		expandTongue(result.Instance.Position)
+		return true
+	end
+	return false
+end
+
 -- Returns the limb slot the grab consumed, or nil (bug catch, miss, or that
 -- limb is already holding something). `slotIndex` is the limb the input owns.
 local function tryGrab(screenX: number, screenY: number, slotIndex: number?): number?
 	if frogIsDead() then
 		return nil
 	end
-
-	-- bugs are caught with the tongue, not a limb (Controller.TouchBug)
-	local unitRay = camera:ScreenPointToRay(screenX, screenY)
-	local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 300, rayParams)
-	if result and result.Instance:GetAttribute("Kind") == "Bug" then
-		CatchBug:FireServer(result.Instance)
-		expandTongue(result.Instance.Position)
+	if tryCatchBug(screenX, screenY) then
 		return nil -- bugs are caught with the tongue: no limb is consumed
 	end
 
@@ -417,10 +424,14 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 		return
 	end
 	if runState == "Menu" then
-		-- Start screen: the attract demo climbs with one hand, and any click/tap
-		-- sends the OTHER hand reaching to it (nothing to grab on a Menu lane)
+		-- Start screen: bugs still fly and can be eaten; otherwise the attract
+		-- demo climbs with one hand, and any click/tap sends the OTHER hand
+		-- reaching to it (nothing to grab on a Menu lane)
+		if frogIsDead() or tryCatchBug(input.Position.X, input.Position.Y) then
+			return
+		end
 		local worldPos = planePoint(input.Position.X, input.Position.Y)
-		if worldPos and not frogIsDead() then
+		if worldPos then
 			ReachEmpty:FireServer(worldPos, if WorldConfig.ATTRACT_LIMB == RIGHT_SLOT then LEFT_SLOT else RIGHT_SLOT)
 		end
 		return
@@ -796,6 +807,7 @@ rail.Size = UDim2.new(0, 6, 1, -160)
 rail.Position = UDim2.new(1, -18, 0, 80)
 rail.BackgroundColor3 = UIKit.SUBTEXT
 rail.BackgroundTransparency = 0.7
+rail.Visible = false -- solo: no other player to mark, so don't show a bare strip that reads as a stray scrollbar
 rail.Parent = railGui
 UIKit.corner(rail, 3)
 railGui.Parent = playerGui
@@ -828,13 +840,18 @@ end)
 task.spawn(function()
 	while true do
 		local maxScore = 1
+		local hasOtherPlayer = false
 		for _, otherPlayer in Players:GetPlayers() do
+			if otherPlayer ~= player then
+				hasOtherPlayer = true
+			end
 			local stats = otherPlayer:FindFirstChild("leaderstats")
 			local score = stats and stats:FindFirstChild("Score")
 			if score and score:IsA("IntValue") then
 				maxScore = math.max(maxScore, score.Value)
 			end
 		end
+		rail.Visible = hasOtherPlayer
 		for _, otherPlayer in Players:GetPlayers() do
 			if otherPlayer ~= player then
 				local stats = otherPlayer:FindFirstChild("leaderstats")
