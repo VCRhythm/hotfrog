@@ -174,3 +174,12 @@ files: src/assets/FrogModel.model.json
 test: none
 verified: rojo build passes. Studio via MCP in Edit mode: cloned the FrogModel asset, applied SpriteSkin.apply(clone, "Hot Frog"), both sclera decals resolved to non-zero asset ids, and an edit-mode screen capture shows white sclera ovals behind the pupils and eyelid creases. Other skins not checked (same fallback code path). Not seen in a live run.
 review: n/a
+
+## b-20260921-101202-gdw4  fixed  2026-09-21 10:35
+note: flies just look like white dotes instead of flies like they do in unity
+cause: BugTemplate only rendered the body sprite (Bug.png, a faint crescent); Unity's Bug prefab layers a "Wings" child (Wing1.png) on top, which the port never added.
+change: Added a "Wings" Decal (Sprite="Wing1", ZIndex 1 above the body) to BugTemplate.model.json and mirrored it in BugService's fallback template; Wing1 was already uploaded.
+files: src/assets/BugTemplate.model.json, src/server/BugService.server.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; root cause confirmed live in Studio (bug had one Decal, no Wings); fix not seen rendering live (playtest in progress, not restarted).
+review: n/a

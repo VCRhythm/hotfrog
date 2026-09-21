@@ -105,8 +105,14 @@ if not template then
 	part.Transparency = 1 -- host for the Decal only; a coloured part reads as an opaque sprite background
 	local decal = Instance.new("Decal")
 	decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
+	decal.ZIndex = 0
 	decal:SetAttribute("Sprite", "Bug") -- Sprites/Other/Bug.png via SkinAssets
 	decal.Parent = part
+	local wings = Instance.new("Decal")
+	wings.Face = Enum.NormalId.Back
+	wings.ZIndex = 1
+	wings:SetAttribute("Sprite", "Wing1") -- Sprites/Other/Wing1.png via SkinAssets; Unity's Bug prefab layers this over the body (doc 12 SS2)
+	wings.Parent = part
 	part.Parent = assets
 	template = part
 end

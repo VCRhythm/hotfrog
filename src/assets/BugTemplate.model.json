@@ -12,8 +12,14 @@
     {
       "name": "Art",
       "className": "Decal",
-      "properties": { "Face": "Back" },
+      "properties": { "Face": "Back", "ZIndex": 0 },
       "attributes": { "Sprite": "Bug" }
+    },
+    {
+      "name": "Wings",
+      "className": "Decal",
+      "properties": { "Face": "Back", "ZIndex": 1 },
+      "attributes": { "Sprite": "Wing1" }
     }
   ]
 }
