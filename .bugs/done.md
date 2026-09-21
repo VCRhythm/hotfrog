@@ -469,7 +469,7 @@ cause: WhiteRock.png is a blank white silhouette meant to be tinted by Unity's S
 change: optional StepKinds color (FallingRock/Castle Color3(1, 0.459, 0.395), Beetle black, from the doc 12 §1 dump); acquireStep sets the Art decal's Color3 and resets it to white for untinted kinds, so pooled parts don't keep a stale tint.
 files: src/shared/StepKinds.luau, src/server/GameServer.server.luau
 test: none
-verified: stylua, selene, luau_check, rojo build pass; Studio execute_luau ran the new acquireStep logic on a cloned StepTemplate: FallingRock/Castle tinted, Beetle black, SlowFallRock/StillRock white. Not seen in a live run. Fixer filed b-20260921-172346-h1ym (Beetle uses the wrong sprite).
+verified: stylua, selene, luau_check, rojo build pass; Studio execute_luau ran the new acquireStep logic on a cloned StepTemplate: FallingRock/Castle tinted, Beetle black, SlowFallRock/StillRock white. Not seen in a live run. Fixer filed a follow-up entry (h1ym: Beetle uses the wrong sprite).
 review: n/a
 
 ## b-20260921-164343-m63b  fixed  2026-09-21 18:20
@@ -479,4 +479,13 @@ change: client-only endPanelDismissed flag; the automatic Menu transition leaves
 files: src/client/MenuClient.client.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; Studio MCP playtest fired RunSummary -> Dead -> Menu and saw EndOfRun visible with MainMenu hidden; no console errors.
+review: n/a
+
+## b-20260921-172346-h1ym  fixed  2026-09-21 18:35
+note: Beetle step uses WrappedRock sprite/size instead of WhiteRock per Unity dump
+cause: StepKinds.Beetle used WrappedRock/ART_WRAPPED, contradicting doc 12 (Beetle.prefab = WhiteRock.png tinted black, 256px canvas); no deviation recorded in doc 17.
+change: Beetle sprite -> WhiteRock, size -> ART_ROCK; hitSize (HIT_ROCK) and black tint unchanged.
+files: src/shared/StepKinds.luau
+test: none
+verified: stylua, selene, luau_check pass; rojo build and Studio not run (classic-mode fixer running concurrently).
 review: n/a

@@ -243,9 +243,9 @@ local StepKinds: { [string]: Kind } = {
 	},
 	Beetle = {
 		behavior = "Beetle",
-		sprite = "WrappedRock",
+		sprite = "WhiteRock",
 		spawnProbability = 0.5,
-		size = ART_WRAPPED,
+		size = ART_ROCK,
 		hitSize = HIT_ROCK,
 		color = TINT_BLACK,
 	},
