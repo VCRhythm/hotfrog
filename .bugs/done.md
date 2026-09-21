@@ -318,3 +318,12 @@ files: src/server/GameServer.server.luau, src/shared/Config.luau, src/server/Lan
 test: none
 verified: stylua, selene, luau_check, rojo build pass; headless Python sim of the bob and gravity loop keeps the frog within -8.0..+1.57 studs at 0.35-1.2 s grab cadence; not seen in Studio.
 review: looks-right
+
+## b-20260921-115308-opcd  fixed  2026-09-21 13:25
+note: Pause panel says held steps don't fall, but the frog now sinks while holding (it just can't die)
+cause: The Pause comment and status text predated fd231a1 and still described gravity freezing while the frog holds a step.
+change: The Pause block comment and the isHoldingAnything() status text in openPause() now say the frog keeps sinking but can't die while holding, matching doc 15 item 4 and doc 17's Death condition row.
+files: src/client/GameClient.client.luau
+test: none
+verified: stylua, selene, luau_check pass; not seen in Studio.
+review: n/a

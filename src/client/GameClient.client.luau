@@ -761,11 +761,12 @@ end)
 -- ---------------------------------------------------------------------------
 -- Pause (doc 15 item 4): deliberately client-only, no server round-trip. A
 -- multiplayer server can't pause for one player without affecting everyone
--- else's fairness, and the frog already only falls while holding zero steps
--- -- so there's nothing server-side TO pause. This is an honest status panel
--- instead of a real pause: holding a step means gravity is already frozen
--- (nothing more to do); holding nothing means the run keeps falling behind
--- the panel, and it says so rather than pretending otherwise. Resume's 3-2-1
+-- else's fairness, and the frog can only die while holding zero steps, so
+-- there's nothing server-side TO pause. This is an honest status panel
+-- instead of a real pause: holding a step means the frog can't die (it
+-- keeps sinking, but stops on the lava surface -- doc 17 "Death condition");
+-- holding nothing means the run keeps falling toward death behind the
+-- panel, and it says so rather than pretending otherwise. Resume's 3-2-1
 -- is purely a visual beat before hiding the panel -- it doesn't stop or
 -- resume anything server-side.
 -- ---------------------------------------------------------------------------
@@ -794,7 +795,7 @@ local function openPause()
 		return
 	end
 	pauseStatus.Text = if isHoldingAnything()
-		then "Held steps don't fall -- you're genuinely paused."
+		then "You're sinking, but you can't die while holding a step."
 		else "You're not holding a step, so the run keeps going!"
 	resumeButton.Text = "Resume"
 	resumeButton.Active = true
