@@ -705,8 +705,11 @@ end
 -- Attract mode (Player/FrogAI.cs): while a lane sits in Menu, its REAL frog
 -- climbs a small decorative ladder on a loop -- every WorldConfig.
 -- ATTRACT_DECISION_TIME seconds (FrogAI's fixed 1s nextDecisionTime) the demo
--- hand (WorldConfig.ATTRACT_LIMB) grabs the next rung. The other hand is left
--- free: the player's menu clicks send it reaching to the click (ReachEmpty). FrogAI raycasts a random on-screen step;
+-- hand (WorldConfig.ATTRACT_LIMB) grabs the rung above and the ladder is pulled
+-- down one rung gap -- the same "frog lifts, world scrolls" a real grab does
+-- (pullLane) -- with the rung that leaves the bottom recycled to the top. The
+-- other hand is left free: the player's menu clicks send it reaching to the
+-- click (ReachEmpty). FrogAI raycasts a random on-screen step;
 -- a Menu lane spawns no steps (doc 15), so the rungs are a fixed ladder
 -- instead. Server-owned so there is exactly one frog per lane (this used to be
 -- a second, client-local clone beside the parked frog) and other players on
@@ -720,7 +723,7 @@ end
 type AttractState = {
 	rungs: { BasePart },
 	held: { [number]: BasePart }, -- keyed like FrogState.held (1=Right, 2=Left)
-	nextRung: number,
+	origin: Vector3, -- the lane origin the ladder is laid out around
 	lastDecision: number, -- os.clock()
 }
 local attract: { [Player]: AttractState } = {}
@@ -748,17 +751,17 @@ local function buildAttract(origin: Vector3): AttractState
 		decal:SetAttribute("Sprite", "WhiteRock")
 		decal.Parent = part
 		SpriteSkin.apply(part)
-		-- Zig-zag ladder (Lane.luau's Tutorial ladder shape) centred on the
-		-- frog's own Y: rung 2 of 3 level with the body, 1 below, 3 above.
+		-- Zig-zag ladder (Lane.luau's Tutorial ladder shape) about the frog's
+		-- own Y: rung 2 level with the body, 1 below, 3 above, 4 off-screen.
 		local sign = if i % 2 == 1 then 1 else -1
-		local rise = (i - (WorldConfig.ATTRACT_STEP_COUNT + 1) / 2) * WorldConfig.ATTRACT_STEP_Y_GAP
+		local rise = (i - 2) * WorldConfig.ATTRACT_STEP_Y_GAP
 		part.CFrame = CFrame.new(
 			origin + WorldConfig.ATTRACT_ANCHOR_OFFSET + Vector3.new(sign * WorldConfig.ATTRACT_STEP_X, rise, 0)
 		)
 		part.Parent = attractFolder
 		table.insert(rungs, part)
 	end
-	return { rungs = rungs, held = {}, nextRung = 1, lastDecision = os.clock() }
+	return { rungs = rungs, held = {}, origin = origin, lastDecision = os.clock() }
 end
 
 local function teardownAttract(player: Player)
@@ -780,6 +783,40 @@ refreshAttract = function(player: Player)
 		end
 	else
 		teardownAttract(player) -- limbs then ease home in the render loop
+	end
+end
+
+-- One attract "climb" (FrogAI's CheckTouch -> grab -> pull): recycle any rung
+-- the last pull dropped off the bottom to the top of the ladder, grab the rung
+-- one gap above the body with the demo hand, and pull the whole ladder down a
+-- gap so that rung lands level with the body. The held hand follows its rung
+-- down in the render loop, which reads as the frog lifting itself up.
+local function attractClimb(a: AttractState)
+	local gap = WorldConfig.ATTRACT_STEP_Y_GAP
+	local top: BasePart? = nil
+	for _, rung in a.rungs do
+		if not top or rung.Position.Y > top.Position.Y then
+			top = rung
+		end
+	end
+	for _, rung in a.rungs do
+		if top and rung.Position.Y < a.origin.Y - 1.5 * gap then
+			local x = a.origin.X - (top.Position.X - a.origin.X) -- keep the zig-zag alternating
+			rung.CFrame = CFrame.new(x, top.Position.Y + gap, rung.Position.Z)
+			top = rung
+		end
+	end
+	local want = a.origin.Y + gap
+	local target = a.rungs[1]
+	for _, rung in a.rungs do
+		if math.abs(rung.Position.Y - want) < math.abs(target.Position.Y - want) then
+			target = rung
+		end
+	end
+	a.held[WorldConfig.ATTRACT_LIMB] = target
+	local info = TweenInfo.new(Config.PULL_TIME, Enum.EasingStyle.Sine)
+	for _, rung in a.rungs do
+		TweenService:Create(rung, info, { CFrame = rung.CFrame * CFrame.new(0, -gap, 0) }):Play()
 	end
 end
 
@@ -910,8 +947,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 		local a = attract[plr]
 		if a and os.clock() - a.lastDecision >= WorldConfig.ATTRACT_DECISION_TIME then
 			a.lastDecision = os.clock()
-			a.held[WorldConfig.ATTRACT_LIMB] = a.rungs[a.nextRung]
-			a.nextRung = (a.nextRung % #a.rungs) + 1
+			attractClimb(a)
 		end
 
 		local bodyCF = CFrame.new(f.pos)
@@ -1030,7 +1066,16 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	pullLane(lane, Config.PULL_DISTANCE, Config.PULL_TIME)
 	addScore(player, 1, quality)
 
+	local wasTutorial = lane.levelIndex == Levels.TUTORIAL
 	lane:onStepClimbed() -- level-threshold / tutorial progress; fires LevelChanged("soft") itself (doc 13 item 5)
+	if wasTutorial and lane.levelIndex ~= Levels.TUTORIAL then
+		-- Tutorial -> Pot: the tree ladder never respawns and Pot's spawners start
+		-- cold at their off-screen staging point, so prefill Pot's first screenful
+		-- the same way StartRun does (no-op if the lane somehow has steps already)
+		lane:prefill(function(_state, kindName, worldPos)
+			acquireStep(lane, kindName, worldPos)
+		end)
+	end
 
 	-- step behaviors (doc 05): track the holding limb, then dispatch onGrab
 	endReach(f, limb)

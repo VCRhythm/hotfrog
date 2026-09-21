@@ -255,3 +255,12 @@ files: none
 test: none
 verified: n/a
 review: n/a
+
+## b-20260921-110140-f9ic  fixed  2026-09-21 12:05
+note: I'm still running out of things to climb after 4 steps or so (reopens b-20260921-100739-ldv9)
+cause: PULL_SPAWN_SPEED 25 gave each 6-stud grab only 0.24 s of spawner time (Unity keeps spawners on 1 s per grab), so supply was below consumption and the lane deadlocked once nothing was grabbable; Tutorial->Pot also left Pot with one off-screen step.
+change: PULL_SPAWN_SPEED = 8 (~0.75 s spawner time per grab; orchestrator chose this over a bigger PULL_DISTANCE). tickSpawners spends the budget over PULL_TIME, loops every spawn it covers, and spreads spawns along spawnDirection (as does prefill). GameServer prefills Pot after the Tutorial switch. Doc 17 row added.
+files: src/shared/Config.luau, src/server/Lane.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: headless sim with the real Lane/Levels/StepKinds: Tutorial/Pot/Kitchen 300/300 grabs, Country median 300 (worst 158); stylua, selene, luau_check, rojo build pass. Not play-tested yet. Caveat: new steps appear just inside the top of view rather than scrolling in.
+review: pending

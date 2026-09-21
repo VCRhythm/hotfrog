@@ -439,9 +439,16 @@ function Lane.tickSpawners(
 	dt: number,
 	spawnFn: (state: SpawnerState, kindName: string, worldPos: Vector3) -> ()
 )
-	-- continuous spawners only advance on time earned by pulling (see spawnBudget)
-	local spend = math.min(dt, self.spawnBudget)
+	-- continuous spawners only advance on time earned by pulling (see spawnBudget).
+	-- The pull that earned it has already happened in one PULL_TIME tween, so drain
+	-- the budget on that same timescale rather than 1 s per s: otherwise a player
+	-- grabbing faster than once per second outruns the spawners (the field moves a
+	-- full PULL_DISTANCE per grab regardless) and the backlog never surfaces in time.
+	-- Where each spawn lands doesn't depend on when it's spent (see `unspent` below).
+	local spend = math.min(self.spawnBudget, math.max(dt, self.spawnBudget * dt / Config.PULL_TIME))
 	self.spawnBudget -= spend
+	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
+	local travel = if dir3.Magnitude > 1e-4 then dir3.Unit else Vector3.zero
 
 	for _, state in self.activeSpawners do
 		local def = state.def
@@ -449,8 +456,10 @@ function Lane.tickSpawners(
 		-- cadence below (Spawner.cs Activate() starts Move()/StartSpawning as two separate
 		-- coroutines, L86-97) -- moot for spawnAllOnAwake defs, whose positions come
 		-- straight from `def.movements[i]` (see Lane.spawnPosition), not this cycle.
+		-- (Advanced by the spawner-time spent when that's more than dt, so a fast
+		-- drain still sweeps the spawner along its Movements as Unity's 1 s window would.)
 		if not def.spawnAllOnAwake and #def.movements > 0 then
-			updateMovement(state, dt)
+			updateMovement(state, math.max(dt, spend))
 		end
 		if def.spawnAllOnAwake then
 			if not state.awoken then
@@ -464,16 +473,32 @@ function Lane.tickSpawners(
 			end
 		elseif spend > 0 then
 			state.timer -= spend
-			if state.timer <= 0 then
+			while state.timer <= 0 do
 				if def.maxSpawnCount < 0 or state.spawnCount < def.maxSpawnCount then
 					local kindName = self:pickKind(state)
 					if kindName then
-						spawnFn(state, kindName, self:spawnPosition(state))
+						-- The pull that earned this budget already happened (one
+						-- tween at grab time), but under Unity's continuous scroll a
+						-- spawn this far into the window would still ride the rest
+						-- of it: carry it along the travel direction by the budget
+						-- that was still unspent at its spawn moment (this frame's
+						-- remainder + the overshoot past the timer). Without this,
+						-- every spawn of one grab's ~1 s window lands on the same
+						-- staging point and they stack.
+						local unspent = self.spawnBudget - state.timer
+						spawnFn(
+							state,
+							kindName,
+							self:spawnPosition(state) + travel * (unspent * Config.PULL_SPAWN_SPEED)
+						)
 						state.spawnCount += 1
 					end
 				end
-				state.timer = def.spawningSpeedMin
-					+ math.random() * math.max(0, def.spawningSpeedMax - def.spawningSpeedMin)
+				-- += (not =) keeps the overshoot, so a big spend yields every spawn it covers
+				state.timer += math.max(
+					0.05,
+					def.spawningSpeedMin + math.random() * math.max(0, def.spawningSpeedMax - def.spawningSpeedMin)
+				)
 			end
 		end
 	end
@@ -497,7 +522,7 @@ function Lane.prefill(self: Lane, spawnFn: (state: SpawnerState, kindName: strin
 	local rows = Config.PREFILL_DEPTH // Config.PULL_DISTANCE
 	local rowTime = Config.PULL_DISTANCE / Config.PULL_SPAWN_SPEED
 	for row = rows, 1, -1 do
-		local travelled = dir3.Unit * (row * Config.PULL_DISTANCE)
+		local travelled = dir3.Unit * ((row - 1) * Config.PULL_DISTANCE)
 		for _, state in self.activeSpawners do
 			local def = state.def
 			if not def.spawnAllOnAwake then
@@ -507,11 +532,17 @@ function Lane.prefill(self: Lane, spawnFn: (state: SpawnerState, kindName: strin
 					if not kindName then
 						break
 					end
-					spawnFn(state, kindName, self:spawnPosition(state) + travelled)
+					-- carried the rest of its row's window too (-timer seconds of
+					-- it), so a row's several spawns spread along the travel
+					-- direction instead of stacking (same rule as tickSpawners)
+					local carried = travelled + dir3.Unit * (-state.timer * Config.PULL_SPAWN_SPEED)
+					spawnFn(state, kindName, self:spawnPosition(state) + carried)
 					state.spawnCount += 1
 					local interval = def.spawningSpeedMin
 						+ math.random() * math.max(0, def.spawningSpeedMax - def.spawningSpeedMin)
-					state.timer += math.max(interval, 0.05) -- never loop forever on a 0-interval def
+					interval = math.max(interval, 0.05) -- never loop forever on a 0-interval def
+					state.timer += interval
+					updateMovement(state, interval) -- Move() keeps cycling between spawns, as in tickSpawners
 				end
 			end
 		end

@@ -93,9 +93,17 @@ local Config = {
 
 	-- Step spawners only run while the field is being pulled (SpawnManager.PullStep
 	-- / ReleasePullingStep), so a lane earns spawner time from pull distance:
-	-- seconds = studs pulled / PULL_SPAWN_SPEED. Unity's PullVector is
-	-- 2 * |target - step.y| (~80 units/s for a mid-field grab) * UNITY_TO_STUDS.
-	PULL_SPAWN_SPEED = 25, -- studs of pull per spawner-second
+	-- seconds = studs pulled / PULL_SPAWN_SPEED. Unity runs the spawners for a
+	-- fixed 1 s per grab (Entities/Step.cs Pull: Invoke("StopPull", 1f)). This was
+	-- 25 (Unity's ~80 u/s field speed in studs), which kept Unity's steps-per-stud
+	-- density but -- with the port's much shorter 6-stud pull per grab -- earned
+	-- only 0.24 s per grab: fewer new steps than each grab uses up, so lanes ran
+	-- dry within a handful of grabs (doc 17, b-20260921-110140-f9ic). 8 gives
+	-- 0.75 s per grab: close to Unity's window, and in simulation every level
+	-- stays supplied at any grab cadence. 6 (exactly 1 s) crowds Pot, with about
+	-- 35% of spawns landing within 2.5 studs of another step; 10+ starves Kitchen
+	-- and Country.
+	PULL_SPAWN_SPEED = 8, -- studs of pull per spawner-second
 	PREFILL_DEPTH = 24, -- studs of already-pulled field a fresh lane starts with
 	PREFILL_MIN_STEPS = 4, -- a lane with at least this many live steps isn't prefilled
 	TUTORIAL_FIRST_STEP_Y = 5, -- Tutorial's three tree steps: a ladder up from the frog
