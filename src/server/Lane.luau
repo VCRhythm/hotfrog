@@ -208,13 +208,16 @@ end
 -- A grabbed ChangeDirection* step (StepBehaviors setSpawnBias) asks to steer the
 -- lane. Per doc 13 item 3: if this level has no spawner for the requested
 -- direction, keep the CURRENT direction active rather than starving the lane.
-function Lane.changeDirection(self: Lane, newDirection: Vector2)
+-- Returns true when the direction actually changed (GameServer then scaffolds).
+function Lane.changeDirection(self: Lane, newDirection: Vector2): boolean
 	local matches = self:spawnersForDirection(newDirection)
 	if #matches == 0 then
-		return
+		return false
 	end
+	local changed = directionKey(newDirection) ~= directionKey(self.spawnDirection)
 	self.spawnDirection = newDirection
 	self.activeSpawners = matches
+	return changed
 end
 
 -- ---------------------------------------------------------------------------
@@ -931,6 +934,87 @@ function Lane.prefill(self: Lane, spawnFn: (state: SpawnerState, kindName: strin
 					state.timer += interval
 					updateMovement(state, interval) -- Move() keeps cycling between spawns, as in spawnForPull
 				end
+			end
+		end
+	end
+end
+
+-- Direction-change scaffold (owner's request b-20260921-182631-0a8u, doc 17).
+-- Unity sets SpawnDirection BEFORE the arrow's own pull and its spawners fire on
+-- Activate, under a continuous per-frame scroll, so the new direction fills in
+-- almost at once; here the arrow's grab has already pulled (and spawned) along
+-- the OLD direction, and the new direction's spawners only run on later grabs,
+-- starting at their off-screen side staging points. So a direction change lays
+-- Config.SCAFFOLD_COUNT ordinary steps from `anchor` (the grabbed arrow's rest
+-- point) toward the frog's new heading (-spawnDirection), SCAFFOLD_SPACING apart,
+-- rising SCAFFOLD_RISE per step when that heading is purely sideways. Kinds are
+-- the new direction's own weighted picks (Lane.pickKind), minus further arrows.
+-- Each spot goes through Lane.clearSpot (spacing, lane bounds, the PlayerList
+-- keep-out) and must be within Config.MAX_GRAB_DISTANCE of the origin
+-- (GameServer's GrabStep reach check). A rung whose spot is already taken is
+-- skipped (the live steps there are that rung); the chain ends at the first rung
+-- beyond reach. `spawnFn` gets the position to create the
+-- part at now (rest less the lane's running pulls, like prefill); GameServer
+-- then slides the batch down in from above the view.
+function Lane.scaffold(self: Lane, anchor: Vector3, spawnFn: (kindName: string, worldPos: Vector3) -> ())
+	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
+	if dir3.Magnitude < 1e-4 then
+		return
+	end
+	local travel = dir3.Unit
+	local heading = -travel
+	local rise = if math.abs(travel.Y) < 1e-4 then Vector3.new(0, Config.SCAFFOLD_RISE, 0) else Vector3.zero
+
+	local spawners: { SpawnerState } = {}
+	for _, state in self.activeSpawners do
+		if not state.def.spawnAllOnAwake and #state.def.pool > 0 then
+			table.insert(spawners, state)
+		end
+	end
+	if #spawners == 0 then
+		return
+	end
+
+	local function isArrow(kindName: string): boolean
+		local kind = StepKinds[kindName]
+		return kind ~= nil and string.sub(kind.behavior, 1, #"ChangeDirection") == "ChangeDirection"
+	end
+	local function pickPlain(state: SpawnerState): string?
+		for _ = 1, 8 do
+			local kindName = self:pickKind(state)
+			if kindName and not isArrow(kindName) then
+				return kindName
+			end
+		end
+		for _, kindName in state.def.pool do
+			if not isArrow(kindName) then
+				return kindName
+			end
+		end
+		return nil
+	end
+
+	local pending = self:sharedPending()
+	local reach = Config.MAX_GRAB_DISTANCE
+	for i = 1, Config.SCAFFOLD_COUNT do
+		local kindName = pickPlain(spawners[math.random(1, #spawners)])
+		if not kindName then
+			return
+		end
+		local want = anchor + heading * (Config.SCAFFOLD_SPACING * i) + rise * i
+		local wantRel = want - self.origin
+		if Vector2.new(wantRel.X, wantRel.Y).Magnitude > reach then
+			return -- every further rung is further out still
+		end
+		-- a crowded spot moves a little further along the heading (clearSpot shifts
+		-- against its travel argument, scaled here so its NUDGE_MAX search spans
+		-- only SCAFFOLD_NUDGE studs); nil means it is already taken by live steps
+		-- (which then serve as this rung) or would leave the lane, so skip the rung
+		local pos = self:clearSpot(want, kindName, travel * (Config.SCAFFOLD_NUDGE / NUDGE_MAX))
+		if pos then
+			local rel = pos - self.origin
+			if Vector2.new(rel.X, rel.Y).Magnitude <= reach then
+				spawnFn(kindName, pos - pending)
 			end
 		end
 	end

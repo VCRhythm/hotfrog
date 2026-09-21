@@ -181,6 +181,16 @@ local Config = {
 	PREFILL_DEPTH = 24, -- studs of already-pulled field a fresh lane starts with
 	PREFILL_ROW_STEP = 6, -- prefill simulates that depth as grabs pulling this many studs each
 	PREFILL_MIN_STEPS = 4, -- a lane with at least this many live steps isn't prefilled
+	-- Direction-change scaffold (owner's request b-20260921-182631-0a8u, doc 17):
+	-- grabbing a ChangeDirection* step also drops this many steps in from the top
+	-- of the view, laid out from the grabbed step toward the frog's new heading,
+	-- one SCAFFOLD_SPACING apart (plus SCAFFOLD_RISE upward per step when the new
+	-- heading is purely sideways), so the new direction has something to grab
+	-- before its own spawners catch up. Lane.scaffold.
+	SCAFFOLD_COUNT = 3,
+	SCAFFOLD_SPACING = 6.5,
+	SCAFFOLD_RISE = 1.5,
+	SCAFFOLD_NUDGE = 3, -- studs a crowded rung may move along the heading before it is skipped
 	TUTORIAL_FIRST_STEP_Y = 5, -- Tutorial's three tree steps: a ladder up from the frog
 	TUTORIAL_STEP_GAP = 7,
 	TUTORIAL_STEP_X = 5,

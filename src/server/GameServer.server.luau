@@ -383,6 +383,8 @@ end
 
 -- forward-declared: releaseStep and makeCtx reference each other
 local makeCtx: (lane: Lane.Lane, step: BasePart, player: Player?) -> StepBehaviors.Ctx
+-- forward-declared: makeCtx's setSpawnBias scaffolds a direction change (defined with slideIn below)
+local scaffoldLane: (lane: Lane.Lane, anchorStep: BasePart) -> ()
 
 local function releaseStep(lane: Lane.Lane, step: BasePart)
 	if not lane.active[step] then
@@ -429,7 +431,9 @@ makeCtx = function(lane: Lane.Lane, step: BasePart, player: Player?): StepBehavi
 			return lane.spawnDirection
 		end,
 		setSpawnBias = function(bias: Vector2)
-			lane:changeDirection(bias)
+			if lane:changeDirection(bias) then
+				scaffoldLane(lane, step)
+			end
 		end,
 		spawnBug = function()
 			spawnBugAt:Fire(step.Position, lane.userId) -- BugService owns the actual drift/idle/catch loop (doc 06)
@@ -532,9 +536,10 @@ end
 -- ladder) in from off-screen instead of popping them into view: move the whole
 -- batch back along the lane's travel direction until every one of them is
 -- outside the camera band (Lane.entryShift), then play that shift back over
--- Config.SLIDE_IN_TIME. Where they come to rest is unchanged.
-local function slideIn(lane: Lane.Lane, steps: { BasePart })
-	local dir = lane.spawnDirection
+-- Config.SLIDE_IN_TIME. Where they come to rest is unchanged. `from` overrides
+-- the travel direction (the direction-change scaffold always drops in from the top).
+local function slideIn(lane: Lane.Lane, steps: { BasePart }, from: Vector2?)
+	local dir = from or lane.spawnDirection
 	if #steps == 0 or dir.Magnitude < 1e-4 then
 		return
 	end
@@ -561,6 +566,18 @@ local function prefillLane(lane: Lane.Lane)
 		table.insert(batch, acquireStep(lane, kindName, worldPos))
 	end)
 	slideIn(lane, batch)
+end
+
+-- A grabbed ChangeDirection* step turned the lane (Lane.changeDirection): lay a
+-- short scaffold toward the new heading from where that step will rest
+-- (Lane.scaffold) and drop it in from above the view (owner's request
+-- b-20260921-182631-0a8u, doc 17).
+scaffoldLane = function(lane: Lane.Lane, anchorStep: BasePart)
+	local batch: { BasePart } = {}
+	lane:scaffold(lane:restPosition(anchorStep), function(kindName, worldPos)
+		table.insert(batch, acquireStep(lane, kindName, worldPos))
+	end)
+	slideIn(lane, batch, Vector2.new(0, -1))
 end
 
 -- Per-lane motion/spawn tick + per-tick behavior hook (Falling's constant drift,

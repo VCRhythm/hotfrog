@@ -619,3 +619,12 @@ files: see b-20260921-152729-o03u
 test: none
 verified: see b-20260921-152729-o03u
 review: see b-20260921-152729-o03u
+
+## b-20260921-182631-0a8u  fixed  2026-09-21 20:15
+note: when changing directions left or right, steps take too long to appear in that direction. there should be some that slide in from the top as scaffold steps towards the new direction
+cause: on an arrow grab the port had already pulled and spawned along the old direction, and Lane.changeDirection only swapped spawners, so new-direction steps arrived only on later grabs from off-screen side staging; Unity starts the new spawners immediately.
+change: on a real direction change, GameServer.scaffoldLane -> Lane.scaffold places Config.SCAFFOLD_COUNT (3) steps from the arrow's rest point toward the new heading (6.5 studs apart, +1.5 rise when purely sideways), kinds weighted from the new spawners minus arrows, each through clearSpot with up to SCAFFOLD_NUDGE, skipped if occupied, within MAX_GRAB_DISTANCE; slideIn takes an entry direction so they slide down from above. Doc 17 deviation row.
+files: src/server/Lane.luau, src/server/GameServer.server.luau, src/shared/Config.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check, rojo build pass; Studio MCP: up-left arrow grab on Pot slid 2 of 3 scaffold steps in along the new line (first spot occupied), no console errors. Sideways case (Kitchen/Country) not tested live.
+review: looks-right
