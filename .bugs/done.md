@@ -390,3 +390,12 @@ files: src/client/MenuClient.client.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; Studio MCP playtest: Settings and Top Scores each hide mainPanel on open and restore it on Close.
 review: n/a
+
+## b-20260921-154238-evo2  ignored  2026-09-21 16:10
+note: AUTO error (client:FrequencyGames): Activate is not a valid member of TextButton "Players.FrequencyGames.PlayerGui.StoreGui.Shop"
+cause: raised by a fixer's MCP execute_luau test snippet (trace "AssistantCommand, line 21"), not by game code; no src/ script calls :Activate().
+change: none
+files: none
+test: none
+verified: grep of src/ and bugloop/ for :Activate() finds nothing
+review: n/a
