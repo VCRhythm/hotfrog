@@ -246,3 +246,12 @@ files: src/server/GiftService.server.luau, src/client/MenuClient.client.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; not seen live.
 review: n/a
+
+## b-20260921-111757-1jf7  ignored  2026-09-21 12:00
+note: AUTO error (server): LoadStringEnabled is not a valid member of ServerScriptService "ServerScriptService"
+cause: Thrown by an agent's MCP execute_luau probe (trace: AssistantCommand, line 1), not by game code.
+change: none
+files: none
+test: none
+verified: n/a
+review: n/a
