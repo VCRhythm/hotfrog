@@ -96,13 +96,12 @@ local function label(name: string, text: string, size: UDim2, pos: UDim2, parent
 end
 
 -- ---------------------------------------------------------------------------
--- Bottom bar: Flys balance, Shop toggle, Gift button
+-- Bottom bar: Shop toggle, Gift button
 -- ---------------------------------------------------------------------------
--- Sits just above the Shop button (bottom-right) rather than the top-right
--- corner, which the Roblox player list already occupies.
-local flysLabel = label("Flys", "Flys: 0", UDim2.fromOffset(160, 36), UDim2.new(1, -172, 1, -104), gui)
-flysLabel.TextXAlignment = Enum.TextXAlignment.Right
-
+-- No separate Flys balance here (b-20260921-112735-t2ly): GameClient's HUD
+-- FlysLabel is already on screen in every run state (Menu/Playing/Dead), a
+-- strict superset of this bar's Menu/Dead-only visibility, so a second Flys
+-- counter here only risked disagreeing with it.
 local shopToggle = button("Shop", "Shop", UDim2.fromOffset(120, 44), UDim2.new(1, -132, 1, -56), gui)
 local giftButton = button("Gift", "Gift", UDim2.fromOffset(150, 44), UDim2.new(0, 12, 1, -56), gui)
 giftButton.BackgroundColor3 = ACCENT
@@ -264,7 +263,6 @@ end)
 
 ProfileChanged.OnClientEvent:Connect(function(p)
 	profile = p
-	flysLabel.Text = "Flys: " .. tostring((p and p.flys) or 0)
 	if panel.Visible then
 		refreshPanel()
 	end
@@ -278,7 +276,6 @@ RunStateChanged.OnClientEvent:Connect(function(state: string)
 	local outOfRun = state ~= "Playing"
 	shopToggle.Visible = outOfRun
 	giftButton.Visible = outOfRun
-	flysLabel.Visible = outOfRun
 	if not outOfRun and panel.Visible then
 		panel.Visible = false
 	end

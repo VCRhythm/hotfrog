@@ -273,3 +273,21 @@ files: src/server/GameServer.server.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; checked against Player.cs; not seen live yet.
 review: n/a
+
+## b-20260921-112735-t2ly  fixed  2026-09-21 12:35
+note: HUD shows 'Flys: 0' and 'Bugs: 0' under Best while the Shop balance shows 'Flys: 145'; two Flys counters disagree (reopens b-20260921-110833-b3kt)
+cause: GameClient connected ProfileChanged after several yielding WaitForChild calls, missing SkinService's one-shot push; StoreUI (no yields) caught it, and it had its own duplicate Flys label.
+change: GameClient connects ProfileChanged early and caches the latest profile for the HUD label; StoreUI's duplicate Flys label removed (doc 15 item 5 names the HUD label as the authoritative one).
+files: src/client/GameClient.client.luau, src/client/StoreUI.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; not seen live.
+review: n/a
+
+## b-20260921-112735-kd7u  fixed  2026-09-21 12:35
+note: HOTFROG menu title stays on screen during a run
+cause: MenuClient's title label was not part of the Playing branch that hides the menu panels.
+change: title hidden while Playing, shown again in showMainMenu/showEndPanel.
+files: src/client/MenuClient.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; not seen live.
+review: n/a

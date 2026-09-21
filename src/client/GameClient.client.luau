@@ -46,6 +46,22 @@ RunStateChanged.OnClientEvent:Connect(function(state: string)
 	runState = state
 end)
 
+-- Latest profile (Flys balance etc.), cached from server startup: SkinService
+-- pushes one ProfileChanged as soon as the DataStore load finishes, which can
+-- race the WaitForChild yields below (the lane folder, in particular) -- so
+-- this connection is made immediately, before any of that. flysLabel (built
+-- much further down, once the HUD exists) is forward-declared so this early
+-- handler can update it live too, and reads latestProfile to initialize
+-- itself in case the event already fired before it existed.
+local latestProfile: any = nil
+local flysLabel: TextLabel? = nil
+ProfileChanged.OnClientEvent:Connect(function(profile: any)
+	latestProfile = profile
+	if flysLabel then
+		flysLabel.Text = "Flys: " .. tostring((profile and profile.flys) or 0)
+	end
+end)
+
 local inputState = Instance.new("Folder")
 inputState.Name = "InputState"
 inputState:SetAttribute("Gamepad", false)
@@ -659,9 +675,10 @@ end
 
 local scoreLabel = makeLabel("ScoreLabel", 12, "0")
 local bestLabel = makeLabel("HighScoreLabel", 48, "Best: 0")
-local flysLabel = makeLabel("FlysLabel", 84, "Flys: 0")
+local newFlysLabel = makeLabel("FlysLabel", 84, "Flys: " .. tostring((latestProfile and latestProfile.flys) or 0))
+flysLabel = newFlysLabel
 local bugsLabel = makeLabel("BugsLabel", 120, "Bugs: 0")
-flysLabel.TextColor3 = UIKit.SUBTEXT
+newFlysLabel.TextColor3 = UIKit.SUBTEXT
 bugsLabel.TextColor3 = UIKit.SUBTEXT
 
 -- Level-name toast (doc 15 item 5): fades in/out on LevelChanged. GameClient
@@ -700,10 +717,6 @@ ScoreChanged.OnClientEvent:Connect(function(score, best, quality)
 			scoreLabel.TextColor3 = Color3.new(1, 1, 1)
 		end)
 	end
-end)
-
-ProfileChanged.OnClientEvent:Connect(function(profile: any)
-	flysLabel.Text = "Flys: " .. tostring((profile and profile.flys) or 0)
 end)
 
 -- Bugs caught THIS RUN: BugCaught only fires on a confirmed catch (BugService

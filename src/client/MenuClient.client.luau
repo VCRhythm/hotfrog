@@ -183,6 +183,7 @@ local function focusFirst(button: GuiButton)
 end
 
 local function showMainMenu()
+	title.Visible = true
 	mainPanel.Visible = true
 	endPanel.Visible = false
 	focusFirst(playButton)
@@ -222,6 +223,7 @@ local function showEndPanel()
 		pulseNewBest()
 	end
 
+	title.Visible = true
 	mainPanel.Visible = false
 	endPanel.Visible = true
 	focusFirst(replayButton)
@@ -230,6 +232,7 @@ end
 RunStateChanged.OnClientEvent:Connect(function(state: string)
 	currentRunState = state
 	if state == "Playing" then
+		title.Visible = false
 		mainPanel.Visible = false
 		endPanel.Visible = false
 		settingsPanel.Visible = false
