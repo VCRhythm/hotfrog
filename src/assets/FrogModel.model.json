@@ -100,7 +100,22 @@
             "Material": "SmoothPlastic"
           },
           "children": [
-            { "name": "RightHand", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "RightHand" } },
+            { "name": "RightHand", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "RightHand" } }
+          ]
+        },
+        {
+          "name": "RightHandGrab",
+          "className": "Part",
+          "properties": {
+            "Size": [6.705, 6.705, 0.2],
+            "CFrame": [6.2857, -0.4471, 0.3, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "Transparency": 1.0,
+            "Material": "SmoothPlastic"
+          },
+          "children": [
             { "name": "RightHandGrab", "className": "Decal", "properties": { "Face": "Back", "Transparency": 1.0 }, "attributes": { "Suffix": "RightHandGrab" } }
           ]
         }
@@ -148,7 +163,22 @@
             "Material": "SmoothPlastic"
           },
           "children": [
-            { "name": "LeftHand", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "LeftHand" } },
+            { "name": "LeftHand", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "LeftHand" } }
+          ]
+        },
+        {
+          "name": "LeftHandGrab",
+          "className": "Part",
+          "properties": {
+            "Size": [6.705, 6.705, 0.2],
+            "CFrame": [-6.2857, -0.35, 0.3, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "Transparency": 1.0,
+            "Material": "SmoothPlastic"
+          },
+          "children": [
             { "name": "LeftHandGrab", "className": "Decal", "properties": { "Face": "Back", "Transparency": 1.0 }, "attributes": { "Suffix": "LeftHandGrab" } }
           ]
         }

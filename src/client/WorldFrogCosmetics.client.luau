@@ -253,6 +253,12 @@ local function trackFrog(model: Model)
 
 	local rightHandPart = rightLimbPart and rightLimbPart:FindFirstChild("RightHand")
 	local leftHandPart = leftLimbPart and leftLimbPart:FindFirstChild("LeftHand")
+	-- The grab decal has its own small host part (sized to its own, smaller
+	-- canvas -- doc 17 "Frog rig size and sprite framing") rather than sharing
+	-- RightHand/LeftHand's part, which is sized for the open-hand sprite's
+	-- larger canvas and would stretch the grab art up to that size.
+	local rightGrabPart = rightLimbPart and rightLimbPart:FindFirstChild("RightHandGrab")
+	local leftGrabPart = leftLimbPart and leftLimbPart:FindFirstChild("LeftHandGrab")
 
 	local eyelids: Eyelids? = nil
 	if head then
@@ -284,14 +290,14 @@ local function trackFrog(model: Model)
 		leftHandOpen = if leftHandPart and leftHandPart:IsA("BasePart")
 			then findDecal(leftHandPart, "LeftHand")
 			else nil,
-		leftHandGrab = if leftHandPart and leftHandPart:IsA("BasePart")
-			then findDecal(leftHandPart, "LeftHandGrab")
+		leftHandGrab = if leftGrabPart and leftGrabPart:IsA("BasePart")
+			then findDecal(leftGrabPart, "LeftHandGrab")
 			else nil,
 		rightHandOpen = if rightHandPart and rightHandPart:IsA("BasePart")
 			then findDecal(rightHandPart, "RightHand")
 			else nil,
-		rightHandGrab = if rightHandPart and rightHandPart:IsA("BasePart")
-			then findDecal(rightHandPart, "RightHandGrab")
+		rightHandGrab = if rightGrabPart and rightGrabPart:IsA("BasePart")
+			then findDecal(rightGrabPart, "RightHandGrab")
 			else nil,
 		alive = true,
 		dead = model:GetAttribute("Dead") == true,

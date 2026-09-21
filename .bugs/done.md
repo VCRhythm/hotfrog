@@ -210,3 +210,12 @@ files: src/assets/FrogModel.model.json, src/client/WorldFrogCosmetics.client.lua
 test: none
 verified: stylua, selene, luau_check, JSON parse, rojo build pass; camera/step Z assumptions confirmed live via inspect; new layering not seen live (user mid-playtest).
 review: n/a
+
+## b-20260921-110054-r51c  fixed  2026-09-21 11:20
+note: this changed caused his gripped hands to now appear enormous (reopens b-20260921-100824-3azi)
+cause: c8a77f0 moved the RightHandGrab/LeftHandGrab decals onto the RightHand/LeftHand parts to fix layering, but those parts are sized for the open-hand sprite's 1024 px canvas (26.819 studs); the grab sprite's own canvas is 256 px (6.705 studs, per doc 17's rig-sizing row), so the Decal stretched it 4x.
+change: Grab decals now live on their own RightHandGrab/LeftHandGrab parts (new, siblings of RightHand/LeftHand under the limb root), sized to the grab sprite's 6.705-stud canvas, at the same X/Y and Z +0.3 (still in front of steps) that RightHand/LeftHand used. WorldFrogCosmetics looks the decals up on these new parts. Doc 17 row updated.
+files: src/assets/FrogModel.model.json, src/client/WorldFrogCosmetics.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check, JSON parse, rojo build pass; new host parts weld the same way as RightArm/RightHand (GameServer's generic per-descendant BasePart weld-to-parent loop, unchanged); not seen live (Studio session predates this edit, no respawn triggered).
+review: n/a
