@@ -498,3 +498,16 @@ files: src/shared/Config.luau, src/server/Lane.luau, src/server/GameServer.serve
 test: none
 verified: stylua, selene, luau_check, rojo build pass; Studio MCP: StartRun("Classic") -> held step sank ~3.2 studs/s, reached lava, frog died, lane back to Menu; StartRun() -> Normal, idle step stationary; no console errors. Menu button not clicked or screenshotted.
 review: looks-right
+
+## b-20260921-182139-ff3p  closed-by-user  2026-09-21 18:29
+note: where's the music from the unity game?
+resolved: from dashboard
+
+## b-20260921-182233-97n6  fixed  2026-09-21 18:40
+note: i don't need the yellow and green squares to appear when clicking
+cause: the squares are the ported Unity TouchIndicator (WorldTouchIndicator.client.luau), drawn at every click/tap and coloured by grab distance.
+change: ENABLED = false flag at the top of WorldTouchIndicator; the script exits before creating the indicator or hooking input. Logic kept; flip the flag to restore. Doc 17 row added with the next doc 17 commit.
+files: src/client/WorldTouchIndicator.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; screenshot confirmed the square is the indicator. Studio not run.
+review: n/a

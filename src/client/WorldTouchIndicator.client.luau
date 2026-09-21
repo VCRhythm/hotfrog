@@ -22,6 +22,13 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 
+-- Owner doesn't want the coloured tap indicator squares (b-20260921-182233-97n6).
+-- Flip back to true to restore Unity's TouchIndicator behaviour.
+local ENABLED = false
+if not ENABLED then
+	return
+end
+
 local player = Players.LocalPlayer
 local playField = workspace:WaitForChild("PlayField")
 local myFrog = playField:WaitForChild("Frogs"):WaitForChild("Frog_" .. player.UserId, math.huge) :: Model
