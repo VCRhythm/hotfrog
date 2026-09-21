@@ -35,6 +35,7 @@ local GetTopScores = remotes:WaitForChild("GetTopScores") :: RemoteFunction
 local ProfileChanged = remotes:WaitForChild("ProfileChanged") :: RemoteEvent
 local ClaimGift = remotes:WaitForChild("ClaimGift") :: RemoteFunction
 local GiftStatus = remotes:WaitForChild("GiftStatus") :: RemoteEvent
+local GetGiftStatus = remotes:WaitForChild("GetGiftStatus") :: RemoteFunction
 
 -- Bridge into StoreUI's existing panel (doc 15: "reuse ... rather than
 -- duplicating"). StoreUI creates this Folder; wait for it rather than racing
@@ -390,6 +391,20 @@ GiftStatus.OnClientEvent:Connect(function(nextAt: number, now: number)
 	giftClockAtRecv = os.clock()
 end)
 
+-- Profiles.Loaded's one-shot GiftStatus push can fire before we've connected
+-- above (this script waits on several other LocalScripts' bridges first), so
+-- pull the current value directly rather than relying on having caught it.
+task.spawn(function()
+	local ok, nextAt, now = pcall(function()
+		return GetGiftStatus:InvokeServer()
+	end)
+	if ok and nextAt then
+		giftReadyAt = tonumber(nextAt) or giftReadyAt
+		giftServerNowAtRecv = tonumber(now) or giftServerNowAtRecv
+		giftClockAtRecv = os.clock()
+	end
+end)
+
 giftPromptButton.Activated:Connect(function()
 	local estServerNow = giftServerNowAtRecv + (os.clock() - giftClockAtRecv)
 	if estServerNow >= giftReadyAt then
@@ -409,10 +424,13 @@ task.spawn(function()
 			if remaining <= 0 then
 				giftPromptButton.Text = "Claim your gift!"
 				giftPromptButton.BackgroundColor3 = UIKit.GOOD
-			else
+			elseif remaining == remaining and remaining < math.huge then -- finite (guards the brief pre-sync window)
 				local mins = math.floor(remaining / 60)
 				local secs = math.floor(remaining % 60)
 				giftPromptButton.Text = string.format("Next gift in %d:%02d — open Shop", mins, secs)
+				giftPromptButton.BackgroundColor3 = UIKit.WARN
+			else
+				giftPromptButton.Text = "open Shop"
 				giftPromptButton.BackgroundColor3 = UIKit.WARN
 			end
 		end

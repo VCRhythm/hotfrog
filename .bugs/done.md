@@ -237,3 +237,12 @@ files: src/client/GameClient.client.luau, src/client/StoreUI.client.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; not seen live.
 review: n/a
+
+## b-20260921-110937-uesm  fixed  2026-09-21 11:42
+note: Run-over panel shows 'Next gift in -9223372036854775808:-9223372036854775808 — open Shop'
+cause: MenuClient connected to GiftStatus only after several WaitForChild calls, missing GiftService's one-shot push; giftReadyAt stayed math.huge and %d on inf printed INT64_MIN.
+change: New GetGiftStatus RemoteFunction in GiftService; MenuClient invokes it after connecting. The formatter shows "open Shop" when remaining is non-finite.
+files: src/server/GiftService.server.luau, src/client/MenuClient.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; not seen live.
+review: n/a

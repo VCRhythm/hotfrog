@@ -36,6 +36,7 @@ end
 
 local ClaimGift = ensure("ClaimGift", "RemoteFunction") :: RemoteFunction
 local GiftStatus = ensure("GiftStatus", "RemoteEvent") :: RemoteEvent
+local GetGiftStatus = ensure("GetGiftStatus", "RemoteFunction") :: RemoteFunction
 
 -- Single Fly faucet (created by SkinService; get-or-create so load order is moot)
 local awardFlys = ServerStorage:FindFirstChild("AwardFlys") :: BindableEvent?
@@ -77,6 +78,21 @@ ClaimGift.OnServerInvoke = function(player)
 	Profiles.save(player)
 	pushStatus(player)
 	return true
+end
+
+-- Pull-based counterpart to the push above: MenuClient's LocalScript can take
+-- a while to reach its GiftStatus.OnClientEvent connection (it blocks on
+-- WaitForChild for other LocalScripts' bridges first), so the one-shot push
+-- from Profiles.Loaded can fire before anyone is listening and be lost
+-- forever, leaving the client's countdown stuck at its math.huge sentinel
+-- (b-20260921-110937-uesm). The client also invokes this once at startup so
+-- it gets the current value regardless of load order.
+GetGiftStatus.OnServerInvoke = function(player)
+	local p = Profiles.get(player)
+	if not p then
+		return nil, os.time()
+	end
+	return nextGiftAt(p), os.time()
 end
 
 -- ---------------------------------------------------------------------------
