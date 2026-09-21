@@ -201,3 +201,12 @@ files: src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md
 test: none
 verified: stylua, selene, luau_check pass; clamp math re-derived via execute_luau against real Config (35.4->30, 31.8->30). Not playtested live (user in Play mode).
 review: n/a
+
+## b-20260921-100824-3azi  fixed  2026-09-21 11:15
+note: the sprite of the frogs arms should be behind objects, the gripped hands in front of objects
+cause: FrogModel put the arm parts at Z +0.2 (in front of the Z=0 step plane), and the HandGrab decals lived on the limb root part, which GameServer moves onto the gripped step's position, so the grip was coplanar with the step.
+change: Arm parts moved to Z -0.2 (behind steps); HandGrab decals moved onto the RightHand/LeftHand parts (Z +0.3, in front), with WorldFrogCosmetics looking them up there. Doc 17 deviation row added (Z depth instead of Unity sorting layers).
+files: src/assets/FrogModel.model.json, src/client/WorldFrogCosmetics.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check, JSON parse, rojo build pass; camera/step Z assumptions confirmed live via inspect; new layering not seen live (user mid-playtest).
+review: n/a

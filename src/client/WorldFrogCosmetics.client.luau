@@ -284,11 +284,15 @@ local function trackFrog(model: Model)
 		leftHandOpen = if leftHandPart and leftHandPart:IsA("BasePart")
 			then findDecal(leftHandPart, "LeftHand")
 			else nil,
-		leftHandGrab = if leftLimbPart then findDecal(leftLimbPart, "LeftHandGrab") else nil,
+		leftHandGrab = if leftHandPart and leftHandPart:IsA("BasePart")
+			then findDecal(leftHandPart, "LeftHandGrab")
+			else nil,
 		rightHandOpen = if rightHandPart and rightHandPart:IsA("BasePart")
 			then findDecal(rightHandPart, "RightHand")
 			else nil,
-		rightHandGrab = if rightLimbPart then findDecal(rightLimbPart, "RightHandGrab") else nil,
+		rightHandGrab = if rightHandPart and rightHandPart:IsA("BasePart")
+			then findDecal(rightHandPart, "RightHandGrab")
+			else nil,
 		alive = true,
 		dead = model:GetAttribute("Dead") == true,
 		pupilU = 0,
