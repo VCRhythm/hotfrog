@@ -250,8 +250,33 @@ type FrogState = {
 	-- A free limb's in-flight reach toward an empty tap (ReachEmpty), keyed like
 	-- `held`. Once `REACH_TIME` has elapsed it's dropped and the limb eases home.
 	reach: { [number]: { from: CFrame, to: CFrame, started: number } },
+	-- Frog.Bob state (Frog.cs:254-285, see `bob` below): the step whose grab
+	-- started the bob (Unity's BobStep -- releasing it kills the rise), the
+	-- in-flight X sway and Y rise tweens, and the Z rock punch.
+	bobStep: BasePart?,
+	bobX: BobTween?,
+	bobY: BobTween?,
+	rock: { angle: number, started: number }?,
 }
+type BobTween = { from: number, to: number, started: number, duration: number }
 local frogs: { [Player]: FrogState } = {}
+
+-- Frog.CancelBob / the kill-and-reset paths: drop every in-flight bob tween.
+local function cancelBob(f: FrogState)
+	f.bobStep = nil
+	f.bobX = nil
+	f.bobY = nil
+	f.rock = nil
+end
+
+-- Frog.StopBob: releasing the step that started the bob kills its Y rise
+-- (the X sway and rock play out, as Unity only kills the "Y" tween).
+local function stopBob(f: FrogState, step: BasePart)
+	if f.bobStep == step then
+		f.bobStep = nil
+		f.bobY = nil
+	end
+end
 
 local function behaviorOf(step: BasePart): StepBehaviors.Behavior
 	local name = step:GetAttribute("Behavior")
@@ -269,6 +294,7 @@ local function forceReleaseStep(lane: Lane.Lane, step: BasePart)
 	for i = 1, Config.MAX_HELD_STEPS do
 		if f.held[i] == step then
 			f.held[i] = nil
+			stopBob(f, step)
 			ForceRelease:FireClient(lane.player, step)
 			return
 		end
@@ -837,6 +863,7 @@ end
 local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 	f.dead = true
 	f.model:SetAttribute("Dead", true)
+	cancelBob(f) -- Frog.Fall: CancelBob()
 	-- drop anything still held (e.g. a step dragged out of bounds with us)
 	for i = 1, Config.MAX_HELD_STEPS do
 		local step = f.held[i]
@@ -880,6 +907,7 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 		end
 		f.pos = lane.origin
 		f.gravityMult = Config.GRAVITY_MULT_START
+		cancelBob(f)
 		f.dead = false
 		f.canFall = false
 		f.model:SetAttribute("Dead", false)
@@ -912,6 +940,7 @@ local function tutorialRetry(lane: Lane.Lane, f: FrogState)
 	end
 	f.pos = lane.origin
 	f.gravityMult = Config.GRAVITY_MULT_START
+	cancelBob(f)
 end
 
 -- The fall loop (Frog.cs SteadilyLowerHead) + lava check (per-lane via
@@ -925,6 +954,39 @@ end
 -- Config.DESPAWN_Y (-30), the *step* recycle line half a screen lower, so the
 -- frog sank out of sight and kept falling for ~a third of each fall before the
 -- run ended (b-20260919-200543-yixb).
+--
+-- Like SteadilyLowerHead, the frog keeps sinking while it holds a step; Unity
+-- only stops lowering once the head reaches -50 u, so a holding frog rests on
+-- LAVA_Y instead of dying there. Death is reaching LAVA_Y with nothing held
+-- (doc 17 "Death condition"). While a Frog.Bob rise tween runs it owns Y, as
+-- DOMoveY overrides Unity's per-frame Translate. The multiplier keeps growing
+-- through it, as in Unity.
+
+-- DOTween Ease.OutSine from `tw.from` to `tw.to`; second result is "finished".
+local function bobTweenValue(tw: BobTween, now: number): (number, boolean)
+	if tw.duration <= 0 then
+		return tw.to, true
+	end
+	local a = math.clamp((now - tw.started) / tw.duration, 0, 1)
+	return tw.from + (tw.to - tw.from) * math.sin(a * math.pi / 2), a >= 1
+end
+
+-- DOPunchRotation(strength, 1 s, vibrato 1, elasticity 1): DOTween splits it
+-- into 2 segments (1/3 and 2/3 of the duration): out to the punch, back to 0.
+-- nil once it's over (the trailing DORotate(zero) is then a no-op).
+local function rockAngle(r: { angle: number, started: number }, now: number): number?
+	local t = (now - r.started) / Config.BOB_ROCK_TIME
+	if t >= 1 then
+		return nil
+	end
+	if t < 1 / 3 then
+		local u = t * 3
+		return r.angle * (1 - (1 - u) * (1 - u))
+	end
+	local u = (t - 1 / 3) * 1.5
+	return r.angle * (1 - (1 - (1 - u) * (1 - u)))
+end
+
 RunService.Heartbeat:Connect(function(dt: number)
 	for plr, f in pairs(frogs) do
 		local lane = Lane.get(plr)
@@ -940,12 +1002,34 @@ RunService.Heartbeat:Connect(function(dt: number)
 		-- its spawn step until the first grab, exactly like Unity, instead of
 		-- immediately sinking toward the lava with nothing held.
 		if not f.dead and runState[plr] == RunState.Playing and f.canFall then
-			if not isHolding(f) then
-				f.gravityMult += Config.GRAVITY_ACCEL * dt
-				local speed = math.min(Config.GRAVITY * f.gravityMult, Config.MAX_FALL_SPEED)
-				f.pos = Vector3.new(f.pos.X, f.pos.Y - speed * dt, Config.PLANE_Z)
+			local now = os.clock()
+			local holding = isHolding(f)
+			f.gravityMult += Config.GRAVITY_ACCEL * dt
+			local x, y = f.pos.X, f.pos.Y
+			local bobX = f.bobX
+			if bobX then
+				local v, done = bobTweenValue(bobX, now)
+				x = v
+				if done then
+					f.bobX = nil
+				end
 			end
-			if f.pos.Y <= Config.LAVA_Y then
+			local bobY = f.bobY
+			if bobY then
+				local v, done = bobTweenValue(bobY, now)
+				y = v
+				if done then
+					f.bobY = nil
+				end
+			elseif not holding or y > Config.LAVA_Y then
+				local speed = math.min(Config.GRAVITY * f.gravityMult, Config.MAX_FALL_SPEED)
+				y -= speed * dt
+				if holding then
+					y = math.max(y, Config.LAVA_Y) -- SteadilyLowerHead: `while HeadPosition.y > -50`
+				end
+			end
+			f.pos = Vector3.new(x, y, Config.PLANE_Z)
+			if not holding and f.pos.Y <= Config.LAVA_Y then
 				if lane.levelIndex == Levels.TUTORIAL then
 					tutorialRetry(lane, f)
 				else
@@ -961,7 +1045,18 @@ RunService.Heartbeat:Connect(function(dt: number)
 			attractClimb(a)
 		end
 
+		-- Frog.Bob's rock rotates the whole rig, rest limbs included, so
+		-- world/GrabTarget's `body.CFrame * LIMB_REST` still matches the rest pose.
 		local bodyCF = CFrame.new(f.pos)
+		local rock = f.rock
+		if rock then
+			local angle = rockAngle(rock, os.clock())
+			if angle then
+				bodyCF *= CFrame.Angles(0, 0, math.rad(angle))
+			else
+				f.rock = nil
+			end
+		end
 		f.body.CFrame = bodyCF
 		local head = f.head
 		if head then
@@ -1023,6 +1118,30 @@ local function grabAllowed(player: Player): boolean
 	return true
 end
 
+-- Frog.Bob (Frog.cs:254-279), run on every successful grab: reset the fall
+-- curve, sway the frog to the step's X with a rock punch, and -- only if it has
+-- sunk to BOB_TRIGGER_Y or lower and isn't already rising -- lift it back up.
+-- Unity's HeadPosition is local to the frog root, which sits at the lane origin.
+local function bob(f: FrogState, lane: Lane.Lane, step: BasePart)
+	local now = os.clock()
+	f.gravityMult = Config.GRAVITY_MULT_START
+	f.bobStep = step
+	local xDest = step.Position.X
+	local dx = xDest - f.pos.X
+	f.rock = { angle = Config.BOB_ROCK_DEG_PER_STUD * -dx, started = now }
+	f.bobX = { from = f.pos.X, to = xDest, started = now, duration = math.abs(dx) * Config.BOB_X_TIME_PER_STUD }
+	local headY = f.pos.Y - lane.origin.Y
+	if headY <= Config.BOB_TRIGGER_Y and not f.bobY then
+		local yDest = math.min(Config.BOB_TOP_Y, headY + Config.BOB_RISE)
+		f.bobY = {
+			from = f.pos.Y,
+			to = lane.origin.Y + yDest,
+			started = now,
+			duration = math.abs(yDest - headY) * Config.BOB_Y_TIME_PER_STUD,
+		}
+	end
+end
+
 GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- validate: a real, still-active step FROM THIS PLAYER'S OWN LANE, from a
 	-- live frog with a limb to spare (doc 13 item 1: GrabStep must reject steps
@@ -1063,8 +1182,12 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 		ForceRelease:FireClient(player, step)
 		return
 	end
-	-- reach check against the SERVER's frog position (no client trust left here)
-	local reach = (Vector2.new(step.Position.X, step.Position.Y) - Vector2.new(f.pos.X, f.pos.Y)).Magnitude
+	-- reach check against the SERVER's lane origin (no client trust left here).
+	-- Not f.pos: Frog.Bob sways the frog to each grabbed step's X, and it sinks
+	-- while holding, so it can drift far from the origin. Unity has no reach
+	-- limit at all, and Lane.luau keeps every spawn within MAX_GRAB_DISTANCE of
+	-- the origin, so that is the anchor this sanity bound is measured from.
+	local reach = (Vector2.new(step.Position.X, step.Position.Y) - Vector2.new(lane.origin.X, lane.origin.Y)).Magnitude
 	if reach > Config.MAX_GRAB_DISTANCE then
 		ForceRelease:FireClient(player, step)
 		return
@@ -1073,7 +1196,7 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- input can at worst claim "Perfect", which only flashes the HUD
 	local quality = if typeof(tapPos) == "Vector3" then PullMath.gradeGrab(tapPos, step.Position) else "OK"
 
-	f.gravityMult = Config.GRAVITY_MULT_START -- reset the fall curve (Frog.Bob)
+	bob(f, lane, step) -- before the pull, so it reads the step's pre-pull X (Limb.CloseHand order)
 	pullLane(lane, Config.PULL_DISTANCE, Config.PULL_TIME)
 	addScore(player, 1, quality)
 
@@ -1116,6 +1239,7 @@ ReleaseStep.OnServerEvent:Connect(function(player, limbIndex, step)
 	for i = 1, Config.MAX_HELD_STEPS do
 		if f.held[i] == step then
 			f.held[i] = nil
+			stopBob(f, step) -- Limb.OpenHand -> Frog.StopBob
 			held = true
 			break
 		end
@@ -1187,6 +1311,7 @@ StartRun.OnServerEvent:Connect(function(player)
 	end
 	f.pos = lane.origin
 	f.gravityMult = Config.GRAVITY_MULT_START
+	cancelBob(f)
 	f.dead = false
 	f.canFall = false
 	f.model:SetAttribute("Dead", false)

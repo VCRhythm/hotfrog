@@ -268,8 +268,8 @@ end
 local BOUNDS_MARGIN = 6 -- also used by Lane.isOutOfBounds below -- keep in sync
 
 -- Axis clamps alone let a CORNER of the box (max |X| and max |Y| at once) sit
--- farther from the frog -- always at the lane origin (GameServer never moves
--- f.pos.X, and f.pos.Y sits near 0) -- than Config.MAX_GRAB_DISTANCE, i.e. past
+-- farther from the lane origin (GameServer's GrabStep measures reach from the
+-- origin, not the swaying frog) than Config.MAX_GRAB_DISTANCE, i.e. past
 -- GameServer's own GrabStep reach check, so the step spawns already permanently
 -- ungrabbable. E.g. Tutorial's TreeDownStepSpawner 3rd tree and Pot/Kitchen/
 -- Country's DownStepSpawner/DownLeftStepSpawner both clamp to (25, ~20-25) --

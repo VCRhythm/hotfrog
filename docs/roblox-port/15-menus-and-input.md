@@ -96,10 +96,11 @@ counts are derived **additively**, never by editing those scripts:
 4. **Pause** — deliberately **client-only, no remote** (`GameClient`, since it
    already owns the Playing-time HUD). A multiplayer server can't pause for
    one player without affecting everyone else's fairness, and the frog
-   already only falls while holding zero steps, so there's nothing
+   can only die while holding zero steps, so there's nothing
    server-side *to* pause. The Pause button (visible only while `Playing`)
    opens an honest status panel instead of a real pause: holding a step means
-   gravity is already frozen (says so); holding nothing means the run keeps
+   the frog can't die (it sinks, but stops on the lava surface -- doc 17
+   "Death condition"); holding nothing means the run keeps
    falling behind the panel (says that too, matching the task's "if not
    holding, the run continues"). Resume's 3-2-1 is a purely cosmetic beat
    before hiding the panel.

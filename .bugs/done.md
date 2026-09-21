@@ -309,3 +309,12 @@ files: src/server/SkinService.server.luau, src/client/GameClient.client.luau
 test: none
 verified: stylua, selene, rojo build, luau_check pass; live in Studio via MCP: server flys=145, client FlysLabel "Flys: 145" (Bugs: 0 is the per-run catch counter, correct); no console errors.
 review: n/a
+
+## b-20260921-111337-hqcb  fixed  2026-09-21 13:15
+note: the unity game gives the frog a sway and bob with each grab (answered by b-20260921-113838-9b90: "DECISION: A")
+cause: User ruling "A: full port, including gravity continuing while holding". The port never ran Frog.Bob and stopped gravity while holding; Unity's SteadilyLowerHead keeps sinking while held, and each grab resets it, sways and bobs.
+change: GameServer runs Frog.Bob on every accepted GrabStep (OutSine X sway to the step, Z rock punch, rise to min(5u, y+50u) when at or below -5u; Config.BOB_* in studs). Gravity keeps running while holding: a holding frog stops at LAVA_Y, and death only comes at LAVA_Y holding nothing. The canFall gate is kept. The rock rotates the whole rig about the body centre, and the reach check now measures from the lane origin. Docs 15 and 17 updated.
+files: src/server/GameServer.server.luau, src/shared/Config.luau, src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md, docs/roblox-port/15-menus-and-input.md
+test: none
+verified: stylua, selene, luau_check, rojo build pass; headless Python sim of the bob and gravity loop keeps the frog within -8.0..+1.57 studs at 0.35-1.2 s grab cadence; not seen in Studio.
+review: looks-right

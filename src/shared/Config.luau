@@ -23,7 +23,20 @@ local Config = {
 	GRAVITY = 20 * UNITY_TO_STUDS, -- Frog.cs gravity = 20 u/s -> 6.2857 studs/s
 	GRAVITY_MULT_START = 0.5, -- multiplier resets to this on a successful grab (Bob)
 	GRAVITY_ACCEL = 1.0, -- Frog.cs gravityAcceleration 0.02 per FixedUpdate * 50 Hz
-	MAX_FALL_SPEED = 60 * UNITY_TO_STUDS, -- clamp, studs/s (no Unity equivalent; never binds above LAVA_Y)
+	MAX_FALL_SPEED = 60 * UNITY_TO_STUDS, -- clamp, studs/s (no Unity equivalent; binds only after ~2.5 s without a grab)
+
+	-- Frog.Bob (Player/Frog.cs:254-279), run on every grab. The head (the port's
+	-- f.pos, relative to the lane origin = Unity's frog root) sways to the grabbed
+	-- step's X over |dx| * 0.06 s/u, gets a Z "rock" punch of -0.1 deg per unit of
+	-- that sway over 1 s, and -- only if it has sunk to -5 u or lower -- rises to
+	-- min(5 u, y + 50 u) over |dy| * 0.05 s/u. Both moves are Ease.OutSine.
+	BOB_TRIGGER_Y = -5 * UNITY_TO_STUDS, -- the rise only fires at or below this
+	BOB_TOP_Y = 5 * UNITY_TO_STUDS, -- the rise never goes above this
+	BOB_RISE = 50 * UNITY_TO_STUDS, -- ...or more than this far up
+	BOB_X_TIME_PER_STUD = 0.06 / UNITY_TO_STUDS, -- seconds per stud of sway
+	BOB_Y_TIME_PER_STUD = 0.05 / UNITY_TO_STUDS, -- seconds per stud of rise
+	BOB_ROCK_DEG_PER_STUD = -0.1 / UNITY_TO_STUDS, -- punch angle per stud of (head X - step X)
+	BOB_ROCK_TIME = 1.0, -- DOPunchRotation duration
 
 	-- Limbs (Player/Controller.cs: limbReturnPos / limbReturnTime, scaled to studs).
 	-- The rest offsets are HotFrog.prefab's own RightLimb/LeftLimb local positions
