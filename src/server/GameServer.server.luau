@@ -456,6 +456,7 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3)
 	-- what GameClient tap-tests -- see the header of Shared/StepKinds.
 	step.Size = if kind and kind.size then kind.size else DEFAULT_STEP_SIZE
 	step:SetAttribute("HitSize", if kind then kind.hitSize else nil)
+	step:SetAttribute("GripOffset", if kind then kind.gripOffset else nil)
 	SpriteSkin.apply(step) -- texture from its `Sprite` attribute (no-op until ids are set)
 
 	step.CFrame = CFrame.new(worldPos)
@@ -1066,7 +1067,12 @@ RunService.Heartbeat:Connect(function(dt: number)
 			local step = f.held[i] or (a and a.held[i])
 			local reach = f.reach[i]
 			if step and step.Parent then
-				limbPart.CFrame = CFrame.new(step.Position) -- follow the (scrolling) step
+				-- Unity snaps the held hand to the step's transform.position
+				-- (Player/Limb.cs Move), which a non-centre sprite pivot
+				-- (Shared/StepKinds `gripOffset`) puts off the canvas centre.
+				local grip = step:GetAttribute("GripOffset") :: Vector2?
+				local gripPos = if grip then step.Position + Vector3.new(grip.X, grip.Y, 0) else step.Position
+				limbPart.CFrame = CFrame.new(gripPos) -- follow the (scrolling) step
 			elseif reach and os.clock() - reach.started < Config.LIMB_REACH_TIME then
 				-- DOTween's default ease (OutQuad), as Limb.Move uses
 				local t = (os.clock() - reach.started) / Config.LIMB_REACH_TIME

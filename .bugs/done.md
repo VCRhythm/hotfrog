@@ -345,3 +345,12 @@ files: src/server/GameServer.server.luau, src/shared/Config.luau, src/server/Lan
 test: none
 verified: see hqcb block.
 review: looks-right
+
+## b-20260921-142201-j4z3  fixed  2026-09-21 14:45
+note: the frog grabs the carrot in the wrong place
+cause: Carrot.png.meta has a non-centre sprite pivot (0.305, 0.397), so Unity's Limb.Move target (the step transform, anchored at that pivot) sits off-centre in the carrot canvas, while the port snapped held limbs to the part's geometric centre.
+change: optional StepKinds gripOffset (Carrot = (pivot - 0.5) * ART_CARROT = (-3.14, -1.66) studs), stored as a GripOffset attribute in acquireStep and added to step.Position when snapping a held limb; collider, reach and decal untouched. Doc 17 updated.
+files: src/shared/StepKinds.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene, luau_check.sh, rojo build pass. Not confirmed in game: a Studio play session was live (inspect only; it still ran the pre-fix module).
+review: n/a

@@ -21,6 +21,15 @@
 --                the padded canvas -- so GameClient hit-tests this rectangle
 --                and the padding around it is a miss, exactly as in Unity.
 --                Circle colliders become their bounding square (2r).
+--   `gripOffset` -- where GameServer snaps a held limb, relative to the part's
+--                (= canvas) centre. Unity moves the limb to the step
+--                GameObject's `transform.position` (Player/Limb.cs `Move`),
+--                which for a centred sprite pivot (alignment 0/Center) *is*
+--                the canvas centre, so this is nil for most kinds. A kind
+--                whose sprite uses a non-centre pivot (alignment 9/Custom)
+--                needs `(pivot - 0.5) * canvasSize` here or the hand lands
+--                wherever the padding put the canvas centre instead of on the
+--                art (doc 17 "Sprite pivots / non-centre alignment").
 --
 -- This table + Shared/Levels' per-spawner `pool` lists REPLACE the old global
 -- Config.BEHAVIOR_WEIGHTS roll (doc 13 item 2): a step's behavior is a function
@@ -33,6 +42,7 @@ export type Kind = {
 	size: Vector3, -- the step part = the sprite's whole Unity canvas, in studs (see header)
 	hitSize: Vector2, -- the Unity Collider2D in studs: the grabbable rectangle (see header)
 	flingeeSprite: string?, -- SplashFlinging's "Flingee" child sprite (doc 12 §1 "Children of note")
+	gripOffset: Vector2?, -- held-limb snap point offset from canvas centre, non-centre pivots only (see header)
 }
 
 -- Sprite canvases: <png pixels> / <.meta spritePixelsToUnits> * Config.UNITY_TO_STUDS.
@@ -56,6 +66,12 @@ local HIT_ROCKET = Vector2.new(6.521, 7.832) -- BoxCollider2D size=(20.748,24.92
 local HIT_BALLOON = Vector2.new(12.571, 12.571) -- BoxCollider2D size=(40,40)
 local HIT_ACORN = Vector2.new(8.046, 8.046) -- BoxCollider2D size=(25.6,25.6), the trees' "Acorn" child
 
+-- Grip offsets: (pivot - 0.5) * canvasSize, from the sprite's .meta (see header).
+-- Carrot.png.meta: alignment 9 (Custom), spritePivot=(0.30466288, 0.3970804) --
+-- the art sits low-left of its padded canvas, so Unity's transform.position
+-- (where Limb.Move snaps the held hand) is that far from our canvas-centred part.
+local GRIP_CARROT = Vector2.new(-3.1433, -1.6561)
+
 local StepKinds: { [string]: Kind } = {
 	-- Pot (Level2) pools (doc 11 §2a)
 	Potato = {
@@ -65,7 +81,14 @@ local StepKinds: { [string]: Kind } = {
 		size = ART_POTATO,
 		hitSize = HIT_POTATO,
 	},
-	Carrot = { behavior = "None", sprite = "Carrot", spawnProbability = 0.5, size = ART_CARROT, hitSize = HIT_CARROT },
+	Carrot = {
+		behavior = "None",
+		sprite = "Carrot",
+		spawnProbability = 0.5,
+		size = ART_CARROT,
+		hitSize = HIT_CARROT,
+		gripOffset = GRIP_CARROT,
+	},
 	UpRock = {
 		behavior = "ChangeDirectionUp",
 		sprite = "UpArrow",
