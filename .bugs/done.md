@@ -471,3 +471,12 @@ files: src/shared/StepKinds.luau, src/server/GameServer.server.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; Studio execute_luau ran the new acquireStep logic on a cloned StepTemplate: FallingRock/Castle tinted, Beetle black, SlowFallRock/StillRock white. Not seen in a live run. Fixer filed b-20260921-172346-h1ym (Beetle uses the wrong sprite).
 review: n/a
+
+## b-20260921-164343-m63b  fixed  2026-09-21 18:20
+note: the gift screen after a run was blocked by the main menu appearing right away
+cause: MenuClient showed the main menu on every RunStateChanged("Menu"), but the server flips Dead->Menu on the RESPAWN_DELAY timer only to reset the lane, so the end/gift panel was replaced about 2 s after every death; Unity (UI/MenuManager.cs) switches screens only on a player action.
+change: client-only endPanelDismissed flag; the automatic Menu transition leaves the end/gift panel up until the player presses Home, and restoreMainPanels respects the flag. Server timer unchanged.
+files: src/client/MenuClient.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; Studio MCP playtest fired RunSummary -> Dead -> Menu and saw EndOfRun visible with MainMenu hidden; no console errors.
+review: n/a

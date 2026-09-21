@@ -170,6 +170,13 @@ topListLayout.Parent = topList
 -- ---------------------------------------------------------------------------
 local currentRunState = "Menu"
 local pendingStart = false -- Replay/Play pressed before the server confirmed Menu yet
+-- doc 15 item 1 / b-20260921-164343: the server flips Dead -> Menu on its own
+-- timer (Config.RESPAWN_DELAY) purely to reset the frog/lane for the next
+-- run; Unity only swaps to the main menu screen on an explicit player action
+-- (Home/Replay), never on a clock. Track whether the player has actually
+-- dismissed the end/gift panel so that server-driven Menu transition doesn't
+-- yank the end panel away out from under them while they're still reading it.
+local endPanelDismissed = true
 local lastSummary: {
 	score: number,
 	best: number,
@@ -244,14 +251,15 @@ local function hideMainPanels()
 end
 
 local function restoreMainPanels()
-	if currentRunState == "Menu" then
-		showMainMenu()
-	elseif currentRunState == "Dead" then
+	if currentRunState == "Dead" or not endPanelDismissed then
 		showEndPanel()
+	elseif currentRunState == "Menu" then
+		showMainMenu()
 	end
 end
 
 RunStateChanged.OnClientEvent:Connect(function(state: string)
+	local previousState = currentRunState
 	currentRunState = state
 	if state == "Playing" then
 		title.Visible = false
@@ -260,14 +268,18 @@ RunStateChanged.OnClientEvent:Connect(function(state: string)
 		settingsPanel.Visible = false
 		topPanel.Visible = false
 	elseif state == "Dead" then
+		endPanelDismissed = false
 		showEndPanel()
 	elseif state == "Menu" then
 		if pendingStart then
 			pendingStart = false
 			StartRun:FireServer()
-		else
+		elseif not (previousState == "Dead" and not endPanelDismissed) then
 			showMainMenu()
 		end
+		-- else: b-20260921-164343: this is the server's own death-beat timer
+		-- resetting the lane, not the player asking for the main menu -- leave
+		-- the end/gift panel up until Home or Replay is pressed.
 	end
 end)
 
@@ -302,6 +314,7 @@ playButton.Activated:Connect(requestStart)
 replayButton.Activated:Connect(requestStart)
 homeButton.Activated:Connect(function()
 	pendingStart = false
+	endPanelDismissed = true
 	showMainMenu()
 end)
 
