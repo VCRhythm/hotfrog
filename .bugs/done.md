@@ -219,3 +219,12 @@ files: src/assets/FrogModel.model.json, src/client/WorldFrogCosmetics.client.lua
 test: none
 verified: stylua, selene, luau_check, JSON parse, rojo build pass; new host parts weld the same way as RightArm/RightHand (GameServer's generic per-descendant BasePart weld-to-parent loop, unchanged); not seen live (Studio session predates this edit, no respawn triggered).
 review: n/a
+
+## b-20260921-110646-eqim  fixed  2026-09-21 11:25
+note: the flies look better but their bodies are white instead of black (reopens b-20260921-101202-gdw4)
+cause: Sprites/Other/Bug.png is a white alpha-only silhouette meant to be tinted; the body Art Decal kept the default white Color3.
+change: Body Art Decal Color3 = black in BugTemplate.model.json and on BugService's runtime fallback decal; wings untouched (their art is already black).
+files: src/assets/BugTemplate.model.json, src/server/BugService.server.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; not seen live.
+review: n/a

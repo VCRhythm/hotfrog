@@ -12,7 +12,7 @@
     {
       "name": "Art",
       "className": "Decal",
-      "properties": { "Face": "Back", "ZIndex": 0 },
+      "properties": { "Face": "Back", "ZIndex": 0, "Color3": [0, 0, 0] },
       "attributes": { "Sprite": "Bug" }
     },
     {

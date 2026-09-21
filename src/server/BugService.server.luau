@@ -106,6 +106,7 @@ if not template then
 	local decal = Instance.new("Decal")
 	decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
 	decal.ZIndex = 0
+	decal.Color3 = Color3.new(0, 0, 0) -- Bug.png is a white silhouette (alpha-only shape), tinted black same as Unity's SpriteRenderer
 	decal:SetAttribute("Sprite", "Bug") -- Sprites/Other/Bug.png via SkinAssets
 	decal.Parent = part
 	local wings = Instance.new("Decal")
