@@ -38,6 +38,11 @@
 --                pivot -- so `hitOffset = gripOffset + offset * UNITY_TO_STUDS`.
 --                nil (collider centred on the canvas) for every kind whose
 --                collider offset is (0,0) and whose sprite pivot is centred.
+--   `color`    -- Unity's SpriteRenderer.color tint (doc 12 §1), applied to the
+--                step Decal by GameServer.acquireStep. Several kinds share
+--                WhiteRock.png -- a blank white silhouette by design, coloured
+--                per prefab in Unity -- so this is required to tell them apart
+--                (b-20260921-164509-uork); nil means untinted (white).
 --
 -- This table + Shared/Levels' per-spawner `pool` lists REPLACE the old global
 -- Config.BEHAVIOR_WEIGHTS roll (doc 13 item 2): a step's behavior is a function
@@ -52,6 +57,7 @@ export type Kind = {
 	flingeeSprite: string?, -- SplashFlinging's "Flingee" child sprite (doc 12 §1 "Children of note")
 	gripOffset: Vector2?, -- held-limb snap point offset from canvas centre, non-centre pivots only (see header)
 	hitOffset: Vector2?, -- hitSize tap-test rectangle centre offset from canvas centre (see header)
+	color: Color3?, -- Unity SpriteRenderer tint (see header); nil = untinted (white)
 }
 
 -- Sprite canvases: <png pixels> / <.meta spritePixelsToUnits> * Config.UNITY_TO_STUDS.
@@ -89,6 +95,13 @@ local GRIP_CARROT = Vector2.new(-3.1433, -1.6561)
 -- (small, low-left) carrot art, so a tap ON the visible carrot mostly missed
 -- the hit box entirely (b-20260921-142133-wica).
 local HIT_OFFSET_CARROT = GRIP_CARROT + Vector2.new(-0.091, 0.547) * (55 / 175) -- Config.UNITY_TO_STUDS
+
+-- SpriteRenderer.color tints (doc 12 §1), applied to the step Decal by
+-- GameServer.acquireStep (see `color` in the `Kind` type above). WhiteRock.png
+-- is a blank white silhouette shared by several kinds -- untinted it renders
+-- white regardless of the kind, which is what b-20260921-164509-uork reported.
+local TINT_SALMON = Color3.new(1, 0.459, 0.395) -- FallingRock, Castle
+local TINT_BLACK = Color3.new(0, 0, 0) -- Beetle
 
 local StepKinds: { [string]: Kind } = {
 	-- Pot (Level2) pools (doc 11 §2a)
@@ -211,6 +224,7 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.5,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
+		color = TINT_SALMON,
 	},
 	FlingingRock = {
 		behavior = "SplashFlinging",
@@ -233,10 +247,18 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.5,
 		size = ART_WRAPPED,
 		hitSize = HIT_ROCK,
+		color = TINT_BLACK,
 	},
 	-- Castle.prefab also ships actionType=0 (None) -- ActionType.Castle (16) is
 	-- unused by any shipped prefab (doc 12); preserved as-is.
-	Castle = { behavior = "None", sprite = "Castle", spawnProbability = 0.5, size = ART_CASTLE, hitSize = HIT_CASTLE },
+	Castle = {
+		behavior = "None",
+		sprite = "Castle",
+		spawnProbability = 0.5,
+		size = ART_CASTLE,
+		hitSize = HIT_CASTLE,
+		color = TINT_SALMON,
+	},
 
 	-- Tutorial (Level1) tree steps (doc 11/12): the "Acorn" child Step component
 	-- on every FirstTree/SecondTree/LastTree prefab ships actionType=22 (Helper),

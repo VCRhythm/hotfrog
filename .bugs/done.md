@@ -462,3 +462,12 @@ files: see b-20260921-164409-nkkh
 test: none
 verified: see b-20260921-164409-nkkh
 review: looks-right
+
+## b-20260921-164509-uork  fixed  2026-09-21 18:05
+note: the rocks are supposed to be brownish but currently appear as white
+cause: WhiteRock.png is a blank white silhouette meant to be tinted by Unity's SpriteRenderer.color; StepKinds had no colour field and acquireStep never set the decal's Color3.
+change: optional StepKinds color (FallingRock/Castle Color3(1, 0.459, 0.395), Beetle black, from the doc 12 §1 dump); acquireStep sets the Art decal's Color3 and resets it to white for untinted kinds, so pooled parts don't keep a stale tint.
+files: src/shared/StepKinds.luau, src/server/GameServer.server.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; Studio execute_luau ran the new acquireStep logic on a cloned StepTemplate: FallingRock/Castle tinted, Beetle black, SlowFallRock/StillRock white. Not seen in a live run. Fixer filed b-20260921-172346-h1ym (Beetle uses the wrong sprite).
+review: n/a

@@ -464,6 +464,15 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3)
 	step:SetAttribute("HitOffset", if kind then kind.hitOffset else nil)
 	step:SetAttribute("GripOffset", if kind then kind.gripOffset else nil)
 	SpriteSkin.apply(step) -- texture from its `Sprite` attribute (no-op until ids are set)
+	-- Unity tints several kinds' shared blank sprites (WhiteRock.png etc.) per
+	-- prefab via SpriteRenderer.color (StepKinds `color`, doc 12 §1). This part
+	-- is pooled and reused across kinds, so untinted kinds must explicitly reset
+	-- to white or a previous kind's tint would leak onto them
+	-- (b-20260921-164509-uork).
+	local art = step:FindFirstChild("Art")
+	if art and art:IsA("Decal") then
+		art.Color3 = if kind and kind.color then kind.color else Color3.new(1, 1, 1)
+	end
 
 	step.CFrame = CFrame.new(worldPos)
 	step.Parent = container
