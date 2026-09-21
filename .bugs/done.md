@@ -263,7 +263,7 @@ change: PULL_SPAWN_SPEED = 8 (~0.75 s spawner time per grab; orchestrator chose 
 files: src/shared/Config.luau, src/server/Lane.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
 test: none
 verified: headless sim with the real Lane/Levels/StepKinds: Tutorial/Pot/Kitchen 300/300 grabs, Country median 300 (worst 158); stylua, selene, luau_check, rojo build pass. Not play-tested yet. Caveat: new steps appear just inside the top of view rather than scrolling in.
-review: pending
+review: looks-right
 
 ## b-20260921-110833-9dzn  fixed  2026-09-21 12:12
 note: Frog falls and dies right after pressing Play before any grab; Unity gates falling on canFall (first canPull grab)
