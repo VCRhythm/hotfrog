@@ -70,6 +70,15 @@ local Config = {
 	-- view, so the frog spent the last third of every fall invisible.
 	LAVA_Y = -50 * UNITY_TO_STUDS, -- = -15.714 studs, the bottom of the camera band
 
+	-- Death fall (Player/Frog.cs Die -> Fall() coroutine), the dramatic beat that
+	-- used to be missing entirely: the port froze the frog at LAVA_Y the instant
+	-- it died. Unity instead holds still for a beat, plays the fall/splash sound,
+	-- then keeps sinking the whole body well past the lava line -- off the bottom
+	-- of the camera -- before the run summary beat ends.
+	DEATH_FALL_DELAY = 1, -- Fall(): `yield return new WaitForSeconds(1f)` before PlayFallSound
+	DEATH_FALL_TIME = 1, -- eased duration standing in for Fall()'s SmoothDamp(smoothTime .3s) sink
+	DEATH_FALL_Y = -100 * UNITY_TO_STUDS, -- Fall()'s `endY`: how far the body sinks past LAVA_Y
+
 	-- Pull / world-scroll (Spawning/SpawnManager.cs: PullStep / PullVector)
 	PULL_DISTANCE = 6, -- studs the field scrolls down per successful grab
 	PULL_TIME = 0.25, -- ease duration for one pull
@@ -144,7 +153,10 @@ local Config = {
 	GRAB_WINDOW = 1.0, -- seconds
 	GRAB_MAX_PER_WINDOW = 10,
 	MAX_HELD_STEPS = 2, -- a frog has two limbs (server-enforced)
-	RESPAWN_DELAY = 1.5, -- death beat before the frog re-rises (Frog.cs Fall/Rise)
+	-- Death beat before the frog re-rises (Frog.cs Fall/Rise). Widened from 1.5 so
+	-- it comfortably contains DEATH_FALL_DELAY + DEATH_FALL_TIME above -- the
+	-- dramatic sink now has to finish playing out before the frog resets.
+	RESPAWN_DELAY = 2.2,
 
 	-- Step behaviors (Entities/Step.cs ActionType; see doc 05). Per-spawner
 	-- weighted picks now live in Shared/StepKinds + Shared/Levels + Lane.luau

@@ -257,6 +257,10 @@ type FrogState = {
 	bobX: BobTween?,
 	bobY: BobTween?,
 	rock: { angle: number, started: number }?,
+	-- Frog.cs Die -> Fall(): once dead, the body keeps sinking (a held-still beat,
+	-- then an eased drop to Config.DEATH_FALL_Y) instead of freezing at LAVA_Y.
+	-- Set by killFrog, driven in the Heartbeat loop below, cleared on respawn.
+	fallTween: BobTween?,
 }
 type BobTween = { from: number, to: number, started: number, duration: number }
 local frogs: { [Player]: FrogState } = {}
@@ -866,6 +870,15 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 	f.dead = true
 	f.model:SetAttribute("Dead", true)
 	cancelBob(f) -- Frog.Fall: CancelBob()
+	-- Frog.cs Fall(): hold at the current (lava-line) height for
+	-- DEATH_FALL_DELAY, then ease down to DEATH_FALL_Y -- the dramatic
+	-- continued sink, driven in the Heartbeat loop below.
+	f.fallTween = {
+		from = f.pos.Y,
+		to = Config.DEATH_FALL_Y,
+		started = os.clock() + Config.DEATH_FALL_DELAY,
+		duration = Config.DEATH_FALL_TIME,
+	}
 	-- drop anything still held (e.g. a step dragged out of bounds with us)
 	for i = 1, Config.MAX_HELD_STEPS do
 		local step = f.held[i]
@@ -910,6 +923,7 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 		f.pos = lane.origin
 		f.gravityMult = Config.GRAVITY_MULT_START
 		cancelBob(f)
+		f.fallTween = nil
 		f.dead = false
 		f.canFall = false
 		f.model:SetAttribute("Dead", false)
@@ -1003,7 +1017,19 @@ RunService.Heartbeat:Connect(function(dt: number)
 		-- gated on f.canFall (Player.cs `canFall`): a fresh/respawned frog sits at
 		-- its spawn step until the first grab, exactly like Unity, instead of
 		-- immediately sinking toward the lava with nothing held.
-		if not f.dead and runState[plr] == RunState.Playing and f.canFall then
+		if f.dead then
+			-- Frog.cs Fall(): keep sinking after death instead of freezing at
+			-- LAVA_Y -- held still for DEATH_FALL_DELAY, then eased down to
+			-- DEATH_FALL_Y, well below the camera, while the summary beat plays.
+			local tw = f.fallTween
+			if tw then
+				local y, done = bobTweenValue(tw, os.clock())
+				f.pos = Vector3.new(f.pos.X, y, Config.PLANE_Z)
+				if done then
+					f.fallTween = nil
+				end
+			end
+		elseif runState[plr] == RunState.Playing and f.canFall then
 			local now = os.clock()
 			local holding = isHolding(f)
 			f.gravityMult += Config.GRAVITY_ACCEL * dt

@@ -83,9 +83,10 @@ counts are derived **additively**, never by editing those scripts:
 1. **Run flow / main menu** — done as above. `MenuClient` switches between
    `mainPanel` (Menu) and `endPanel` (Dead) off `RunStateChanged`; `Playing`
    hides both. Replay/Play use a `pendingStart` flag: clicking while still
-   `Dead` (the ~1.5s `RESPAWN_DELAY` beat) queues `StartRun` for the moment
-   `Menu` actually arrives, so it feels instant without ever trusting the
-   client's idea of state.
+   `Dead` (the ~2.2s `RESPAWN_DELAY` beat — widened to hold the `Frog.cs
+   Fall()` dramatic sink, `DEATH_FALL_DELAY` + `DEATH_FALL_TIME` in
+   `Config.luau`) queues `StartRun` for the moment `Menu` actually arrives, so
+   it feels instant without ever trusting the client's idea of state.
 2. **Frog select carousel** — `StoreUI`'s existing cycle/owned/locked/buy/
    select logic is untouched (doc 08); only a thumbnail box was added, with
    the exact fallback chain the task asked for (Thumbnail → Head via

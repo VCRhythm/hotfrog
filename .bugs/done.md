@@ -363,3 +363,12 @@ files: src/shared/StepKinds.luau, src/server/GameServer.server.luau, src/client/
 test: none
 verified: stylua --check, selene, luau_check.sh, rojo build pass. Not playtested: a Studio play session was live (inspect only; console clean).
 review: n/a
+
+## b-20260921-142102-52bb  fixed  2026-09-21 15:15
+note: the fall animation needs to copy from unity game where it's more dramatic
+cause: killFrog froze the frog at LAVA_Y at the moment of death; Unity's Frog.cs Die() -> Fall() holds 1 s, plays the fall sound, then sinks the body well past the lava (endY = -100u). That sink was never ported.
+change: FrogState.fallTween holds for Config.DEATH_FALL_DELAY (1 s), then eases to Config.DEATH_FALL_Y (-100u in studs) over DEATH_FALL_TIME (1 s, standing in for SmoothDamp); Heartbeat drives it while f.dead, cleared on respawn. RESPAWN_DELAY 1.5 -> 2.2 s so the beat fits; doc 15 updated. GameOver timing, SFX and the Tutorial retry path untouched.
+files: src/server/GameServer.server.luau, src/shared/Config.luau, docs/roblox-port/15-menus-and-input.md
+test: none
+verified: stylua --check, selene, luau_check.sh, rojo build pass. Not playtested: a Studio play session was live (inspect only; console clean).
+review: n/a
