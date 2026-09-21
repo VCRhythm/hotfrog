@@ -205,16 +205,19 @@ end
 -- Hand grab (Limb.cs OpenHand/CloseHand: show the closed-grip decal and hide
 -- the open-hand decal while a limb holds a step, ADAPTED to per-limb held
 -- inference from GrabTarget since the server doesn't replicate which limb
--- holds a step)
+-- holds a step). A limb the server flags `Reaching` is extended toward an
+-- empty tap, not holding anything, so its hand stays open.
 -- ---------------------------------------------------------------------------
 local function updateHandGrab(state: FrogState)
 	if state.rightLimb and state.rightHandOpen and state.rightHandGrab then
 		local held = GrabTarget.limbHeldPosition(state.body, state.rightLimb, 1) ~= nil
+			and state.rightLimb:GetAttribute("Reaching") ~= true
 		state.rightHandOpen.Transparency = if held then 1 else 0
 		state.rightHandGrab.Transparency = if held then 0 else 1
 	end
 	if state.leftLimb and state.leftHandOpen and state.leftHandGrab then
 		local held = GrabTarget.limbHeldPosition(state.body, state.leftLimb, 2) ~= nil
+			and state.leftLimb:GetAttribute("Reaching") ~= true
 		state.leftHandOpen.Transparency = if held then 1 else 0
 		state.leftHandGrab.Transparency = if held then 0 else 1
 	end

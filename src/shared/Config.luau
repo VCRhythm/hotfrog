@@ -32,6 +32,9 @@ local Config = {
 	-- to be Unity/10, which made the frog rig ~3x smaller than the world it climbs.
 	LIMB_REST = { Vector2.new(6.2857, -13.8566), Vector2.new(-6.2857, -13.7595) }, -- [1]=Right, [2]=Left
 	LIMB_RETURN_TIME = 0.3,
+	-- A tap that hits nothing sends a free limb out to the tap point (Controller.cs
+	-- CheckTouch miss -> Limb.Move: DOMove over 0.1 s) before it eases back to rest.
+	LIMB_REACH_TIME = 0.1,
 
 	-- Grab quality buckets by squared distance (Player/Controller.cs: TouchStep)
 	GRAB_PERFECT_SQR = 1.0,

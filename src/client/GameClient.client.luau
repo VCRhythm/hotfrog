@@ -19,6 +19,7 @@ local RunService = game:GetService("RunService")
 local Config = require(ReplicatedStorage.Shared.Config)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
+local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local ClientSettings = require(script.Parent.ui.ClientSettings)
 local UIKit = require(script.Parent.ui.UIKit)
 
@@ -26,6 +27,7 @@ local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local GrabStep = remotes:WaitForChild("GrabStep") :: RemoteEvent
 local ReleaseStep = remotes:WaitForChild("ReleaseStep") :: RemoteEvent
+local ReachEmpty = remotes:WaitForChild("ReachEmpty") :: RemoteEvent
 local ScoreChanged = remotes:WaitForChild("ScoreChanged") :: RemoteEvent
 local ForceRelease = remotes:WaitForChild("ForceRelease") :: RemoteEvent
 local CatchBug = remotes:WaitForChild("CatchBug") :: RemoteEvent
@@ -360,6 +362,10 @@ local function tryGrab(screenX: number, screenY: number, slotIndex: number?): nu
 	local step = if worldPos then stepAt(worldPos) else nil
 	if not (worldPos and step) then
 		ClientSettings.playIfEnabled(SoundFX, "miss") -- Controller.CheckTouch miss feedback
+		-- ...and the free limb still reaches out to the tapped spot (Limb.Move)
+		if worldPos and slotIndex and not slots[slotIndex].heldStep then
+			ReachEmpty:FireServer(worldPos, slotIndex)
+		end
 		return nil
 	end
 
@@ -408,6 +414,15 @@ end
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed or not isGrabInput(input) then
+		return
+	end
+	if runState == "Menu" then
+		-- Start screen: the attract demo climbs with one hand, and any click/tap
+		-- sends the OTHER hand reaching to it (nothing to grab on a Menu lane)
+		local worldPos = planePoint(input.Position.X, input.Position.Y)
+		if worldPos and not frogIsDead() then
+			ReachEmpty:FireServer(worldPos, if WorldConfig.ATTRACT_LIMB == RIGHT_SLOT then LEFT_SLOT else RIGHT_SLOT)
+		end
 		return
 	end
 	local used = tryGrab(input.Position.X, input.Position.Y, slotForInput(input))

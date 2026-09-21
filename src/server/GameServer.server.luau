@@ -29,6 +29,7 @@ local SkinCatalog = require(ReplicatedStorage.Shared.SkinCatalog)
 local StepBehaviors = require(ReplicatedStorage.Shared.StepBehaviors)
 local StepKinds = require(ReplicatedStorage.Shared.StepKinds)
 local Levels = require(ReplicatedStorage.Shared.Levels)
+local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local Profiles = require(script.Parent.Profiles)
 local Lane = require(script.Parent.Lane)
 
@@ -89,6 +90,7 @@ end
 
 local GrabStep = ensureRemote("GrabStep") -- client -> server: tapped a step (step, tap world point, limb index 1=Right 2=Left)
 local ReleaseStep = ensureRemote("ReleaseStep") -- client -> server: released a limb (limb index, step)
+local ReachEmpty = ensureRemote("ReachEmpty") -- client -> server: tapped empty space (tap world point, limb index 1=Right 2=Left)
 local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/best/quality/grabQuality
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart (score, cause)
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
@@ -152,6 +154,10 @@ local RunState = { Menu = "Menu", Playing = "Playing", Dead = "Dead" }
 local runState: { [Player]: string } = {}
 local lastStartRun: { [Player]: number } = {} -- StartRun rate limit (os.clock())
 
+-- Attract mode (below the frog section): builds/tears down a Menu lane's
+-- decorative ladder. Forward-declared so setRunState can drive it.
+local refreshAttract: (player: Player) -> ()
+
 local function setRunState(player: Player, state: string)
 	runState[player] = state
 	local lane = Lane.get(player)
@@ -159,6 +165,7 @@ local function setRunState(player: Player, state: string)
 		lane.folder:SetAttribute("RunState", state) -- every client dresses an idle lane as the Menu level
 	end
 	RunStateChanged:FireClient(player, state)
+	refreshAttract(player)
 end
 
 -- Per-RUN faucet totals for the end-of-run summary (doc 15 item 1/5). Listens
@@ -234,6 +241,9 @@ type FrogState = {
 	-- client's mouse buttons each drive a fixed limb) and so releasing one limb
 	-- never shuffles the other limb's step onto it.
 	held: { [number]: BasePart },
+	-- A free limb's in-flight reach toward an empty tap (ReachEmpty), keyed like
+	-- `held`. Once `REACH_TIME` has elapsed it's dropped and the limb eases home.
+	reach: { [number]: { from: CFrame, to: CFrame, started: number } },
 }
 local frogs: { [Player]: FrogState } = {}
 
@@ -278,6 +288,16 @@ local function isHolding(f: FrogState): boolean
 		end
 	end
 	return false
+end
+
+-- Drop a limb's empty-tap reach (it grabbed a step, or eased back home). The
+-- `Reaching` attribute tells WorldFrogCosmetics to keep that hand open while
+-- it's extended, since its held-inference would otherwise close it.
+local function endReach(f: FrogState, limb: number)
+	if f.reach[limb] then
+		f.reach[limb] = nil
+		f.limbs[limb]:SetAttribute("Reaching", nil)
+	end
 end
 
 -- Destroy this step's live "Flingee", if it has one (ActionType.SplashFlinging
@@ -669,6 +689,7 @@ local function createFrog(player: Player, lane: Lane.Lane)
 		gravityMult = Config.GRAVITY_MULT_START,
 		dead = false,
 		held = {},
+		reach = {},
 	}
 	body.CFrame = CFrame.new(lane.origin)
 	frogs[player] = state
@@ -678,6 +699,88 @@ local function createFrog(player: Player, lane: Lane.Lane)
 	-- above), leaving the client with an empty workspace. Focus it on this
 	-- player's own frog body, which is always inside their lane.
 	player.ReplicationFocus = body
+end
+
+-- ---------------------------------------------------------------------------
+-- Attract mode (Player/FrogAI.cs): while a lane sits in Menu, its REAL frog
+-- climbs a small decorative ladder on a loop -- every WorldConfig.
+-- ATTRACT_DECISION_TIME seconds (FrogAI's fixed 1s nextDecisionTime) the demo
+-- hand (WorldConfig.ATTRACT_LIMB) grabs the next rung. The other hand is left
+-- free: the player's menu clicks send it reaching to the click (ReachEmpty). FrogAI raycasts a random on-screen step;
+-- a Menu lane spawns no steps (doc 15), so the rungs are a fixed ladder
+-- instead. Server-owned so there is exactly one frog per lane (this used to be
+-- a second, client-local clone beside the parked frog) and other players on
+-- the start screen see each other's frogs doing it too.
+--
+-- The rungs are NOT gameplay steps: not in lane.active, no LaneUserId, and
+-- CanQuery off, so they can never be grabbed or eat a tap. Their holds live in
+-- `attract[player].held`, never in f.held, so isHolding/gravity/grab
+-- validation are untouched; only the frog render loop below reads them.
+-- ---------------------------------------------------------------------------
+type AttractState = {
+	rungs: { BasePart },
+	held: { [number]: BasePart }, -- keyed like FrogState.held (1=Right, 2=Left)
+	nextRung: number,
+	lastDecision: number, -- os.clock()
+}
+local attract: { [Player]: AttractState } = {}
+
+local attractFolder = playField:FindFirstChild("Attract")
+if not attractFolder then
+	attractFolder = Instance.new("Folder")
+	attractFolder.Name = "Attract"
+	attractFolder.Parent = playField
+end
+
+local function buildAttract(origin: Vector3): AttractState
+	local rungs: { BasePart } = {}
+	for i = 1, WorldConfig.ATTRACT_STEP_COUNT do
+		local part = Instance.new("Part")
+		part.Name = "AttractStep"
+		part.Size = WorldConfig.ATTRACT_STEP_SIZE
+		part.Anchored = true
+		part.CanCollide = false
+		part.CanQuery = false -- decorative only, must never eat taps
+		part.CanTouch = false
+		part.Transparency = 1 -- host for the Decal only (see StepTemplate)
+		local decal = Instance.new("Decal")
+		decal.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
+		decal:SetAttribute("Sprite", "WhiteRock")
+		decal.Parent = part
+		SpriteSkin.apply(part)
+		-- Zig-zag ladder (Lane.luau's Tutorial ladder shape) centred on the
+		-- frog's own Y: rung 2 of 3 level with the body, 1 below, 3 above.
+		local sign = if i % 2 == 1 then 1 else -1
+		local rise = (i - (WorldConfig.ATTRACT_STEP_COUNT + 1) / 2) * WorldConfig.ATTRACT_STEP_Y_GAP
+		part.CFrame = CFrame.new(
+			origin + WorldConfig.ATTRACT_ANCHOR_OFFSET + Vector3.new(sign * WorldConfig.ATTRACT_STEP_X, rise, 0)
+		)
+		part.Parent = attractFolder
+		table.insert(rungs, part)
+	end
+	return { rungs = rungs, held = {}, nextRung = 1, lastDecision = os.clock() }
+end
+
+local function teardownAttract(player: Player)
+	local a = attract[player]
+	if not a then
+		return
+	end
+	attract[player] = nil
+	for _, part in a.rungs do
+		part:Destroy()
+	end
+end
+
+refreshAttract = function(player: Player)
+	local lane = Lane.get(player)
+	if runState[player] == RunState.Menu and lane and frogs[player] then
+		if not attract[player] then
+			attract[player] = buildAttract(lane.origin)
+		end
+	else
+		teardownAttract(player) -- limbs then ease home in the render loop
+	end
 end
 
 -- doc 15 item 1: death now ends the run rather than auto-respawning into
@@ -803,6 +906,14 @@ RunService.Heartbeat:Connect(function(dt: number)
 			end
 		end
 
+		-- Attract mode decision (FrogAI.cs Update): the demo hand hops up the ladder
+		local a = attract[plr]
+		if a and os.clock() - a.lastDecision >= WorldConfig.ATTRACT_DECISION_TIME then
+			a.lastDecision = os.clock()
+			a.held[WorldConfig.ATTRACT_LIMB] = a.rungs[a.nextRung]
+			a.nextRung = (a.nextRung % #a.rungs) + 1
+		end
+
 		local bodyCF = CFrame.new(f.pos)
 		f.body.CFrame = bodyCF
 		local head = f.head
@@ -810,13 +921,22 @@ RunService.Heartbeat:Connect(function(dt: number)
 			head.CFrame = bodyCF * f.headOffset
 		end
 		for i, limbPart in f.limbs do
-			local step = f.held[i]
+			local step = f.held[i] or (a and a.held[i])
+			local reach = f.reach[i]
 			if step and step.Parent then
 				limbPart.CFrame = CFrame.new(step.Position) -- follow the (scrolling) step
+			elseif reach and os.clock() - reach.started < Config.LIMB_REACH_TIME then
+				-- DOTween's default ease (OutQuad), as Limb.Move uses
+				local t = (os.clock() - reach.started) / Config.LIMB_REACH_TIME
+				limbPart.CFrame = reach.from:Lerp(reach.to, 1 - (1 - t) * (1 - t))
 			else
 				local target = bodyCF * f.limbOffsets[i]
 				local alpha = math.clamp(dt / Config.LIMB_RETURN_TIME, 0, 1)
 				limbPart.CFrame = limbPart.CFrame:Lerp(target, alpha)
+				-- the empty hand stays open (Reaching) until it's home again
+				if reach and (limbPart.Position - target.Position).Magnitude < 0.5 then
+					endReach(f, i)
+				end
 			end
 		end
 	end
@@ -913,6 +1033,7 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	lane:onStepClimbed() -- level-threshold / tutorial progress; fires LevelChanged("soft") itself (doc 13 item 5)
 
 	-- step behaviors (doc 05): track the holding limb, then dispatch onGrab
+	endReach(f, limb)
 	f.held[limb] = step
 	local b = behaviorOf(step)
 	if b.onGrab then
@@ -946,6 +1067,43 @@ ReleaseStep.OnServerEvent:Connect(function(player, limbIndex, step)
 	if b.onRelease and lane.active[step] then
 		b.onRelease(makeCtx(lane, step, player))
 	end
+end)
+
+-- A tap that hit no step or bug (Controller.CheckTouch's miss branch): the free
+-- limb shoots out to the tap point (Limb.Move) and the Heartbeat eases it back.
+-- Purely visual, so validation only keeps it sane: a live frog mid-run (or on
+-- the start screen, with the hand the attract demo isn't using), a free limb,
+-- a finite point, and no further than a grab could reach.
+ReachEmpty.OnServerEvent:Connect(function(player, tapPos, limbIndex)
+	if typeof(tapPos) ~= "Vector3" or not isLimbIndex(limbIndex) then
+		return
+	end
+	if tapPos.X ~= tapPos.X or tapPos.Y ~= tapPos.Y or tapPos.Magnitude == math.huge then
+		return -- NaN / inf
+	end
+	local f = frogs[player]
+	if not f or f.dead then
+		return
+	end
+	local limb: number = limbIndex
+	local state = runState[player]
+	if not (state == RunState.Playing or (state == RunState.Menu and limb ~= WorldConfig.ATTRACT_LIMB)) then
+		return
+	end
+	if f.held[limb] then
+		return
+	end
+	local offset = Vector2.new(tapPos.X - f.pos.X, tapPos.Y - f.pos.Y)
+	if offset.Magnitude > Config.MAX_GRAB_DISTANCE then
+		offset = offset.Unit * Config.MAX_GRAB_DISTANCE
+	end
+	local limbPart = f.limbs[limb]
+	f.reach[limb] = {
+		from = limbPart.CFrame,
+		to = CFrame.new(f.pos.X + offset.X, f.pos.Y + offset.Y, limbPart.Position.Z),
+		started = os.clock(),
+	}
+	limbPart:SetAttribute("Reaching", true)
 end)
 
 -- doc 15 item 1: begin a run from the main menu. Only valid from Menu (a
@@ -1120,6 +1278,7 @@ Players.PlayerRemoving:Connect(function(player: Player)
 		frogs[player] = nil
 		f.model:Destroy()
 	end
+	teardownAttract(player)
 	if lane then
 		for step in pairs(lane.active) do
 			step.Parent = nil
