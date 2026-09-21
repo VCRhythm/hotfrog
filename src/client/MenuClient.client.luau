@@ -148,7 +148,12 @@ local topPanel = UIKit.panel("TopScores", UDim2.fromOffset(300, 340), UDim2.new(
 topPanel.Visible = false
 topPanel.ZIndex = 2
 
-UIKit.label("Title", "Top Scores", UDim2.fromOffset(260, 32), UDim2.fromOffset(20, 14), topPanel)
+-- b-20260921-182815: the title used to span the same width as the Close
+-- button (both reaching the panel's right edge), so TextScaled rendered
+-- "Top Scores" right under/behind "Close" ("Top ScorClose"). Stop the title
+-- short of the button instead.
+local topTitle = UIKit.label("Title", "Top Scores", UDim2.fromOffset(170, 32), UDim2.fromOffset(20, 14), topPanel)
+topTitle.TextXAlignment = Enum.TextXAlignment.Left
 local topCloseButton = UIKit.button("Close", "Close", UDim2.fromOffset(80, 34), UDim2.new(1, -100, 0, 10), topPanel)
 
 local topList = Instance.new("ScrollingFrame")

@@ -583,3 +583,12 @@ files: src/server/GameServer.server.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass. Studio not run (play session live).
 review: n/a
+
+## b-20260921-182815-yzh1  fixed  2026-09-21 19:25
+note: top scores is not displaying
+cause: the Top Scores title label (260 px at x=20) ran under the Close button (x = width-100), so the header read "Top ScorClose"; the score list itself was populating (GetTopScores returned the entry) and the panel already hides/restores the menu and end panels.
+change: title narrowed to 170 px and left-aligned. Settings and Store panels checked; not affected.
+files: src/client/MenuClient.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass. Not checked visually in Studio. If the list itself still shows nothing, reopen with a screenshot.
+review: n/a
