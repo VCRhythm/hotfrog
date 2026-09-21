@@ -100,7 +100,7 @@ local LevelChanged = ensureRemote("LevelChanged") -- server -> client: this lane
 -- -> Menu run-state machine + its remotes. Everything below is additive on top
 -- of the existing loop; it never changes GrabStep/ScoreChanged/GameOver/
 -- LevelChanged's own contracts, only gates when they fire.
-local StartRun = ensureRemote("StartRun") -- client -> server: begin a run from Menu (rate-limited, Menu-only)
+local StartRun = ensureRemote("StartRun") -- client -> server: begin a run from Menu (rate-limited, Menu-only) (mode: "Normal" | "Classic", optional, default Normal; mirrored as the lane's Mode attribute)
 local RunStateChanged = ensureRemote("RunStateChanged") -- server -> client: this player's Menu/Playing/Dead state
 local RunSummary = ensureRemote("RunSummary") -- server -> client: end-of-run stats for the end-of-run panel (score, newBest, isNewBest, quality, bugs, flys, cause)
 local SetMusicOn = ensureRemote("SetMusicOn") -- client -> server: settings toggle (writes profile.musicOn)
@@ -507,15 +507,19 @@ end
 -- (owner's ruling, b-20260921-164429-ee9c). A negative `distance` undoes
 -- previous pulls (used by the Tutorial's no-death fall rule below).
 -- ---------------------------------------------------------------------------
+-- Replicate a scroll so clients can move lane-local cosmetics (scenery, walls) in step.
+local function publishPull(lane: Lane.Lane, delta: Vector3, duration: number)
+	lane.folder:SetAttribute("PullDelta", delta)
+	lane.folder:SetAttribute("PullTime", duration)
+	lane.folder:SetAttribute("PullCount", ((lane.folder:GetAttribute("PullCount") :: number?) or 0) + 1)
+end
+
 local function pullLane(lane: Lane.Lane, distance: number, duration: number)
 	local delta = lane:addPull(distance, duration)
 	if not delta then
 		return
 	end
-	-- replicate the pull so clients can scroll lane-local cosmetics (scenery, walls) in step
-	lane.folder:SetAttribute("PullDelta", delta)
-	lane.folder:SetAttribute("PullTime", duration)
-	lane.folder:SetAttribute("PullCount", ((lane.folder:GetAttribute("PullCount") :: number?) or 0) + 1)
+	publishPull(lane, delta, duration)
 	if distance > 0 then
 		lane:spawnForPull(distance, function(_state, kindName, worldPos)
 			acquireStep(lane, kindName, worldPos)
@@ -572,6 +576,38 @@ RunService.Heartbeat:Connect(function(dt: number)
 			table.insert(batch, acquireStep(lane, kindName, worldPos))
 		end)
 		slideIn(lane, batch) -- the Tutorial ladder's one-shot batch
+
+		-- Classic mode (Config.CLASSIC_SCROLL_SPEED, doc 17): the world keeps
+		-- scrolling whether or not anything is held, once the first grab has armed
+		-- the frog (Player.cs canFall, same gate as gravity). Each settled chunk
+		-- earns spawner time per stud -- its spawns start off-screen and the drift
+		-- carries them in, like a grab's -- and is replicated for the cosmetics.
+		local f = frogs[lane.player]
+		if f and f.canFall and not f.dead then
+			local chunk, chunkTime = lane:drift(dt, lane:driftSpeed())
+			if chunk and chunkTime then
+				local dir = lane.spawnDirection
+				publishPull(lane, Vector3.new(dir.X, dir.Y, 0).Unit * chunk, chunkTime)
+				lane:spawnForPull(chunk, function(_state, kindName, worldPos)
+					acquireStep(lane, kindName, worldPos)
+				end, chunk * Config.CLASSIC_SPAWN_PER_STUD)
+			end
+			-- A held step carried down into the lava (or off the lane's side) is
+			-- let go, so the frog has to keep climbing or fall in after it.
+			if lane.mode == Config.RUN_MODES.Classic then
+				for i = 1, Config.MAX_HELD_STEPS do
+					local held = f.held[i]
+					if held then
+						local grip = (held:GetAttribute("GripOffset") :: Vector2?) or Vector2.zero
+						local gx = held.Position.X + grip.X - lane.origin.X
+						local gy = held.Position.Y + grip.Y - lane.origin.Y
+						if gy < Config.LAVA_Y or math.abs(gx) > Config.LANE_HALF_WIDTH then
+							forceReleaseStep(lane, held)
+						end
+					end
+				end
+			end
+		end
 
 		for step in pairs(lane.active) do
 			local b = behaviorOf(step)
@@ -1385,7 +1421,7 @@ end)
 -- client stuck mid-Playing or mid-death-beat can't re-trigger it), and
 -- rate-limited the same way grabs are so a bot can't hammer it.
 local START_RUN_COOLDOWN = 1.0
-StartRun.OnServerEvent:Connect(function(player)
+StartRun.OnServerEvent:Connect(function(player, mode)
 	if runState[player] ~= RunState.Menu then
 		return
 	end
@@ -1408,6 +1444,9 @@ StartRun.OnServerEvent:Connect(function(player)
 	f.model:SetAttribute("Dead", false)
 	flysThisRun[player] = 0
 	bugsThisRun[player] = 0
+	-- Run mode (doc 17 "Classic mode"): only a known mode string is honoured;
+	-- anything else (nil from an old client, garbage) starts a Normal run.
+	lane:setMode(if typeof(mode) == "string" then mode else Config.RUN_MODES.Normal)
 	prefillLane(lane)
 	setRunState(player, RunState.Playing)
 end)

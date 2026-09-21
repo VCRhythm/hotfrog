@@ -489,3 +489,12 @@ files: src/shared/StepKinds.luau
 test: none
 verified: stylua, selene, luau_check pass; rojo build and Studio not run (classic-mode fixer running concurrently).
 review: n/a
+
+## b-20260921-164458-8liv  fixed  2026-09-21 18:55
+note: I want a mode where the steps keep falling even when they aren't grabbed. call it "classic". and players have to keep up with a constantly falling rock
+cause: feature request; the port only scrolls once per grab, so nothing moves while the player is idle.
+change: per-run Mode (Normal default / Classic) picked by a "Mode:" main-menu button, sent as StartRun's argument, validated server-side, stored as Lane.mode + lane `Mode` attribute. Classic drifts every step continuously at Config.CLASSIC_SCROLL_SPEED (Pot 10 / Kitchen 13 / Country 16 Unity u/s, none in Tutorial) from the first grab until death; drift banks spawner time via spawnForPull and publishes PullDelta; a held step reaching lava or leaving the lane force-releases, so an idle frog dies. Doc 17: new deviation + open gaps (shared best score/leaderboard across modes; speeds untuned).
+files: src/shared/Config.luau, src/server/Lane.luau, src/server/GameServer.server.luau, src/client/MenuClient.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check, rojo build pass; Studio MCP: StartRun("Classic") -> held step sank ~3.2 studs/s, reached lava, frog died, lane back to Menu; StartRun() -> Normal, idle step stationary; no console errors. Menu button not clicked or screenshotted.
+review: looks-right

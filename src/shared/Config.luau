@@ -172,6 +172,32 @@ local Config = {
 	-- player retries from the same 3 tree steps.
 	TUTORIAL_PULL_BACK = 3,
 
+	-- "Classic" run mode (owner's request b-20260921-164458-8liv; doc 17): the
+	-- world keeps scrolling along the lane's spawn direction whether or not the
+	-- frog holds anything, on top of the normal per-grab pull, so the player has
+	-- to keep climbing or be carried into the lava. The default "Normal" mode
+	-- only scrolls on grabs. Chosen per run on the main menu (StartRun payload).
+	RUN_MODES = { Normal = "Normal", Classic = "Classic" },
+	-- Constant scroll speed per level, in Unity units/s converted to studs.
+	-- Unity never scrolls on its own (Rigidbody2D drag = 2 stops the steps once a
+	-- grab's 1 s pull ends), so there is no original number; the scale comes from
+	-- Unity's own pull: SpawnManager.PullStep's force is 2 * |target - y| with a
+	-- 40 u target line, i.e. 80 for a step at the centre, and with drag 2 that
+	-- settles at 80 / 2 = 40 u/s. Classic drifts at a quarter of that on Pot and
+	-- speeds up per level. Levels not listed (Menu, Tutorial) don't drift: the
+	-- Tutorial ladder is one-shot and its retry rule pulls the field back.
+	CLASSIC_SCROLL_SPEED = {
+		Pot = 10 * UNITY_TO_STUDS, -- ~3.14 studs/s
+		Kitchen = 13 * UNITY_TO_STUDS, -- ~4.09 studs/s
+		Country = 16 * UNITY_TO_STUDS, -- ~5.03 studs/s
+	} :: { [string]: number },
+	-- Drift spends spawner time per stud scrolled (the port's old per-stud rate,
+	-- 8 studs per spawner-second, see PULL_SPAWN_WINDOW above), settled in chunks
+	-- of this many seconds; each chunk is also replicated as one PullDelta so the
+	-- lane's cosmetics scroll with it.
+	CLASSIC_SPAWN_PER_STUD = 1 / 8,
+	CLASSIC_CHUNK_TIME = 0.5,
+
 	-- Grab anti-abuse (doc 07 hardening): cap grabs per rolling window per player.
 	-- Two limbs + fast chaining is maybe ~6/s for a human; 10 leaves headroom.
 	GRAB_WINDOW = 1.0, -- seconds

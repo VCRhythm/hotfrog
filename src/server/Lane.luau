@@ -69,6 +69,13 @@ export type Lane = typeof(setmetatable(
 		-- Exists so the Tutorial "no death" retry (GameServer.tutorialRetry) can never
 		-- undo more scroll than has actually happened -- see Lane.addPull below.
 		netPull: number,
+		-- Run mode (Config.RUN_MODES), chosen per run with StartRun and mirrored
+		-- as the folder's `Mode` attribute. "Classic" adds a constant scroll
+		-- (Lane.drift) on top of the per-grab pulls.
+		mode: string,
+		-- Classic drift scrolled since the last settled chunk (studs, seconds).
+		driftDistance: number,
+		driftTime: number,
 		runSteps: number, -- steps climbed this run, across levels (drives LEVEL_THRESHOLDS)
 		tutorialStepsClimbed: number,
 		-- called explicitly by whichever method changes the level, WITH the
@@ -614,6 +621,50 @@ function Lane.addPull(self: Lane, distance: number, duration: number): Vector3?
 	return delta
 end
 
+-- Set the run mode (StartRun); anything but a known Config.RUN_MODES value is Normal.
+function Lane.setMode(self: Lane, mode: string)
+	self.mode = if mode == Config.RUN_MODES.Classic then Config.RUN_MODES.Classic else Config.RUN_MODES.Normal
+	self.driftDistance = 0
+	self.driftTime = 0
+	self.folder:SetAttribute("Mode", self.mode)
+end
+
+-- Classic mode's constant scroll speed for the current level (studs/s), 0 when
+-- this lane isn't Classic or the level doesn't drift (Config.CLASSIC_SCROLL_SPEED).
+function Lane.driftSpeed(self: Lane): number
+	if self.mode ~= Config.RUN_MODES.Classic then
+		return 0
+	end
+	return Config.CLASSIC_SCROLL_SPEED[self.level.name] or 0
+end
+
+-- Classic mode: scroll every live step `speed * dt` studs along the spawn
+-- direction right now (Unity's steps move under SpawnManager.PullVector every
+-- frame; here it never stops). The distance accumulates until
+-- Config.CLASSIC_CHUNK_TIME has passed, then is returned as one chunk (studs,
+-- seconds) for GameServer to spend on spawner time and replicate; nil otherwise.
+function Lane.drift(self: Lane, dt: number, speed: number): (number?, number?)
+	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
+	if speed <= 0 or dt <= 0 or dir3.Magnitude < 1e-4 then
+		return nil, nil
+	end
+	local distance = speed * dt
+	local inc = dir3.Unit * distance
+	for step in self.active do
+		step.CFrame += inc
+	end
+	self.netPull += distance
+	self.driftDistance += distance
+	self.driftTime += dt
+	if self.driftTime < Config.CLASSIC_CHUNK_TIME then
+		return nil, nil
+	end
+	local chunk, chunkTime = self.driftDistance, self.driftTime
+	self.driftDistance = 0
+	self.driftTime = 0
+	return chunk, chunkTime
+end
+
 -- ---------------------------------------------------------------------------
 -- Pull-driven spawning (Spawning/Spawner.cs StartSpawning, run only while the
 -- field is being pulled: SpawnManager.PullStep activates the step spawners and
@@ -634,7 +685,8 @@ local SPAWN_SLICE = 1 / 30 -- spawner-seconds per slice of a pull's window
 function Lane.spawnForPull(
 	self: Lane,
 	distance: number,
-	spawnFn: (state: SpawnerState, kindName: string, worldPos: Vector3) -> ()
+	spawnFn: (state: SpawnerState, kindName: string, worldPos: Vector3) -> (),
+	windowOverride: number?
 )
 	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
 	if distance <= 0 or dir3.Magnitude < 1e-4 then
@@ -642,7 +694,11 @@ function Lane.spawnForPull(
 	end
 	local travel = dir3.Unit
 	local pending = self:sharedPending()
-	local window = Config.PULL_SPAWN_WINDOW
+	-- a grab earns Unity's fixed window; Classic drift passes its own per-stud share
+	local window = windowOverride or Config.PULL_SPAWN_WINDOW
+	if window <= 0 then
+		return
+	end
 	local left = window
 	while left > 1e-6 do
 		local slice = math.min(SPAWN_SLICE, left)
@@ -831,6 +887,8 @@ function Lane.resetRun(self: Lane, tutorialDone: boolean)
 	self.runSteps = 0
 	self.tutorialStepsClimbed = 0
 	table.clear(self.motions) -- the lane was just emptied (GameServer.clearLaneSteps)
+	self.driftDistance = 0
+	self.driftTime = 0
 	self:setLevel(if tutorialDone then Levels.POT else Levels.TUTORIAL)
 	if self.notify then
 		self.notify(self, "death")
@@ -856,6 +914,7 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 	folder.Name = tostring(player.UserId)
 	folder:SetAttribute("UserId", player.UserId)
 	folder:SetAttribute("Origin", origin)
+	folder:SetAttribute("Mode", Config.RUN_MODES.Normal)
 	folder.Parent = lanesFolder
 
 	local self = setmetatable({
@@ -872,6 +931,9 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		active = {},
 		motions = {},
 		netPull = 0,
+		mode = Config.RUN_MODES.Normal,
+		driftDistance = 0,
+		driftTime = 0,
 		runSteps = 0,
 		tutorialStepsClimbed = 0,
 		notify = notify,

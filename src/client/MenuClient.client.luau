@@ -71,18 +71,21 @@ UIKit.safeAreaTopPadding(title, 0)
 -- ---------------------------------------------------------------------------
 -- Main menu panel (RunState.Menu)
 -- ---------------------------------------------------------------------------
-local mainPanel = UIKit.panel("MainMenu", UDim2.fromOffset(280, 260), UDim2.new(0.5, -140, 0.5, -130), gui)
+local mainPanel = UIKit.panel("MainMenu", UDim2.fromOffset(280, 312), UDim2.new(0.5, -140, 0.5, -156), gui)
 
 local playButton = UIKit.button("Play", "PLAY", UDim2.fromOffset(220, 64), UDim2.fromOffset(30, 24), mainPanel)
 playButton.BackgroundColor3 = UIKit.ACCENT
 playButton.TextSize = 28
 
-local frogsButton = UIKit.button("Frogs", "Frogs", UDim2.fromOffset(105, 48), UDim2.fromOffset(30, 100), mainPanel)
+-- Run mode picker (doc 17 "Classic mode"): Normal scrolls only on grabs;
+-- Classic keeps the world falling. Sent with StartRun (Play and Replay).
+local modeButton = UIKit.button("Mode", "", UDim2.fromOffset(220, 40), UDim2.fromOffset(30, 100), mainPanel)
+local frogsButton = UIKit.button("Frogs", "Frogs", UDim2.fromOffset(105, 48), UDim2.fromOffset(30, 152), mainPanel)
 local settingsButton =
-	UIKit.button("Settings", "Settings", UDim2.fromOffset(105, 48), UDim2.fromOffset(145, 100), mainPanel)
+	UIKit.button("Settings", "Settings", UDim2.fromOffset(105, 48), UDim2.fromOffset(145, 152), mainPanel)
 local topScoresButton =
-	UIKit.button("TopScores", "Top Scores", UDim2.fromOffset(220, 44), UDim2.fromOffset(30, 158), mainPanel)
-local hintLabel = UIKit.label("Hint", "", UDim2.fromOffset(220, 30), UDim2.fromOffset(30, 210), mainPanel)
+	UIKit.button("TopScores", "Top Scores", UDim2.fromOffset(220, 44), UDim2.fromOffset(30, 210), mainPanel)
+local hintLabel = UIKit.label("Hint", "", UDim2.fromOffset(220, 30), UDim2.fromOffset(30, 262), mainPanel)
 hintLabel.TextColor3 = UIKit.SUBTEXT
 hintLabel.TextScaled = false
 hintLabel.TextSize = 16
@@ -187,6 +190,19 @@ local lastSummary: {
 }? =
 	nil
 
+-- The run mode Play/Replay will ask for (GameServer validates it).
+local selectedMode = "Normal"
+local function refreshModeButton()
+	modeButton.Text = "Mode: " .. selectedMode
+	modeButton.BackgroundColor3 = if selectedMode == "Classic" then UIKit.WARN else UIKit.DARK
+	modeButton.TextColor3 = if selectedMode == "Classic" then Color3.new(0, 0, 0) else UIKit.TEXT
+end
+refreshModeButton()
+modeButton.Activated:Connect(function()
+	selectedMode = if selectedMode == "Classic" then "Normal" else "Classic"
+	refreshModeButton()
+end)
+
 local function focusFirst(button: GuiButton)
 	if gamepadActive() then
 		GuiService.SelectedObject = button
@@ -273,7 +289,7 @@ RunStateChanged.OnClientEvent:Connect(function(state: string)
 	elseif state == "Menu" then
 		if pendingStart then
 			pendingStart = false
-			StartRun:FireServer()
+			StartRun:FireServer(selectedMode)
 		elseif not (previousState == "Dead" and not endPanelDismissed) then
 			showMainMenu()
 		end
@@ -304,7 +320,7 @@ RunSummary.OnClientEvent:Connect(
 -- instant even though the server is still finishing the death beat.
 local function requestStart()
 	if currentRunState == "Menu" then
-		StartRun:FireServer()
+		StartRun:FireServer(selectedMode)
 	else
 		pendingStart = true
 	end
