@@ -163,9 +163,10 @@ server-authoritative.
 
 ## Milestones
 
-Milestones 1–2 are implemented: `GiftService` (eligibility + claim) and the gift
-button + smooth local countdown in
-[`StoreUI.client.luau`](../../src/client/StoreUI.client.luau).
+Milestones 1–2 and 5 are implemented: `GiftService` (eligibility + claim), the
+gift button + smooth local countdown in
+[`StoreUI.client.luau`](../../src/client/StoreUI.client.luau), and the claim
+flourish below.
 
 1. Gift fields on the shared profile (`giftSeed`, `lastGift`); `GiftService`
    eligibility + claim. *Verify: claim grants Flys; the next claim is locked and
@@ -175,8 +176,35 @@ button + smooth local countdown in
 3. (Monetization) wire a Developer Product Fly pack as the "get Flys now"
    alternative (doc 08). *Verify: purchase grants Flys idempotently.*
 4. (Optional, only if a sanctioned API exists) server-gated rewarded ad faucet.
+5. Claim flourish (b-20260921-152631): ported below.
 
-## Still out of scope
+## Claim flourish (`SpawnGiftFlys` visuals)
 
-The original's celebratory fly-spawn animation (`SpawnGiftFlys` visuals) is pure
-polish — port it as a particle/`TweenService` flourish when `awardFlys` fires.
+Unity's `MenuManager.SpawnGiftFlys` doesn't hand the gift's Flys over directly —
+`GiftFlys()` only calls `GiftManager.IncreaseGiftSeed()` (resets the cooldown)
+and then bursts `Random.Range(60, 100)` **catchable `Bug` entities** onto the
+screen near the frog (`BugSpawner.SpawnFlyBundle`, spawn delay forced to 0); the
+player's Flys tally actually comes from eating them (`Bug.CollectFly`, tame ones
+via `MakeTame` so they auto-collect on contact).
+
+The port keeps its existing flat, server-authoritative grant instead of making
+the payout depend on how many the player manages to catch (`ClaimGift` still
+fires `awardFlys` for the full `GIFT_FLYS` up front, same as before this
+change) — re-deriving the reward from catches would need physics-trigger
+auto-collect, which the port doesn't have (bugs are tap-caught only), and would
+let a slow/AFK player end up with fewer Flys than the gift promised. **Deviation
+(doc 17):** instead, `GiftService.ClaimGift` fires a new `ServerStorage`
+BindableEvent, `SpawnGiftFlys(player, count)`, that
+[`BugService.server.luau`](../../src/server/BugService.server.luau) listens
+for and bursts `count` (= `GIFT_FLYS`) ordinary `Bug` instances onto the
+claimant's own lane, staggered a frame apart, using its existing pool/tween
+machinery — but tagged with a `Reward = false` attribute so `CatchBug` still
+plays the squish/tongue feedback and removes the bug, but does **not** pay out
+`Config.BUG_FLYS` a second time. Catching them is "for fun," exactly as the
+bug report asked, not a second currency source.
+
+This needed no new grab-outside-a-run plumbing: `BugService` already spawns
+and accepts catches on idle Menu/Dead lanes (its per-lane loop has no
+`RunState` gate), and `GameClient.client.luau` already lets the Menu-state
+frog eat bugs on the start screen ("Start screen: bugs still fly and can be
+eaten"). The gift burst reuses that path as-is.

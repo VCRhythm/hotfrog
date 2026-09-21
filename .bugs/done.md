@@ -399,3 +399,21 @@ files: none
 test: none
 verified: grep of src/ and bugloop/ for :Activate() finds nothing
 review: n/a
+
+## b-20260921-152631-vdj1  fixed  2026-09-21 16:20
+note: gift button resets the timer but doesn't obviously do anything other than increment flys. on unity it goes to a screen where flies explode on to the screen and the player has the opportunity to eat them (for fun)
+cause: GiftService.ClaimGift only incremented Flys; Unity's MenuManager.SpawnGiftFlys burst of catchable bugs was never ported (doc 09 deferred it as polish).
+change: ClaimGift fires a new ServerStorage/SpawnGiftFlys BindableEvent after the flat grant; BugService bursts GIFT_FLYS (100) pooled bugs onto the claimant's lane tagged Reward=false, which play the catch feedback but pay no Flys (no double pay). Docs 09 and 17 updated (deviation: flat grant instead of catch-derived payout).
+files: src/server/GiftService.server.luau, src/server/BugService.server.luau, docs/roblox-port/09-gifts-and-ads.md, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check, rojo build pass; Studio MCP playtest: two real ClaimGift calls each gave exactly +100 Flys and burst Reward=false bugs on the lane; 5 caught via CatchBug fired BugCaught feedback with Flys unchanged; no console errors.
+review: n/a
+
+## b-20260921-155051-qc3l  ignored  2026-09-21 16:20
+note: AUTO error (server): OnServerInvoke is a callback member of RemoteFunction; you can only set the callback value, get is not available
+cause: raised by a fixer's MCP execute_luau test snippet (trace "AssistantCommand, line 9"), not game code.
+change: none
+files: none
+test: none
+verified: trace points at an AssistantCommand, not a src/ script
+review: n/a

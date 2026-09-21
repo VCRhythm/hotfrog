@@ -11,6 +11,7 @@ local Players = game:GetService("Players")
 local Profiles = require(script.Parent.Profiles)
 
 local GIFT_FLYS = 100 -- Flys granted per gift (the SpawnGiftFlys amount)
+local GIFT_FLY_BURST = GIFT_FLYS -- how many catchable flies the claim flourish spawns (see below)
 local SEED_MAX = 21
 local MIN_WAIT, MAX_WAIT = 120, 21600 -- 2 min .. 6 h (GetGiftTime clamp)
 
@@ -46,6 +47,21 @@ if not awardFlys then
 	awardFlys.Parent = ServerStorage
 end
 
+-- Gift-fly burst flourish (created by BugService; get-or-create, same pattern
+-- as AwardFlys above). b-20260921-152631: claiming used to just tick the Flys
+-- counter up with no feedback -- Unity's GiftManager.GiftFlys ->
+-- MenuManager.SpawnGiftFlys bursts a bundle of catchable flies onto the screen
+-- for the player to eat, purely for fun. BugService owns spawning/catching, so
+-- this just tells it who claimed and how many to spawn; it does not itself
+-- grant Flys (BugService spawns these unrewarded -- awardFlys above already
+-- paid out the gift, and Unity doesn't pay twice for the same claim).
+local spawnGiftFlys = ServerStorage:FindFirstChild("SpawnGiftFlys") :: BindableEvent?
+if not spawnGiftFlys then
+	spawnGiftFlys = Instance.new("BindableEvent")
+	spawnGiftFlys.Name = "SpawnGiftFlys"
+	spawnGiftFlys.Parent = ServerStorage
+end
+
 -- ---------------------------------------------------------------------------
 -- Timing (ports GetGiftTime / CanShowGift / IncreaseGiftSeed)
 -- ---------------------------------------------------------------------------
@@ -73,6 +89,7 @@ ClaimGift.OnServerInvoke = function(player)
 		return false -- not ready; the server clock is the source of truth
 	end
 	awardFlys:Fire(player, GIFT_FLYS) -- SkinService grants + replicates the Flys
+	spawnGiftFlys:Fire(player, GIFT_FLY_BURST) -- BugService bursts the catch-for-fun flourish
 	p.lastGift = os.time()
 	p.giftSeed = math.min(p.giftSeed + 1, SEED_MAX) -- next gift takes longer
 	Profiles.save(player)

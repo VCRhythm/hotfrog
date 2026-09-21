@@ -77,6 +77,20 @@ if not bugCaughtServer then
 	bugCaughtServer.Parent = ServerStorage
 end
 
+-- Gift-fly burst fan-in (doc 09, b-20260921-152631: claiming a gift used to be
+-- invisible besides the Flys ticking up -- Unity's GiftManager.GiftFlys ->
+-- MenuManager.SpawnGiftFlys bursts a bundle of catchable flies onto the screen
+-- for the player to eat, purely for the fun of it (Bug.cs is reused for both
+-- normal bugs and gift flies in the original). GiftService fires this with the
+-- claimant and how many to spawn; get-or-create, same pattern as the faucets
+-- above, so load order between GiftService and BugService stays moot.
+local spawnGiftFlys = ServerStorage:FindFirstChild("SpawnGiftFlys") :: BindableEvent?
+if not spawnGiftFlys then
+	spawnGiftFlys = Instance.new("BindableEvent")
+	spawnGiftFlys.Name = "SpawnGiftFlys"
+	spawnGiftFlys.Parent = ServerStorage
+end
+
 -- ---------------------------------------------------------------------------
 -- Container + template (self-provisioned so the scene needs no extra manual
 -- setup; replace Assets/BugTemplate with real art whenever you like)
@@ -143,12 +157,26 @@ end
 -- grabbed, so the bug starts at the step and only wanders nearby, instead of
 -- entering from the screen edge and roaming the whole field like a normal spawn.
 -- `laneOrigin`/`laneUserId` scope the spawn/wander bounds and catch permission
--- to one lane (doc 13 item 7).
-local function spawnBug(laneOrigin: Vector3, laneUserId: number, origin: Vector3?)
+-- to one lane (doc 13 item 7). `reward` false marks a gift fly (see
+-- spawnGiftFlys.Event below): still catchable for the squish/tongue feedback,
+-- but CatchBug won't pay it out, since the gift already granted its Flys up
+-- front -- these are Unity's SpawnGiftFlys bundle, ported as a flourish, not a
+-- second currency source. `wideBurst` (only with `origin`) sends it to a
+-- random point across the whole lane, like a normal edge spawn's destination,
+-- instead of the small nearby wander FlyRock uses -- the "explode onto the
+-- screen" look a gift burst wants.
+local function spawnBug(
+	laneOrigin: Vector3,
+	laneUserId: number,
+	origin: Vector3?,
+	reward: boolean?,
+	wideBurst: boolean?
+)
 	local bug = (table.remove(pool) or template:Clone()) :: BasePart
 	bug:SetAttribute("Kind", "Bug")
 	bug:SetAttribute("Gen", ((bug:GetAttribute("Gen") :: number?) or 0) + 1)
 	bug:SetAttribute("LaneUserId", laneUserId)
+	bug:SetAttribute("Reward", reward ~= false)
 	bug.Anchored = true
 	SpriteSkin.apply(bug) -- no-op until ids land in SkinAssets
 	local gen = bug:GetAttribute("Gen")
@@ -156,7 +184,11 @@ local function spawnBug(laneOrigin: Vector3, laneUserId: number, origin: Vector3
 	local minX, maxX = laneOrigin.X - Config.BUG_X_RANGE, laneOrigin.X + Config.BUG_X_RANGE
 
 	local dest: Vector3
-	if origin then
+	if origin and wideBurst then
+		bug.CFrame = CFrame.new(origin)
+		dest =
+			Vector3.new(math.random(minX, maxX), math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE), Config.PLANE_Z)
+	elseif origin then
 		bug.CFrame = CFrame.new(origin)
 		local wanderX = math.random(-Config.BUG_NEAR_WANDER_X, Config.BUG_NEAR_WANDER_X)
 		local wanderY = math.random(-Config.BUG_NEAR_WANDER_Y, Config.BUG_NEAR_WANDER_Y)
@@ -276,9 +308,36 @@ CatchBug.OnServerEvent:Connect(function(player, bug)
 	if bug:GetAttribute("LaneUserId") ~= player.UserId then
 		return
 	end
+	local reward = bug:GetAttribute("Reward") ~= false -- false only for gift flies (see spawnBug)
 	local position = bug.Position
 	releaseBug(bug)
-	awardFlys:Fire(player, Config.BUG_FLYS)
-	bugCaughtServer:Fire(player) -- GameServer's exact bugsThisRun counter (doc 17 gap)
-	BugCaught:FireClient(player, position) -- feedback hook (squish sound / flash)
+	if reward then
+		awardFlys:Fire(player, Config.BUG_FLYS)
+		bugCaughtServer:Fire(player) -- GameServer's exact bugsThisRun counter (doc 17 gap)
+	end
+	BugCaught:FireClient(player, position) -- feedback hook (squish sound / flash) -- always, gift or not
+end)
+
+-- Gift claim (doc 09): burst `count` unrewarded, catchable flies onto the
+-- claimant's own lane, staggered a frame apart so they pop in like Unity's
+-- zero-delay BugSpawner burst rather than all overlapping in one frame. Works
+-- in every run state -- BugService already spawns/accepts catches on idle
+-- Menu/Dead lanes (see the per-lane loop above and GameClient's "Start
+-- screen: bugs still fly and can be eaten") -- so eating gift flies at the
+-- gift button in the main menu needs no extra plumbing.
+spawnGiftFlys.Event:Connect(function(player: Player, count: number)
+	local laneFolder = lanesFolder:FindFirstChild(tostring(player.UserId))
+	local origin = if laneFolder then select(1, laneOriginOf(laneFolder)) else nil
+	if not origin then
+		return
+	end
+	task.spawn(function()
+		for _ = 1, count do
+			if not player.Parent then
+				break -- claimant left mid-burst
+			end
+			spawnBug(origin :: Vector3, player.UserId, origin, false, true)
+			task.wait()
+		end
+	end)
 end)
