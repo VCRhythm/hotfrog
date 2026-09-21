@@ -235,6 +235,12 @@ type FrogState = {
 	pos: Vector3,
 	gravityMult: number,
 	dead: boolean,
+	-- Player.cs `canFall`: stays false from spawn/respawn until the first grab of
+	-- a pullable step (Player.TouchStep's `canPull` check -- every step the port
+	-- spawns is pullable, so in practice this just means "has grabbed once this
+	-- run"). Gates both gravity accrual and the lava check below so the frog
+	-- doesn't sink and die before the player has touched a step.
+	canFall: boolean,
 	-- The step each LIMB holds, keyed the same way `limbs` is (1=Right, 2=Left),
 	-- or nil for a free limb. Keyed by limb rather than packed in grab order so
 	-- the hand the player grabbed with is the hand that reaches the step (the
@@ -688,6 +694,7 @@ local function createFrog(player: Player, lane: Lane.Lane)
 		pos = lane.origin,
 		gravityMult = Config.GRAVITY_MULT_START,
 		dead = false,
+		canFall = false,
 		held = {},
 		reach = {},
 	}
@@ -874,6 +881,7 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 		f.pos = lane.origin
 		f.gravityMult = Config.GRAVITY_MULT_START
 		f.dead = false
+		f.canFall = false
 		f.model:SetAttribute("Dead", false)
 		setRunState(player, RunState.Menu) -- doc 15 item 1: back to the main menu, not another fall
 	end)
@@ -927,8 +935,11 @@ RunService.Heartbeat:Connect(function(dt: number)
 		-- doc 15 item 1: gravity/death only apply while actually Playing -- in
 		-- Menu/Dead the frog is parked at rest (no gravity ever accumulates for
 		-- it, so it just sits at whatever f.pos it was left at; the rendering
-		-- below still runs every tick so limbs ease back to rest normally).
-		if not f.dead and runState[plr] == RunState.Playing then
+		-- below still runs every tick so limbs ease back to rest normally). Also
+		-- gated on f.canFall (Player.cs `canFall`): a fresh/respawned frog sits at
+		-- its spawn step until the first grab, exactly like Unity, instead of
+		-- immediately sinking toward the lava with nothing held.
+		if not f.dead and runState[plr] == RunState.Playing and f.canFall then
 			if not isHolding(f) then
 				f.gravityMult += Config.GRAVITY_ACCEL * dt
 				local speed = math.min(Config.GRAVITY * f.gravityMult, Config.MAX_FALL_SPEED)
@@ -1077,6 +1088,10 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 		end)
 	end
 
+	-- Player.cs TouchStep: the first grab of a (pullable) step arms falling --
+	-- every step the port spawns is pullable, so any successful grab qualifies.
+	f.canFall = true
+
 	-- step behaviors (doc 05): track the holding limb, then dispatch onGrab
 	endReach(f, limb)
 	f.held[limb] = step
@@ -1173,6 +1188,7 @@ StartRun.OnServerEvent:Connect(function(player)
 	f.pos = lane.origin
 	f.gravityMult = Config.GRAVITY_MULT_START
 	f.dead = false
+	f.canFall = false
 	f.model:SetAttribute("Dead", false)
 	flysThisRun[player] = 0
 	bugsThisRun[player] = 0

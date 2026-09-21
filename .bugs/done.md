@@ -264,3 +264,12 @@ files: src/shared/Config.luau, src/server/Lane.luau, src/server/GameServer.serve
 test: none
 verified: headless sim with the real Lane/Levels/StepKinds: Tutorial/Pot/Kitchen 300/300 grabs, Country median 300 (worst 158); stylua, selene, luau_check, rojo build pass. Not play-tested yet. Caveat: new steps appear just inside the top of view rather than scrolling in.
 review: pending
+
+## b-20260921-110833-9dzn  fixed  2026-09-21 12:12
+note: Frog falls and dies right after pressing Play before any grab; Unity gates falling on canFall (first canPull grab)
+cause: The Heartbeat fall/lava-death gate checked only RunState.Playing; Unity's Player.cs also requires canFall, set on the first grab of a pullable step.
+change: FrogState.canFall (false at create/StartRun/respawn, true on the first successful GrabStep) now gates gravity and lava death.
+files: src/server/GameServer.server.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; checked against Player.cs; not seen live yet.
+review: n/a
