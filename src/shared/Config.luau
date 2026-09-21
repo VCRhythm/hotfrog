@@ -86,6 +86,17 @@ local Config = {
 	-- adjacent lanes sit edge to edge with a small 2-stud gap so a bug/step
 	-- drifting to a lane's edge doesn't visually clip into its neighbour.
 	LANE_SPACING = 2 * 22 + 2, -- = 46
+	-- Unity's visible half-width on the portrait phone it shipped on: the camera
+	-- is ortho size 50 and Spawner.cs SetMovementToScreenSize uses
+	-- halfScreenWidth = 50 * (Screen.width / Screen.height), which at 9:16 is
+	-- ~28 u. Step spawner `Movements` x values are fractions of this width
+	-- (Levels.luau), and a spawn that only travels vertically is kept inside it
+	-- (Lane.spawnPosition), so a portrait player sees every step and a wider
+	-- window sees them all near the middle.
+	SPAWN_VIEW_HALF_WIDTH = 50 * (9 / 16) * UNITY_TO_STUDS, -- ~8.84 studs
+	-- Two steps' grab boxes (StepKinds hitSize) never spawn closer than this
+	-- gap; a crowded spawn is moved back along its travel line (Lane.clearSpot).
+	SPAWN_GAP = 1.5,
 
 	-- A run's total steps-climbed thresholds for soft level transitions
 	-- (owner's decision, doc 13 -- Unity itself never advances past Pot).

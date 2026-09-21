@@ -291,3 +291,12 @@ files: src/client/MenuClient.client.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; not seen live.
 review: n/a
+
+## b-20260921-112713-7mxu  fixed  2026-09-21 12:45
+note: Pot spawns every new step at X=23.6 studs, off-screen; nothing reachable on screen after 2 grabs
+cause: Step spawner Movements X was scaled by the lane half-width (22) instead of Unity's screen half-width (~8.84 studs in portrait), so Pot's points landed at x=33/55 and clampToLane dragged them to x≈23.6; per-grab budget spawns also stacked ~2.2 studs apart.
+change: Config.SPAWN_VIEW_HALF_WIDTH (portrait 9:16) scales step Movements X; vertical spawners clamp X to it; Lane.clearSpot keeps SPAWN_GAP between grab boxes (drops a spawn if no clear spot within 12 studs); spawners pause for PULL_TIME after a pull. Doc 17 updated.
+files: src/shared/Config.luau, src/shared/Levels.luau, src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: headless sim, 10 runs x 50 grabs: Pot visible spawns 13%->44% (75% within 16:9 view), starved grabs 173->57/500, overlaps 67%->0%; Kitchen/Country similar. stylua, selene, luau_check, rojo build pass. Residual: some grabs still find no visible step; Tutorial trees now at x≈±8.8.
+review: n/a

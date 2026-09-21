@@ -58,6 +58,8 @@ export type Lane = typeof(setmetatable(
 		-- distance (addPull), never by wall-clock time -- steps don't move between
 		-- pulls, and a free-running timer would pile them up at the entry edge.
 		spawnBudget: number,
+		-- Seconds until the last pull's tween settles; spawning waits for it (Lane.addPull).
+		pullSettle: number,
 		-- Net forward scroll (studs) accumulated since this level began, floored at 0.
 		-- Exists so the Tutorial "no death" retry (GameServer.tutorialRetry) can never
 		-- undo more scroll than has actually happened -- see Lane.addPull below.
@@ -273,8 +275,14 @@ local BOUNDS_MARGIN = 6 -- also used by Lane.isOutOfBounds below -- keep in sync
 -- Country's DownStepSpawner/DownLeftStepSpawner both clamp to (25, ~20-25) --
 -- 32-35 studs out. Pull those corners back onto the reach circle; in-range
 -- spawns (the common case) are untouched.
-local function clampToLane(offset: Vector3): Vector3
-	local x = math.clamp(offset.X, -(Config.LANE_HALF_WIDTH + 3), Config.LANE_HALF_WIDTH + 3)
+--
+-- A spawner whose travel has no X component (Down) moves its steps straight down, so X
+-- never changes after the spawn: keep it inside Config.SPAWN_VIEW_HALF_WIDTH (Unity's
+-- portrait view) or the step is never seen. Diagonal/sideways spawners keep the lane
+-- bound, because their travel carries a step in from the side (b-20260921-112713-7mxu).
+local function clampToLane(offset: Vector3, direction: Vector2): Vector3
+	local halfX = if signOf(direction.X) == 0 then Config.SPAWN_VIEW_HALF_WIDTH else Config.LANE_HALF_WIDTH + 3
+	local x = math.clamp(offset.X, -halfX, halfX)
 	local y = math.clamp(offset.Y, Config.DESPAWN_Y, Config.SPAWN_Y)
 	local planar = Vector2.new(x, y)
 	if planar.Magnitude > Config.MAX_GRAB_DISTANCE then
@@ -377,11 +385,11 @@ function Lane.spawnPosition(self: Lane, state: SpawnerState, indexInBatch: numbe
 
 	if indexInBatch and #movements > 0 then
 		local idx = ((indexInBatch - 1) % #movements) + 1
-		return self.origin + clampToLane(movements[idx])
+		return self.origin + clampToLane(movements[idx], state.def.direction)
 	end
 
 	if not indexInBatch and #movements > 0 then
-		return self.origin + clampToLane(currentMovementOffset(state))
+		return self.origin + clampToLane(currentMovementOffset(state), state.def.direction)
 	end
 
 	local dir = state.def.direction
@@ -413,6 +421,62 @@ function Lane.spawnPosition(self: Lane, state: SpawnerState, indexInBatch: numbe
 	return self.origin + Vector3.new(x, y, 0)
 end
 
+-- Recycle test for a step of `size` centred at `pos` -- see Lane.isOutOfBounds.
+local function outOfBounds(self: Lane, pos: Vector3, size: Vector3): boolean
+	local halfX, halfY = size.X / 2, size.Y / 2
+	local relX = pos.X - self.origin.X
+	local boundX = Config.LANE_HALF_WIDTH + BOUNDS_MARGIN
+	if relX + halfX < -boundX or relX - halfX > boundX then
+		return true
+	end
+	return (pos.Y + halfY) < Config.DESPAWN_Y or (pos.Y - halfY) > (Config.SPAWN_Y + BOUNDS_MARGIN)
+end
+
+local NUDGE_STEP = 1 -- studs per try
+local NUDGE_MAX = 12 -- studs; about two steps' worth of queue behind a crowded spawn
+
+-- Where a new step of `kindName` can go without its grab box (StepKinds hitSize)
+-- coming within Config.SPAWN_GAP of a live step's: `pos` itself, or the first
+-- point back along the travel line (upstream, i.e. further off-screen) that is
+-- clear. nil when that would leave the lane's bounds, and the spawn is skipped.
+-- The port packs a grab's spawns into 6 studs of scroll where Unity's ~80 u/s
+-- field spread them over ~25 (doc 17 "Spawner time per grab"), so without this
+-- one spawner's consecutive steps land 2-3 studs apart and overlap
+-- (b-20260921-112713-7mxu). Live positions are only valid once a pull's tween
+-- has settled, which is why tickSpawners waits for `pullSettle`.
+function Lane.clearSpot(self: Lane, pos: Vector3, kindName: string, travel: Vector3): Vector3?
+	local kind = StepKinds[kindName]
+	local size = if kind then kind.size else Vector3.new(6, 6, 1)
+	local hit = if kind and kind.hitSize then kind.hitSize else Vector2.new(size.X, size.Y)
+	local shift = 0
+	while shift <= NUDGE_MAX do
+		local p = pos - travel * shift
+		if outOfBounds(self, p, size) then
+			return nil
+		end
+		local clear = true
+		for step in self.active do
+			local other = (step:GetAttribute("HitSize") :: Vector2?) or Vector2.new(step.Size.X, step.Size.Y)
+			local d = step.Position - p
+			if
+				math.abs(d.X) < (hit.X + other.X) / 2 + Config.SPAWN_GAP
+				and math.abs(d.Y) < (hit.Y + other.Y) / 2 + Config.SPAWN_GAP
+			then
+				clear = false
+				break
+			end
+		end
+		if clear then
+			return p
+		end
+		if travel.Magnitude < 1e-4 then
+			return nil
+		end
+		shift += NUDGE_STEP
+	end
+	return nil
+end
+
 -- A pull of `distance` studs earns the spawners that much running time
 -- (Config.PULL_SPAWN_SPEED = how fast Unity's field moves during a pull). Also
 -- tracks net forward scroll since this level began (floored at 0) so a later
@@ -424,6 +488,9 @@ end
 function Lane.addPull(self: Lane, distance: number)
 	if distance > 0 then
 		self.spawnBudget += distance / Config.PULL_SPAWN_SPEED
+		-- spawn only once this pull's tween (GameServer.pullLane) has settled,
+		-- so Lane.clearSpot compares against where the steps actually rest
+		self.pullSettle = Config.PULL_TIME
 	end
 	self.netPull = math.max(0, self.netPull + distance)
 end
@@ -446,6 +513,10 @@ function Lane.tickSpawners(
 	-- full PULL_DISTANCE per grab regardless) and the backlog never surfaces in time.
 	-- Where each spawn lands doesn't depend on when it's spent (see `unspent` below).
 	local spend = math.min(self.spawnBudget, math.max(dt, self.spawnBudget * dt / Config.PULL_TIME))
+	if self.pullSettle > 0 then
+		self.pullSettle -= dt
+		spend = 0 -- steps are still tweening (see Lane.addPull)
+	end
 	self.spawnBudget -= spend
 	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
 	local travel = if dir3.Magnitude > 1e-4 then dir3.Unit else Vector3.zero
@@ -486,12 +557,15 @@ function Lane.tickSpawners(
 						-- every spawn of one grab's ~1 s window lands on the same
 						-- staging point and they stack.
 						local unspent = self.spawnBudget - state.timer
-						spawnFn(
-							state,
+						local pos = self:clearSpot(
+							self:spawnPosition(state) + travel * (unspent * Config.PULL_SPAWN_SPEED),
 							kindName,
-							self:spawnPosition(state) + travel * (unspent * Config.PULL_SPAWN_SPEED)
+							travel
 						)
-						state.spawnCount += 1
+						if pos then
+							spawnFn(state, kindName, pos)
+							state.spawnCount += 1
+						end
 					end
 				end
 				-- += (not =) keeps the overshoot, so a big spend yields every spawn it covers
@@ -536,8 +610,11 @@ function Lane.prefill(self: Lane, spawnFn: (state: SpawnerState, kindName: strin
 					-- it), so a row's several spawns spread along the travel
 					-- direction instead of stacking (same rule as tickSpawners)
 					local carried = travelled + dir3.Unit * (-state.timer * Config.PULL_SPAWN_SPEED)
-					spawnFn(state, kindName, self:spawnPosition(state) + carried)
-					state.spawnCount += 1
+					local pos = self:clearSpot(self:spawnPosition(state) + carried, kindName, dir3.Unit)
+					if pos then
+						spawnFn(state, kindName, pos)
+						state.spawnCount += 1
+					end
 					local interval = def.spawningSpeedMin
 						+ math.random() * math.max(0, def.spawningSpeedMax - def.spawningSpeedMin)
 					interval = math.max(interval, 0.05) -- never loop forever on a 0-interval def
@@ -565,14 +642,7 @@ end
 -- off-screen step stays untappable because GameClient resolves a tap to a point
 -- on the play plane inside the camera frustum before testing any step.
 function Lane.isOutOfBounds(self: Lane, step: BasePart): boolean
-	local halfX, halfY = step.Size.X / 2, step.Size.Y / 2
-	local relX = step.Position.X - self.origin.X
-	local boundX = Config.LANE_HALF_WIDTH + BOUNDS_MARGIN
-	if relX + halfX < -boundX or relX - halfX > boundX then
-		return true
-	end
-	local y = step.Position.Y
-	return (y + halfY) < Config.DESPAWN_Y or (y - halfY) > (Config.SPAWN_Y + BOUNDS_MARGIN)
+	return outOfBounds(self, step.Position, step.Size)
 end
 
 -- ---------------------------------------------------------------------------
@@ -656,6 +726,7 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		activeSpawners = {},
 		active = {},
 		spawnBudget = 0,
+		pullSettle = 0,
 		netPull = 0,
 		runSteps = 0,
 		tutorialStepsClimbed = 0,

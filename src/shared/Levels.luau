@@ -113,14 +113,23 @@ local list: { Level } = {}
 -- Raw Z values (Unity render-order artifacts -- Spawner.cs's Vector3.z is carried through
 -- unscaled by SetMovementToScreenSize) carry no spatial meaning in Roblox and are dropped
 -- (always 0 below).
+--
+-- Update (b-20260921-112713-7mxu): STEP spawners now use Unity's PORTRAIT halfScreenWidth
+-- (Config.SPAWN_VIEW_HALF_WIDTH, ~8.84 studs = 28 u at 9:16) instead of LANE_HALF_WIDTH. At 22
+-- studs per unit, Pot's DownStepSpawner (x = -0.5, 1.5, 2.5) put 2 of its 3 points at 33 and 55
+-- studs, which the lane clamp collapsed into a single off-screen column at x = 23.6. The
+-- diagonal spawners' points (x = 2..3 or -1..0) only make sense at portrait width too: from
+-- there a (-0.5,-1) scroll carries a step into the view from the side. Scenery (`smv`) keeps
+-- the old lane-width scale: it is client cosmetics sized to fill the lane.
 local MOVEMENTS_X_SCALE = Config.LANE_HALF_WIDTH
+local STEP_MOVEMENTS_X_SCALE = Config.SPAWN_VIEW_HALF_WIDTH
 local MOVEMENTS_Y_SCALE = 50 * Config.UNITY_TO_STUDS -- halfScreenHeight (doc 11 §4) in studs
 
 -- StepSpawner.SetMovementToScreenSize (Spawning/StepSpawner.cs L34-43): no extra per-axis factor.
 local function mv(pairs: { { number } }): { Vector3 }
 	local out: { Vector3 } = {}
 	for _, xy in pairs do
-		table.insert(out, Vector3.new(xy[1] * MOVEMENTS_X_SCALE, xy[2] * MOVEMENTS_Y_SCALE, 0))
+		table.insert(out, Vector3.new(xy[1] * STEP_MOVEMENTS_X_SCALE, xy[2] * MOVEMENTS_Y_SCALE, 0))
 	end
 	return out
 end
