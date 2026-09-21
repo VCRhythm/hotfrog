@@ -393,6 +393,7 @@ local function releaseStep(lane: Lane.Lane, step: BasePart)
 	end
 	forceReleaseStep(lane, step)
 	lane.active[step] = nil
+	lane:forgetStep(step) -- out of any slide-in still playing (Lane motions)
 	step.Parent = nil
 	step:SetAttribute("LaneUserId", nil)
 	table.insert(pool, step)
@@ -489,38 +490,79 @@ end
 -- ---------------------------------------------------------------------------
 -- The pull / world-scroll: on a validated grab, slide this lane's steps along
 -- ITS OWN spawn direction (Spawning/SpawnManager.cs PullStep/PullVector, now
--- per-lane -- doc 13 item 4). A negative `distance` undoes previous pulls (used
--- by the Tutorial's no-death fall rule below).
+-- per-lane -- doc 13 item 4) by `distance` studs over `duration` s. The motion
+-- itself is played by Lane.advanceMotions from the Heartbeat below; pulls add
+-- up rather than cancelling each other. A positive pull also runs the lane's
+-- spawners for the time it earned (Lane.spawnForPull): the new steps are created
+-- off-screen and ride this pull in, so they visibly slide in rather than pop up
+-- (owner's ruling, b-20260921-164429-ee9c). A negative `distance` undoes
+-- previous pulls (used by the Tutorial's no-death fall rule below).
 -- ---------------------------------------------------------------------------
 local function pullLane(lane: Lane.Lane, distance: number, duration: number)
-	local dir = lane.spawnDirection
-	local dir3 = Vector3.new(dir.X, dir.Y, 0)
-	if dir3.Magnitude < 1e-4 then
+	local delta = lane:addPull(distance, duration)
+	if not delta then
 		return
 	end
-	lane:addPull(distance) -- spawners only run on time earned by pulling (Lane.spawnBudget)
-	local delta = dir3.Unit * distance
 	-- replicate the pull so clients can scroll lane-local cosmetics (scenery, walls) in step
 	lane.folder:SetAttribute("PullDelta", delta)
 	lane.folder:SetAttribute("PullTime", duration)
 	lane.folder:SetAttribute("PullCount", ((lane.folder:GetAttribute("PullCount") :: number?) or 0) + 1)
-	local info = TweenInfo.new(duration, Enum.EasingStyle.Sine)
-	for step in pairs(lane.active) do
-		TweenService:Create(step, info, { CFrame = step.CFrame * CFrame.new(delta.X, delta.Y, 0) }):Play()
+	if distance > 0 then
+		lane:spawnForPull(distance, function(_state, kindName, worldPos)
+			acquireStep(lane, kindName, worldPos)
+		end)
 	end
 end
 
--- Per-lane spawn tick + per-tick behavior hook (Falling's constant drift,
+-- Slide a batch of freshly created steps (a prefill screenful, the Tutorial
+-- ladder) in from off-screen instead of popping them into view: move the whole
+-- batch back along the lane's travel direction until every one of them is
+-- outside the camera band (Lane.entryShift), then play that shift back over
+-- Config.SLIDE_IN_TIME. Where they come to rest is unchanged.
+local function slideIn(lane: Lane.Lane, steps: { BasePart })
+	local dir = lane.spawnDirection
+	if #steps == 0 or dir.Magnitude < 1e-4 then
+		return
+	end
+	local u = Vector3.new(dir.X, dir.Y, 0).Unit
+	local shift = 0
+	for _, step in steps do
+		shift = math.max(shift, lane:entryShift(step.Position, step.Size, u))
+	end
+	if shift <= 0 then
+		return
+	end
+	local set: { [BasePart]: boolean } = {}
+	for _, step in steps do
+		step.CFrame -= u * shift
+		set[step] = true
+	end
+	lane:addMotion(u * shift, Config.SLIDE_IN_TIME, set)
+end
+
+-- Prefill `lane` (Lane.prefill) and slide the batch in.
+local function prefillLane(lane: Lane.Lane)
+	local batch: { BasePart } = {}
+	lane:prefill(function(_state, kindName, worldPos)
+		table.insert(batch, acquireStep(lane, kindName, worldPos))
+	end)
+	slideIn(lane, batch)
+end
+
+-- Per-lane motion/spawn tick + per-tick behavior hook (Falling's constant drift,
 -- doc 05) + recycle steps that leave the lane's bounds on any side (doc 13
 -- item 4 -- Borders: Left/Right/Top/Bottom catch, not just the lava line).
 RunService.Heartbeat:Connect(function(dt: number)
 	for _, lane in Lane.iter() do
+		lane:advanceMotions(dt)
 		if runState[lane.player] ~= RunState.Playing then
 			continue -- Menu/Dead: idle lane, no spawning (doc 15 item 1)
 		end
+		local batch: { BasePart } = {}
 		lane:tickSpawners(dt, function(_state, kindName, worldPos)
-			acquireStep(lane, kindName, worldPos)
+			table.insert(batch, acquireStep(lane, kindName, worldPos))
 		end)
+		slideIn(lane, batch) -- the Tutorial ladder's one-shot batch
 
 		for step in pairs(lane.active) do
 			local b = behaviorOf(step)
@@ -950,7 +992,7 @@ local function tutorialRetry(lane: Lane.Lane, f: FrogState)
 			forceReleaseStep(lane, step)
 		end
 	end
-	local retreat = -math.min(Config.PULL_DISTANCE * Config.TUTORIAL_PULL_BACK, lane.netPull)
+	local retreat = -math.min(Config.PULL_MAX_DISTANCE * Config.TUTORIAL_PULL_BACK, lane.netPull)
 	if retreat < 0 then
 		pullLane(lane, retreat, 0.6)
 	end
@@ -1230,7 +1272,16 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	local quality = if typeof(tapPos) == "Vector3" then PullMath.gradeGrab(tapPos, step.Position) else "OK"
 
 	bob(f, lane, step) -- before the pull, so it reads the step's pre-pull X (Limb.CloseHand order)
-	pullLane(lane, Config.PULL_DISTANCE, Config.PULL_TIME)
+	-- Pull the grabbed point (the carrot's GripOffset when it has one) to near
+	-- the centre of the screen, measured where the step will REST once any pull
+	-- still playing finishes (owner's ruling, b-20260921-164409-nkkh;
+	-- PullMath.pullDistance). Unity reaches the same place with a per-frame force
+	-- scaled by the step's distance from the target line (SpawnManager.PullVector).
+	local grip = (step:GetAttribute("GripOffset") :: Vector2?) or Vector2.zero
+	local gripRest = lane:restPosition(step) + Vector3.new(grip.X, grip.Y, 0)
+	local distance =
+		PullMath.pullDistance(Vector2.new(gripRest.X - lane.origin.X, gripRest.Y - lane.origin.Y), lane.spawnDirection)
+	pullLane(lane, distance, PullMath.pullTime(distance))
 	addScore(player, 1, quality)
 
 	local wasTutorial = lane.levelIndex == Levels.TUTORIAL
@@ -1239,9 +1290,7 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 		-- Tutorial -> Pot: the tree ladder never respawns and Pot's spawners start
 		-- cold at their off-screen staging point, so prefill Pot's first screenful
 		-- the same way StartRun does (no-op if the lane somehow has steps already)
-		lane:prefill(function(_state, kindName, worldPos)
-			acquireStep(lane, kindName, worldPos)
-		end)
+		prefillLane(lane)
 	end
 
 	-- Player.cs TouchStep: the first grab of a (pullable) step arms falling --
@@ -1350,9 +1399,7 @@ StartRun.OnServerEvent:Connect(function(player)
 	f.model:SetAttribute("Dead", false)
 	flysThisRun[player] = 0
 	bugsThisRun[player] = 0
-	lane:prefill(function(_state, kindName, worldPos)
-		acquireStep(lane, kindName, worldPos)
-	end)
+	prefillLane(lane)
 	setRunState(player, RunState.Playing)
 end)
 

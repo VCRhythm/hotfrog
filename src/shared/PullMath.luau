@@ -32,11 +32,28 @@ function PullMath.gradeGrab(tapWorld: Vector3, stepWorld: Vector3): string
 end
 
 -- The original (SpawnManager.PullMultiplier) scales the pull by distance to a
--- target line: 2 * |target - position|. We expose it for anyone wanting the
--- continuous-pull feel; the reference GameServer uses a fixed PULL_DISTANCE step,
--- which reads the same and is simpler.
+-- target line: 2 * |target - position|, a per-frame force. Kept for reference;
+-- the port uses pullDistance below, which turns the same idea into a destination.
 function PullMath.pullMultiplier(position: number, target: number): number
 	return 2 * math.abs(target - position)
+end
+
+-- How far one grab scrolls the field (studs along `travel`, the lane's spawn
+-- direction): far enough that the grabbed point `rel` (lane-relative, at rest)
+-- ends on the point of its travel line nearest Config.PULL_TARGET, the camera
+-- centre. For a straight-down scroll that is simply "the step's height above the
+-- centre". Clamped to [PULL_MIN_DISTANCE, PULL_MAX_DISTANCE] (see Config).
+function PullMath.pullDistance(rel: Vector2, travel: Vector2): number
+	if travel.Magnitude < 1e-4 then
+		return 0
+	end
+	local d = -(rel - Config.PULL_TARGET):Dot(travel.Unit)
+	return math.clamp(d, Config.PULL_MIN_DISTANCE, Config.PULL_MAX_DISTANCE)
+end
+
+-- Tween duration for a pull of `distance` studs (Config.PULL_SPEED, clamped).
+function PullMath.pullTime(distance: number): number
+	return math.clamp(math.abs(distance) / Config.PULL_SPEED, Config.PULL_TIME, Config.PULL_TIME_MAX)
 end
 
 return PullMath

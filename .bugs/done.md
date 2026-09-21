@@ -435,3 +435,30 @@ files: src/client/WorldQualityPopup.client.luau
 test: none
 verified: stylua, selene, luau_check pass. Not playtested (MCP not attached for this fixer).
 review: n/a
+
+## b-20260921-164409-nkkh  fixed  2026-09-21 17:50
+note: when grabbing, steps should slide in to near the center of the screen. right now we're too far to the edge
+cause: each grab pulled a fixed 6 studs wherever the grabbed step was, and new steps were placed after the pull settled at staging points that could already be inside the view (e.g. Pot DownRight at (-8.84, 7.86)), so steps popped in and the grabbed step stopped short of centre.
+change: a grab pulls its grip point (incl. carrot GripOffset) to lane centre, clamped 2-24 studs, over distance/40 s (0.25-0.6 s), as additive eased motions in Lane.advanceMotions that replace the per-step tweens. Lane.spawnForPull spawns at grab time with Unity's 1 s spawner window per grab (PULL_SPAWN_WINDOW replaces PULL_SPAWN_SPEED), starting each step outside the camera band (Lane.entryShift) so the pull slides it in. Prefill and the Tutorial ladder slide in via GameServer.slideIn. clearSpot/isOutOfBounds use rest positions; tutorialRetry pull-back is 3×PULL_MAX_DISTANCE capped at net pull. Doc 17 "Spawner time per grab" row rewritten as an owner-ruling deviation.
+files: src/server/Lane.luau, src/server/GameServer.server.luau, src/shared/Config.luau, src/shared/PullMath.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua, selene, luau_check, rojo build pass. Headless Edit-mode sim, 20 runs × 50 grabs: 0 spawns started inside the view, 0 overlaps, grip ends 0.5-1 stud from centre; about 30% of Kitchen/Country grabs still find no step ahead (strict portrait metric). Live playtest: carrot grabs pulled 8.5 and 14.7 studs with the grip ending at y=0.00; new spawns started above the view edge and slid in; no console errors. Not live-tested: Tutorial ladder slide-in and tutorialRetry.
+review: looks-right (only note: eased() never applies a zero-duration motion; no caller uses one today)
+
+## b-20260921-164429-ee9c  fixed  2026-09-21 17:50
+note: steps are still just appearing on screen rather than sliding in
+cause: same as b-20260921-164409-nkkh: spawns were placed at staging points inside the view after the pull had settled.
+change: fixed together with b-20260921-164409-nkkh (spawn outside the camera band at grab time, carried in by the pull).
+files: see b-20260921-164409-nkkh
+test: none
+verified: see b-20260921-164409-nkkh
+review: looks-right
+
+## b-20260921-152825-fzl6  fixed  2026-09-21 17:50
+note: steps tend to just appear on screen rather than slide in
+cause: decision "steps must visibly slide in" (the user re-filed it as b-20260921-164429-ee9c "steps are still just appearing on screen rather than sliding in"); applied in b-20260921-164409-nkkh.
+change: see b-20260921-164409-nkkh
+files: see b-20260921-164409-nkkh
+test: none
+verified: see b-20260921-164409-nkkh
+review: looks-right

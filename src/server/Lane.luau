@@ -11,6 +11,7 @@
 -- requires this module (doc 13 item 7).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
+local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local Levels = require(ReplicatedStorage.Shared.Levels)
@@ -36,6 +37,16 @@ export type SpawnerState = {
 	moveWaitTime: number, -- total leg length before the next re-pick (tweenTime + nextMoveTime)
 }
 
+-- One eased displacement of this lane's steps (see "Motions" below). `only` nil
+-- = a pull: every step in `active` on each frame it runs, including steps spawned
+-- after it started. `only` set = a slide-in of just those steps.
+export type Motion = {
+	delta: Vector3,
+	duration: number,
+	elapsed: number,
+	only: { [BasePart]: boolean }?,
+}
+
 local Lane = {}
 Lane.__index = Lane
 
@@ -52,14 +63,8 @@ export type Lane = typeof(setmetatable(
 		spawnerStates: { SpawnerState },
 		activeSpawners: { SpawnerState },
 		active: { [BasePart]: boolean }, -- this lane's own live steps
-		-- Spawner seconds still to be spent. Unity's step spawners only run WHILE
-		-- the field is being pulled (SpawnManager.PullStep activates them,
-		-- ReleasePullingStep deactivates them), so spawner time is earned by pull
-		-- distance (addPull), never by wall-clock time -- steps don't move between
-		-- pulls, and a free-running timer would pile them up at the entry edge.
-		spawnBudget: number,
-		-- Seconds until the last pull's tween settles; spawning waits for it (Lane.addPull).
-		pullSettle: number,
+		-- Pulls and slide-ins still playing (Lane.addMotion / advanceMotions).
+		motions: { Motion },
 		-- Net forward scroll (studs) accumulated since this level began, floored at 0.
 		-- Exists so the Tutorial "no death" retry (GameServer.tutorialRetry) can never
 		-- undo more scroll than has actually happened -- see Lane.addPull below.
@@ -252,18 +257,18 @@ end
 -- Movements-list cycling (Spawning/Spawner.cs Move() coroutine, L123-147). Only
 -- touches spawners whose Levels.luau `def.movements` is non-empty -- see
 -- Lane.spawnPosition below for the empty-list procedural fallback this replaces.
--- Unity's Move() runs on its own clock, fully independent of spawning/spawnBudget
+-- Unity's Move() runs on its own clock, fully independent of spawning
 -- (Activate() L86-97 starts Move() and StartSpawning as two separate coroutines);
--- updateMovement mirrors that by always advancing on the full Heartbeat `dt`,
--- not the pull-earned `spend` budget tickSpawners' spawn cadence uses below.
+-- tickSpawners mirrors that by advancing it on the Heartbeat `dt`, and
+-- spawnForPull also sweeps it through each pull's spawner window.
 --
 -- `Lane.spawnPosition` clamps the result into Lane.isOutOfBounds' recycle margin
 -- (BOUNDS_MARGIN) before adding it to the lane's origin: the converted Movements
 -- offsets (Levels.luau) are deliberately off-screen "staging" positions, matching
 -- Unity's own adjustedMovements, but Unity drags those onscreen with a continuous
 -- per-frame PullVector (Spawning/SpawnManager.cs Pull/PullStep) while this port's
--- steps only move on a discrete per-grab tween (GameServer.pullLane) -- an
--- unclamped literal offset would be recycled before ever being pulled in.
+-- steps only move on a discrete per-grab pull (Lane.addPull) -- an unclamped
+-- literal offset would be recycled before ever being pulled in.
 -- ---------------------------------------------------------------------------
 local BOUNDS_MARGIN = 6 -- also used by Lane.isOutOfBounds below -- keep in sync
 
@@ -434,19 +439,132 @@ end
 
 local NUDGE_STEP = 1 -- studs per try
 local NUDGE_MAX = 12 -- studs; about two steps' worth of queue behind a crowded spawn
+local DEFAULT_SIZE = Vector3.new(6, 6, 1)
 
--- Where a new step of `kindName` can go without its grab box (StepKinds hitSize)
--- coming within Config.SPAWN_GAP of a live step's: `pos` itself, or the first
--- point back along the travel line (upstream, i.e. further off-screen) that is
--- clear. nil when that would leave the lane's bounds, and the spawn is skipped.
--- The port packs a grab's spawns into 6 studs of scroll where Unity's ~80 u/s
--- field spread them over ~25 (doc 17 "Spawner time per grab"), so without this
--- one spawner's consecutive steps land 2-3 studs apart and overlap
--- (b-20260921-112713-7mxu). Live positions are only valid once a pull's tween
--- has settled, which is why tickSpawners waits for `pullSettle`.
+-- ---------------------------------------------------------------------------
+-- Motions. Every pull (and every slide-in) is an eased displacement played on
+-- the server's own clock (advanceMotions, from GameServer's Heartbeat) rather
+-- than a TweenService tween per step. They add up: a grab that lands mid-pull
+-- keeps the rest of the previous pull instead of cancelling it, and a step
+-- spawned during a pull rides whatever is left of it. Easing is Sine/Out, the
+-- curve WorldScenery tweens the lane's cosmetics with off PullDelta/PullTime.
+-- ---------------------------------------------------------------------------
+local function eased(m: Motion, elapsed: number): number
+	if m.duration <= 0 then
+		return 1
+	end
+	return TweenService:GetValue(
+		math.clamp(elapsed / m.duration, 0, 1),
+		Enum.EasingStyle.Sine,
+		Enum.EasingDirection.Out
+	)
+end
+
+local function remaining(m: Motion): Vector3
+	return m.delta * (1 - eased(m, m.elapsed))
+end
+
+function Lane.addMotion(self: Lane, delta: Vector3, duration: number, only: { [BasePart]: boolean }?): Motion
+	local m: Motion = { delta = delta, duration = duration, elapsed = 0, only = only }
+	table.insert(self.motions, m)
+	return m
+end
+
+-- What the lane's running pulls still owe every step, including one spawned now.
+function Lane.sharedPending(self: Lane): Vector3
+	local sum = Vector3.zero
+	for _, m in self.motions do
+		if not m.only then
+			sum += remaining(m)
+		end
+	end
+	return sum
+end
+
+-- Where `step` comes to rest once every motion playing on it has finished.
+function Lane.restPosition(self: Lane, step: BasePart): Vector3
+	local pos = step.Position
+	for _, m in self.motions do
+		local only = m.only
+		if not only or only[step] then
+			pos += remaining(m)
+		end
+	end
+	return pos
+end
+
+-- A pooled step is leaving this lane: drop it from any slide-in it was part of,
+-- so a re-acquired part doesn't inherit the old slide.
+function Lane.forgetStep(self: Lane, step: BasePart)
+	for _, m in self.motions do
+		local only = m.only
+		if only then
+			only[step] = nil
+		end
+	end
+end
+
+-- Advance every motion by `dt`, moving the lane's steps by each one's eased increment.
+function Lane.advanceMotions(self: Lane, dt: number)
+	for i = #self.motions, 1, -1 do
+		local m = self.motions[i]
+		local before = eased(m, m.elapsed)
+		m.elapsed += dt
+		local inc = m.delta * (eased(m, m.elapsed) - before)
+		if inc.Magnitude > 0 then
+			local only = m.only
+			if only then
+				for step in only do
+					if self.active[step] then
+						step.CFrame += inc
+					end
+				end
+			else
+				for step in self.active do
+					step.CFrame += inc
+				end
+			end
+		end
+		if m.elapsed >= m.duration then
+			table.remove(self.motions, i)
+		end
+	end
+end
+
+-- How far back along `travel` (studs) a step of `size` must start, relative to
+-- `pos`, so its whole extent is outside the camera band (Config.VIEW_HALF_HEIGHT)
+-- on the side it enters from. Motion along `travel` then carries it into view:
+-- it slides in rather than popping up (owner's ruling, b-20260921-164429-ee9c).
+-- Any vertical component decides it (steps entering from the top); pure sideways
+-- travel uses the same half-extent as an assumed half-width, since the server
+-- can't see the client's aspect ratio.
+local ENTRY_MARGIN = 0.5 -- studs past the band edge, so rounding never leaves a sliver on screen
+
+function Lane.entryShift(self: Lane, pos: Vector3, size: Vector3, travel: Vector3): number
+	local rel = pos - self.origin
+	local h = Config.VIEW_HALF_HEIGHT
+	if math.abs(travel.Y) > 1e-4 then
+		local clear = h + size.Y / 2 + ENTRY_MARGIN
+		local need = if travel.Y < 0 then clear - rel.Y else rel.Y + clear
+		return math.max(0, need / math.abs(travel.Y))
+	elseif math.abs(travel.X) > 1e-4 then
+		local clear = h + size.X / 2 + ENTRY_MARGIN
+		local need = if travel.X < 0 then clear - rel.X else rel.X + clear
+		return math.max(0, need / math.abs(travel.X))
+	end
+	return 0
+end
+
+-- Where a new step of `kindName` can rest without its grab box (StepKinds hitSize)
+-- coming within Config.SPAWN_GAP of a live step's (compared at REST positions,
+-- Lane.restPosition, so a pull still playing doesn't matter): `pos` itself, or
+-- the first point back along the travel line (upstream, i.e. further off-screen)
+-- that is clear. nil when that would leave the lane's bounds, and the spawn is
+-- skipped. Without this one spawner's consecutive steps can land 2-3 studs apart
+-- and overlap (b-20260921-112713-7mxu).
 function Lane.clearSpot(self: Lane, pos: Vector3, kindName: string, travel: Vector3): Vector3?
 	local kind = StepKinds[kindName]
-	local size = if kind then kind.size else Vector3.new(6, 6, 1)
+	local size = if kind then kind.size else DEFAULT_SIZE
 	local hit = if kind and kind.hitSize then kind.hitSize else Vector2.new(size.X, size.Y)
 	local shift = 0
 	while shift <= NUDGE_MAX do
@@ -457,7 +575,7 @@ function Lane.clearSpot(self: Lane, pos: Vector3, kindName: string, travel: Vect
 		local clear = true
 		for step in self.active do
 			local other = (step:GetAttribute("HitSize") :: Vector2?) or Vector2.new(step.Size.X, step.Size.Y)
-			local d = step.Position - p
+			local d = self:restPosition(step) - p
 			if
 				math.abs(d.X) < (hit.X + other.X) / 2 + Config.SPAWN_GAP
 				and math.abs(d.Y) < (hit.Y + other.Y) / 2 + Config.SPAWN_GAP
@@ -477,98 +595,86 @@ function Lane.clearSpot(self: Lane, pos: Vector3, kindName: string, travel: Vect
 	return nil
 end
 
--- A pull of `distance` studs earns the spawners that much running time
--- (Config.PULL_SPAWN_SPEED = how fast Unity's field moves during a pull). Also
--- tracks net forward scroll since this level began (floored at 0) so a later
--- negative "undo" pull -- GameServer.tutorialRetry's Tutorial "no death" rule --
--- can be capped against it and never overshoot past the level's start (doc 17
--- gap: an uncapped retry pull-back permanently scrolled the Tutorial's one-shot
--- ladder, which never respawns, off the top of the field before it was ever
--- climbed).
-function Lane.addPull(self: Lane, distance: number)
-	if distance > 0 then
-		self.spawnBudget += distance / Config.PULL_SPAWN_SPEED
-		-- spawn only once this pull's tween (GameServer.pullLane) has settled,
-		-- so Lane.clearSpot compares against where the steps actually rest
-		self.pullSettle = Config.PULL_TIME
+-- Start a pull of `distance` studs along this lane's spawn direction, played
+-- over `duration` s by advanceMotions. Returns the displacement (nil when the
+-- lane has no direction). Also tracks net forward scroll since this level began
+-- (floored at 0) so a later negative "undo" pull -- GameServer.tutorialRetry's
+-- Tutorial "no death" rule -- can be capped against it and never overshoot past
+-- the level's start (doc 17 gap: an uncapped retry pull-back permanently
+-- scrolled the Tutorial's one-shot ladder, which never respawns, off the top of
+-- the field before it was ever climbed).
+function Lane.addPull(self: Lane, distance: number, duration: number): Vector3?
+	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
+	if dir3.Magnitude < 1e-4 then
+		return nil
 	end
+	local delta = dir3.Unit * distance
+	self:addMotion(delta, duration)
 	self.netPull = math.max(0, self.netPull + distance)
+	return delta
 end
 
 -- ---------------------------------------------------------------------------
--- Per-tick spawning (Spawning/Spawner.cs StartSpawning coroutine +
--- StepAndScenerySpawner spawnAllOnAwake). `spawnFn` is provided by GameServer,
--- which owns the pooled step Instances and behavior dispatch; Lane only decides
--- WHEN, WHICH KIND, and WHERE.
+-- Pull-driven spawning (Spawning/Spawner.cs StartSpawning, run only while the
+-- field is being pulled: SpawnManager.PullStep activates the step spawners and
+-- ReleasePullingStep stops them). Each grab earns Config.PULL_SPAWN_WINDOW
+-- spawner-seconds (Unity's fixed 1 s, Step.cs Invoke("StopPull", 1f)), spent
+-- right away in small slices so each spawner's Movements cycle still sweeps along
+-- as Unity's window would. Under Unity's scroll a spawn made partway through the
+-- window rides the rest of the pull, so each spawn's REST position is carried
+-- along the travel direction by the matching share of `distance`; the part is then created back by
+-- whatever the lane's running pulls still owe (sharedPending) -- i.e. at the
+-- spawner's staging point or further out -- and the pull carries it in.
+-- Lane.entryShift pushes a spawn further back when even that start would
+-- overlap the camera band. `spawnFn` gets the position to create the part at
+-- NOW; GameServer owns the pooled Instances.
 -- ---------------------------------------------------------------------------
-function Lane.tickSpawners(
+local SPAWN_SLICE = 1 / 30 -- spawner-seconds per slice of a pull's window
+
+function Lane.spawnForPull(
 	self: Lane,
-	dt: number,
+	distance: number,
 	spawnFn: (state: SpawnerState, kindName: string, worldPos: Vector3) -> ()
 )
-	-- continuous spawners only advance on time earned by pulling (see spawnBudget).
-	-- The pull that earned it has already happened in one PULL_TIME tween, so drain
-	-- the budget on that same timescale rather than 1 s per s: otherwise a player
-	-- grabbing faster than once per second outruns the spawners (the field moves a
-	-- full PULL_DISTANCE per grab regardless) and the backlog never surfaces in time.
-	-- Where each spawn lands doesn't depend on when it's spent (see `unspent` below).
-	local spend = math.min(self.spawnBudget, math.max(dt, self.spawnBudget * dt / Config.PULL_TIME))
-	if self.pullSettle > 0 then
-		self.pullSettle -= dt
-		spend = 0 -- steps are still tweening (see Lane.addPull)
-	end
-	self.spawnBudget -= spend
 	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
-	local travel = if dir3.Magnitude > 1e-4 then dir3.Unit else Vector3.zero
-
-	for _, state in self.activeSpawners do
-		local def = state.def
-		-- Move() runs on its own clock (full dt), independent of the spend-gated spawn
-		-- cadence below (Spawner.cs Activate() starts Move()/StartSpawning as two separate
-		-- coroutines, L86-97) -- moot for spawnAllOnAwake defs, whose positions come
-		-- straight from `def.movements[i]` (see Lane.spawnPosition), not this cycle.
-		-- (Advanced by the spawner-time spent when that's more than dt, so a fast
-		-- drain still sweeps the spawner along its Movements as Unity's 1 s window would.)
-		if not def.spawnAllOnAwake and #def.movements > 0 then
-			updateMovement(state, math.max(dt, spend))
-		end
-		if def.spawnAllOnAwake then
-			if not state.awoken then
-				state.awoken = true
-				for i, kindName in def.pool do
-					if def.maxSpawnCount < 0 or state.spawnCount < def.maxSpawnCount then
-						spawnFn(state, kindName, self:spawnPosition(state, i))
-						state.spawnCount += 1
-					end
-				end
+	if distance <= 0 or dir3.Magnitude < 1e-4 then
+		return
+	end
+	local travel = dir3.Unit
+	local pending = self:sharedPending()
+	local window = Config.PULL_SPAWN_WINDOW
+	local left = window
+	while left > 1e-6 do
+		local slice = math.min(SPAWN_SLICE, left)
+		left -= slice
+		for _, state in self.activeSpawners do
+			local def = state.def
+			if def.spawnAllOnAwake then
+				continue
 			end
-		elseif spend > 0 then
-			state.timer -= spend
+			if #def.movements > 0 then
+				updateMovement(state, slice)
+			end
+			state.timer -= slice
 			while state.timer <= 0 do
 				if def.maxSpawnCount < 0 or state.spawnCount < def.maxSpawnCount then
 					local kindName = self:pickKind(state)
 					if kindName then
-						-- The pull that earned this budget already happened (one
-						-- tween at grab time), but under Unity's continuous scroll a
-						-- spawn this far into the window would still ride the rest
-						-- of it: carry it along the travel direction by the budget
-						-- that was still unspent at its spawn moment (this frame's
-						-- remainder + the overshoot past the timer). Without this,
-						-- every spawn of one grab's ~1 s window lands on the same
-						-- staging point and they stack.
-						local unspent = self.spawnBudget - state.timer
-						local pos = self:clearSpot(
-							self:spawnPosition(state) + travel * (unspent * Config.PULL_SPAWN_SPEED),
-							kindName,
-							travel
-						)
+						-- (left - timer) spawner-seconds of the window remain after
+						-- this spawn (timer <= 0 is the overshoot into this slice)
+						local carry = (left - state.timer) / window * distance
+						local rest = self:spawnPosition(state) + travel * carry
+						local kind = StepKinds[kindName]
+						local size = if kind then kind.size else DEFAULT_SIZE
+						rest -= travel * self:entryShift(rest - pending, size, travel)
+						local pos = self:clearSpot(rest, kindName, travel)
 						if pos then
-							spawnFn(state, kindName, pos)
+							spawnFn(state, kindName, pos - pending)
 							state.spawnCount += 1
 						end
 					end
 				end
-				-- += (not =) keeps the overshoot, so a big spend yields every spawn it covers
+				-- += (not =) keeps the overshoot, so a big window yields every spawn it covers
 				state.timer += math.max(
 					0.05,
 					def.spawningSpeedMin + math.random() * math.max(0, def.spawningSpeedMax - def.spawningSpeedMin)
@@ -578,11 +684,45 @@ function Lane.tickSpawners(
 	end
 end
 
+-- ---------------------------------------------------------------------------
+-- Per-tick upkeep (Spawning/Spawner.cs Move() + StepAndScenerySpawner
+-- spawnAllOnAwake). Continuous spawning only happens on pulls (spawnForPull);
+-- here the Movements cycles advance on the Heartbeat clock (Unity's Move() is its
+-- own coroutine, Spawner.cs Activate() L86-97) and a spawnAllOnAwake spawner
+-- (the Tutorial ladder) fires its one batch. `spawnFn` gets the position to
+-- create the part at now (GameServer slides that batch in, see slideIn there).
+-- ---------------------------------------------------------------------------
+function Lane.tickSpawners(
+	self: Lane,
+	dt: number,
+	spawnFn: (state: SpawnerState, kindName: string, worldPos: Vector3) -> ()
+)
+	for _, state in self.activeSpawners do
+		local def = state.def
+		if not def.spawnAllOnAwake and #def.movements > 0 then
+			updateMovement(state, dt)
+		end
+		if def.spawnAllOnAwake and not state.awoken then
+			state.awoken = true
+			local pending = self:sharedPending()
+			for i, kindName in def.pool do
+				if def.maxSpawnCount < 0 or state.spawnCount < def.maxSpawnCount then
+					spawnFn(state, kindName, self:spawnPosition(state, i) - pending)
+					state.spawnCount += 1
+				end
+			end
+		end
+	end
+end
+
 -- Populate an empty lane as if the player had already pulled a screenful of
 -- steps into view, so a run starts with something to grab (Unity gets the same
 -- result from the level-start Pull in LevelManager/SpawnManager). Rows are one
--- PULL_DISTANCE apart along the travel direction, oldest (furthest in) first.
--- No-op when the lane already has steps, e.g. a respawn after a death.
+-- PREFILL_ROW_STEP apart along the travel direction, oldest (furthest in) first.
+-- `spawnFn` gets the position to create the part at now: the rest position less
+-- whatever the lane's running pulls still owe (GameServer then slides the whole
+-- batch in from off-screen). No-op when the lane already has steps, e.g. a
+-- respawn after a death.
 function Lane.prefill(self: Lane, spawnFn: (state: SpawnerState, kindName: string, worldPos: Vector3) -> ())
 	local count = 0
 	for _ in self.active do
@@ -593,10 +733,11 @@ function Lane.prefill(self: Lane, spawnFn: (state: SpawnerState, kindName: strin
 		return
 	end
 
-	local rows = Config.PREFILL_DEPTH // Config.PULL_DISTANCE
-	local rowTime = Config.PULL_DISTANCE / Config.PULL_SPAWN_SPEED
+	local pending = self:sharedPending()
+	local rows = Config.PREFILL_DEPTH // Config.PREFILL_ROW_STEP
+	local rowTime = Config.PULL_SPAWN_WINDOW -- each row is one grab's window
 	for row = rows, 1, -1 do
-		local travelled = dir3.Unit * ((row - 1) * Config.PULL_DISTANCE)
+		local travelled = dir3.Unit * ((row - 1) * Config.PREFILL_ROW_STEP)
 		for _, state in self.activeSpawners do
 			local def = state.def
 			if not def.spawnAllOnAwake then
@@ -608,18 +749,18 @@ function Lane.prefill(self: Lane, spawnFn: (state: SpawnerState, kindName: strin
 					end
 					-- carried the rest of its row's window too (-timer seconds of
 					-- it), so a row's several spawns spread along the travel
-					-- direction instead of stacking (same rule as tickSpawners)
-					local carried = travelled + dir3.Unit * (-state.timer * Config.PULL_SPAWN_SPEED)
+					-- direction instead of stacking (same rule as spawnForPull)
+					local carried = travelled + dir3.Unit * (-state.timer / rowTime * Config.PREFILL_ROW_STEP)
 					local pos = self:clearSpot(self:spawnPosition(state) + carried, kindName, dir3.Unit)
 					if pos then
-						spawnFn(state, kindName, pos)
+						spawnFn(state, kindName, pos - pending)
 						state.spawnCount += 1
 					end
 					local interval = def.spawningSpeedMin
 						+ math.random() * math.max(0, def.spawningSpeedMax - def.spawningSpeedMin)
 					interval = math.max(interval, 0.05) -- never loop forever on a 0-interval def
 					state.timer += interval
-					updateMovement(state, interval) -- Move() keeps cycling between spawns, as in tickSpawners
+					updateMovement(state, interval) -- Move() keeps cycling between spawns, as in spawnForPull
 				end
 			end
 		end
@@ -641,8 +782,12 @@ end
 -- spawn cadence; the extra life is spent entirely outside the view, and an
 -- off-screen step stays untappable because GameClient resolves a tap to a point
 -- on the play plane inside the camera frustum before testing any step.
+--
+-- A step mid-motion is only recycled when BOTH where it is now and where it will
+-- rest are out: a spawn starts off-screen, past the top catch line, and must
+-- survive until the pull carries it in.
 function Lane.isOutOfBounds(self: Lane, step: BasePart): boolean
-	return outOfBounds(self, step.Position, step.Size)
+	return outOfBounds(self, step.Position, step.Size) and outOfBounds(self, self:restPosition(step), step.Size)
 end
 
 -- ---------------------------------------------------------------------------
@@ -685,7 +830,7 @@ end
 function Lane.resetRun(self: Lane, tutorialDone: boolean)
 	self.runSteps = 0
 	self.tutorialStepsClimbed = 0
-	self.spawnBudget = 0
+	table.clear(self.motions) -- the lane was just emptied (GameServer.clearLaneSteps)
 	self:setLevel(if tutorialDone then Levels.POT else Levels.TUTORIAL)
 	if self.notify then
 		self.notify(self, "death")
@@ -725,8 +870,7 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		spawnerStates = {},
 		activeSpawners = {},
 		active = {},
-		spawnBudget = 0,
-		pullSettle = 0,
+		motions = {},
 		netPull = 0,
 		runSteps = 0,
 		tutorialStepsClimbed = 0,

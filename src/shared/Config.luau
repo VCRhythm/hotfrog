@@ -79,9 +79,31 @@ local Config = {
 	DEATH_FALL_TIME = 1, -- eased duration standing in for Fall()'s SmoothDamp(smoothTime .3s) sink
 	DEATH_FALL_Y = -100 * UNITY_TO_STUDS, -- Fall()'s `endY`: how far the body sinks past LAVA_Y
 
-	-- Pull / world-scroll (Spawning/SpawnManager.cs: PullStep / PullVector)
-	PULL_DISTANCE = 6, -- studs the field scrolls down per successful grab
-	PULL_TIME = 0.25, -- ease duration for one pull
+	-- Pull / world-scroll (Spawning/SpawnManager.cs: PullStep / PullVector).
+	-- Unity scales each pull by how far the grabbed step is from a target line
+	-- (PullMultiplier = 2 * |target - step.y|), so grabbing a high step scrolls the
+	-- field further. The port pulls once per grab (a tween), so it turns that rule
+	-- into a destination: a grab slides the field along the lane's spawn direction
+	-- until the grabbed step's grip point sits at the point of its travel line
+	-- nearest PULL_TARGET, the camera centre (owner's ruling, b-20260921-164409-nkkh;
+	-- PullMath.pullDistance). The distance is clamped to [PULL_MIN_DISTANCE,
+	-- PULL_MAX_DISTANCE] so a step already at/below the centre still scrolls the
+	-- field a little (as Unity's never-zero multiplier does) and earns spawner time.
+	PULL_TARGET = Vector2.new(0, 0), -- lane-relative; the camera looks at the lane origin
+	PULL_MIN_DISTANCE = 2,
+	PULL_MAX_DISTANCE = 24,
+	-- One pull's duration: distance / PULL_SPEED, clamped to [PULL_TIME, PULL_TIME_MAX]
+	-- (Sine out), so a long pull reads as a slide rather than a jump.
+	PULL_SPEED = 40, -- studs/s
+	PULL_TIME = 0.25, -- shortest pull (also the attract ladder's rung pull)
+	PULL_TIME_MAX = 0.6,
+	-- Half the camera's vertical view (ortho size 50 u, GameClient CAMERA_DISTANCE).
+	-- New steps are placed so they START outside this band and are carried in by
+	-- the pull (Lane.entryShift), so they slide in instead of popping into view.
+	-- Side entries (pure horizontal travel) use the same half-extent as an assumed
+	-- half-width: the server cannot see the client's aspect ratio.
+	VIEW_HALF_HEIGHT = 50 * UNITY_TO_STUDS, -- = 15.714 studs
+	SLIDE_IN_TIME = 0.6, -- a prefilled screenful / the Tutorial ladder scrolls in over this
 
 	-- Reach: how far a limb can grab from the frog (sanity check on the server)
 	MAX_GRAB_DISTANCE = 30,
@@ -125,27 +147,29 @@ local Config = {
 	LEVEL_THRESHOLDS = { Kitchen = 200, Country = 500 },
 
 	-- Step spawners only run while the field is being pulled (SpawnManager.PullStep
-	-- / ReleasePullingStep), so a lane earns spawner time from pull distance:
-	-- seconds = studs pulled / PULL_SPAWN_SPEED. Unity runs the spawners for a
-	-- fixed 1 s per grab (Entities/Step.cs Pull: Invoke("StopPull", 1f)). This was
-	-- 25 (Unity's ~80 u/s field speed in studs), which kept Unity's steps-per-stud
-	-- density but -- with the port's much shorter 6-stud pull per grab -- earned
-	-- only 0.24 s per grab: fewer new steps than each grab uses up, so lanes ran
-	-- dry within a handful of grabs (doc 17, b-20260921-110140-f9ic). 8 gives
-	-- 0.75 s per grab: close to Unity's window, and in simulation every level
-	-- stays supplied at any grab cadence. 6 (exactly 1 s) crowds Pot, with about
-	-- 35% of spawns landing within 2.5 studs of another step; 10+ starves Kitchen
-	-- and Country.
-	PULL_SPAWN_SPEED = 8, -- studs of pull per spawner-second
+	-- / ReleasePullingStep), and Unity runs them for a fixed 1 s per grab
+	-- (Entities/Step.cs Pull: Invoke("StopPull", 1f)) whatever the pull's length.
+	-- The port does the same: each grab earns PULL_SPAWN_WINDOW spawner-seconds,
+	-- spent at once when the grab lands (Lane.spawnForPull), with the window's
+	-- spawns spread along that grab's pull and placed upstream so the pull itself
+	-- carries them in. This replaces a per-stud rate (8 studs per spawner-second),
+	-- which suited the old fixed 6-stud pull; with target-seeking pulls a grab
+	-- consumes about one step whatever its length, and so does a fixed window. In
+	-- a headless sim (20 runs x 50 grabs, 0.7 s cadence), grabs with no
+	-- portrait-visible step ahead: Pot 168 -> 103, Kitchen 375 -> 303, Country
+	-- 423 -> 257 of 1000, with no spawn overlaps (doc 17 "Spawner time per grab").
+	PULL_SPAWN_WINDOW = 1, -- spawner-seconds earned per grab
 	PREFILL_DEPTH = 24, -- studs of already-pulled field a fresh lane starts with
+	PREFILL_ROW_STEP = 6, -- prefill simulates that depth as grabs pulling this many studs each
 	PREFILL_MIN_STEPS = 4, -- a lane with at least this many live steps isn't prefilled
 	TUTORIAL_FIRST_STEP_Y = 5, -- Tutorial's three tree steps: a ladder up from the frog
 	TUTORIAL_STEP_GAP = 7,
 	TUTORIAL_STEP_X = 5,
 
 	-- Tutorial "fall" rule (Core/LevelManager.cs ReportFall, levelIndex == 1):
-	-- no death -- the field pulls back up by this many PULL_DISTANCE steps and
-	-- the player retries from the same 3 tree steps.
+	-- no death -- the field pulls back up by up to this many PULL_MAX_DISTANCE
+	-- pulls (capped at the lane's net pull, so in practice all of it) and the
+	-- player retries from the same 3 tree steps.
 	TUTORIAL_PULL_BACK = 3,
 
 	-- Grab anti-abuse (doc 07 hardening): cap grabs per rolling window per player.
