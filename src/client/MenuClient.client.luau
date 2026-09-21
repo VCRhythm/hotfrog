@@ -43,6 +43,10 @@ local GetGiftStatus = remotes:WaitForChild("GetGiftStatus") :: RemoteFunction
 local menuBridge = player:WaitForChild("MenuBridge", math.huge) :: Folder
 local openStoreEvent = menuBridge:WaitForChild("OpenStore") :: BindableEvent
 local storeClosedEvent = menuBridge:WaitForChild("StoreClosed") :: BindableEvent
+-- StoreUI's own persistent bottom-right Shop toggle opens the panel without
+-- going through openStoreEvent (that's only fired by our Frogs button), so it
+-- needs its own signal to tell us to get out of the way too (b-20260921-152551).
+local storeOpenedEvent = menuBridge:WaitForChild("StoreOpened") :: BindableEvent
 
 -- doc 15 item 7: glyph/nav hints follow GameClient's InputState.Gamepad flag
 -- (same cross-LocalScript Folder+Attribute pattern as LevelClient's LevelState).
@@ -229,6 +233,24 @@ local function showEndPanel()
 	focusFirst(replayButton)
 end
 
+-- Any sub-panel (store, settings, top scores) that floats above the Menu/Dead
+-- state must hide whichever of {mainPanel, endPanel} is currently showing,
+-- and restore it on close -- otherwise the sub-panel either shows behind it
+-- (b-20260921-152551) or the main menu bleeds through underneath it
+-- (b-20260921-152641).
+local function hideMainPanels()
+	mainPanel.Visible = false
+	endPanel.Visible = false
+end
+
+local function restoreMainPanels()
+	if currentRunState == "Menu" then
+		showMainMenu()
+	elseif currentRunState == "Dead" then
+		showEndPanel()
+	end
+end
+
 RunStateChanged.OnClientEvent:Connect(function(state: string)
 	currentRunState = state
 	if state == "Playing" then
@@ -287,19 +309,15 @@ end)
 -- Frogs / Shop (reuse StoreUI's panel, doc 15 item 1/2)
 -- ---------------------------------------------------------------------------
 local function openStore()
-	mainPanel.Visible = false
-	endPanel.Visible = false
+	hideMainPanels()
 	openStoreEvent:Fire()
 end
 
 frogsButton.Activated:Connect(openStore)
-storeClosedEvent.Event:Connect(function()
-	if currentRunState == "Menu" then
-		showMainMenu()
-	elseif currentRunState == "Dead" then
-		showEndPanel()
-	end
-end)
+storeClosedEvent.Event:Connect(restoreMainPanels)
+-- The Shop toggle StoreUI itself renders (bottom-right, visible outside an
+-- active run) opens the same panel without going through openStore() above.
+storeOpenedEvent.Event:Connect(hideMainPanels)
 
 -- ---------------------------------------------------------------------------
 -- Settings (doc 15 item 3)
@@ -336,11 +354,13 @@ end)
 
 settingsButton.Activated:Connect(function()
 	refreshSettingsButtons()
+	hideMainPanels()
 	settingsPanel.Visible = true
 	focusFirst(musicButton)
 end)
 settingsCloseButton.Activated:Connect(function()
 	settingsPanel.Visible = false
+	restoreMainPanels()
 end)
 
 -- ---------------------------------------------------------------------------
@@ -373,12 +393,14 @@ local function populateTopScores()
 end
 
 topScoresButton.Activated:Connect(function()
+	hideMainPanels()
 	topPanel.Visible = true
 	populateTopScores()
 	focusFirst(topCloseButton)
 end)
 topCloseButton.Activated:Connect(function()
 	topPanel.Visible = false
+	restoreMainPanels()
 end)
 
 -- ---------------------------------------------------------------------------

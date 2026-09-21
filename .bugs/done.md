@@ -372,3 +372,21 @@ files: src/server/GameServer.server.luau, src/shared/Config.luau, docs/roblox-po
 test: none
 verified: stylua --check, selene, luau_check.sh, rojo build pass. Not playtested: a Studio play session was live (inspect only; console clean).
 review: n/a
+
+## b-20260921-152551-2lar  fixed  2026-09-21 16:00
+note: shop is behind the play menu
+cause: StoreUI's persistent Shop toggle set its own panel.Visible directly, never hiding MenuClient's mainPanel; StoreGui had no DisplayOrder (0 < MenuGui's 5).
+change: new StoreOpened BindableEvent in MenuBridge (next to StoreClosed); the Shop toggle fires it on open and StoreClosed on close, so MenuClient hides/restores the main/end panels as the Frogs button does; StoreGui DisplayOrder = 5.
+files: src/client/StoreUI.client.luau, src/client/MenuClient.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; Studio MCP playtest: Shop toggle hid mainPanel and showed the store, store X restored mainPanel.
+review: n/a
+
+## b-20260921-152641-ilxp  fixed  2026-09-21 16:00
+note: settings is blocked by another menu over top of it
+cause: the Settings and Top Scores buttons showed their panel without hiding the nearly opaque mainPanel, and their Close buttons never restored it.
+change: hideMainPanels()/restoreMainPanels() helpers in MenuClient wired into Settings, Top Scores and the existing store open/close flow.
+files: src/client/MenuClient.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; Studio MCP playtest: Settings and Top Scores each hide mainPanel on open and restore it on Close.
+review: n/a

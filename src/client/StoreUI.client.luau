@@ -35,6 +35,13 @@ openStoreEvent.Parent = menuBridge
 local storeClosedEvent = Instance.new("BindableEvent")
 storeClosedEvent.Name = "StoreClosed"
 storeClosedEvent.Parent = menuBridge
+-- The bottom-right Shop toggle below opens this same panel without going
+-- through MenuClient's openStore() (that only fires OpenStore), so it needs
+-- its own signal telling MenuClient to get its own panel out of the way too
+-- (b-20260921-152551: shop rendered behind the main menu).
+local storeOpenedEvent = Instance.new("BindableEvent")
+storeOpenedEvent.Name = "StoreOpened"
+storeOpenedEvent.Parent = menuBridge
 menuBridge.Parent = player
 
 -- ordered skin ids (Catalog is keyed by numeric id; tolerate gaps)
@@ -58,6 +65,7 @@ local ACCENT = Color3.fromRGB(96, 170, 255)
 -- phone portrait and desktop landscape (item 6's "UI must work on phone
 -- portrait and desktop landscape" requirement).
 local gui = UIKit.screenGui("StoreGui")
+gui.DisplayOrder = 5 -- match MenuGui so this panel isn't painted underneath it
 
 local function corner(parent: Instance)
 	local c = Instance.new("UICorner")
@@ -249,6 +257,9 @@ shopToggle.Activated:Connect(function()
 	panel.Visible = not panel.Visible
 	if panel.Visible then
 		refreshPanel()
+		storeOpenedEvent:Fire()
+	else
+		storeClosedEvent:Fire()
 	end
 end)
 closeButton.Activated:Connect(function()
