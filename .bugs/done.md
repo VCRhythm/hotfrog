@@ -655,3 +655,12 @@ files: src/client/MenuClient.client.luau
 test: none
 verified: stylua, selene, luau_check, rojo build pass; not screenshotted in Studio (no playtest).
 review: n/a
+
+## b-20260922-080448-me55  ignored  2026-09-22 08:10
+note: AUTO error (server): StreamOutBehavior is not a valid member of Workspace "Workspace"
+cause: raised by an MCP execute_luau probe (trace "AssistantCommand, line 3") during a fixer's playtest; no game code references StreamOutBehavior.
+change: none
+files: none
+test: none
+verified: grep of src/, bugloop/, default.project.json finds no StreamOutBehavior
+review: n/a
