@@ -18,8 +18,17 @@
 -- tree), so the X reuses the "X" glyph/red styling doc 12 records for
 -- TouchQualityTextMiss.prefab, rendered as a TextLabel the same way
 -- WorldQualityPopup.client.luau already renders its quality-popup glyphs --
--- avoids inventing new art up front. Reach uses the same Config.MAX_GRAB_DISTANCE
--- threshold GameClient.client.luau checks for the real grab (line ~581).
+-- avoids inventing new art up front.
+--
+-- FIXED (b-20260922-073908-mznf, reopening b-20260921-183648-aeap): "reach"
+-- was a distance check from the frog's body against Config.MAX_GRAB_DISTANCE
+-- (30 studs) -- but that constant is only GameClient's gamepad snap-assist
+-- tolerance (cursor-to-step, not frog-to-tap), and 30 studs covers nearly the
+-- whole lane (LANE_HALF_WIDTH=22, SPAWN_Y..DESPAWN_Y=25..-30), so it was
+-- effectively always true and the X never showed. Mouse/touch grabs have no
+-- distance limit at all: GameClient.tryGrab succeeds/fails purely on whether
+-- the tap point-overlaps a live step's HitSize/HitOffset collider (stepAt).
+-- "In reach" here now mirrors that same overlap test instead of a distance.
 --
 -- Previous bug: a translucent, tinted backing Part was left visible behind the
 -- circle decal, so in-reach/near-reach taps showed as a green/yellow square
@@ -38,14 +47,13 @@ local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 
 local player = Players.LocalPlayer
 local playField = workspace:WaitForChild("PlayField")
-local myFrog = playField:WaitForChild("Frogs"):WaitForChild("Frog_" .. player.UserId, math.huge) :: Model
-local body = myFrog.PrimaryPart :: BasePart
+local stepsFolder = playField:WaitForChild("Steps")
 
 local camera = workspace.CurrentCamera :: Camera
 
 local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Include
-rayParams.FilterDescendantsInstances = { playField:WaitForChild("Steps"), playField:WaitForChild("Bugs") }
+rayParams.FilterDescendantsInstances = { stepsFolder, playField:WaitForChild("Bugs") }
 
 -- Anchor part: always fully transparent (see header) -- it only carries
 -- position, never a visible fill.
@@ -103,11 +111,40 @@ local function cancelFade()
 	end
 end
 
+-- Mirrors GameClient.stepAt's point-overlap test (this lane's own live steps,
+-- boxed by their Unity HitSize/HitOffset collider, not the sprite canvas) --
+-- the actual pass/fail condition for a mouse/touch grab. See header.
+local function overOwnStep(worldPos: Vector3): boolean
+	for _, inst in stepsFolder:GetChildren() do
+		if
+			inst:IsA("BasePart")
+			and inst:GetAttribute("Kind") == "Step"
+			and inst:GetAttribute("LaneUserId") == player.UserId
+		then
+			local hit = inst:GetAttribute("HitSize")
+			local offset = inst:GetAttribute("HitOffset")
+			local cx, cy = inst.Position.X, inst.Position.Y
+			if typeof(offset) == "Vector2" then
+				cx, cy = cx + offset.X, cy + offset.Y
+			end
+			local halfX, halfY
+			if typeof(hit) == "Vector2" then
+				halfX, halfY = hit.X / 2, hit.Y / 2
+			else
+				halfX, halfY = inst.Size.X / 2, inst.Size.Y / 2 -- no collider data: the part itself
+			end
+			if math.abs(worldPos.X - cx) <= halfX and math.abs(worldPos.Y - cy) <= halfY then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 local function show(worldPos: Vector3)
 	cancelFade()
 	dot.CFrame = CFrame.new(worldPos.X, worldPos.Y, Config.PLANE_Z + 0.6)
-	local dist = (Vector2.new(worldPos.X, worldPos.Y) - Vector2.new(body.Position.X, body.Position.Y)).Magnitude
-	local inReach = dist <= Config.MAX_GRAB_DISTANCE
+	local inReach = overOwnStep(worldPos)
 	if inReach then
 		decal.Transparency = 0
 		missLabel.TextTransparency = 1

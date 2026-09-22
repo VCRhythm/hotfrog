@@ -628,3 +628,21 @@ files: src/server/Lane.luau, src/server/GameServer.server.luau, src/shared/Confi
 test: none
 verified: stylua, selene, luau_check, rojo build pass; Studio MCP: up-left arrow grab on Pot slid 2 of 3 scaffold steps in along the new line (first spot occupied), no console errors. Sideways case (Kitchen/Country) not tested live.
 review: looks-right
+
+## b-20260922-073908-mznf  fixed  2026-09-22 07:55
+note: DECISION: I'm only ever seeing a circle (answers b-20260921-183648-aeap: keep the text X, but it must actually show)
+cause: ruling "I'm only ever seeing a circle" -> the X never appeared because WorldTouchIndicator's in-reach test compared body-to-tap distance against Config.MAX_GRAB_DISTANCE (30 studs, the gamepad snap tolerance), which covers nearly the whole lane, while real mouse/touch grabs succeed only when the tap overlaps a step's hit box.
+change: show() now uses overOwnStep(worldPos), mirroring GameClient.stepAt's point-overlap test against this lane's live steps, so the red X shows exactly when a tap misses every grabbable step; removed the unused frog/body lookup.
+files: src/client/WorldTouchIndicator.client.luau
+test: none
+verified: stylua, selene, luau_check pass on the file; no playtest (concurrent fixers).
+review: n/a
+
+## b-20260921-183648-aeap  fixed  2026-09-22 07:55
+note: TouchIndicator out-of-reach state uses a TextLabel red X glyph, not art
+cause: decided via b-20260922-073908-mznf: keep the text X; the reach test was the real bug.
+change: see b-20260922-073908-mznf
+files: src/client/WorldTouchIndicator.client.luau
+test: none
+verified: see b-20260922-073908-mznf
+review: n/a
