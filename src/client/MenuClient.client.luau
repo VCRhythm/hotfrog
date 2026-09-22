@@ -36,6 +36,7 @@ local ProfileChanged = remotes:WaitForChild("ProfileChanged") :: RemoteEvent
 local ClaimGift = remotes:WaitForChild("ClaimGift") :: RemoteFunction
 local GiftStatus = remotes:WaitForChild("GiftStatus") :: RemoteEvent
 local GetGiftStatus = remotes:WaitForChild("GetGiftStatus") :: RemoteFunction
+local SetEndPanelOpen = remotes:WaitForChild("SetEndPanelOpen") :: RemoteEvent
 
 -- Bridge into StoreUI's existing panel (doc 15: "reuse ... rather than
 -- duplicating"). StoreUI creates this Folder; wait for it rather than racing
@@ -209,6 +210,15 @@ local pendingStart = false -- Replay/Play pressed before the server confirmed Me
 -- dismissed the end/gift panel so that server-driven Menu transition doesn't
 -- yank the end panel away out from under them while they're still reading it.
 local endPanelDismissed = true
+-- b-20260922-162231: tell the server whenever that flips, so attract mode (the
+-- demo climb GameServer runs once RunState flips to Menu) waits for the player
+-- to actually dismiss this panel instead of starting under it -- the same
+-- Dead -> Menu death-beat timer this flag already exists to survive (comment
+-- above) also kicks attract off early.
+local function setEndPanelDismissed(dismissed: boolean)
+	endPanelDismissed = dismissed
+	SetEndPanelOpen:FireServer(not dismissed)
+end
 local lastSummary: {
 	score: number,
 	best: number,
@@ -327,7 +337,7 @@ RunStateChanged.OnClientEvent:Connect(function(state: string)
 		UIKit.showPanel(settingsPanel, false)
 		UIKit.showPanel(topPanel, false)
 	elseif state == "Dead" then
-		endPanelDismissed = false
+		setEndPanelDismissed(false)
 		showEndPanel()
 	elseif state == "Menu" then
 		if pendingStart then
@@ -373,7 +383,7 @@ playButton.Activated:Connect(requestStart)
 replayButton.Activated:Connect(requestStart)
 homeButton.Activated:Connect(function()
 	pendingStart = false
-	endPanelDismissed = true
+	setEndPanelDismissed(true)
 	showMainMenu()
 end)
 

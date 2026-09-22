@@ -808,3 +808,12 @@ files: src/client/LevelClient.client.luau
 test: none
 verified: stylua --check, selene, tools/luau_check.sh on the touched file and rojo build pass; live in Play Solo, LevelState carries LevelName/MusicIndex/Transition="start" and MusicChannel1 is playing at volume 0.7 with a clean console. The original race could not be forced to reproduce in Play Solo (loopback replication won it both times), so the fix is verified as correct and non-regressing by observation plus the reasoning above, not by reproducing the failure.
 review: n/a
+
+## b-20260922-162231-znnk  fixed  2026-09-22 16:40
+note: the demo steps should stop on the "gift" screen
+cause: GameServer's death beat flips a lane from Dead to Menu on RESPAWN_DELAY alone and refreshAttract then builds the demo ladder, but MenuClient keeps the end-of-run/gift panel up until the player presses Home or Replay and never told the server, so the demo scrolled behind the open panel.
+change: Added a SetEndPanelOpen client -> server RemoteEvent (the pattern the existing ScreenObstruction signal uses) fired by MenuClient whenever endPanelDismissed changes; GameServer tracks it per player and refreshAttract now also requires the panel to be closed, tearing the ladder down if it opens while already in Menu.
+files: src/server/GameServer.server.luau, src/client/MenuClient.client.luau
+test: none
+verified: stylua --check, selene, tools/luau_check.sh and rojo build pass; live in Studio the lane held 4 attract rungs at RunState=Menu, firing SetEndPanelOpen true dropped it to 0 and false rebuilt it, console clean. A real death/respawn cycle was not driven end to end, so MenuClient's two call sites are verified by reading, not by play.
+review: checked in the orchestrator — the new remote is registered in GameServer's remote list, the handler coerces to a boolean, and the per-player entry is cleared on PlayerRemoving (GameServer.server.luau:1745), so a leaver cannot leave attract suppressed.

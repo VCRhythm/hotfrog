@@ -107,6 +107,7 @@ local RunSummary = ensureRemote("RunSummary") -- server -> client: end-of-run st
 local SetMusicOn = ensureRemote("SetMusicOn") -- client -> server: settings toggle (writes profile.musicOn)
 local ReplayTutorial = ensureRemote("ReplayTutorial") -- client -> server: settings action (Menu-only)
 local GetTopScores = ensureRemoteFunction("GetTopScores") -- client -> server: cached global top-10 (name, score)
+local SetEndPanelOpen = ensureRemote("SetEndPanelOpen") -- client -> server: true while MenuClient's end-of-run/gift panel is still up (b-20260922-162231): the server flips Dead -> Menu on its own RESPAWN_DELAY timer, well before the player dismisses that panel (Home/Replay), so attract mode must wait on this rather than on RunState alone
 
 local function ensureBindable(name: string): BindableEvent
 	local b = ServerStorage:FindFirstChild(name)
@@ -154,6 +155,12 @@ local DEATH_CAUSE_LAVA = "Lava"
 local RunState = { Menu = "Menu", Playing = "Playing", Dead = "Dead" }
 local runState: { [Player]: string } = {}
 local lastStartRun: { [Player]: number } = {} -- StartRun rate limit (os.clock())
+
+-- b-20260922-162231: true while the player's end-of-run/gift panel is still on
+-- screen (MenuClient's endPanelDismissed == false), reported via SetEndPanelOpen.
+-- Menu-run-state alone isn't enough to gate attract: the Dead -> Menu flip above
+-- is the server's own timer, not the player dismissing that panel.
+local endPanelOpen: { [Player]: boolean } = {}
 
 -- Attract mode (below the frog section): builds/tears down a Menu lane's
 -- decorative ladder. Forward-declared so setRunState can drive it.
@@ -938,7 +945,7 @@ end
 
 refreshAttract = function(player: Player)
 	local lane = Lane.get(player)
-	if runState[player] == RunState.Menu and lane and frogs[player] then
+	if runState[player] == RunState.Menu and lane and frogs[player] and not endPanelOpen[player] then
 		if not attract[player] then
 			attract[player] = buildAttract(lane.origin)
 		end
@@ -1480,6 +1487,15 @@ ScreenObstruction.OnServerEvent:Connect(function(player, minX, minY, maxX, maxY)
 	lane:setObstruction(if x1 > x0 and y1 > y0 then Rect.new(x0, y0, x1, y1) else nil)
 end)
 
+-- b-20260922-162231: MenuClient reports its end-of-run/gift panel's open/closed
+-- state so attract mode can wait for it instead of just the Menu RunState flip
+-- (the death-beat timer flips Dead -> Menu before the player dismisses that
+-- panel). Boolean only; no validation needed beyond that.
+SetEndPanelOpen.OnServerEvent:Connect(function(player, open)
+	endPanelOpen[player] = open == true
+	refreshAttract(player)
+end)
+
 -- A tap that hit no step or bug (Controller.CheckTouch's miss branch): the free
 -- limb shoots out to the tap point (Limb.Move) and the Heartbeat eases it back.
 -- Purely visual, so validation only keeps it sane: a live frog mid-run (or on
@@ -1726,6 +1742,7 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	grabQuality[player] = nil
 	grabTimes[player] = nil
 	lastObstruction[player] = nil
+	endPanelOpen[player] = nil
 	runState[player] = nil
 	lastStartRun[player] = nil
 	flysThisRun[player] = nil
