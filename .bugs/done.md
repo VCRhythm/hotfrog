@@ -781,3 +781,12 @@ files: src/client/ui/UIKit.luau, src/client/MenuClient.client.luau, src/client/S
 test: none
 verified: stylua --check, selene, tools/luau_check.sh on all four touched files and rojo build pass; not checked in Studio (no play session was live).
 review: n/a
+
+## b-20260922-145943-f0mc  fixed  2026-09-22 15:22
+note: Lily Pad Pop: panels have no drop shadow
+cause: UIKit.panel built the panel as one cream Frame, leaving nowhere for a drop to live: under ZIndexBehavior.Sibling a child always draws over its parent and every caller parents content into that Frame, so the button Lip/Face trick did not transfer.
+change: UIKit.panel now returns a transparent container at the requested size and position holding a Shadow child (ZIndex 0, outline-coloured, offset down by the new UIKit.PANEL_SHADOW = 8, with a matching UIStroke) which in turn holds the cream Face offset back up by 8. Nesting Face inside Shadow makes the face draw over the drop with no ZIndex tie, while caller widgets at the default ZIndex 1 draw over the whole Shadow subtree; size, position, Visible, re-parenting and showPanel's UIScale all still apply to the container.
+files: src/client/ui/UIKit.luau
+test: none
+verified: stylua --check, selene, tools/luau_check.sh on UIKit and rojo build pass; live in Studio all six panel callers show a transparent container with Shadow(ZIndex 0) > Face, Face matching the container's AbsolutePosition/AbsoluteSize, the shadow 10.8px lower at UIScale 1.35, caller ZIndex overrides intact and showPanel still easing 0.9 -> 1. Console clean; no screenshot (screen_capture returns black in this environment).
+review: looks-right — all four caller files parent widgets onto the returned container, never into Face/Shadow, so they sort above the shadow; the only property reads on a panel are ZIndex and Visible, both on the container.

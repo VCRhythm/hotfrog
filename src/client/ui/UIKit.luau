@@ -11,7 +11,8 @@
 --
 -- Look: "Lily Pad Pop" from the HotFrog design system -- cream panels and
 -- white/lime buttons with a 3px deep-green outline, a hard 5px lip under
--- every button that it sinks onto when pressed, and Fredoka One throughout.
+-- every button that it sinks onto when pressed, a matching hard 8px drop
+-- under every panel, and Fredoka One throughout.
 
 local GuiService = game:GetService("GuiService")
 local TweenService = game:GetService("TweenService")
@@ -41,6 +42,7 @@ UIKit.HUD_SUBTEXT = Color3.fromRGB(216, 245, 220)
 UIKit.FONT = Font.fromEnum(Enum.Font.FredokaOne)
 UIKit.STROKE = 3 -- stroke-pop
 UIKit.LIP = 5 -- space-lip
+UIKit.PANEL_SHADOW = 8 -- shadow-panel: 0 8px 0, outline-coloured
 local BUTTON_RADIUS = 16 -- radius-pop-button
 local PANEL_RADIUS = 24 -- radius-pop-panel
 
@@ -273,15 +275,52 @@ function UIKit.label(name: string, text: string, size: UDim2, pos: UDim2, parent
 	return l
 end
 
+-- The panel equivalent of the button's lip: the design system's shadow-panel
+-- token is a hard drop (0 8px 0, outline-coloured), no blur -- Roblox has no
+-- box-shadow, so it's a second rounded frame of the same shape sitting
+-- PANEL_SHADOW px lower.
+--
+-- Under ZIndexBehavior.Sibling a child always draws over its parent and
+-- callers parent their content straight into the frame this returns, so the
+-- cream face can't be the returned frame itself. The returned frame is a
+-- transparent container of exactly the size/position asked for; Shadow (its
+-- only child at creation, ZIndex 0) holds Face, which is offset back up so it
+-- lands exactly where the container is. That nesting -- rather than two
+-- ZIndex-0 siblings -- is what guarantees the face draws over the shadow,
+-- while every widget a caller adds keeps the default ZIndex 1 and so draws
+-- over the whole Shadow subtree. Size, Position, Visible, a re-parent and
+-- showPanel's UIScale all still apply to the container, so both layers follow
+-- automatically.
 function UIKit.panel(name: string, size: UDim2, pos: UDim2, parent: Instance): Frame
 	local f = Instance.new("Frame")
 	f.Name = name
 	f.Size = size
 	f.Position = pos
-	f.BackgroundColor3 = UIKit.PANEL
+	f.BackgroundTransparency = 1
+
+	local shadow = Instance.new("Frame")
+	shadow.Name = "Shadow"
+	shadow.Size = UDim2.fromScale(1, 1)
+	shadow.Position = UDim2.fromOffset(0, UIKit.PANEL_SHADOW)
+	shadow.BackgroundColor3 = UIKit.OUTLINE
+	shadow.BorderSizePixel = 0
+	shadow.ZIndex = 0
+	shadow.Parent = f
+	UIKit.corner(shadow, PANEL_RADIUS)
+	UIKit.outline(shadow) -- same colour as its fill: keeps the drop's silhouette
+	-- flush with the face's own outline, exactly as the button's lip does
+
+	local face = Instance.new("Frame")
+	face.Name = "Face"
+	face.Size = UDim2.fromScale(1, 1)
+	face.Position = UDim2.fromOffset(0, -UIKit.PANEL_SHADOW)
+	face.BackgroundColor3 = UIKit.PANEL
+	face.BorderSizePixel = 0
+	face.Parent = shadow
+	UIKit.corner(face, PANEL_RADIUS)
+	UIKit.outline(face)
+
 	f.Parent = parent
-	UIKit.corner(f, PANEL_RADIUS)
-	UIKit.outline(f)
 	return f
 end
 
