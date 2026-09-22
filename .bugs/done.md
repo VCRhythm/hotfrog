@@ -745,3 +745,21 @@ files: src/server/Lane.luau, src/server/GameServer.server.luau
 test: none
 verified: stylua --check, selene, tools/luau_check.sh pass; not playtested (Studio only)
 review: n/a
+
+## b-20260922-101656-fxqk  closed-by-user  2026-09-22 11:12
+note: what are all these yellow things in the background?
+cause: Decision (b-20260922-110322-d398): "it's fine". The yellow dots are Unity's own Water overlay (Water.mat) on Pot/Tutorial, rendered faithfully; kept as is.
+change: none
+files: none
+test: none
+verified: n/a
+review: n/a
+
+## b-20260922-110322-d398  closed-by-user  2026-09-22 11:12
+note: DECISION: it's fine
+cause: User ruling on b-20260922-101656-fxqk; keep the Water overlay unchanged.
+change: none
+files: none
+test: none
+verified: n/a
+review: n/a
