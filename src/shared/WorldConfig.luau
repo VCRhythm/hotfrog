@@ -163,7 +163,7 @@ WorldConfig.SPECK_COLORS = { -- SpeckManager.prefab colorOptions (doc 11 §3): 8
 -- "Attract mode" block in GameServer.server.luau. Read by the server, so
 -- these are shared rather than client-only like the rest of this file.
 -- ---------------------------------------------------------------------------
-WorldConfig.ATTRACT_STEP_COUNT = 3 -- "a few steps" (FrogAI plays on 2-3 in Unity's menu scene)
+WorldConfig.ATTRACT_STEP_COUNT = 4 -- "a few steps" (FrogAI plays on 2-3 in Unity's menu scene): 3 on screen plus one parked just above the camera band, which scrolls in as the ladder is pulled down
 -- b-20260919-192618-ge28: this whole block used to be tuned against the
 -- pre-7607a9d frog (arbitrary sprite boxes, LIMB_REST at Unity/10) -- rescaled
 -- here to match that commit's corrected rig. WhiteRock's own canvas (see
@@ -174,8 +174,8 @@ WorldConfig.ATTRACT_STEP_COUNT = 3 -- "a few steps" (FrogAI plays on 2-3 in Unit
 WorldConfig.ATTRACT_STEP_SIZE = Vector3.new(7.314, 7.314, 0.6) -- StepKinds' WhiteRock canvas (256px @ 11); z kept thin, purely cosmetic depth
 -- Ladder offset from the lane origin, where the frog is parked. X is 0: the
 -- ladder is centred on the one real frog (it used to sit 15 studs aside, next
--- to a second, client-side clone that did the climbing). The rungs are
--- centred on this Y (not stacked one-sided above it) so 3 rungs at
+-- to a second, client-side clone that did the climbing). The visible rungs sit
+-- at -GAP/0/+GAP about this Y (the 4th at +2*GAP, off-screen) so 3 rungs at
 -- STEP_Y_GAP fit the camera's fixed +/-15.7-stud vertical view (31.43 studs
 -- total, GameClient.client.luau CAMERA_DISTANCE). z is nudged slightly behind
 -- the gameplay plane (Config.PLANE_Z = 0) so the frog draws in front, same
@@ -188,6 +188,9 @@ WorldConfig.ATTRACT_ANCHOR_OFFSET = Vector3.new(0, 0, -0.2)
 -- the camera band, and this already fits it. The outermost rung lands
 -- +/-11.05 off the anchor, +3.657 (its own half-height) = 14.71 studs, inside the 15.7 band with a little headroom,
 -- and 11.05 > ATTRACT_STEP_SIZE's 7.314 so adjacent rungs don't overlap.
+-- It is also the per-grab pull: each grab scrolls the ladder down one gap, and
+-- a rung at +/-2*GAP (18.4 studs to its near edge) is outside the band, so the
+-- rung recycled from the bottom to the top never pops in on screen.
 WorldConfig.ATTRACT_STEP_Y_GAP = 11.05
 WorldConfig.ATTRACT_STEP_X = 3.0 -- zig-zag half-width per rung -- same shape as Lane.luau's own Tutorial ladder (Config.TUTORIAL_STEP_X, alternating sign); rungs sit at x = +/-3 about the frog, inside its limb reach (Config.LIMB_REST.X = 6.2857)
 WorldConfig.ATTRACT_DECISION_TIME = 1.0 -- FrogAI.cs: nextDecisionTime is initialized to 1f and never reassigned -- despite the "next" name it's a literal fixed 1s cadence, not randomized

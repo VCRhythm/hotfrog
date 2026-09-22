@@ -58,50 +58,16 @@ local cursor = 1
 -- ---------------------------------------------------------------------------
 -- Small GUI builders
 -- ---------------------------------------------------------------------------
-local DARK = Color3.fromRGB(28, 30, 38)
-local ACCENT = Color3.fromRGB(96, 170, 255)
+local DARK = UIKit.DARK
+local ACCENT = UIKit.ACCENT
+local button = UIKit.button
+local label = UIKit.label
 
 -- doc 15: UIKit.screenGui adds the UIScale that keeps this readable on both
 -- phone portrait and desktop landscape (item 6's "UI must work on phone
 -- portrait and desktop landscape" requirement).
 local gui = UIKit.screenGui("StoreGui")
 gui.DisplayOrder = 5 -- match MenuGui so this panel isn't painted underneath it
-
-local function corner(parent: Instance)
-	local c = Instance.new("UICorner")
-	c.CornerRadius = UDim.new(0, 8)
-	c.Parent = parent
-end
-
-local function button(name: string, text: string, size: UDim2, pos: UDim2, parent: Instance): TextButton
-	local b = Instance.new("TextButton")
-	b.Name = name
-	b.Size = size
-	b.Position = pos
-	b.BackgroundColor3 = DARK
-	b.TextColor3 = Color3.new(1, 1, 1)
-	b.Font = Enum.Font.GothamBold
-	b.TextScaled = true
-	b.AutoButtonColor = true
-	b.Text = text
-	b.Parent = parent
-	corner(b)
-	return b
-end
-
-local function label(name: string, text: string, size: UDim2, pos: UDim2, parent: Instance): TextLabel
-	local l = Instance.new("TextLabel")
-	l.Name = name
-	l.Size = size
-	l.Position = pos
-	l.BackgroundTransparency = 1
-	l.TextColor3 = Color3.new(1, 1, 1)
-	l.Font = Enum.Font.GothamMedium
-	l.TextScaled = true
-	l.Text = text
-	l.Parent = parent
-	return l
-end
 
 -- ---------------------------------------------------------------------------
 -- Bottom bar: Shop toggle, Gift button
@@ -117,15 +83,8 @@ giftButton.BackgroundColor3 = ACCENT
 -- ---------------------------------------------------------------------------
 -- Store panel (hidden until Shop is tapped) -- the CycleFrog analog
 -- ---------------------------------------------------------------------------
-local panel = Instance.new("Frame")
-panel.Name = "Panel"
-panel.Size = UDim2.fromOffset(360, 260)
-panel.Position = UDim2.new(0.5, -180, 0.5, -130)
-panel.BackgroundColor3 = DARK
-panel.BackgroundTransparency = 0.05
+local panel = UIKit.panel("Panel", UDim2.fromOffset(360, 260), UDim2.new(0.5, -180, 0.5, -130), gui)
 panel.Visible = false
-panel.Parent = gui
-corner(panel)
 
 -- Thumbnail (doc 15 item 2 / FrogPackages carousel): the skin's own Thumbnail
 -- sprite, falling back through SkinAssets.part's Arm/Universal/HotFrog chain
@@ -138,13 +97,14 @@ thumbBox.Size = UDim2.fromOffset(96, 96)
 thumbBox.Position = UDim2.fromOffset(132, 16)
 thumbBox.BackgroundColor3 = DARK
 thumbBox.Parent = panel
-corner(thumbBox)
+UIKit.corner(thumbBox, 10)
+UIKit.outline(thumbBox)
 local thumbTint = Instance.new("Frame")
 thumbTint.Name = "Tint"
 thumbTint.Size = UDim2.fromScale(1, 1)
 thumbTint.BorderSizePixel = 0
 thumbTint.Parent = thumbBox
-corner(thumbTint)
+UIKit.corner(thumbTint, 10)
 local thumbImage = Instance.new("ImageLabel")
 thumbImage.Name = "Image"
 thumbImage.Size = UDim2.fromScale(1, 1)
@@ -154,7 +114,7 @@ thumbImage.Parent = thumbBox
 
 local nameLabel = label("SkinName", "", UDim2.fromOffset(240, 30), UDim2.fromOffset(60, 116), panel)
 local statusLabel = label("Status", "", UDim2.fromOffset(320, 26), UDim2.fromOffset(20, 148), panel)
-statusLabel.TextColor3 = Color3.fromRGB(180, 188, 200)
+statusLabel.TextColor3 = UIKit.SUBTEXT
 
 local prevButton = button("Prev", "<", UDim2.fromOffset(44, 48), UDim2.fromOffset(12, 40), panel)
 local nextButton = button("Next", ">", UDim2.fromOffset(44, 48), UDim2.new(1, -56, 0, 40), panel)

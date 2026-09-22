@@ -62,8 +62,8 @@ local gui = UIKit.screenGui("MenuGui")
 gui.DisplayOrder = 5
 
 local title = UIKit.label("Title", "HOTFROG", UDim2.fromOffset(320, 64), UDim2.new(0.5, -160, 0, 24), gui)
-title.Font = Enum.Font.GothamBlack
-title.TextColor3 = UIKit.GOOD
+title.TextColor3 = UIKit.TITLE
+UIKit.textStroke(title)
 title.Position = UDim2.new(0.5, -160, 0, 24)
 title.AnchorPoint = Vector2.new(0, 0)
 UIKit.safeAreaTopPadding(title, 0)
@@ -75,7 +75,6 @@ local mainPanel = UIKit.panel("MainMenu", UDim2.fromOffset(280, 312), UDim2.new(
 
 local playButton = UIKit.button("Play", "PLAY", UDim2.fromOffset(220, 64), UDim2.fromOffset(30, 24), mainPanel)
 playButton.BackgroundColor3 = UIKit.ACCENT
-playButton.TextSize = 28
 
 -- Run mode picker (doc 17 "Classic mode"): Normal scrolls only on grabs;
 -- Classic keeps the world falling. Sent with StartRun (Play and Replay).
@@ -98,8 +97,6 @@ endPanel.Visible = false
 
 UIKit.label("Title", "Run Over", UDim2.fromOffset(280, 36), UDim2.fromOffset(20, 16), endPanel)
 local scoreLine = UIKit.label("Score", "", UDim2.fromOffset(280, 40), UDim2.fromOffset(20, 52), endPanel)
-scoreLine.Font = Enum.Font.GothamBlack
-scoreLine.TextSize = 26
 local bestLine = UIKit.label("Best", "", UDim2.fromOffset(280, 26), UDim2.fromOffset(20, 92), endPanel)
 bestLine.TextColor3 = UIKit.SUBTEXT
 
@@ -142,7 +139,6 @@ local homeButton = UIKit.button("Home", "Home", UDim2.fromOffset(125, 52), UDim2
 -- dropped by the owner's decision, doc 09).
 local giftPromptButton = UIKit.button("GiftPrompt", "", UDim2.fromOffset(280, 56), UDim2.fromOffset(20, 278), endPanel)
 giftPromptButton.BackgroundColor3 = UIKit.WARN
-giftPromptButton.TextColor3 = Color3.new(0, 0, 0)
 
 -- ---------------------------------------------------------------------------
 -- Settings panel
@@ -240,7 +236,6 @@ local function refreshModeButton()
 		then UIKit.WARN
 		elseif selectedMode == "Tutorial" then UIKit.ACCENT
 		else UIKit.DARK
-	modeButton.TextColor3 = if selectedMode == "Classic" then Color3.new(0, 0, 0) else UIKit.TEXT
 end
 refreshModeButton()
 modeButton.Activated:Connect(function()
@@ -266,7 +261,7 @@ end
 
 local function pulseNewBest()
 	local original = scoreLine.TextColor3
-	scoreLine.TextColor3 = UIKit.GOOD
+	scoreLine.TextColor3 = UIKit.ACCENT_LIP
 	local tween = TweenService:Create(scoreLine, TweenInfo.new(0.6, Enum.EasingStyle.Sine), { TextColor3 = original })
 	tween:Play()
 end

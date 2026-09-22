@@ -181,6 +181,8 @@ local spectateRight =
 local spectateLabel =
 	UIKit.label("SpectateLabel", "", UDim2.fromOffset(160, 40), UDim2.new(0.5, -80, 1, -170), spectateGui)
 spectateLabel.TextXAlignment = Enum.TextXAlignment.Center
+spectateLabel.TextColor3 = UIKit.HUD_TEXT -- over the world, not a panel
+UIKit.textStroke(spectateLabel)
 
 local function refreshSpectateVisibility()
 	local visible = runState ~= "Playing" and #otherLanes() > 0
@@ -778,10 +780,11 @@ local function makeLabel(name: string, posY: number, text: string): TextLabel
 	label.BackgroundTransparency = 1
 	label.TextXAlignment = Enum.TextXAlignment.Left
 	label.TextScaled = true
-	label.Font = Enum.Font.GothamBold
-	label.TextColor3 = Color3.new(1, 1, 1)
+	label.FontFace = UIKit.FONT
+	label.TextColor3 = UIKit.HUD_TEXT
 	label.Text = text
 	label.Parent = hud
+	UIKit.textStroke(label, 2.5)
 	return label
 end
 
@@ -790,15 +793,15 @@ local bestLabel = makeLabel("HighScoreLabel", 48, "Best: 0")
 local newFlysLabel = makeLabel("FlysLabel", 84, "Flys: " .. tostring((latestProfile and latestProfile.flys) or 0))
 flysLabel = newFlysLabel
 local bugsLabel = makeLabel("BugsLabel", 120, "Bugs: 0")
-newFlysLabel.TextColor3 = UIKit.SUBTEXT
-bugsLabel.TextColor3 = UIKit.SUBTEXT
+newFlysLabel.TextColor3 = UIKit.HUD_SUBTEXT
+bugsLabel.TextColor3 = UIKit.HUD_SUBTEXT
 
 -- Level-name toast (doc 15 item 5): fades in/out on LevelChanged. GameClient
 -- listens independently of LevelClient.client.luau (both are valid
 -- OnClientEvent listeners on the same RemoteEvent) purely for this cosmetic.
 local toast = UIKit.label("LevelToast", "", UDim2.fromOffset(300, 44), UDim2.new(0.5, -150, 0, 16), hud)
 toast.TextColor3 = UIKit.ACCENT
-toast.Font = Enum.Font.GothamBlack
+UIKit.textStroke(toast)
 toast.BackgroundTransparency = 1
 toast.TextTransparency = 1
 
@@ -824,9 +827,9 @@ ScoreChanged.OnClientEvent:Connect(function(score, best, quality)
 	bestLabel.Text = "Best: " .. tostring(best or 0)
 	if quality == "Perfect" then
 		-- cheap feedback hook (flash/sound). See ../03 scoring section.
-		scoreLabel.TextColor3 = Color3.fromRGB(120, 255, 120)
+		scoreLabel.TextColor3 = UIKit.GOOD
 		task.delay(0.15, function()
-			scoreLabel.TextColor3 = Color3.new(1, 1, 1)
+			scoreLabel.TextColor3 = UIKit.HUD_TEXT
 		end)
 	end
 end)

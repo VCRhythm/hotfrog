@@ -67,7 +67,7 @@ local pool = Pool.new(function(): Popup
 	label.Name = "Label"
 	label.BackgroundTransparency = 1
 	label.Size = UDim2.fromScale(1, 1)
-	label.Font = Enum.Font.GothamBlack
+	label.Font = Enum.Font.FredokaOne
 	label.TextScaled = true
 	label.Parent = gui
 
