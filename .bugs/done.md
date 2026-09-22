@@ -727,3 +727,12 @@ files: src/shared/Config.luau, docs/roblox-port/17-status-and-known-gaps.md, doc
 test: none
 verified: stylua --check, selene, tools/luau_check.sh on Config.luau pass; not playtested
 review: n/a
+
+## b-20260922-101449-30jz  fixed  2026-09-22 11:05
+note: the tutorial should have the big tree sprite behind the frog from the unity game
+cause: The Unity tutorial tree prefabs draw "Branch" (branch3) and "Leaves" (branch2) children behind the Acorn, but the port's StepKinds only carried the Acorn sprite, so the trunk was never ported.
+change: New cosmetic client script WorldTutorialTrunk.client.luau keeps a branch3 + branch2 decal pair on every step with Sprite = "Acorn" (only the three tutorial tree kinds). They are sized to the sprites' native canvas (~40 studs) and placed at Z behind the acorn and the frog. Unity's offset for these children isn't in the prefab dumps, so they are centred on the step, as the doc 17 "sprite pivots" row covers.
+files: src/client/WorldTutorialTrunk.client.luau
+test: none
+verified: stylua --check, selene, tools/luau_check.sh, rojo build pass; not playtested (Studio only)
+review: n/a
