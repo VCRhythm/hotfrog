@@ -736,3 +736,12 @@ files: src/client/WorldTutorialTrunk.client.luau
 test: none
 verified: stylua --check, selene, tools/luau_check.sh, rojo build pass; not playtested (Studio only)
 review: n/a
+
+## b-20260922-101541-w1i2  fixed  2026-09-22 11:15
+note: in the tutorial, players shouldn't be able to die, they should fall back down to the start. this lasts until they grab one of the first non tutorial (acorn) steps
+cause: The no-death fall guard was gated on levelIndex == TUTORIAL, which switches to Pot as soon as the 3rd tutorial tree is grabbed, so a fall before the first Pot grab killed the frog.
+change: Added a per-lane tutorialGraceActive flag. It is set for runs that start in the Tutorial and cleared on the first grab of a non-tutorial-tree step, matched through a new KindName step attribute. The fall check now gates on the flag, and tutorialRetry, unchanged, returns the frog to the lane origin.
+files: src/server/Lane.luau, src/server/GameServer.server.luau
+test: none
+verified: stylua --check, selene, tools/luau_check.sh pass; not playtested (Studio only)
+review: n/a

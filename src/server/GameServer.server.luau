@@ -459,6 +459,7 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3)
 	clearFling(step) -- pooling safety: a recycled step must not inherit a live Flingee
 
 	step:SetAttribute("Behavior", if kind then kind.behavior else "None")
+	step:SetAttribute("KindName", kindName) -- Lane.onStepClimbed reads this back to track tutorial grace
 	step:SetAttribute("Sprite", if kind then kind.sprite else nil)
 	step:SetAttribute("FlingeeSprite", if kind then kind.flingeeSprite else nil)
 	-- The part is the sprite's whole Unity canvas (a Decal stretches the full
@@ -1057,6 +1058,14 @@ end
 -- distance and let the frog retry from its lane's origin -- no GameOver, no
 -- score reset, no respawn delay.
 --
+-- Gated on lane.tutorialGraceActive (Lane.luau), not lane.levelIndex ==
+-- Levels.TUTORIAL: the level already flips to Pot on the 3rd tree climbed
+-- (Lane.onStepClimbed), before the player has grabbed any real Pot step, so a
+-- pure levelIndex check let a fall kill the frog in that gap
+-- (b-20260922-101541-w1i2). tutorialGraceActive instead stays true across that
+-- transition and only clears on the first successful grab of a non-tutorial-
+-- tree step.
+--
 -- Capped at lane.netPull (studs actually pulled forward since this level
 -- began, doc 17 gap): an uncapped retreat undoes scroll that never happened on
 -- a fall before any grab, dragging the Tutorial's one-shot spawnAllOnAwake
@@ -1179,7 +1188,7 @@ RunService.Heartbeat:Connect(function(dt: number)
 			end
 			f.pos = Vector3.new(x, y, Config.PLANE_Z)
 			if not holding and f.pos.Y <= Config.LAVA_Y then
-				if lane.levelIndex == Levels.TUTORIAL then
+				if lane.tutorialGraceActive then
 					tutorialRetry(lane, f)
 				else
 					killFrog(plr, f, lane)
@@ -1379,7 +1388,8 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	addScore(player, 1, quality)
 
 	local wasTutorial = lane.levelIndex == Levels.TUTORIAL
-	lane:onStepClimbed() -- level-threshold / tutorial progress; fires LevelChanged("soft") itself (doc 13 item 5)
+	local kindName = step:GetAttribute("KindName") :: string?
+	lane:onStepClimbed(kindName) -- level-threshold / tutorial progress; fires LevelChanged("soft") itself (doc 13 item 5)
 	if wasTutorial and lane.levelIndex ~= Levels.TUTORIAL then
 		-- Tutorial -> Pot: the tree ladder never respawns and Pot's spawners start
 		-- cold at their off-screen staging point, so prefill Pot's first screenful

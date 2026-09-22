@@ -89,6 +89,13 @@ export type Lane = typeof(setmetatable(
 		obstruction: Rect?,
 		runSteps: number, -- steps climbed this run, across levels (drives LEVEL_THRESHOLDS)
 		tutorialStepsClimbed: number,
+		-- Tutorial "no death" protection (GameServer.tutorialRetry), true for a run
+		-- that started in the Tutorial and hasn't yet grabbed a real (non-tree) step.
+		-- Stays true across the Tutorial -> Pot soft transition (onStepClimbed, on the
+		-- 3rd tree) so a fall between that transition and the first Pot grab still
+		-- retries instead of killing (b-20260922-101541-w1i2) -- false from the start
+		-- for a run that skips the Tutorial (tutorialDone already true).
+		tutorialGraceActive: boolean,
 		-- called explicitly by whichever method changes the level, WITH the
 		-- transition kind ("start" | "soft" | "death") -- never auto-fired from
 		-- setLevel itself, so callers control the label (doc 13 item 6).
@@ -1043,14 +1050,29 @@ function Lane.isOutOfBounds(self: Lane, step: BasePart): boolean
 	return outOfBounds(self, step.Position, step.Size) and outOfBounds(self, self:restPosition(step), step.Size)
 end
 
+-- The three Tutorial tree kinds (StepKinds, Levels.luau's Tutorial pool): grabbing
+-- one of these never ends the fall-protection grace period below; grabbing
+-- anything else (the first real Pot step) does.
+local TUTORIAL_TREE_KINDS = {
+	TutorialFirstTree = true,
+	TutorialSecondTree = true,
+	TutorialLastTree = true,
+}
+
 -- ---------------------------------------------------------------------------
 -- Level flow (Core/LevelManager.cs FillLevelEvents' step-count events, doc 13
 -- item 5): Tutorial -> Pot on the 3rd tree climbed (marks tutorialDone), then
 -- Pot -> Kitchen -> Country at LEVEL_THRESHOLDS. Called by GameServer once per
--- successful grab (after it has already bumped the session score).
+-- successful grab (after it has already bumped the session score), with the
+-- grabbed step's kind name so it can also track tutorialGraceActive
+-- (b-20260922-101541-w1i2).
 -- ---------------------------------------------------------------------------
-function Lane.onStepClimbed(self: Lane)
+function Lane.onStepClimbed(self: Lane, kindName: string?)
 	self.runSteps += 1
+
+	if self.tutorialGraceActive and not (kindName and TUTORIAL_TREE_KINDS[kindName]) then
+		self.tutorialGraceActive = false
+	end
 
 	if self.levelIndex == Levels.TUTORIAL then
 		self.tutorialStepsClimbed += 1
@@ -1083,6 +1105,7 @@ end
 function Lane.resetRun(self: Lane, tutorialDone: boolean)
 	self.runSteps = 0
 	self.tutorialStepsClimbed = 0
+	self.tutorialGraceActive = not tutorialDone
 	table.clear(self.motions) -- the lane was just emptied (GameServer.clearLaneSteps)
 	self.driftDistance = 0
 	self.driftTime = 0
@@ -1136,6 +1159,7 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		obstruction = nil,
 		runSteps = 0,
 		tutorialStepsClimbed = 0,
+		tutorialGraceActive = not tutorialDone,
 		notify = notify,
 	}, Lane) :: Lane
 
