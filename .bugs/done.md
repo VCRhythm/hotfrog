@@ -799,3 +799,12 @@ files: src/client/GameClient.client.luau, docs/roblox-port/15-menus-and-input.md
 test: none
 verified: stylua --check, selene, tools/luau_check.sh on the touched file and rojo build pass; Studio was in Edit mode, so no in-game check (the fixer did not disturb the session).
 review: n/a
+
+## b-20260922-162210-bdsb  fixed  2026-09-22 16:34
+note: the music doesn't kick in until the first run is over
+cause: LevelClient's LevelChanged listener had no catch-up. Lane.new fires the one-shot "start" LevelChanged during Profiles.Loaded, and when that lands before the LocalScript connects (a real race against the DataStore round trip) the event is dropped, since RemoteEvents do not buffer. Nothing else fires until the run-ending "death" transition, so LevelState's MusicIndex stayed unset and Music.client.luau, whose own catch-up only re-reads LevelState, stayed silent for the whole first run.
+change: Added an apply() helper and a one-time bootstrap in LevelClient: when no Transition has been recorded yet it reads the local lane folder's Level attribute (doc 13's discovery contract, which replicates as a normal property rather than a fired event), looks it up in Levels and applies it as a synthetic "start" transition.
+files: src/client/LevelClient.client.luau
+test: none
+verified: stylua --check, selene, tools/luau_check.sh on the touched file and rojo build pass; live in Play Solo, LevelState carries LevelName/MusicIndex/Transition="start" and MusicChannel1 is playing at volume 0.7 with a clean console. The original race could not be forced to reproduce in Play Solo (loopback replication won it both times), so the fix is verified as correct and non-regressing by observation plus the reasoning above, not by reproducing the failure.
+review: n/a

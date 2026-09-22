@@ -19,6 +19,8 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 
+local Levels = require(ReplicatedStorage.Shared.Levels)
+
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local LevelChanged = remotes:WaitForChild("LevelChanged") :: RemoteEvent
@@ -32,6 +34,23 @@ changed.Parent = state
 
 state.Parent = player
 
+local function apply(
+	levelName: string,
+	musicIndex: number,
+	background: string?,
+	overlay: string?,
+	transition: string,
+	laneOrigin: Vector3
+)
+	state:SetAttribute("LevelName", levelName)
+	state:SetAttribute("MusicIndex", musicIndex)
+	state:SetAttribute("Background", background)
+	state:SetAttribute("Overlay", overlay)
+	state:SetAttribute("Transition", transition)
+	state:SetAttribute("LaneOrigin", laneOrigin)
+	changed:Fire(levelName, musicIndex, background, overlay, transition, laneOrigin)
+end
+
 LevelChanged.OnClientEvent:Connect(
 	function(
 		levelName: string,
@@ -41,12 +60,41 @@ LevelChanged.OnClientEvent:Connect(
 		transition: string,
 		laneOrigin: Vector3
 	)
-		state:SetAttribute("LevelName", levelName)
-		state:SetAttribute("MusicIndex", musicIndex)
-		state:SetAttribute("Background", background)
-		state:SetAttribute("Overlay", overlay)
-		state:SetAttribute("Transition", transition)
-		state:SetAttribute("LaneOrigin", laneOrigin)
-		changed:Fire(levelName, musicIndex, background, overlay, transition, laneOrigin)
+		apply(levelName, musicIndex, background, overlay, transition, laneOrigin)
 	end
 )
+
+-- Bootstrap from the replicated Lane folder (doc 13's discovery contract:
+-- workspace.PlayField.Lanes/<UserId>, with a `Level` Attribute Lane.luau always
+-- keeps current) in case the very first LevelChanged ("start", fired once at
+-- Lane construction -- see Lane.new) raced this LocalScript's startup and was
+-- dropped: OnClientEvent has no buffering, so a RemoteEvent fired before this
+-- script connects is simply lost, and nothing else re-fires "start" later --
+-- the next LevelChanged is often "death" at the end of the player's first run,
+-- which is why music previously stayed silent until then. An Attribute doesn't
+-- have that failure mode (GetAttribute always reflects the latest value, no
+-- matter when it's read), so use it as a one-time catch-up, skipped entirely if
+-- the remote already got through by the time this resolves.
+do
+	local lanesFolder = workspace:WaitForChild("PlayField"):WaitForChild("Lanes")
+	local laneFolder = lanesFolder:WaitForChild(tostring(player.UserId), math.huge) :: Folder
+	if state:GetAttribute("Transition") == nil then
+		local levelName = laneFolder:GetAttribute("Level")
+		if typeof(levelName) == "string" then
+			for _, level in Levels.list do
+				if level.name == levelName then
+					local origin = laneFolder:GetAttribute("Origin")
+					apply(
+						level.name,
+						level.musicIndex,
+						level.background,
+						level.overlay,
+						"start",
+						if typeof(origin) == "Vector3" then origin else Vector3.zero
+					)
+					break
+				end
+			end
+		end
+	end
+end
