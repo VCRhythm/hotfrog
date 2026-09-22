@@ -664,3 +664,12 @@ files: none
 test: none
 verified: grep of src/, bugloop/, default.project.json finds no StreamOutBehavior
 review: n/a
+
+## b-20260922-073847-hju7  unsure  2026-09-22 08:40
+note: hands aren't using the grip sprite anymore when grabbing
+cause: not reproduced (Sonnet static review, then Opus with ~25 live grabs all showing the grip); probable cause is instance streaming (StreamingEnabled=true, frog ModelStreamingMode=Default): the frog model can arrive before its parts or stream parts out/in, and WorldFrogCosmetics.trackFrog resolves PrimaryPart and the hand/grip decals once, so it stops tracking or toggles stale decals.
+change: createFrog sets the frog model to ModelStreamingMode = Persistent before parenting, so the rig replicates whole and never streams out.
+files: src/server/GameServer.server.luau
+test: none
+verified: stylua, selene, luau_check pass; Studio playtest after the change: frog replicates Persistent with PrimaryPart, 4 alternating grabs show the grip. Failure never observed, so fix is unproven. If it recurs, on the client check workspace.PlayField.Frogs.Frog_<id>.RightLimb:GetAttribute("Reaching") vs the decal Transparency.
+review: n/a

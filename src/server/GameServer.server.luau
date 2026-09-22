@@ -837,6 +837,14 @@ local function createFrog(player: Player, lane: Lane.Lane)
 	}
 	body.CFrame = CFrame.new(lane.origin)
 	frogs[player] = state
+	-- Instance streaming is on, and a Default-mode model replicates as an empty
+	-- shell whose parts stream in (and can stream out) on their own. Client
+	-- scripts (WorldFrogCosmetics, GameClient) resolve the frog's parts and
+	-- decals once when the model appears, so a missing PrimaryPart at that
+	-- moment, or a part streamed out and back in as a new instance, leaves them
+	-- driving stale decals -- the hands stop switching to the grip sprite.
+	-- Persistent sends the whole rig atomically and never streams it out.
+	model.ModelStreamingMode = Enum.ModelStreamingMode.Persistent
 	model.Parent = frogContainer
 	-- This place has instance streaming on, and streaming normally centres on the
 	-- character's root part -- which no longer exists (CharacterAutoLoads is off
