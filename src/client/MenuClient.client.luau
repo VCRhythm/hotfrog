@@ -94,7 +94,7 @@ hintLabel.TextSize = 16
 -- End-of-run panel (RunState.Dead)
 -- ---------------------------------------------------------------------------
 local endPanel = UIKit.panel("EndOfRun", UDim2.fromOffset(320, 360), UDim2.new(0.5, -160, 0.5, -180), gui)
-endPanel.Visible = false
+UIKit.showPanel(endPanel, false)
 
 UIKit.label("Title", "Run Over", UDim2.fromOffset(280, 36), UDim2.fromOffset(20, 16), endPanel)
 local scoreLine = UIKit.label("Score", "", UDim2.fromOffset(280, 40), UDim2.fromOffset(20, 52), endPanel)
@@ -147,7 +147,7 @@ giftPromptButton.BackgroundColor3 = UIKit.WARN
 -- Settings panel
 -- ---------------------------------------------------------------------------
 local settingsPanel = UIKit.panel("Settings", UDim2.fromOffset(280, 260), UDim2.new(0.5, -140, 0.5, -130), gui)
-settingsPanel.Visible = false
+UIKit.showPanel(settingsPanel, false)
 settingsPanel.ZIndex = 2
 
 UIKit.label("Title", "Settings", UDim2.fromOffset(240, 32), UDim2.fromOffset(20, 14), settingsPanel)
@@ -169,7 +169,7 @@ local settingsCloseButton =
 -- Top scores panel (doc 15 item 5)
 -- ---------------------------------------------------------------------------
 local topPanel = UIKit.panel("TopScores", UDim2.fromOffset(300, 340), UDim2.new(0.5, -150, 0.5, -170), gui)
-topPanel.Visible = false
+UIKit.showPanel(topPanel, false)
 topPanel.ZIndex = 2
 
 -- b-20260921-182815: the title used to span the same width as the Close
@@ -257,8 +257,8 @@ end
 
 local function showMainMenu()
 	title.Visible = true
-	mainPanel.Visible = true
-	endPanel.Visible = false
+	UIKit.showPanel(mainPanel, true)
+	UIKit.showPanel(endPanel, false)
 	focusFirst(playButton)
 end
 
@@ -294,8 +294,8 @@ local function showEndPanel()
 	end
 
 	title.Visible = true
-	mainPanel.Visible = false
-	endPanel.Visible = true
+	UIKit.showPanel(mainPanel, false)
+	UIKit.showPanel(endPanel, true)
 	focusFirst(replayButton)
 end
 
@@ -305,8 +305,8 @@ end
 -- (b-20260921-152551) or the main menu bleeds through underneath it
 -- (b-20260921-152641).
 local function hideMainPanels()
-	mainPanel.Visible = false
-	endPanel.Visible = false
+	UIKit.showPanel(mainPanel, false)
+	UIKit.showPanel(endPanel, false)
 end
 
 local function restoreMainPanels()
@@ -322,10 +322,10 @@ RunStateChanged.OnClientEvent:Connect(function(state: string)
 	currentRunState = state
 	if state == "Playing" then
 		title.Visible = false
-		mainPanel.Visible = false
-		endPanel.Visible = false
-		settingsPanel.Visible = false
-		topPanel.Visible = false
+		UIKit.showPanel(mainPanel, false)
+		UIKit.showPanel(endPanel, false)
+		UIKit.showPanel(settingsPanel, false)
+		UIKit.showPanel(topPanel, false)
 	elseif state == "Dead" then
 		endPanelDismissed = false
 		showEndPanel()
@@ -427,11 +427,11 @@ end)
 settingsButton.Activated:Connect(function()
 	refreshSettingsButtons()
 	hideMainPanels()
-	settingsPanel.Visible = true
+	UIKit.showPanel(settingsPanel, true)
 	focusFirst(musicButton)
 end)
 settingsCloseButton.Activated:Connect(function()
-	settingsPanel.Visible = false
+	UIKit.showPanel(settingsPanel, false)
 	restoreMainPanels()
 end)
 
@@ -466,12 +466,12 @@ end
 
 topScoresButton.Activated:Connect(function()
 	hideMainPanels()
-	topPanel.Visible = true
+	UIKit.showPanel(topPanel, true)
 	populateTopScores()
 	focusFirst(topCloseButton)
 end)
 topCloseButton.Activated:Connect(function()
-	topPanel.Visible = false
+	UIKit.showPanel(topPanel, false)
 	restoreMainPanels()
 end)
 

@@ -84,7 +84,7 @@ giftButton.BackgroundColor3 = ACCENT
 -- Store panel (hidden until Shop is tapped) -- the CycleFrog analog
 -- ---------------------------------------------------------------------------
 local panel = UIKit.panel("Panel", UDim2.fromOffset(360, 260), UDim2.new(0.5, -180, 0.5, -130), gui)
-panel.Visible = false
+UIKit.showPanel(panel, false)
 
 -- Thumbnail (doc 15 item 2 / FrogPackages carousel): the skin's own Thumbnail
 -- sprite, falling back through SkinAssets.part's Arm/Universal/HotFrog chain
@@ -220,8 +220,9 @@ nextButton.Activated:Connect(function()
 end)
 actionButton.Activated:Connect(onAction)
 shopToggle.Activated:Connect(function()
-	panel.Visible = not panel.Visible
-	if panel.Visible then
+	local show = not panel.Visible
+	UIKit.showPanel(panel, show)
+	if show then
 		refreshPanel()
 		storeOpenedEvent:Fire()
 	else
@@ -229,12 +230,12 @@ shopToggle.Activated:Connect(function()
 	end
 end)
 closeButton.Activated:Connect(function()
-	panel.Visible = false
+	UIKit.showPanel(panel, false)
 	storeClosedEvent:Fire() -- doc 15: lets MenuClient bring its own panel back
 end)
 
 openStoreEvent.Event:Connect(function()
-	panel.Visible = true
+	UIKit.showPanel(panel, true)
 	refreshPanel()
 end)
 
@@ -254,7 +255,7 @@ RunStateChanged.OnClientEvent:Connect(function(state: string)
 	shopToggle.Visible = outOfRun
 	giftButton.Visible = outOfRun
 	if not outOfRun and panel.Visible then
-		panel.Visible = false
+		UIKit.showPanel(panel, false)
 	end
 end)
 

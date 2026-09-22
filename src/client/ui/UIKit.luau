@@ -47,6 +47,12 @@ local PANEL_RADIUS = 24 -- radius-pop-panel
 local PRESS_DOWN = TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
 local PRESS_UP = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
+-- Lily Pad Pop's motion rule (echoes Unity's DOTween Ease.OutBack panel slides
+-- in UI/MenuManager.cs): a panel being shown pops from 0.9x to 1x scale
+-- instead of just snapping Visible on. Hiding stays instant -- there's nothing
+-- to see a panel ease out of once it's gone.
+local PANEL_POP = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
 function UIKit.corner(parent: Instance, radius: number?): UICorner
 	local c = Instance.new("UICorner")
 	c.CornerRadius = UDim.new(0, radius or 8)
@@ -277,6 +283,29 @@ function UIKit.panel(name: string, size: UDim2, pos: UDim2, parent: Instance): F
 	UIKit.corner(f, PANEL_RADIUS)
 	UIKit.outline(f)
 	return f
+end
+
+-- Shows or hides a panel with the pop-in motion rule above: a shown panel's
+-- UIScale eases from 0.9 to 1; a hidden one just goes invisible. The UIScale
+-- is created once and reused on repeat calls. Callers that used to write
+-- `panel.Visible = x` directly (mainPanel/endPanel/settingsPanel/topPanel,
+-- StoreUI's panel, GameClient's PausePanel) call this instead.
+function UIKit.showPanel(frame: GuiObject, visible: boolean)
+	if not visible then
+		frame.Visible = false
+		return
+	end
+	local existing = frame:FindFirstChildOfClass("UIScale") :: UIScale?
+	local scale: UIScale
+	if existing then
+		scale = existing
+	else
+		scale = Instance.new("UIScale")
+		scale.Parent = frame
+	end
+	scale.Scale = 0.9
+	frame.Visible = true
+	TweenService:Create(scale, PANEL_POP, { Scale = 1 }):Play()
 end
 
 -- A coloured placeholder box for art that isn't uploaded yet (every asset id

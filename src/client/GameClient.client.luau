@@ -873,7 +873,7 @@ local pauseButton = UIKit.button("Pause", "II", UDim2.fromOffset(44, 44), UDim2.
 pauseButton.Visible = false
 
 local pausePanel = UIKit.panel("PausePanel", UDim2.fromOffset(260, 170), UDim2.new(0.5, -130, 0.5, -85), pauseGui)
-pausePanel.Visible = false
+UIKit.showPanel(pausePanel, false)
 pausePanel.ZIndex = 5
 local pauseStatus = UIKit.label("Status", "", UDim2.fromOffset(220, 80), UDim2.fromOffset(20, 16), pausePanel)
 pauseStatus.TextWrapped = true
@@ -897,7 +897,7 @@ local function openPause()
 		else "You're not holding a step, so the run keeps going!"
 	resumeButton.Text = "Resume"
 	resumeButton.Active = true
-	pausePanel.Visible = true
+	UIKit.showPanel(pausePanel, true)
 end
 
 local function closePauseWithCountdown()
@@ -907,7 +907,7 @@ local function closePauseWithCountdown()
 			resumeButton.Text = text
 			task.wait(0.3)
 		end
-		pausePanel.Visible = false
+		UIKit.showPanel(pausePanel, false)
 		resumeButton.Active = true
 	end)
 end
@@ -917,7 +917,7 @@ resumeButton.Activated:Connect(closePauseWithCountdown)
 RunStateChanged.OnClientEvent:Connect(function(state: string)
 	pauseButton.Visible = state == "Playing"
 	if state ~= "Playing" then
-		pausePanel.Visible = false
+		UIKit.showPanel(pausePanel, false)
 	end
 end)
 pauseGui.Parent = playerGui

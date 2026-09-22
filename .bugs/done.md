@@ -772,3 +772,12 @@ files: src/client/ui/UIKit.luau, src/client/MenuClient.client.luau, src/client/S
 test: none
 verified: stylua --check, selene, tools/luau_check.sh on the touched files and rojo build pass; in the live Studio session, execute_luau confirmed each button has an IconHalo>Icon child with the right rbxassetid and that setButtonIcon adds/removes it dynamically. screen_capture returned black (environment limitation), so no visual check.
 review: n/a
+
+## b-20260922-145943-ygsg  fixed  2026-09-22 15:16
+note: Lily Pad Pop: panels pop in with a 0.35s Back tween instead of appearing instantly
+cause: Panels were toggled with plain panel.Visible assignments in MenuClient/StoreUI/GameClient, and UIKit had no helper to drive the design system's pop-in motion.
+change: Added UIKit.showPanel(frame, visible), which on show creates or reuses a UIScale, sets Scale = 0.9 and tweens it to 1 over TweenInfo.new(0.35, Back, Out); hiding just clears Visible. Replaced every direct panel.Visible assignment for mainPanel, endPanel, settingsPanel, topPanel, the Store panel (including its toggle flip) and PausePanel with the helper.
+files: src/client/ui/UIKit.luau, src/client/MenuClient.client.luau, src/client/StoreUI.client.luau, src/client/GameClient.client.luau
+test: none
+verified: stylua --check, selene, tools/luau_check.sh on all four touched files and rojo build pass; not checked in Studio (no play session was live).
+review: n/a
