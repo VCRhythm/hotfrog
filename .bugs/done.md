@@ -790,3 +790,12 @@ files: src/client/ui/UIKit.luau
 test: none
 verified: stylua --check, selene, tools/luau_check.sh on UIKit and rojo build pass; live in Studio all six panel callers show a transparent container with Shadow(ZIndex 0) > Face, Face matching the container's AbsolutePosition/AbsoluteSize, the shadow 10.8px lower at UIScale 1.35, caller ZIndex overrides intact and showPanel still easing 0.9 -> 1. Console clean; no screenshot (screen_capture returns black in this environment).
 review: looks-right — all four caller files parent widgets onto the returned container, never into Face/Shadow, so they sort above the shadow; the only property reads on a panel are ZIndex and Visible, both on the container.
+
+## b-20260922-162201-gcfh  fixed  2026-09-22 16:26
+note: get rid of the "pot" title when playing
+cause: GameClient rendered a fading level-name HUD toast (doc 15 item 5) on every LevelChanged event, which fires on every run start and respawn rather than once per level; Unity's HUD.cs never showed a level name during play at all.
+change: Removed the level-name toast and its now-unused LevelChanged binding from GameClient, leaving a comment that LevelClient still publishes the name on LocalPlayer.LevelState. Doc 15 updated to match.
+files: src/client/GameClient.client.luau, docs/roblox-port/15-menus-and-input.md
+test: none
+verified: stylua --check, selene, tools/luau_check.sh on the touched file and rojo build pass; Studio was in Edit mode, so no in-game check (the fixer did not disturb the session).
+review: n/a

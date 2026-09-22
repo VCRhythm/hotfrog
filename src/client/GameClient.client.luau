@@ -34,7 +34,6 @@ local ScoreChanged = remotes:WaitForChild("ScoreChanged") :: RemoteEvent
 local ForceRelease = remotes:WaitForChild("ForceRelease") :: RemoteEvent
 local CatchBug = remotes:WaitForChild("CatchBug") :: RemoteEvent
 local RunStateChanged = remotes:WaitForChild("RunStateChanged") :: RemoteEvent
-local LevelChanged = remotes:WaitForChild("LevelChanged") :: RemoteEvent
 local ProfileChanged = remotes:WaitForChild("ProfileChanged") :: RemoteEvent
 local GetProfile = remotes:WaitForChild("GetProfile") :: RemoteFunction
 local BugCaught = remotes:WaitForChild("BugCaught") :: RemoteEvent
@@ -796,29 +795,12 @@ local bugsLabel = makeLabel("BugsLabel", 120, "Bugs: 0")
 newFlysLabel.TextColor3 = UIKit.HUD_SUBTEXT
 bugsLabel.TextColor3 = UIKit.HUD_SUBTEXT
 
--- Level-name toast (doc 15 item 5): fades in/out on LevelChanged. GameClient
--- listens independently of LevelClient.client.luau (both are valid
--- OnClientEvent listeners on the same RemoteEvent) purely for this cosmetic.
-local toast = UIKit.label("LevelToast", "", UDim2.fromOffset(300, 44), UDim2.new(0.5, -150, 0, 16), hud)
-toast.TextColor3 = UIKit.ACCENT
-UIKit.textStroke(toast)
-toast.BackgroundTransparency = 1
-toast.TextTransparency = 1
-
-local toastToken = 0
-LevelChanged.OnClientEvent:Connect(function(levelName: string)
-	toastToken += 1
-	local myToken = toastToken
-	toast.Text = levelName
-	toast.TextTransparency = 0
-	task.delay(1.6, function()
-		if toastToken ~= myToken then
-			return -- a newer level toast has already started
-		end
-		local tween = TweenService:Create(toast, TweenInfo.new(0.5), { TextTransparency = 1 })
-		tween:Play()
-	end)
-end)
+-- b-20260922-162201-gcfh: the level-name toast (doc 15 item 5) that used to
+-- live here has been removed -- Unity's HUD.cs never showed the level name
+-- during play, and a playtester found the recurring "Pot"/etc. banner (it
+-- re-fires on every run start, i.e. every death/respawn) intrusive. Level
+-- name is still available to other LocalScripts via
+-- LevelClient.client.luau's LocalPlayer.LevelState attributes.
 
 hud.Parent = playerGui
 

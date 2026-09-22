@@ -76,7 +76,7 @@ counts are derived **additively**, never by editing those scripts:
 | `src/client/ui/ClientSettings.luau` (new, ModuleScript) | The SFX on/off flag. Session-only, in-memory — Roblox LocalScripts have no persistent client storage and `Profiles.luau` is off-limits, so "client-side only" means exactly that, not "survives rejoin." |
 | `src/client/MenuClient.client.luau` (new) | Main menu, end-of-run panel, Settings, Top Scores — everything driven by `RunStateChanged`/`RunSummary`. |
 | `src/client/StoreUI.client.luau` (edited) | Unchanged store/gift *logic*; added a thumbnail box (Thumbnail → `SkinAssets.part`'s Head/Arm/Universal fallback chain → tinted placeholder), a `MenuBridge` (`OpenStore`/`StoreClosed` BindableEvents under `LocalPlayer`, same pattern as `LevelClient`'s `LevelState`) so `MenuClient` opens/closes this panel instead of duplicating the carousel, and `RunStateChanged`-gated visibility for its own Shop/Gift bottom bar. |
-| `src/client/GameClient.client.luau` (edited) | HUD extras (Flys, bugs-this-run, level-name toast), the race rail, spectate camera, and all gamepad input — GameClient already owned the camera/HUD, so this phase's additions stay there rather than a fifth script. |
+| `src/client/GameClient.client.luau` (edited) | HUD extras (Flys, bugs-this-run), the race rail, spectate camera, and all gamepad input — GameClient already owned the camera/HUD, so this phase's additions stay there rather than a fifth script. |
 
 ## Item-by-item
 
@@ -106,8 +106,10 @@ counts are derived **additively**, never by editing those scripts:
    holding, the run continues"). Resume's 3-2-1 is a purely cosmetic beat
    before hiding the panel.
 5. **HUD** — score/best (existing) + Flys (`ProfileChanged`) + bugs-this-run
-   (`BugCaught` count, exact) + a fading level-name toast (`LevelChanged`,
-   listened to independently of `LevelClient.client.luau`). The **race rail**
+   (`BugCaught` count, exact). A fading level-name toast lived here too, but it
+   fired on every run start, not once per level, so it was removed
+   (b-20260922-162201-gcfh); `LocalPlayer.LevelState` still carries the name for
+   any script that wants it. The **race rail**
    is a thin vertical strip on the right edge; every other `Player`'s
    `leaderstats.Score` is polled every 0.5s and mapped to a marker between 0
    and the highest score anyone has this session. The **top-scores board** is
