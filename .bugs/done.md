@@ -691,3 +691,12 @@ files: src/client/WorldTutorialSpecks.client.luau, src/shared/WorldConfig.luau
 test: none
 verified: stylua --check, selene src/, tools/luau_check.sh on both files pass; not playtested (Studio only)
 review: n/a
+
+## b-20260922-101707-218t  fixed  2026-09-22 10:50
+note: is the pot background supposed to disappear as I slide to the side?
+cause: scrollBackground moved the background tiles by the full pull delta (X and Y) but only re-wrapped them on Y, so sideways pulls let them drift out of view; Unity's Wall.cs wraps both axes.
+change: Added X_DRIFT_LIMIT; once the tiles drift past it, scrollBackground snaps both tiles' X back onto the lane origin, keeping the Y wrap unchanged. The Water overlay never scrolls (same as Unity's Overlay.cs), so it needed no change.
+files: src/client/WorldBackdrop.client.luau
+test: none
+verified: stylua --check, selene, tools/luau_check.sh pass; not playtested (Studio only)
+review: n/a

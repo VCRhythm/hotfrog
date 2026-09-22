@@ -132,10 +132,24 @@ local function setBackground(key: string?)
 	end
 end
 
+-- X has no neighbour grid like Wall.cs's wallToLeft/wallToRight (only one
+-- column of tiles, stacked along Y) -- so instead of relocating a tile past its
+-- neighbour, X is simply re-zeroed back onto the origin once it's drifted
+-- through half of the tile's spare width (TILE_WIDTH's own margin beyond the
+-- lane, see its definition above), well before a drifted edge could reach the
+-- camera. Matches Wall.cs's own snap-back-on-bound shape without needing a
+-- second axis of tiles.
+local X_DRIFT_LIMIT = (TILE_WIDTH - Config.LANE_HALF_WIDTH * 2) / 2
+
 local function scrollBackground(delta: Vector3)
 	local origin = laneOrigin()
 	for _, tile in bgTiles do
 		tile.Position += delta
+	end
+	if math.abs(bgTiles[1].Position.X - origin.X) > X_DRIFT_LIMIT then
+		for _, tile in bgTiles do
+			tile.Position = Vector3.new(origin.X, tile.Position.Y, tile.Position.Z)
+		end
 	end
 	-- wrap: whichever tile has scrolled fully past a bound gets relocated just
 	-- beyond the other tile, so the pair always tiles the visible span.
