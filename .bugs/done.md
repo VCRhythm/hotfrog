@@ -673,3 +673,12 @@ files: src/server/GameServer.server.luau
 test: none
 verified: stylua, selene, luau_check pass; Studio playtest after the change: frog replicates Persistent with PrimaryPart, 4 alternating grabs show the grip. Failure never observed, so fix is unproven. If it recurs, on the client check workspace.PlayField.Frogs.Frog_<id>.RightLimb:GetAttribute("Reaching") vs the decal Transparency.
 review: n/a
+
+## b-20260922-081814-xqof  fixed  2026-09-22 09:00
+note: free hand lagging behind a moving body shows the grip sprite while holding nothing (held check only measures distance from rest pose)
+cause: WorldFrogCosmetics inferred holding from limb-to-rest distance (GrabTarget.limbHeldPosition), so a free limb easing back to rest (LIMB_RETURN_TIME lerp) behind a moving body read as holding.
+change: GameServer's frog-render Heartbeat stamps a replicated `Held` attribute on each limb part (true only while snapped to a live step's grip); updateHandGrab reads it to pick open/grip. GrabTarget still drives pupils. Likely also covers b-20260922-073847-hju7's symptom.
+files: src/server/GameServer.server.luau, src/client/WorldFrogCosmetics.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; Studio playtest on the attract demo frog: held limb Held=true with grip decal shown, free limb Held=false with open hand shown.
+review: n/a

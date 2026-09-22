@@ -1214,7 +1214,9 @@ RunService.Heartbeat:Connect(function(dt: number)
 		for i, limbPart in f.limbs do
 			local step = f.held[i] or (a and a.held[i])
 			local reach = f.reach[i]
+			local isHeld = false
 			if step and step.Parent then
+				isHeld = true
 				-- Unity snaps the held hand to the step's transform.position
 				-- (Player/Limb.cs Move), which a non-centre sprite pivot
 				-- (Shared/StepKinds `gripOffset`) puts off the canvas centre.
@@ -1233,6 +1235,15 @@ RunService.Heartbeat:Connect(function(dt: number)
 				if reach and (limbPart.Position - target.Position).Magnitude < 0.5 then
 					endReach(f, i)
 				end
+			end
+			-- `Held` tells WorldFrogCosmetics which hand sprite to show. Not
+			-- inferred client-side from limb position: a free limb easing back
+			-- toward rest (above, the LIMB_RETURN_TIME lerp) legitimately lags
+			-- behind a moving body and can sit far from its rest pose for a
+			-- frame or two, which a distance check misreads as "holding"
+			-- (b-20260922-081814-xqof). This is the one true source.
+			if limbPart:GetAttribute("Held") ~= isHeld then
+				limbPart:SetAttribute("Held", isHeld)
 			end
 		end
 	end
