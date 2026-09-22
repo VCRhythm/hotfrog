@@ -96,15 +96,40 @@ hintLabel.TextSize = 16
 local endPanel = UIKit.panel("EndOfRun", UDim2.fromOffset(320, 360), UDim2.new(0.5, -160, 0.5, -180), gui)
 endPanel.Visible = false
 
-UIKit.label("Title", "Run over", UDim2.fromOffset(280, 36), UDim2.fromOffset(20, 16), endPanel)
+UIKit.label("Title", "Run Over", UDim2.fromOffset(280, 36), UDim2.fromOffset(20, 16), endPanel)
 local scoreLine = UIKit.label("Score", "", UDim2.fromOffset(280, 40), UDim2.fromOffset(20, 52), endPanel)
 scoreLine.Font = Enum.Font.GothamBlack
 scoreLine.TextSize = 26
 local bestLine = UIKit.label("Best", "", UDim2.fromOffset(280, 26), UDim2.fromOffset(20, 92), endPanel)
 bestLine.TextColor3 = UIKit.SUBTEXT
-local qualityLine = UIKit.label("Quality", "", UDim2.fromOffset(280, 50), UDim2.fromOffset(20, 122), endPanel)
-qualityLine.TextColor3 = UIKit.SUBTEXT
-qualityLine.TextWrapped = true
+
+-- b-20260922-073925: was one TextWrapped+TextScaled label ("Perfect 50%  Great
+-- 13%  OK 38%") that wrapped mid-phrase ("OK 38%" alone on its own line,
+-- unevenly split from the other two) whenever it didn't fit on one line at the
+-- scaled font size. Unity keeps these as three separate TextMeshProUGUI
+-- elements (MenuManager.cs: perfectCount/greatCount/okCount under
+-- QualityCountPanel) rather than one sentence -- do the same here with three
+-- fixed-width labels in a row so each is scaled and wrapped independently and
+-- the row can never break unevenly.
+local qualityRow = Instance.new("Frame")
+qualityRow.Name = "Quality"
+qualityRow.Size = UDim2.fromOffset(280, 30)
+qualityRow.Position = UDim2.fromOffset(20, 132)
+qualityRow.BackgroundTransparency = 1
+qualityRow.Parent = endPanel
+local qualityLayout = Instance.new("UIListLayout")
+qualityLayout.FillDirection = Enum.FillDirection.Horizontal
+qualityLayout.HorizontalAlignment = Enum.HorizontalAlignment.Center
+qualityLayout.VerticalAlignment = Enum.VerticalAlignment.Center
+qualityLayout.Padding = UDim.new(0, 10)
+qualityLayout.Parent = qualityRow
+local perfectLabel = UIKit.label("Perfect", "", UDim2.fromOffset(90, 30), UDim2.fromOffset(0, 0), qualityRow)
+perfectLabel.TextColor3 = UIKit.SUBTEXT
+local greatLabel = UIKit.label("Great", "", UDim2.fromOffset(90, 30), UDim2.fromOffset(0, 0), qualityRow)
+greatLabel.TextColor3 = UIKit.SUBTEXT
+local okLabel = UIKit.label("OK", "", UDim2.fromOffset(90, 30), UDim2.fromOffset(0, 0), qualityRow)
+okLabel.TextColor3 = UIKit.SUBTEXT
+
 local statsLine = UIKit.label("Stats", "", UDim2.fromOffset(280, 26), UDim2.fromOffset(20, 176), endPanel)
 statsLine.TextColor3 = UIKit.SUBTEXT
 
@@ -257,12 +282,9 @@ local function showEndPanel()
 	scoreLine.Text = "Score: " .. tostring(s.score) .. (if s.isNewBest then "  NEW BEST!" else "")
 	bestLine.Text = "Best: " .. tostring(s.best)
 	local total = s.quality.Perfect + s.quality.Great + s.quality.OK
-	qualityLine.Text = string.format(
-		"Perfect %s  Great %s  OK %s",
-		pct(s.quality.Perfect, total),
-		pct(s.quality.Great, total),
-		pct(s.quality.OK, total)
-	)
+	perfectLabel.Text = "Perfect " .. pct(s.quality.Perfect, total)
+	greatLabel.Text = "Great " .. pct(s.quality.Great, total)
+	okLabel.Text = "OK " .. pct(s.quality.OK, total)
 	statsLine.Text = string.format("Bugs caught: %d   Flys earned: %d", s.bugs, s.flys)
 	if s.isNewBest then
 		pulseNewBest()

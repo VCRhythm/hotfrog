@@ -646,3 +646,12 @@ files: src/client/WorldTouchIndicator.client.luau
 test: none
 verified: see b-20260922-073908-mznf
 review: n/a
+
+## b-20260922-073925-nrd6  fixed  2026-09-22 08:00
+note: clean up and pretty up this run over screen
+cause: the Run Over panel's Perfect/Great/OK line was one TextWrapped+TextScaled label that wrapped mid-phrase when it didn't fit, leaving an uneven block.
+change: replaced it with a row of three fixed-width labels (matches Unity's QualityCountPanel with three separate texts); title "Run over" -> "Run Over". Other panel content and buttons unchanged.
+files: src/client/MenuClient.client.luau
+test: none
+verified: stylua, selene, luau_check, rojo build pass; not screenshotted in Studio (no playtest).
+review: n/a
