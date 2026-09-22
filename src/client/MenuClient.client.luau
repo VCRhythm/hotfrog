@@ -229,8 +229,13 @@ local lastSummary: {
 -- the profile), so it resets to Classic on a fresh join, per the owner's call
 -- that a client-only variable is enough here.
 local selectedMode = "Classic"
+-- b-20260922-101435: internal mode strings (Config.RUN_MODES, the StartRun
+-- payload, the server) stay "Classic"/"Normal"/"Tutorial" -- only the label
+-- shown to the player shifts down a notch per the owner's request (Classic
+-- reads as the "Normal" difficulty, Normal reads as "Easy").
+local modeDisplayNames = { Classic = "Normal", Normal = "Easy" }
 local function refreshModeButton()
-	modeButton.Text = "Mode: " .. selectedMode
+	modeButton.Text = "Mode: " .. (modeDisplayNames[selectedMode] or selectedMode)
 	modeButton.BackgroundColor3 = if selectedMode == "Classic"
 		then UIKit.WARN
 		elseif selectedMode == "Tutorial" then UIKit.ACCENT
@@ -478,6 +483,11 @@ end)
 local giftReadyAt = math.huge
 local giftServerNowAtRecv = 0
 local giftClockAtRecv = os.clock()
+-- b-20260922-101723: Unity's MenuManager.GiftFlys hides the end-game panel
+-- for the same reason -- the claim's catchable-fly burst (GiftService.server.luau
+-- -> BugService) should be visible, not covered. It brings the panel back via
+-- SpawnGiftFlys -> Invoke(ShowReturnPanel, 3f); mirror that delay here.
+local GIFT_BURST_VISIBLE_SECONDS = 3
 
 GiftStatus.OnClientEvent:Connect(function(nextAt: number, now: number)
 	giftReadyAt = tonumber(nextAt) or math.huge
@@ -503,7 +513,18 @@ giftPromptButton.Activated:Connect(function()
 	local estServerNow = giftServerNowAtRecv + (os.clock() - giftClockAtRecv)
 	if estServerNow >= giftReadyAt then
 		task.spawn(function()
-			ClaimGift:InvokeServer()
+			local ok, claimed = pcall(function()
+				return ClaimGift:InvokeServer()
+			end)
+			if ok and claimed then
+				-- Get out of the way of the fly burst, then bring Replay/Home
+				-- back -- unless the player has since left (Home) or started a
+				-- new run, same guard restoreMainPanels() already uses for the
+				-- Store/Settings/Top Scores sub-panels.
+				hideMainPanels()
+				task.wait(GIFT_BURST_VISIBLE_SECONDS)
+				restoreMainPanels()
+			end
 		end)
 	else
 		openStore()

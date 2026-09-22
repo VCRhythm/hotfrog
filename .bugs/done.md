@@ -700,3 +700,21 @@ files: src/client/WorldBackdrop.client.luau
 test: none
 verified: stylua --check, selene, tools/luau_check.sh pass; not playtested (Studio only)
 review: n/a
+
+## b-20260922-101435-l5k9  fixed  2026-09-22 10:52
+note: change game mode names: class=normal; normal=easy;
+cause: refreshModeButton showed the internal mode string directly, so the label was always the Config RUN_MODES name.
+change: Added a display-only modeDisplayNames map (Classic->Normal, Normal->Easy) used in the mode button label; internal mode strings, the StartRun payload and the server are unchanged.
+files: src/client/MenuClient.client.luau
+test: none
+verified: stylua --check, selene, tools/luau_check.sh pass; not playtested (Studio only)
+review: n/a
+
+## b-20260922-101723-tmde  fixed  2026-09-22 10:52
+note: when I claim my gift, the run over modal should disappear so I can focus on collecting frogs
+cause: giftPromptButton.Activated claimed the gift but never hid the Run Over panel, which covered the burst of catchable flys.
+change: On a successful claim, hideMainPanels() runs, then after 3 s restoreMainPanels() brings Replay/Home back (unless the player already left or restarted). This mirrors Unity MenuManager's GiftFlys -> Invoke(ShowReturnPanel, 3f).
+files: src/client/MenuClient.client.luau
+test: none
+verified: stylua --check, selene, tools/luau_check.sh pass; not playtested (Studio only)
+review: n/a
