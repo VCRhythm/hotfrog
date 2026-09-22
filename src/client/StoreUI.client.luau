@@ -76,8 +76,8 @@ gui.DisplayOrder = 5 -- match MenuGui so this panel isn't painted underneath it
 -- FlysLabel is already on screen in every run state (Menu/Playing/Dead), a
 -- strict superset of this bar's Menu/Dead-only visibility, so a second Flys
 -- counter here only risked disagreeing with it.
-local shopToggle = button("Shop", "Shop", UDim2.fromOffset(120, 44), UDim2.new(1, -132, 1, -56), gui)
-local giftButton = button("Gift", "Gift", UDim2.fromOffset(150, 44), UDim2.new(0, 12, 1, -56), gui)
+local shopToggle = button("Shop", "Shop", UDim2.fromOffset(120, 44), UDim2.new(1, -132, 1, -56), gui, "FrogHeadIcon")
+local giftButton = button("Gift", "Gift", UDim2.fromOffset(150, 44), UDim2.new(0, 12, 1, -56), gui, "Present")
 giftButton.BackgroundColor3 = ACCENT
 
 -- ---------------------------------------------------------------------------
@@ -154,6 +154,10 @@ local function refreshPanel()
 	local owned = profile and profile.owned and id and profile.owned[id]
 	local selected = profile and id and profile.selected == id
 
+	-- Flys-price icon (b-20260922-145930): only the "Buy (N)" state is a Flys
+	-- price, so the icon set on Action here is a fresh call each refresh
+	-- rather than a fixed stem the button was created with.
+	local flysIcon: string? = nil
 	if selected then
 		statusLabel.Text = "Selected"
 		actionButton.Text = "Selected"
@@ -169,6 +173,7 @@ local function refreshPanel()
 		actionButton.Text = "Buy (" .. entry.flyCost .. ")"
 		actionButton.Active = true
 		actionButton.BackgroundColor3 = ACCENT
+		flysIcon = "BugIcon"
 	elseif entry.gamePassId and entry.gamePassId > 0 then
 		statusLabel.Text = "Premium"
 		actionButton.Text = "Buy"
@@ -180,6 +185,7 @@ local function refreshPanel()
 		actionButton.Active = false
 		actionButton.BackgroundColor3 = DARK
 	end
+	UIKit.setButtonIcon(actionButton, flysIcon)
 end
 
 local function onAction()

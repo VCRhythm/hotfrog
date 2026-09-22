@@ -15,6 +15,9 @@
 
 local GuiService = game:GetService("GuiService")
 local TweenService = game:GetService("TweenService")
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
 
 local UIKit = {}
 
@@ -85,13 +88,76 @@ local function lipColor(fill: Color3): Color3
 	return fill:Lerp(UIKit.OUTLINE, 0.45)
 end
 
+local ICON_PAD = 6
+local ICON_GAP = 8
+
+-- Icon shown left of the label inside Face, sized off the button's own
+-- IconSize attribute (set by UIKit.button from its height). GearIcon is
+-- white and Notes is black, so a same-coloured button fill would swallow
+-- either one -- an outline-coloured halo behind the icon keeps it reading
+-- regardless of fill (Lily Pad Pop, per b-20260922-145930). `stem` is a
+-- SkinAssets.image key; nil, or an id that isn't uploaded yet (0), removes
+-- the icon and gives the label back its full width.
+function UIKit.setButtonIcon(b: TextButton, stem: string?)
+	local face = b:FindFirstChild("Face") :: Frame
+	local label = face:FindFirstChild("Label") :: TextLabel
+	local pad = label:FindFirstChildOfClass("UIPadding") :: UIPadding
+	local halo = face:FindFirstChild("IconHalo") :: Frame?
+	local image = stem and SkinAssets.image(stem)
+	if not image then
+		if halo then
+			halo:Destroy()
+		end
+		pad.PaddingLeft = UDim.new(0, ICON_PAD)
+		return
+	end
+	local iconSize = (b:GetAttribute("IconSize") :: number?) or 20
+	local h: Frame
+	if halo then
+		h = halo
+	else
+		h = Instance.new("Frame")
+		h.Name = "IconHalo"
+		h.AnchorPoint = Vector2.new(0, 0.5)
+		h.Position = UDim2.new(0, ICON_PAD, 0.5, 0)
+		h.ZIndex = 4 -- above Label (3): the label's box still spans the full
+		-- Face (padding just indents its text), so the icon must draw on top
+		h.Parent = face
+		UIKit.corner(h, 999) -- always-round regardless of size (Roblox clamps)
+
+		local icon = Instance.new("ImageLabel")
+		icon.Name = "Icon"
+		icon.AnchorPoint = Vector2.new(0.5, 0.5)
+		icon.Position = UDim2.fromScale(0.5, 0.5)
+		icon.BackgroundTransparency = 1
+		icon.ZIndex = 5
+		icon.Parent = h
+	end
+	h.BackgroundColor3 = UIKit.OUTLINE
+	h.Size = UDim2.fromOffset(iconSize + 3, iconSize + 3)
+	local icon = h:FindFirstChild("Icon") :: ImageLabel
+	icon.Size = UDim2.fromOffset(iconSize, iconSize)
+	icon.Image = image
+	pad.PaddingLeft = UDim.new(0, ICON_PAD + iconSize + 3 + ICON_GAP)
+end
+
 -- Returns the TextButton callers already expect: they keep setting Text,
 -- TextColor3, BackgroundColor3 and Active on it. The button itself is an
 -- invisible hit box; what shows is a "Face" frame (fill + outline + label)
 -- sitting on a "Lip" frame. Children always draw over their parent under
 -- Sibling ZIndexBehavior, so the button's own text/background can't be used
 -- -- the properties are mirrored onto the face instead.
-function UIKit.button(name: string, text: string, size: UDim2, pos: UDim2, parent: Instance): TextButton
+--
+-- `iconStem` optionally sets a SkinAssets icon (e.g. "GearIcon") to the left
+-- of the label at creation; see UIKit.setButtonIcon to change it later.
+function UIKit.button(
+	name: string,
+	text: string,
+	size: UDim2,
+	pos: UDim2,
+	parent: Instance,
+	iconStem: string?
+): TextButton
 	local b = Instance.new("TextButton")
 	b.Name = name
 	b.Size = size
@@ -139,6 +205,12 @@ function UIKit.button(name: string, text: string, size: UDim2, pos: UDim2, paren
 	sizeCap.MaxTextSize = math.max(12, math.floor((size.Y.Offset - UIKit.LIP) * 0.5))
 	sizeCap.MinTextSize = 8
 	sizeCap.Parent = label
+
+	-- ~1.15x the label's own max text size (see UIKit.setButtonIcon).
+	b:SetAttribute("IconSize", math.max(14, math.floor((size.Y.Offset - UIKit.LIP) * 0.58)))
+	if iconStem then
+		UIKit.setButtonIcon(b, iconStem)
+	end
 
 	local function syncFill()
 		face.BackgroundColor3 = b.BackgroundColor3

@@ -763,3 +763,12 @@ files: none
 test: none
 verified: n/a
 review: n/a
+
+## b-20260922-145930-pu44  fixed  2026-09-22 15:14
+note: Lily Pad Pop: put the Sprites/Menu icons on the menu/store buttons
+cause: UIKit.button built a text-only Face/Lip/Label stack with no ImageLabel, so every menu/store button stayed text-only even though the icon ids in SkinAssets were uploaded and non-zero.
+change: Added UIKit.setButtonIcon(button, stem?) and an optional iconStem arg to UIKit.button that builds an ImageLabel inside an outline-coloured round halo left of the label (the halo keeps white GearIcon and black Notes visible on matching fills), sized off a new IconSize attribute. Wired the call sites: Frogs/Shop=FrogHeadIcon, Settings=GearIcon, Top Scores=BugIcon, Replay=ReplayIcon, Home=Home, Gift=Present, music=Notes; StoreUI's Action button sets BugIcon only in its "Buy (N)" state.
+files: src/client/ui/UIKit.luau, src/client/MenuClient.client.luau, src/client/StoreUI.client.luau
+test: none
+verified: stylua --check, selene, tools/luau_check.sh on the touched files and rojo build pass; in the live Studio session, execute_luau confirmed each button has an IconHalo>Icon child with the right rbxassetid and that setButtonIcon adds/removes it dynamically. screen_capture returned black (environment limitation), so no visual check.
+review: n/a

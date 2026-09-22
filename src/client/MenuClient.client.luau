@@ -79,11 +79,12 @@ playButton.BackgroundColor3 = UIKit.ACCENT
 -- Run mode picker (doc 17 "Classic mode"): Normal scrolls only on grabs;
 -- Classic keeps the world falling. Sent with StartRun (Play and Replay).
 local modeButton = UIKit.button("Mode", "", UDim2.fromOffset(220, 40), UDim2.fromOffset(30, 100), mainPanel)
-local frogsButton = UIKit.button("Frogs", "Frogs", UDim2.fromOffset(105, 48), UDim2.fromOffset(30, 152), mainPanel)
+local frogsButton =
+	UIKit.button("Frogs", "Frogs", UDim2.fromOffset(105, 48), UDim2.fromOffset(30, 152), mainPanel, "FrogHeadIcon")
 local settingsButton =
-	UIKit.button("Settings", "Settings", UDim2.fromOffset(105, 48), UDim2.fromOffset(145, 152), mainPanel)
+	UIKit.button("Settings", "Settings", UDim2.fromOffset(105, 48), UDim2.fromOffset(145, 152), mainPanel, "GearIcon")
 local topScoresButton =
-	UIKit.button("TopScores", "Top Scores", UDim2.fromOffset(220, 44), UDim2.fromOffset(30, 210), mainPanel)
+	UIKit.button("TopScores", "Top Scores", UDim2.fromOffset(220, 44), UDim2.fromOffset(30, 210), mainPanel, "BugIcon")
 local hintLabel = UIKit.label("Hint", "", UDim2.fromOffset(220, 30), UDim2.fromOffset(30, 262), mainPanel)
 hintLabel.TextColor3 = UIKit.SUBTEXT
 hintLabel.TextScaled = false
@@ -130,14 +131,16 @@ okLabel.TextColor3 = UIKit.SUBTEXT
 local statsLine = UIKit.label("Stats", "", UDim2.fromOffset(280, 26), UDim2.fromOffset(20, 176), endPanel)
 statsLine.TextColor3 = UIKit.SUBTEXT
 
-local replayButton = UIKit.button("Replay", "Replay", UDim2.fromOffset(135, 52), UDim2.fromOffset(20, 214), endPanel)
+local replayButton =
+	UIKit.button("Replay", "Replay", UDim2.fromOffset(135, 52), UDim2.fromOffset(20, 214), endPanel, "ReplayIcon")
 replayButton.BackgroundColor3 = UIKit.ACCENT
-local homeButton = UIKit.button("Home", "Home", UDim2.fromOffset(125, 52), UDim2.fromOffset(165, 214), endPanel)
+local homeButton = UIKit.button("Home", "Home", UDim2.fromOffset(125, 52), UDim2.fromOffset(165, 214), endPanel, "Home")
 
 -- Gift/Shop prompt (doc 15 item 1: the Unity ad/buy/wait branch reduces to
 -- "gift ready -> claim, else show the wait + a Shop button" since ads were
 -- dropped by the owner's decision, doc 09).
-local giftPromptButton = UIKit.button("GiftPrompt", "", UDim2.fromOffset(280, 56), UDim2.fromOffset(20, 278), endPanel)
+local giftPromptButton =
+	UIKit.button("GiftPrompt", "", UDim2.fromOffset(280, 56), UDim2.fromOffset(20, 278), endPanel, "Present")
 giftPromptButton.BackgroundColor3 = UIKit.WARN
 
 -- ---------------------------------------------------------------------------
@@ -150,7 +153,7 @@ settingsPanel.ZIndex = 2
 UIKit.label("Title", "Settings", UDim2.fromOffset(240, 32), UDim2.fromOffset(20, 14), settingsPanel)
 
 local musicButton =
-	UIKit.button("Music", "Music: On", UDim2.fromOffset(240, 44), UDim2.fromOffset(20, 56), settingsPanel)
+	UIKit.button("Music", "Music: On", UDim2.fromOffset(240, 44), UDim2.fromOffset(20, 56), settingsPanel, "Notes")
 local sfxButton = UIKit.button("Sfx", "SFX: On", UDim2.fromOffset(240, 44), UDim2.fromOffset(20, 108), settingsPanel)
 local replayTutorialButton = UIKit.button(
 	"ReplayTutorial",
