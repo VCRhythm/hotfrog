@@ -143,7 +143,9 @@ RunService.Heartbeat:Connect(function(dt: number)
 				speck.angle += WorldConfig.SPECK_ROTATE_SPEED * dt
 				local offset = Vector3.new(math.cos(speck.angle), math.sin(speck.angle), 0) * WorldConfig.SPECK_RADIUS
 				speck.center = speck.center:Lerp(target, alpha)
-				speck.part.Position = speck.center + offset
+				-- Z-bias in front of the step's Z 0 plane -- otherwise the specks and the step
+				-- they orbit are coplanar and draw order between them is undefined (camera at +Z).
+				speck.part.Position = speck.center + offset + Vector3.new(0, 0, WorldConfig.SPECK_Z_BIAS)
 			end
 		end
 	end

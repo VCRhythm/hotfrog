@@ -682,3 +682,12 @@ files: src/server/GameServer.server.luau, src/client/WorldFrogCosmetics.client.l
 test: none
 verified: stylua, selene, luau_check, rojo build pass; Studio playtest on the attract demo frog: held limb Held=true with grip decal shown, free limb Held=false with open hand shown.
 review: n/a
+
+## b-20260922-101603-88g2  fixed  2026-09-22 10:45
+note: the sparkles in the tutorial should appear in front of the acorns
+cause: Specks orbited at the step's own Z plane (zero Z offset), so draw order against the acorn was undefined.
+change: Added WorldConfig.SPECK_Z_BIAS = 0.5 and applied it to each speck's position, nudging specks toward the camera without changing their orbit.
+files: src/client/WorldTutorialSpecks.client.luau, src/shared/WorldConfig.luau
+test: none
+verified: stylua --check, selene src/, tools/luau_check.sh on both files pass; not playtested (Studio only)
+review: n/a

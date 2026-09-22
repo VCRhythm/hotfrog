@@ -144,6 +144,8 @@ WorldConfig.SPECK_MOVE_TIME = 0.5 -- Speck.cs Move(): transform.DOMove(..., 0.5f
 WorldConfig.SPECK_RADIUS = 1.2 -- Speck.prefab targetRadius=1.0 (already stud-scale, doc 12 §4)
 WorldConfig.SPECK_ROTATE_SPEED = 2.5 -- radians/sec around its target (Speck.cs rotateSpeed, simplified)
 WorldConfig.SPECK_SIZE = Vector3.new(0.35, 0.35, 0.1)
+WorldConfig.SPECK_Z_BIAS = 0.5 -- ADAPTED: nudge in front of the Z 0 step plane (camera at +Z looks down -Z,
+-- doc 17 "Frog arm / hand draw order vs. steps"), so specks don't tie with the step they orbit
 WorldConfig.SPECK_COLORS = { -- SpeckManager.prefab colorOptions (doc 11 §3): 8 entries
 	Color3.fromRGB(255, 255, 255),
 	Color3.fromRGB(170, 255, 80),
