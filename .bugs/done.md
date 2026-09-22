@@ -718,3 +718,12 @@ files: src/client/MenuClient.client.luau
 test: none
 verified: stylua --check, selene, tools/luau_check.sh pass; not playtested (Studio only)
 review: n/a
+
+## b-20260922-101937-mcaj  fixed  2026-09-22 10:58
+note: let's change to the next level at 50 steps
+cause: Config.LEVEL_THRESHOLDS was set to 200/500 steps by the earlier design; the owner now wants a new level every 50 steps.
+change: LEVEL_THRESHOLDS = { Kitchen = 50, Country = 100 }, read as "every 50 steps", so Country starts at 100. Doc 17's deviation row and doc 13's numbers are updated. Lane reads the table generically, so no logic change was needed.
+files: src/shared/Config.luau, docs/roblox-port/17-status-and-known-gaps.md, docs/roblox-port/13-levels-and-lanes.md
+test: none
+verified: stylua --check, selene, tools/luau_check.sh on Config.luau pass; not playtested
+review: n/a

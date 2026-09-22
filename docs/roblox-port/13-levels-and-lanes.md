@@ -137,8 +137,8 @@ already `true`, in which case it starts at **Pot**. `Lane:onStepClimbed()`
 
 - **Tutorial → Pot**: on the 3rd tree step climbed, sets `tutorialDone = true`,
   saves the profile, and calls `Lane:setLevel(Pot)`.
-- **Pot → Kitchen**: at `runSteps >= Config.LEVEL_THRESHOLDS.Kitchen` (200).
-- **Kitchen → Country**: at `runSteps >= Config.LEVEL_THRESHOLDS.Country` (500).
+- **Pot → Kitchen**: at `runSteps >= Config.LEVEL_THRESHOLDS.Kitchen` (50).
+- **Kitchen → Country**: at `runSteps >= Config.LEVEL_THRESHOLDS.Country` (100).
 
 `LEVEL_THRESHOLDS` and reaching Country in single-player are the project
 owner's decision (doc 13) — Unity itself never advanced past Pot.
