@@ -158,6 +158,31 @@ WorldConfig.SPECK_COLORS = { -- SpeckManager.prefab colorOptions (doc 11 §3): 8
 }
 
 -- ---------------------------------------------------------------------------
+-- Frog heat + level-up reactions (journey 5/8, b-20260923-154344-o8po). No
+-- Unity source for either -- Frog.cs has no lava-proximity or level-up beat --
+-- so both are ADAPTED, purely additive game-feel.
+-- ---------------------------------------------------------------------------
+-- How close (in studs, above Config.LAVA_Y) the frog has to be, in Pot only,
+-- before its pupils glance down at the lava and its skin gets a heat tint.
+WorldConfig.LAVA_PROXIMITY_STUDS = 8
+-- Fraction of PUPIL_MAX_OFFSET used for the down-glance (kept a touch short of
+-- the full clamp so it doesn't read as cross-eyed).
+WorldConfig.LAVA_GLANCE_V_FRACTION = 0.85
+-- Body decal Color3 tween (multiplies the sprite's own colors -- see
+-- SpriteSkin's header) toward a warm red flush and back.
+WorldConfig.FROG_HEAT_TINT_COLOR = Color3.fromRGB(255, 150, 140)
+WorldConfig.FROG_HEAT_TINT_TIME = 0.5
+
+-- On a real level-up ("soft" LevelChanged transition only): eyelids snap to
+-- Open (approximating "wide eyes" -- this rig has no dedicated wide-eye art)
+-- and stay there while the ambient blink loop is paused; pupils glide
+-- left/right/center (the "slow look around"), each leg taking
+-- LEVEL_UP_LOOK_SEGMENT_TIME at the slower LEVEL_UP_LOOK_LERP_RATE; then one
+-- ordinary blink plays and the ambient loop resumes.
+WorldConfig.LEVEL_UP_LOOK_SEGMENT_TIME = 0.5
+WorldConfig.LEVEL_UP_LOOK_LERP_RATE = 3
+
+-- ---------------------------------------------------------------------------
 -- Attract mode (Player/FrogAI.cs): while a lane's RunState == "Menu", its
 -- real (server-owned) frog climbs a decorative ladder on a loop -- see the
 -- "Attract mode" block in GameServer.server.luau. Read by the server, so

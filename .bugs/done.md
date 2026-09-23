@@ -844,3 +844,12 @@ files: src/server/Lane.luau, src/shared/Levels.luau, src/client/WorldScenery.cli
 test: none
 verified: stylua --check, selene src/, tools/luau_check.sh on all three, rojo build pass; not run in Studio (concurrent fixers, no playtest)
 review: n/a
+
+## b-20260923-154344-o8po  fixed  2026-09-23 16:15
+note: journey 5/8: frog should react to heat and to arriving in a new level
+cause: WorldFrogCosmetics only reacted to held-step tracking and the Dead attribute; nothing read lava proximity or level-ups.
+change: near Pot's lava the pupils glance down and the Body decal tints warm red; on a "soft" level-up the eyes open, pupils look around slowly, then blink (other lanes infer level-ups from their Level attribute). Blink loop gets a guard so the two blinks can't collide; tuning constants in WorldConfig. Doc 17 deviation row added.
+files: src/client/WorldFrogCosmetics.client.luau, src/shared/WorldConfig.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene src/, tools/luau_check.sh on both files, rojo build pass; not run in Studio (concurrent fixers, no playtest)
+review: n/a
