@@ -52,6 +52,24 @@ export type SceneryDef = {
 	movements: { Vector3 },
 }
 
+-- Height-stage progression within a single level (b-20260923-154344-dr8a,
+-- journey 3/8): OWNER'S FEATURE, not a Unity port -- Unity's Pot spawner pools
+-- never change composition mid-level. Optional; nil for every level except Pot.
+-- `maxRunSteps` is an exclusive upper bound on Lane.runSteps (the last entry
+-- should use math.huge so every runSteps value lands in some stage);
+-- Lane.currentHeightStage picks the first stage whose bound isn't yet passed.
+-- `weights` overrides StepKinds[kindName].spawnProbability for Lane.pickKind,
+-- per stage, for whichever kind names it lists -- a pool kind with no entry
+-- here falls back to its normal StepKinds weight. `sceneryDensity` multiplies
+-- WorldScenery's Bubble/Flame (bubbles/steam) spawn cadence for the stage (1 =
+-- unchanged); WorldScenery reads it off the lane folder's `Stage` attribute
+-- (the 1-based index into this list), which Lane.luau alone sets.
+export type HeightStage = {
+	maxRunSteps: number,
+	weights: { [string]: number },
+	sceneryDensity: number,
+}
+
 export type Level = {
 	name: string,
 	musicIndex: number,
@@ -61,6 +79,7 @@ export type Level = {
 	stepSpawners: { StepSpawnerDef },
 	scenerySpawners: { SceneryDef },
 	levelObjects: { string },
+	heightStages: { HeightStage }?,
 }
 
 local Levels = {}
@@ -324,6 +343,29 @@ list[Levels.POT] = {
 		},
 	},
 	levelObjects = {},
+	-- Three height stages across Pot's 0-50 runSteps span (Config.LEVEL_THRESHOLDS.Kitchen),
+	-- so the climb reads as progress through a place rather than one flat pool the whole
+	-- level (b-20260923-154344-dr8a): mostly Carrot with heavy bubbles/steam low down,
+	-- Potato (crumbles on release) mixed in through the middle, then the Up*Rock
+	-- diagonals dominating and the steam thinning near the top. Every pool kind above
+	-- gets an entry so no stage silently falls back to a flat StepKinds weight.
+	heightStages = {
+		{
+			maxRunSteps = 15,
+			weights = { Carrot = 3, Potato = 0.4, UpRock = 0.2, UpLeftRock = 0.2, UpRightRock = 0.2 },
+			sceneryDensity = 1.75,
+		},
+		{
+			maxRunSteps = 35,
+			weights = { Carrot = 1, Potato = 1.5, UpRock = 0.5, UpLeftRock = 0.5, UpRightRock = 0.5 },
+			sceneryDensity = 1,
+		},
+		{
+			maxRunSteps = math.huge,
+			weights = { Carrot = 0.5, Potato = 0.7, UpRock = 1.6, UpLeftRock = 1.6, UpRightRock = 1.6 },
+			sceneryDensity = 0.4,
+		},
+	},
 }
 
 -- ---------------------------------------------------------------------------

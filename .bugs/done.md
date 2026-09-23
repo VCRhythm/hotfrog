@@ -835,3 +835,12 @@ files: src/client/GameClient.client.luau, docs/roblox-port/17-status-and-known-g
 test: none
 verified: stylua --check, selene src/, tools/luau_check.sh pass on GameClient; not run in Studio (concurrent fixers, no playtest)
 review: n/a
+
+## b-20260923-154344-dr8a  fixed  2026-09-23 16:10
+note: journey 3/8: split Pot into 3 height stages (step mix and effects change as you climb)
+cause: Lane.pickKind used StepKinds' flat level-wide weights and Pot's scenery ran one cadence, so nothing tracked runSteps within the level.
+change: optional Levels heightStages (Pot only: 0-15 Carrot-heavy, 15-35 Potato, 35-50 Up*Rock/diagonal) override pickKind weights; Lane replicates the stage as the lane folder's Stage attribute, and WorldScenery scales Bubble/Flame density from it. Doc 17 deviation row added.
+files: src/server/Lane.luau, src/shared/Levels.luau, src/client/WorldScenery.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene src/, tools/luau_check.sh on all three, rojo build pass; not run in Studio (concurrent fixers, no playtest)
+review: n/a

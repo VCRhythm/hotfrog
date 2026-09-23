@@ -210,6 +210,7 @@ function Lane.setLevel(self: Lane, levelIndex: number)
 	end
 
 	self.folder:SetAttribute("Level", level.name)
+	self:updateStageAttribute()
 end
 
 -- A grabbed ChangeDirection* step (StepBehaviors setSpawnBias) asks to steer the
@@ -228,11 +229,49 @@ function Lane.changeDirection(self: Lane, newDirection: Vector2): boolean
 end
 
 -- ---------------------------------------------------------------------------
+-- Height-stage lookup (b-20260923-154344-dr8a, journey 3/8): the stage from
+-- `self.level.heightStages` (Levels.luau, currently only Pot) whose
+-- `maxRunSteps` bound isn't yet passed, plus its 1-based index -- nil, nil for
+-- a level with no heightStages (every level but Pot) or an empty runSteps-less
+-- lane. Used by both Lane.pickKind (weight overrides) and
+-- Lane.updateStageAttribute (the replicated `Stage` attribute WorldScenery
+-- reads for its Bubble/Flame density).
+-- ---------------------------------------------------------------------------
+local function currentHeightStage(self: Lane): (Levels.HeightStage?, number?)
+	local stages = self.level.heightStages
+	if not stages then
+		return nil, nil
+	end
+	for i, stage in stages do
+		if self.runSteps < stage.maxRunSteps then
+			return stage, i
+		end
+	end
+	return stages[#stages], #stages
+end
+
+-- Sets (or clears) the lane folder's `Stage` attribute to the current height
+-- stage's 1-based index -- nil on a level with no heightStages. Called
+-- whenever the level or runSteps changes (Lane.setLevel, Lane.onStepClimbed);
+-- WorldScenery.client.luau reads it off the replicated attribute to scale its
+-- Bubble/Flame spawn cadence, and never computes stage/runSteps itself.
+function Lane.updateStageAttribute(self: Lane)
+	local _, index = currentHeightStage(self)
+	self.folder:SetAttribute("Stage", index)
+end
+
+-- ---------------------------------------------------------------------------
 -- Weighted kind pick (Spawning/Spawner.cs SetUpSpawnProbabilities + CreateSpawn):
 -- normalize spawnProbability over the spawner's own pool, roll, then gate on the
 -- picked kind's behavior canSpawn (StepSpawner.CreateSpawn's canBeSpawned retry
 -- loop). Bounded retries instead of Unity's unbounded recursion, with a final
 -- deterministic fallback so a pathological all-gated pool can't spawn nothing.
+--
+-- Height-stage weight overrides (b-20260923-154344-dr8a): when the lane's
+-- level has heightStages (Pot only), the current stage's `weights[kindName]`
+-- replaces StepKinds[kindName].spawnProbability for any pool kind it lists;
+-- kinds it doesn't list keep their normal StepKinds weight. A level with no
+-- heightStages picks exactly as before.
 -- ---------------------------------------------------------------------------
 function Lane.pickKind(self: Lane, state: SpawnerState): string?
 	local pool = state.def.pool
@@ -240,10 +279,19 @@ function Lane.pickKind(self: Lane, state: SpawnerState): string?
 		return nil
 	end
 
+	local stage = currentHeightStage(self)
+
+	local function weightOf(kindName: string): number
+		if stage and stage.weights[kindName] then
+			return stage.weights[kindName] :: number
+		end
+		local kind = StepKinds[kindName]
+		return (kind and kind.spawnProbability) or 0
+	end
+
 	local total = 0
 	for _, kindName in pool do
-		local kind = StepKinds[kindName]
-		total += (kind and kind.spawnProbability) or 0
+		total += weightOf(kindName)
 	end
 
 	local function canSpawnKind(kindName: string): boolean
@@ -258,8 +306,7 @@ function Lane.pickKind(self: Lane, state: SpawnerState): string?
 			local r = math.random() * total
 			local chosen: string = pool[#pool]
 			for _, kindName in pool do
-				local kind = StepKinds[kindName]
-				r -= (kind and kind.spawnProbability) or 0
+				r -= weightOf(kindName)
 				if r <= 0 then
 					chosen = kindName
 					break
@@ -1069,6 +1116,10 @@ local TUTORIAL_TREE_KINDS = {
 -- ---------------------------------------------------------------------------
 function Lane.onStepClimbed(self: Lane, kindName: string?)
 	self.runSteps += 1
+	-- covers a height-stage change WITHIN the current level (e.g. Pot's 15/35
+	-- runSteps stage bounds); a level transition below also calls setLevel,
+	-- which sets this same attribute again for the new level.
+	self:updateStageAttribute()
 
 	if self.tutorialGraceActive and not (kindName and TUTORIAL_TREE_KINDS[kindName]) then
 		self.tutorialGraceActive = false

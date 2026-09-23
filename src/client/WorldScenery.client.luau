@@ -231,6 +231,13 @@ type SpawnerRuntime = {
 	timer: number,
 	spawnCount: number,
 	awoken: boolean,
+	-- Height-stage density (b-20260923-154344-dr8a) this spawner's current live
+	-- population was last built with, spawnAllOnAwake spawners only (Flame) --
+	-- nil until its one-shot batch has fired once. Lets a later Stage-attribute
+	-- change (Pot's bubbles/steam thinning as the lane climbs) replace an
+	-- already-fired batch instead of it being stuck at whatever density was live
+	-- on the lane's first tick.
+	lastDensity: number?,
 }
 
 type LaneScenery = {
@@ -240,6 +247,11 @@ type LaneScenery = {
 	spawners: { SpawnerRuntime },
 	active: { [BasePart]: string }, -- part -> kind name
 	oneOffs: { [string]: { BasePart }? }, -- levelObjects (Chef/US), one-or-more parts per lane (US is two stacked decal layers, doc 14)
+	-- Multiplies this lane's scenery spawn cadence (b-20260923-154344-dr8a):
+	-- Levels.list[..].heightStages[Stage attribute].sceneryDensity, read off the
+	-- lane folder (Lane.luau owns `Stage`); 1 on a level with no heightStages
+	-- (every level but Pot), so nothing else changes behaviour.
+	stageDensity: number,
 }
 
 local DEFAULT_CADENCE: SceneryKinds.SpawnerCadence =
@@ -260,10 +272,26 @@ local function buildSpawners(levelName: string): { SpawnerRuntime }
 				timer = 0,
 				spawnCount = 0,
 				awoken = false,
+				lastDensity = nil,
 			})
 		end
 	end
 	return list
+end
+
+-- Height-stage scenery density (b-20260923-154344-dr8a): the 1-based `Stage`
+-- attribute Lane.luau sets, resolved against that level's own heightStages
+-- list (currently only Pot's). 1 (unchanged) for any level without one, or
+-- before the attribute has replicated yet.
+local function densityForStage(levelName: string, stageAttr: unknown): number
+	local level = levelByName[levelName]
+	local stages = level and level.heightStages
+	if not stages or #stages == 0 then
+		return 1
+	end
+	local index = if typeof(stageAttr) == "number" then math.floor(stageAttr) else 1
+	local stage = stages[math.clamp(index, 1, #stages)]
+	return if stage then stage.sceneryDensity else 1
 end
 
 -- levelObjects (doc 11 §3): one-off decorations placed for the duration of a
@@ -371,6 +399,7 @@ local function trackLane(folder: Folder)
 		spawners = buildSpawners(levelName),
 		active = {},
 		oneOffs = {},
+		stageDensity = densityForStage(levelName, folder:GetAttribute("Stage")),
 	}
 	lanes[folder] = lane
 	updateLevelObjects(lane)
@@ -382,6 +411,7 @@ local function trackLane(folder: Folder)
 		end
 		lane.levelName = newName
 		lane.spawners = buildSpawners(newName) -- soft transition: leaves `active` untouched
+		lane.stageDensity = densityForStage(newName, folder:GetAttribute("Stage"))
 		updateLevelObjects(lane)
 	end
 	folder:GetAttributeChangedSignal("Level"):Connect(refreshLevel)
@@ -394,6 +424,9 @@ local function trackLane(folder: Folder)
 	end)
 	folder:GetAttributeChangedSignal("PullCount"):Connect(function()
 		onPullCount(lane)
+	end)
+	folder:GetAttributeChangedSignal("Stage"):Connect(function()
+		lane.stageDensity = densityForStage(lane.levelName, folder:GetAttribute("Stage"))
 	end)
 end
 
@@ -439,9 +472,23 @@ RunService.Heartbeat:Connect(function(dt: number)
 	for _, lane in lanes do
 		for _, spawner in lane.spawners do
 			if spawner.cadence.spawnAllOnAwake then
-				if not spawner.awoken then
+				-- b-20260923-154344-dr8a: a density change (Pot's Stage attribute)
+				-- after the one-shot batch already fired replaces it instead of
+				-- leaving the batch stuck at whatever density was live at first tick.
+				if not spawner.awoken or spawner.lastDensity ~= lane.stageDensity then
+					if spawner.awoken then
+						for part, kindName in lane.active do
+							if table.find(spawner.pool, kindName) then
+								recycleScenery(lane, part)
+							end
+						end
+						spawner.spawnCount = 0
+					end
 					spawner.awoken = true
-					local count = math.max(1, math.min(spawner.cadence.maxSpawnCount, #spawner.pool * 4))
+					spawner.lastDensity = lane.stageDensity
+					local density = math.max(0.05, lane.stageDensity)
+					local count =
+						math.max(1, math.min(spawner.cadence.maxSpawnCount, math.floor(#spawner.pool * 4 * density)))
 					for i = 1, count do
 						local kindName = spawner.pool[((i - 1) % #spawner.pool) + 1]
 						spawnScenery(lane, kindName, spawnPosition(lane.origin, spawner.direction))
@@ -460,7 +507,10 @@ RunService.Heartbeat:Connect(function(dt: number)
 						spawner.spawnCount += 1
 					end
 					local span = math.max(0, spawner.cadence.spawningSpeedMax - spawner.cadence.spawningSpeedMin)
-					spawner.timer = math.max(0.05, spawner.cadence.spawningSpeedMin + math.random() * span)
+					local interval = math.max(0.05, spawner.cadence.spawningSpeedMin + math.random() * span)
+					-- b-20260923-154344-dr8a: higher stage density -> shorter interval
+					-- -> denser continuous scenery (Pot's Bubble spawner); 1 elsewhere.
+					spawner.timer = interval / math.max(0.05, lane.stageDensity)
 				end
 			end
 		end
