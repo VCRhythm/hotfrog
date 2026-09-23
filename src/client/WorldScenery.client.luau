@@ -342,6 +342,14 @@ local function spawnScenery(lane: LaneScenery, kindName: string, position: Vecto
 			decal.Color3 = color
 		end
 	end
+	local decal = part:FindFirstChildOfClass("Decal")
+	if decal then
+		-- undo a previous arrival fade (fadeOutLeftovers) on a reused part
+		decal.Transparency = 0
+		part.Transparency = if decal.Texture ~= "" then 1 else 0
+	else
+		part.Transparency = 0
+	end
 	part.CFrame = CFrame.new(position)
 	part.Parent = workspace
 	lane.active[part] = kindName
@@ -356,6 +364,37 @@ local function recycleScenery(lane: LaneScenery, part: BasePart)
 	poppableParts[part] = nil
 	if kindName then
 		poolFor(kindName).release(part)
+	end
+end
+
+-- Level-up arrival (journey 2/8, b-20260923-154343-3h60): fade out and recycle
+-- every live part whose kind the lane's CURRENT level no longer spawns (Pot's
+-- Flame/Bubble on arriving in Kitchen), instead of leaving it to drift off.
+-- Dropped from `active`/`poppableParts` at once, so it stops moving, can't be
+-- popped and isn't recycled twice.
+local function fadeOutLeftovers(lane: LaneScenery)
+	local keep: { [string]: boolean } = {}
+	for _, spawner in lane.spawners do
+		for _, kindName in spawner.pool do
+			keep[kindName] = true
+		end
+	end
+	local info = TweenInfo.new(WorldConfig.ARRIVAL_SCENERY_FADE_TIME)
+	for part, kindName in lane.active do
+		if not keep[kindName] then
+			lane.active[part] = nil
+			poppableParts[part] = nil
+			local decal = part:FindFirstChildOfClass("Decal")
+			if decal then
+				TweenService:Create(decal, info, { Transparency = 1 }):Play()
+			end
+			if part.Transparency < 1 then
+				TweenService:Create(part, info, { Transparency = 1 }):Play()
+			end
+			task.delay(WorldConfig.ARRIVAL_SCENERY_FADE_TIME, function()
+				poolFor(kindName).release(part)
+			end)
+		end
 	end
 end
 
@@ -416,6 +455,11 @@ local function trackLane(folder: Folder)
 	end
 	folder:GetAttributeChangedSignal("Level"):Connect(refreshLevel)
 	folder:GetAttributeChangedSignal("RunState"):Connect(refreshLevel)
+	-- Only on a real level-up (Lane.beginArrival), never on run start/respawn.
+	folder:GetAttributeChangedSignal("ArrivalCount"):Connect(function()
+		refreshLevel() -- no-op if the Level attribute already landed
+		fadeOutLeftovers(lane)
+	end)
 	folder:GetAttributeChangedSignal("Origin"):Connect(function()
 		local newOrigin = folder:GetAttribute("Origin")
 		if typeof(newOrigin) == "Vector3" then

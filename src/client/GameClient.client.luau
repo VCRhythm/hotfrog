@@ -157,11 +157,52 @@ local function spectateOrigin(): Vector3
 	return laneOrigin()
 end
 
+-- Level-up arrival pull-back (journey 2/8, b-20260923-154343-3h60): a distance
+-- multiplier tweened 1 -> WorldConfig.ARRIVAL_CAMERA_ZOOM -> 1 whenever this
+-- lane's `ArrivalCount` attribute bumps (Lane.beginArrival, server -- only on a
+-- real level-up, never run start/respawn). Screen taps stay correct throughout:
+-- every raycast goes through camera:ScreenPointToRay.
+local arrivalZoom = Instance.new("NumberValue")
+arrivalZoom.Value = 1
+
 local function updateCamera()
-	camera.CFrame = CFrame.lookAt(spectateOrigin() + Vector3.new(0, 0, CAMERA_DISTANCE), spectateOrigin())
+	local origin = spectateOrigin()
+	camera.CFrame = CFrame.lookAt(origin + Vector3.new(0, 0, CAMERA_DISTANCE * arrivalZoom.Value), origin)
 end
 updateCamera()
 myLane:GetAttributeChangedSignal("Origin"):Connect(updateCamera)
+arrivalZoom.Changed:Connect(updateCamera)
+
+local arrivalTween: Tween? = nil
+myLane:GetAttributeChangedSignal("ArrivalCount"):Connect(function()
+	if arrivalTween then
+		arrivalTween:Cancel()
+	end
+	local out = TweenService:Create(
+		arrivalZoom,
+		TweenInfo.new(WorldConfig.ARRIVAL_CAMERA_OUT_TIME, Enum.EasingStyle.Sine, Enum.EasingDirection.Out),
+		{ Value = WorldConfig.ARRIVAL_CAMERA_ZOOM }
+	)
+	arrivalTween = out
+	out.Completed:Once(function(state)
+		if state ~= Enum.PlaybackState.Completed then
+			return
+		end
+		task.delay(WorldConfig.ARRIVAL_CAMERA_HOLD_TIME, function()
+			if arrivalTween ~= out then
+				return -- a newer arrival took over
+			end
+			local back = TweenService:Create(
+				arrivalZoom,
+				TweenInfo.new(WorldConfig.ARRIVAL_CAMERA_BACK_TIME, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut),
+				{ Value = 1 }
+			)
+			arrivalTween = back
+			back:Play()
+		end)
+	end)
+	out:Play()
+end)
 
 RunStateChanged.OnClientEvent:Connect(function(state: string)
 	if state == "Playing" and spectateIndex ~= 0 then

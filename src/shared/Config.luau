@@ -255,6 +255,12 @@ local Config = {
 	-- cross the whole gap) instead of snapping, so the speed blends in; the slower
 	-- CLASSIC_SCROLL_ACCEL_RATE ramp above still runs on top of it exactly as before.
 	CLASSIC_LEVEL_RAMP_TIME = 6, -- seconds to blend from one level's base speed to the next
+	-- Level-up arrival breather (journey 2/8, b-20260923-154343-3h60): on a real
+	-- level-up (Lane.beginArrival) Classic drift holds for this long -- no scroll,
+	-- no ramp -- and only then starts CLASSIC_LEVEL_RAMP_TIME's blend toward the
+	-- new level's speed. Covers the client's arrival beat (camera pull-back,
+	-- sting, WorldConfig.ARRIVAL_*).
+	CLASSIC_ARRIVAL_HOLD_TIME = 1.5, -- seconds
 
 	-- Grab anti-abuse (doc 07 hardening): cap grabs per rolling window per player.
 	-- Two limbs + fast chaining is maybe ~6/s for a human; 10 leaves headroom.

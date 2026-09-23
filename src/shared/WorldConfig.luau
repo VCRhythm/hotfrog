@@ -240,4 +240,27 @@ WorldConfig.ATTRACT_DECISION_TIME = 1.0 -- FrogAI.cs: nextDecisionTime is initia
 -- clicks/taps send it reaching to the click point (GameServer's ReachEmpty).
 WorldConfig.ATTRACT_LIMB = 1
 
+-- ---------------------------------------------------------------------------
+-- Level-up arrival beat (journey 2/8, b-20260923-154343-3h60). Keyed off the
+-- lane folder's `ArrivalCount` attribute (Lane.beginArrival, server), which
+-- also holds Classic drift for Config.CLASSIC_ARRIVAL_HOLD_TIME. No Unity
+-- equivalent: Unity's level changes are silent crossfades too.
+-- ---------------------------------------------------------------------------
+-- GameClient camera pull-back: distance multiplier, out / hold / back times.
+-- 1.35x shows ~21 studs above and below the frog (the lava it climbed from and
+-- the band steps come in from) while a 16:9 view (~38 studs half-width) still
+-- stays inside the backdrop tiles (+/-42 studs, WorldBackdrop TILE_WIDTH).
+WorldConfig.ARRIVAL_CAMERA_ZOOM = 1.35
+WorldConfig.ARRIVAL_CAMERA_OUT_TIME = 0.45
+WorldConfig.ARRIVAL_CAMERA_HOLD_TIME = 0.5
+WorldConfig.ARRIVAL_CAMERA_BACK_TIME = 0.55
+-- Music sting: an existing SoundAssets clip (no dedicated level-up clip exists);
+-- "new" is Unity's New.wav celebration jingle (MenuManager.CelebrateNew).
+-- Music.client.luau holds the level's crossfade back this long so it lands after.
+WorldConfig.ARRIVAL_STING = "new"
+WorldConfig.ARRIVAL_STING_LEAD = 0.8 -- seconds
+-- WorldScenery: the previous level's leftover scenery (Pot's Flame/Bubble)
+-- fades out over this long instead of drifting off with the new level.
+WorldConfig.ARRIVAL_SCENERY_FADE_TIME = 0.6
+
 return WorldConfig

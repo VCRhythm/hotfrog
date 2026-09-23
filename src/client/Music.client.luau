@@ -34,6 +34,8 @@ local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local TweenService = game:GetService("TweenService")
 
 local SoundAssets = require(ReplicatedStorage.Shared.SoundAssets)
+local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
+local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 
 local player = Players.LocalPlayer
 
@@ -169,7 +171,12 @@ end
 -- ---------------------------------------------------------------------------
 -- LevelChanged handling (doc 13 item 6, relayed by LevelClient's LevelState).
 -- ---------------------------------------------------------------------------
+-- Bumped on every playIndex call, so a "soft" crossfade still waiting out the
+-- arrival sting (below) is dropped if a newer transition (e.g. "death") lands.
+local playGeneration = 0
+
 local function playIndex(musicIndex: number, transition: string)
+	playGeneration += 1
 	local stem = MUSIC_STEMS[musicIndex]
 
 	if transition == "death" then
@@ -208,10 +215,26 @@ local function playIndex(musicIndex: number, transition: string)
 		return -- no overlapping duplicate tracks when LevelChanged repeats an index
 	end
 
-	if not activeStem or active.Volume == 0 then
-		playCold(stem)
+	local function switch()
+		if not activeStem or active.Volume == 0 then
+			playCold(stem)
+		else
+			crossfadeTo(stem)
+		end
+	end
+
+	if transition == "soft" then
+		-- Level-up arrival (journey 2/8, b-20260923-154343-3h60): the sting
+		-- (ArrivalCount listener at the bottom of this file) plays first; the
+		-- new level's track crossfades in once it has had its moment.
+		local generation = playGeneration
+		task.delay(WorldConfig.ARRIVAL_STING_LEAD, function()
+			if generation == playGeneration then
+				switch()
+			end
+		end)
 	else
-		crossfadeTo(stem)
+		switch()
 	end
 end
 
@@ -255,4 +278,16 @@ player:GetAttributeChangedSignal("MusicOn"):Connect(function()
 	else
 		fadeOutCurrent()
 	end
+end)
+
+-- ---------------------------------------------------------------------------
+-- Level-up arrival sting (journey 2/8, b-20260923-154343-3h60): the local
+-- lane's `ArrivalCount` attribute bumps only on a real level-up
+-- (Lane.beginArrival, server), never on run start or respawn. SoundFX, so it
+-- follows the SFX toggle and is a silent no-op while the clip id is 0.
+-- ---------------------------------------------------------------------------
+local myLane =
+	workspace:WaitForChild("PlayField"):WaitForChild("Lanes"):WaitForChild(tostring(player.UserId), math.huge)
+myLane:GetAttributeChangedSignal("ArrivalCount"):Connect(function()
+	SoundFX.play(WorldConfig.ARRIVAL_STING)
 end)

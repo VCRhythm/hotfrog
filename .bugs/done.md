@@ -871,3 +871,12 @@ files: src/client/WorldLava.client.luau, src/client/WorldBackdrop.client.luau, s
 test: none
 verified: stylua --check, selene src/, tools/luau_check.sh on all three, rojo build pass; not run in Studio (no playtest)
 review: n/a
+
+## b-20260923-154343-3h60  fixed  2026-09-23 17:00
+note: journey 2/8: Pot->Kitchen arrival should be a short scene, not a silent crossfade
+cause: a soft level-up only swapped level data and let clients crossfade quietly; no beat was tied to a real level-up.
+change: Lane.levelUp/beginArrival holds Classic drift 1.5 s (then the fe6ae69 ramp) and bumps a replicated ArrivalCount; clients pull the camera back (GameClient), play the "new" sting and delay the music crossfade 0.8 s (Music), and fade leftover scenery (WorldScenery). Tutorial->Pot included; not on start/respawn. Doc 17 deviation row added.
+files: src/server/Lane.luau, src/shared/Config.luau, src/shared/WorldConfig.luau, src/client/GameClient.client.luau, src/client/Music.client.luau, src/client/WorldScenery.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene src/, tools/luau_check.sh on all six, rojo build pass; not run in Studio, so timing and feel are unconfirmed
+review: looks-right

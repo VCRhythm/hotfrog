@@ -90,6 +90,12 @@ export type Lane = typeof(setmetatable(
 		-- Lane.setMode / Lane.resetRun; NOT reset by Lane.setLevel, so it keeps
 		-- ramping across a level transition instead of restarting at 0.
 		driftBase: number,
+		-- Seconds of Classic drift still held off after a level-up (Lane.beginArrival,
+		-- b-20260923-154343-3h60): Lane.driftSpeed returns 0 and freezes both
+		-- ramps until it runs out, then driftBase's CLASSIC_LEVEL_RAMP_TIME blend
+		-- starts. Counts down only while drift would otherwise run (frog armed and
+		-- alive). Reset by Lane.setMode / Lane.resetRun.
+		driftHold: number,
 		-- 1-based cursor into `self.level.introSequence` (Levels.luau); nil-safe --
 		-- levels without introSequence never read it. Reset to 1 by Lane.setLevel.
 		introIndex: number,
@@ -733,6 +739,7 @@ function Lane.setMode(self: Lane, mode: string)
 	self.driftTime = 0
 	self.driftElapsed = 0
 	self.driftBase = 0
+	self.driftHold = 0
 	self.folder:SetAttribute("Mode", self.mode)
 end
 
@@ -759,6 +766,10 @@ function Lane.driftSpeed(self: Lane, dt: number): number
 	if not target or target <= 0 then
 		self.driftBase = 0
 		return 0
+	end
+	if self.driftHold > 0 then
+		self.driftHold = math.max(0, self.driftHold - dt)
+		return 0 -- level-up breather: hold first, then ramp (Lane.beginArrival)
 	end
 
 	if self.driftBase <= 0 then
@@ -1181,22 +1192,38 @@ function Lane.onStepClimbed(self: Lane, kindName: string?)
 				profile.tutorialDone = true
 				Profiles.save(self.player)
 			end
-			self:setLevel(Levels.POT)
-			if self.notify then
-				self.notify(self, "soft")
-			end
+			self:levelUp(Levels.POT)
 		end
 	elseif self.levelIndex == Levels.POT and self.runSteps >= Config.LEVEL_THRESHOLDS.Kitchen then
-		self:setLevel(Levels.KITCHEN)
-		if self.notify then
-			self.notify(self, "soft")
-		end
+		self:levelUp(Levels.KITCHEN)
 	elseif self.levelIndex == Levels.KITCHEN and self.runSteps >= Config.LEVEL_THRESHOLDS.Country then
-		self:setLevel(Levels.COUNTRY)
-		if self.notify then
-			self.notify(self, "soft")
-		end
+		self:levelUp(Levels.COUNTRY)
 	end
+end
+
+-- A real mid-run level-up (never run start or respawn -- those go through
+-- Lane.new / Lane.resetRun): switch level, play the arrival beat, then tell
+-- the client ("soft").
+function Lane.levelUp(self: Lane, levelIndex: number)
+	self:setLevel(levelIndex)
+	self:beginArrival()
+	if self.notify then
+		self.notify(self, "soft")
+	end
+end
+
+-- The level-up ARRIVAL beat (journey 2/8, b-20260923-154343-3h60) -- the one
+-- place it's triggered, so it can be repointed (e.g. to grabbing a pot-rim
+-- step, b-20260923-154343-9twj) by moving this single call. Holds Classic
+-- drift for Config.CLASSIC_ARRIVAL_HOLD_TIME (Lane.driftSpeed) and bumps the
+-- lane folder's replicated `ArrivalCount` attribute, which every client-side
+-- piece of the beat keys off: GameClient's camera pull-back and Music's sting
+-- (local lane only), WorldScenery's fade of the previous level's scenery
+-- (every lane).
+function Lane.beginArrival(self: Lane)
+	self.driftHold = Config.CLASSIC_ARRIVAL_HOLD_TIME
+	local count = self.folder:GetAttribute("ArrivalCount")
+	self.folder:SetAttribute("ArrivalCount", (if typeof(count) == "number" then count else 0) + 1)
 end
 
 -- A new run: back to Pot, or Tutorial if this profile never finished it
@@ -1210,6 +1237,7 @@ function Lane.resetRun(self: Lane, tutorialDone: boolean)
 	self.driftTime = 0
 	self.driftElapsed = 0
 	self.driftBase = 0
+	self.driftHold = 0
 	self:setLevel(if tutorialDone then Levels.POT else Levels.TUTORIAL)
 	if self.notify then
 		self.notify(self, "death")
@@ -1257,6 +1285,7 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		driftTime = 0,
 		driftElapsed = 0,
 		driftBase = 0,
+		driftHold = 0,
 		introIndex = 1,
 		obstruction = nil,
 		runSteps = 0,
