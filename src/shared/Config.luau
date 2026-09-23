@@ -270,6 +270,15 @@ local Config = {
 	FALLING_MIN_SPAWN_COUNT = 5, -- ActionType.Falling canBeSpawned: spawnCount > 5
 	FALLING_DRIFT_SPEED = 15, -- studs/s downward drift (Step.cs AddForce(0,-50,Force), flattened -- no drag/accel)
 
+	-- Idle step spin (owner's request, doc 17 -- Unity's steps never rotate).
+	-- Every step rolls one signed rate on spawn and keeps it until it is grabbed;
+	-- direction is a coin flip. The roll is `min + (max-min) * random()^BIAS`, so
+	-- BIAS > 1 crowds the draw toward the slow end: most steps barely turn and the
+	-- occasional one tumbles. Degrees per second.
+	STEP_SPIN_MIN_DEG = 2,
+	STEP_SPIN_MAX_DEG = 40,
+	STEP_SPIN_BIAS = 3,
+
 	-- Splash (Entities/Splash.cs; ActionType.SplashFlinging's "Flingee" child).
 	-- Values are FlingingRock's own Splash.cs fields (doc 12), reused directly as
 	-- Roblox impulse velocities (studs/s) -- a rough analog, not physically exact.

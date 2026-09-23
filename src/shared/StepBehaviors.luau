@@ -189,7 +189,10 @@ Behaviors.Falling = {
 		return spawnCount > Config.FALLING_MIN_SPAWN_COUNT
 	end,
 	onTick = function(ctx, dt)
-		ctx.step.CFrame = ctx.step.CFrame * CFrame.new(0, -Config.FALLING_DRIFT_SPEED * dt, 0)
+		-- `+ Vector3` (world space), not `* CFrame.new` (the step's own frame):
+		-- ungrabbed steps spin (Config.STEP_SPIN_*, doc 17), and a tilted local
+		-- frame would send this drift off sideways.
+		ctx.step.CFrame = ctx.step.CFrame + Vector3.new(0, -Config.FALLING_DRIFT_SPEED * dt, 0)
 	end,
 }
 

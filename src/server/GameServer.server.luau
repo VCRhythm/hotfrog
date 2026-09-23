@@ -388,6 +388,25 @@ local function flingSplash(step: BasePart)
 	Debris:AddItem(splash, Config.SPLASH_LIFETIME)
 end
 
+-- ---------------------------------------------------------------------------
+-- Idle spin (owner's request b-20260922-194446, doc 17 -- Unity's steps never
+-- rotate): a step that has not been grabbed yet slowly tumbles, so the field
+-- reads as falling debris. One signed rate (rad/s about Z) is rolled per spawn,
+-- biased toward slow (Config.STEP_SPIN_*), and dropped for good on the grab, so
+-- a held step's grip point -- and the limb snapped to it -- never drifts. A
+-- pooled part re-rolls when it is acquired again.
+--
+-- Nothing else depends on a step's orientation: every hit test, reach check and
+-- grip offset is taken from step.Position in world space.
+-- ---------------------------------------------------------------------------
+local spin: { [BasePart]: number } = {}
+
+local function rollSpin(): number
+	local t = math.random() ^ Config.STEP_SPIN_BIAS
+	local deg = Config.STEP_SPIN_MIN_DEG + (Config.STEP_SPIN_MAX_DEG - Config.STEP_SPIN_MIN_DEG) * t
+	return math.rad(deg) * (if math.random() < 0.5 then -1 else 1)
+end
+
 -- forward-declared: releaseStep and makeCtx reference each other
 local makeCtx: (lane: Lane.Lane, step: BasePart, player: Player?) -> StepBehaviors.Ctx
 -- forward-declared: makeCtx's setSpawnBias scaffolds a direction change (defined with slideIn below)
@@ -403,6 +422,7 @@ local function releaseStep(lane: Lane.Lane, step: BasePart)
 	end
 	forceReleaseStep(lane, step)
 	lane.active[step] = nil
+	spin[step] = nil
 	lane:forgetStep(step) -- out of any slide-in still playing (Lane motions)
 	step.Parent = nil
 	step:SetAttribute("LaneUserId", nil)
@@ -428,7 +448,9 @@ makeCtx = function(lane: Lane.Lane, step: BasePart, player: Player?): StepBehavi
 		dropAway = function()
 			forceReleaseStep(lane, step)
 			local info = TweenInfo.new(Config.DROP_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-			TweenService:Create(step, info, { CFrame = step.CFrame * CFrame.new(0, -Config.DROP_DISTANCE, 0) }):Play()
+			-- `+ Vector3`, not `* CFrame.new`: a step that spun before it was grabbed
+			-- has a tilted local frame, and it must still fall straight down.
+			TweenService:Create(step, info, { CFrame = step.CFrame + Vector3.new(0, -Config.DROP_DISTANCE, 0) }):Play()
 			-- the bounds check below recycles it once it falls past DESPAWN_Y
 		end,
 		forceRelease = function()
@@ -487,7 +509,8 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3)
 		art.Color3 = if kind and kind.color then kind.color else Color3.new(1, 1, 1)
 	end
 
-	step.CFrame = CFrame.new(worldPos)
+	step.CFrame = CFrame.new(worldPos) -- also clears any spin a previous life left on the part
+	spin[step] = rollSpin()
 	step.Parent = container
 	lane.active[step] = true
 	return step
@@ -639,6 +662,10 @@ RunService.Heartbeat:Connect(function(dt: number)
 			local b = behaviorOf(step)
 			if b.onTick then
 				b.onTick(makeCtx(lane, step, lane.player), dt)
+			end
+			local rate = spin[step]
+			if rate then
+				step.CFrame *= CFrame.Angles(0, 0, rate * dt) -- ungrabbed: keep tumbling
 			end
 			if lane:isOutOfBounds(step) then
 				releaseStep(lane, step)
@@ -1236,8 +1263,11 @@ RunService.Heartbeat:Connect(function(dt: number)
 				-- Unity snaps the held hand to the step's transform.position
 				-- (Player/Limb.cs Move), which a non-centre sprite pivot
 				-- (Shared/StepKinds `gripOffset`) puts off the canvas centre.
+				-- through the step's own rotation: a step keeps whatever spin
+				-- tilt it had when it was grabbed (STEP_SPIN_*), and the offset
+				-- is measured in the sprite's frame, not the world's.
 				local grip = step:GetAttribute("GripOffset") :: Vector2?
-				local gripPos = if grip then step.Position + Vector3.new(grip.X, grip.Y, 0) else step.Position
+				local gripPos = if grip then step.CFrame * Vector3.new(grip.X, grip.Y, 0) else step.Position
 				limbPart.CFrame = CFrame.new(gripPos) -- follow the (scrolling) step
 			elseif reach and os.clock() - reach.started < Config.LIMB_REACH_TIME then
 				-- DOTween's default ease (OutQuad), as Limb.Move uses
@@ -1384,7 +1414,9 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- PullMath.pullDistance). Unity reaches the same place with a per-frame force
 	-- scaled by the step's distance from the target line (SpawnManager.PullVector).
 	local grip = (step:GetAttribute("GripOffset") :: Vector2?) or Vector2.zero
-	local gripRest = lane:restPosition(step) + Vector3.new(grip.X, grip.Y, 0)
+	-- rotated with the step, as the limb-follow loop does, so a step grabbed
+	-- mid-spin pulls its actual grip point to the target line
+	local gripRest = lane:restPosition(step) + step.CFrame.Rotation * Vector3.new(grip.X, grip.Y, 0)
 	local distance =
 		PullMath.pullDistance(Vector2.new(gripRest.X - lane.origin.X, gripRest.Y - lane.origin.Y), lane.spawnDirection)
 	-- ...then a little further while any step would come to rest under the
@@ -1411,6 +1443,7 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- step behaviors (doc 05): track the holding limb, then dispatch onGrab
 	endReach(f, limb)
 	f.held[limb] = step
+	spin[step] = nil -- grabbed: the tumble stops here and never resumes for this step
 	local b = behaviorOf(step)
 	if b.onGrab then
 		b.onGrab(makeCtx(lane, step, player))
@@ -1734,6 +1767,7 @@ Players.PlayerRemoving:Connect(function(player: Player)
 		for step in pairs(lane.active) do
 			step.Parent = nil
 			step:SetAttribute("LaneUserId", nil)
+			spin[step] = nil
 			table.insert(pool, step)
 		end
 		lane:destroy()
