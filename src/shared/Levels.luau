@@ -70,6 +70,19 @@ export type HeightStage = {
 	sceneryDensity: number,
 }
 
+-- Scripted level-entry steps (b-20260923-154345-g9ea, journey 7/8): OWNER'S
+-- FEATURE, like heightStages above -- Unity's spawners never script specific
+-- kinds. Optional; nil for every level except Kitchen. An ordered list of
+-- StepKinds names that Lane.pickKind hands out, one per call, INSTEAD of its
+-- normal weighted pick, before falling back to the normal mix once the list is
+-- exhausted -- e.g. Kitchen opens on a plain Shelf (no surprise) then a single
+-- LeftRock/RightRock (teaches the new sideways spawners) before the random
+-- pool takes over, so the level's difficulty ramps in rather than hitting all
+-- at once the instant runSteps crosses LEVEL_THRESHOLDS.Kitchen. Lane.pickKind
+-- only consumes an entry when the REQUESTING spawner's own pool actually
+-- contains that kind (e.g. RightRock only ever spawns off Kitchen's
+-- DownStepSpawner) -- it just waits for the spawner that does, so this can't
+-- force a kind onto a spawner that never carries it.
 export type Level = {
 	name: string,
 	musicIndex: number,
@@ -80,6 +93,7 @@ export type Level = {
 	scenerySpawners: { SceneryDef },
 	levelObjects: { string },
 	heightStages: { HeightStage }?,
+	introSequence: { string }?,
 }
 
 local Levels = {}
@@ -471,6 +485,12 @@ list[Levels.KITCHEN] = {
 	},
 	-- Multiplayer-only override (doc 11): Level3 gets a Chef levelObject appended.
 	levelObjects = { "Chef" },
+	-- First three DownStepSpawner spawns after arriving from Pot: a plain Shelf
+	-- (matches DownStepSpawner's own first movements-list entry, (0, 1.25) --
+	-- straight above the frog, no tween-in per Lane.updateMovement), a second
+	-- Shelf to let that land, then one RightRock so the player meets the new
+	-- sideways travel deliberately instead of stumbling into it (b-20260923-154345-g9ea).
+	introSequence = { "Shelf", "Shelf", "RightRock" },
 }
 
 -- ---------------------------------------------------------------------------

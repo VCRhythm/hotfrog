@@ -82,6 +82,17 @@ export type Lane = typeof(setmetatable(
 		-- run's level transitions; never advances outside Classic mode or on a
 		-- level with no CLASSIC_SCROLL_SPEED entry (e.g. Tutorial).
 		driftElapsed: number,
+		-- Lane.driftSpeed's own chasing base speed (studs/s, b-20260923-154345-g9ea):
+		-- ramps toward Config.CLASSIC_SCROLL_SPEED[level] at CLASSIC_LEVEL_RAMP_TIME
+		-- instead of snapping to it, so a level transition's base-speed jump (e.g.
+		-- Pot -> Kitchen) blends in. 0 = not yet drifting this run (driftSpeed then
+		-- snaps straight to the current level's base with no ramp). Reset by
+		-- Lane.setMode / Lane.resetRun; NOT reset by Lane.setLevel, so it keeps
+		-- ramping across a level transition instead of restarting at 0.
+		driftBase: number,
+		-- 1-based cursor into `self.level.introSequence` (Levels.luau); nil-safe --
+		-- levels without introSequence never read it. Reset to 1 by Lane.setLevel.
+		introIndex: number,
 		-- The client's Roblox PlayerList rectangle (lane-relative studs, validated
 		-- by GameServer's ScreenObstruction handler), nil while the list is closed
 		-- or unknown. Grab pulls and spawns keep step grab boxes out of it while
@@ -187,6 +198,7 @@ function Lane.setLevel(self: Lane, levelIndex: number)
 	self.level = level
 	self.spawnDirection = level.initialSpawnDirection
 	self.netPull = 0 -- fresh scroll baseline for this level (see Lane.addPull)
+	self.introIndex = 1 -- fresh cursor into the new level's introSequence, if any
 
 	local states: { SpawnerState } = {}
 	for _, def in level.stepSpawners do
@@ -279,6 +291,27 @@ function Lane.pickKind(self: Lane, state: SpawnerState): string?
 		return nil
 	end
 
+	local function canSpawnKind(kindName: string): boolean
+		local kind = StepKinds[kindName]
+		local behavior = kind and StepBehaviors[kind.behavior]
+		return not behavior or not behavior.canSpawn or behavior.canSpawn(self.spawnDirection, state.spawnCount)
+	end
+
+	-- Level-entry intro sequence (b-20260923-154345-g9ea): hand out
+	-- self.level.introSequence in order, one kind per call, ahead of the normal
+	-- weighted pick -- but only when THIS spawner's own pool carries that kind
+	-- (and it still passes the usual canSpawn gate), so a level's other spawners
+	-- (idle at level entry, or grabbed into later) can't be forced into a kind
+	-- they never carry; they just leave the cursor for the spawner that does.
+	local intro = self.level.introSequence
+	if intro and self.introIndex <= #intro then
+		local kindName = intro[self.introIndex]
+		if table.find(pool, kindName) and canSpawnKind(kindName) then
+			self.introIndex += 1
+			return kindName
+		end
+	end
+
 	local stage = currentHeightStage(self)
 
 	local function weightOf(kindName: string): number
@@ -292,12 +325,6 @@ function Lane.pickKind(self: Lane, state: SpawnerState): string?
 	local total = 0
 	for _, kindName in pool do
 		total += weightOf(kindName)
-	end
-
-	local function canSpawnKind(kindName: string): boolean
-		local kind = StepKinds[kindName]
-		local behavior = kind and StepBehaviors[kind.behavior]
-		return not behavior or not behavior.canSpawn or behavior.canSpawn(self.spawnDirection, state.spawnCount)
 	end
 
 	if total > 0 then
@@ -705,6 +732,7 @@ function Lane.setMode(self: Lane, mode: string)
 	self.driftDistance = 0
 	self.driftTime = 0
 	self.driftElapsed = 0
+	self.driftBase = 0
 	self.folder:SetAttribute("Mode", self.mode)
 end
 
@@ -716,17 +744,37 @@ end
 -- `dt` advances the ramp clock; callers only invoke this once per tick they
 -- actually mean to drift (GameServer's Heartbeat, gated on the frog being
 -- armed and alive), so the ramp only runs while drift itself runs.
+--
+-- self.driftBase chases the level's own CLASSIC_SCROLL_SPEED at
+-- CLASSIC_LEVEL_RAMP_TIME instead of snapping to it (b-20260923-154345-g9ea):
+-- without this, a level transition's base-speed jump (e.g. Pot ~3.14 ->
+-- Kitchen ~4.09 studs/s) landed instantly the moment runSteps crossed
+-- LEVEL_THRESHOLDS. The first-ever drift of a run (driftBase == 0) still
+-- snaps straight to the base -- there's nothing to ramp from yet.
 function Lane.driftSpeed(self: Lane, dt: number): number
 	if self.mode ~= Config.RUN_MODES.Classic then
 		return 0
 	end
-	local base = Config.CLASSIC_SCROLL_SPEED[self.level.name]
-	if not base or base <= 0 then
+	local target = Config.CLASSIC_SCROLL_SPEED[self.level.name]
+	if not target or target <= 0 then
+		self.driftBase = 0
 		return 0
 	end
+
+	if self.driftBase <= 0 then
+		self.driftBase = target
+	elseif self.driftBase ~= target then
+		local maxStep = (math.abs(target - self.driftBase) / Config.CLASSIC_LEVEL_RAMP_TIME) * dt
+		if math.abs(target - self.driftBase) <= maxStep then
+			self.driftBase = target
+		else
+			self.driftBase += if target > self.driftBase then maxStep else -maxStep
+		end
+	end
+
 	self.driftElapsed += dt
-	local speed = base + base * Config.CLASSIC_SCROLL_ACCEL_RATE * self.driftElapsed
-	return math.min(speed, base * Config.CLASSIC_SCROLL_MAX_MULT)
+	local speed = self.driftBase + self.driftBase * Config.CLASSIC_SCROLL_ACCEL_RATE * self.driftElapsed
+	return math.min(speed, self.driftBase * Config.CLASSIC_SCROLL_MAX_MULT)
 end
 
 -- Classic mode: scroll every live step `speed * dt` studs along the spawn
@@ -1161,6 +1209,7 @@ function Lane.resetRun(self: Lane, tutorialDone: boolean)
 	self.driftDistance = 0
 	self.driftTime = 0
 	self.driftElapsed = 0
+	self.driftBase = 0
 	self:setLevel(if tutorialDone then Levels.POT else Levels.TUTORIAL)
 	if self.notify then
 		self.notify(self, "death")
@@ -1207,6 +1256,8 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		driftDistance = 0,
 		driftTime = 0,
 		driftElapsed = 0,
+		driftBase = 0,
+		introIndex = 1,
 		obstruction = nil,
 		runSteps = 0,
 		tutorialStepsClimbed = 0,

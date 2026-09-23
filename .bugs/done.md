@@ -853,3 +853,12 @@ files: src/client/WorldFrogCosmetics.client.luau, src/shared/WorldConfig.luau, d
 test: none
 verified: stylua --check, selene src/, tools/luau_check.sh on both files, rojo build pass; not run in Studio (concurrent fixers, no playtest)
 review: n/a
+
+## b-20260923-154345-g9ea  fixed  2026-09-23 16:35
+note: journey 7/8: arriving in Kitchen is a difficulty spike; ease the first few steps
+cause: Kitchen spawners drew from the full pool at once and Lane.driftSpeed read the level's CLASSIC_SCROLL_SPEED directly, so step mix and scroll speed both jumped at the threshold.
+change: optional Levels introSequence (Kitchen: Shelf, Shelf, RightRock) handed out by Lane.pickKind before the weighted pick; Lane.driftBase ramps to the new level's speed over Config.CLASSIC_LEVEL_RAMP_TIME (6 s). Doc 17 deviation row added.
+files: src/server/Lane.luau, src/shared/Levels.luau, src/shared/Config.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene src/, tools/luau_check.sh on Levels/Config/Lane/GameServer, rojo build pass; not run in Studio (concurrent fixers, no playtest)
+review: n/a

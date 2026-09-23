@@ -247,6 +247,14 @@ local Config = {
 	-- there regardless of mode.
 	CLASSIC_SCROLL_ACCEL_RATE = 1 / 120, -- fraction of the level's base speed added per second
 	CLASSIC_SCROLL_MAX_MULT = 3, -- hard cap, as a multiple of the level's base speed
+	-- Level-transition speed ramp (b-20260923-154345-g9ea): CLASSIC_SCROLL_SPEED
+	-- steps up per level (Pot ~3.14 -> Kitchen ~4.09, a ~30% jump), which used to
+	-- land instantly the moment runSteps crossed LEVEL_THRESHOLDS -- on top of
+	-- Kitchen's new sideways spawners, that read as a difficulty spike. Lane.driftBase
+	-- now chases each level's CLASSIC_SCROLL_SPEED at a rate of (this many seconds to
+	-- cross the whole gap) instead of snapping, so the speed blends in; the slower
+	-- CLASSIC_SCROLL_ACCEL_RATE ramp above still runs on top of it exactly as before.
+	CLASSIC_LEVEL_RAMP_TIME = 6, -- seconds to blend from one level's base speed to the next
 
 	-- Grab anti-abuse (doc 07 hardening): cap grabs per rolling window per player.
 	-- Two limbs + fast chaining is maybe ~6/s for a human; 10 leaves headroom.
