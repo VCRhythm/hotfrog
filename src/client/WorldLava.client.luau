@@ -21,6 +21,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
@@ -68,6 +69,49 @@ do
 		setHeat(levelName)
 	end
 end
+
+-- ---------------------------------------------------------------------------
+-- Continuous heat build-up (journey 4/8, b-20260923-154344-xac3). No Unity
+-- source (LiftHeat/LowerHeat above is a binary per-level switch) --
+-- ADAPTED/additive: in Pot, a 0..1 heat scalar rises as the local frog's body
+-- nears the lava surface (same WorldConfig.LAVA_PROXIMITY_STUDS range
+-- WorldFrogCosmetics' glance-down/tint reaction already uses -- see commit
+-- 00b2165) and/or the longer it's been since its last grab (`Held` flipping
+-- true on either limb, same attribute WorldFrogCosmetics reads for the hand
+-- grip decal) -- standing still should feel like boiling. Published on
+-- levelState (the same Folder LevelClient already exposes Background/Overlay
+-- on) as attribute "PotHeat" so WorldBackdrop.client.luau -- which owns the
+-- Water overlay's opacity and the backdrop's warm tint, both different
+-- Instances from this file's own `lava` part -- can read it without the two
+-- scripts requiring each other (server scripts never require each other per
+-- CLAUDE.md; same reasoning applies client-side).
+-- ---------------------------------------------------------------------------
+local rightLimb = myFrog:WaitForChild("RightLimb", math.huge) :: BasePart
+local leftLimb = myFrog:WaitForChild("LeftLimb", math.huge) :: BasePart
+
+local lastGrabTime = os.clock()
+local function trackGrab(limb: BasePart)
+	limb:GetAttributeChangedSignal("Held"):Connect(function()
+		if limb:GetAttribute("Held") == true then
+			lastGrabTime = os.clock()
+		end
+	end)
+end
+trackGrab(rightLimb)
+trackGrab(leftLimb)
+
+local potHeat = 0
+RunService.Heartbeat:Connect(function(dt: number)
+	local levelName = levelState:GetAttribute("LevelName")
+	local target = 0
+	if levelName == "Pot" then
+		local proximity = 1 - math.clamp((body.Position.Y - Config.LAVA_Y) / WorldConfig.LAVA_PROXIMITY_STUDS, 0, 1)
+		local idle = math.clamp((os.clock() - lastGrabTime) / WorldConfig.LAVA_HEAT_IDLE_TIME, 0, 1)
+		target = math.clamp(proximity + idle, 0, 1)
+	end
+	potHeat += (target - potHeat) * math.clamp(dt * WorldConfig.LAVA_HEAT_LERP_RATE, 0, 1)
+	levelState:SetAttribute("PotHeat", potHeat)
+end)
 
 -- ---------------------------------------------------------------------------
 -- Splash bursts (Entities/Splash.cs: random X impulse + fixed Y impulse +

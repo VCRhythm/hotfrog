@@ -91,6 +91,22 @@ WorldConfig.LAVA_HOT_COLOR = Color3.fromRGB(255, 90, 30)
 WorldConfig.LAVA_COOL_COLOR = Color3.fromRGB(140, 40, 20)
 
 -- ---------------------------------------------------------------------------
+-- Pot heat build-up (journey 4/8, b-20260923-154344-xac3): a continuous 0..1
+-- scalar (computed in WorldLava.client.luau) that rises as the local frog
+-- nears the lava and/or the longer it's been since its last grab (standing
+-- still should feel like boiling), layered onto the Water overlay's opacity
+-- and the backdrop's tint (WorldBackdrop.client.luau). No Unity source --
+-- ADAPTED/additive game-feel. Proximity reuses LAVA_PROXIMITY_STUDS above
+-- (the same range WorldFrogCosmetics' glance-down/skin-tint reaction already
+-- uses) as its falloff distance instead of a new constant.
+-- ---------------------------------------------------------------------------
+WorldConfig.LAVA_HEAT_IDLE_TIME = 3.0 -- seconds standing still (no grab) before idle heat maxes out
+WorldConfig.LAVA_HEAT_LERP_RATE = 2.5 -- per-second smoothing of the heat scalar (avoids popping as proximity/idle change)
+WorldConfig.LAVA_HEAT_OVERLAY_TRANSPARENCY_MIN = 0.25 -- Water overlay's most-opaque transparency at full heat (vs. OVERLAY_TRANSPARENCY's 0.55 baseline)
+WorldConfig.LAVA_HEAT_BACKDROP_COLOR = Color3.fromRGB(255, 110, 40) -- warm tint the backdrop tiles lerp toward at full heat
+WorldConfig.LAVA_HEAT_BACKDROP_MAX_MIX = 0.5 -- fraction of that tint mixed in at full heat (keeps PotBack's own texture/color recognizable)
+
+-- ---------------------------------------------------------------------------
 -- Sun (Entities/Sun.cs + LevelManager's isNight/isBlack Animator bools)
 -- ---------------------------------------------------------------------------
 WorldConfig.SUN_TRANSITION_TIME = 1.5

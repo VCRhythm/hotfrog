@@ -862,3 +862,12 @@ files: src/server/Lane.luau, src/shared/Levels.luau, src/shared/Config.luau, doc
 test: none
 verified: stylua --check, selene src/, tools/luau_check.sh on Levels/Config/Lane/GameServer, rojo build pass; not run in Studio (concurrent fixers, no playtest)
 review: n/a
+
+## b-20260923-154344-xac3  fixed  2026-09-23 16:40
+note: journey 4/8: Pot heat should build when the lava is close or the frog stands still
+cause: setHeat only tweened the lava between two fixed per-level colours; nothing tied the overlay or backdrop to lava proximity or idle time.
+change: WorldLava publishes a smoothed PotHeat (lava proximity + time since last grab, Pot only) on LocalPlayer.LevelState; WorldBackdrop raises Water overlay opacity and warms the backdrop with it outside transition tweens; constants in WorldConfig. Doc 17 deviation row added.
+files: src/client/WorldLava.client.luau, src/client/WorldBackdrop.client.luau, src/shared/WorldConfig.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene src/, tools/luau_check.sh on all three, rojo build pass; not run in Studio (no playtest)
+review: n/a

@@ -29,6 +29,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
@@ -41,6 +42,21 @@ local myLane = playField:WaitForChild("Lanes"):WaitForChild(tostring(player.User
 
 local levelState = player:WaitForChild("LevelState", math.huge) :: Folder
 local changed = levelState:WaitForChild("Changed") :: BindableEvent
+
+-- Journey 4/8 (b-20260923-154344-xac3): tracked so the heat-modulation
+-- Heartbeat below (see its own header comment, near the bottom of this file)
+-- knows what level/keys it's blending from and never fights the crossfade
+-- tweens setBackground/setOverlay/setSun below kick off on every transition.
+local currentLevelName: string? = nil
+local currentBackgroundKey: string? = nil
+local currentOverlayKey: string? = nil
+local transitioning = false
+local function gateTransition(duration: number)
+	transitioning = true
+	task.delay(duration, function()
+		transitioning = false
+	end)
+end
 
 local function laneOrigin(): Vector3
 	local origin = myLane:GetAttribute("Origin")
@@ -287,6 +303,17 @@ end
 -- Drive everything off LevelClient's already-exposed state
 -- ---------------------------------------------------------------------------
 local function applyLevel(levelName: string, background: string?, overlayKey: string?, transition: string)
+	currentLevelName = levelName
+	currentBackgroundKey = background
+	currentOverlayKey = overlayKey
+	gateTransition(
+		math.max(
+			WorldConfig.TRANSITION_SOFT_CROSSFADE_TIME,
+			WorldConfig.OVERLAY_FADE_TIME,
+			WorldConfig.SUN_TRANSITION_TIME
+		)
+	)
+
 	setBackground(background)
 	setOverlay(overlayKey)
 	setSun(levelName)
@@ -320,6 +347,47 @@ myLane:GetAttributeChangedSignal("PullCount"):Connect(function()
 	end
 end)
 
+-- ---------------------------------------------------------------------------
+-- Pot heat build-up (journey 4/8, b-20260923-154344-xac3): reads the 0..1
+-- scalar WorldLava.client.luau publishes on this same levelState folder
+-- (proximity to the lava and/or time since the local frog's last grab --
+-- "standing still should feel like boiling") and layers it onto the Water
+-- overlay's opacity and the backdrop tiles' warm tint. Applied as a direct
+-- per-frame property write, kept separate from setBackground/setOverlay's
+-- own TweenService tweens above, and only once `transitioning` is clear (see
+-- gateTransition) so the two never fight over the same Transparency/Color
+-- properties -- heat itself is already smoothed (WorldConfig.
+-- LAVA_HEAT_LERP_RATE), so no tween is needed here. Kitchen (and everywhere
+-- else) gets none of this: levelName ~= "Pot" holds heat's own target at 0 in
+-- WorldLava, and this gate stops applying it the instant the level changes,
+-- so arriving in Kitchen reads as immediate relief rather than a lingering
+-- flush.
+-- ---------------------------------------------------------------------------
+RunService.Heartbeat:Connect(function()
+	if transitioning or currentLevelName ~= "Pot" then
+		return
+	end
+	local heat = levelState:GetAttribute("PotHeat")
+	if typeof(heat) ~= "number" or heat <= 0 then
+		return
+	end
+
+	if currentOverlayKey then
+		local baseTransparency = WorldConfig.OVERLAY_TRANSPARENCY
+		overlay.Transparency = baseTransparency
+			+ (WorldConfig.LAVA_HEAT_OVERLAY_TRANSPARENCY_MIN - baseTransparency) * heat
+	end
+
+	local baseColor = if currentBackgroundKey
+		then (BACKGROUND_COLORS[currentBackgroundKey] or DEFAULT_BACKGROUND_COLOR)
+		else DEFAULT_BACKGROUND_COLOR
+	local warmColor =
+		baseColor:Lerp(WorldConfig.LAVA_HEAT_BACKDROP_COLOR, heat * WorldConfig.LAVA_HEAT_BACKDROP_MAX_MIX)
+	for _, tile in bgTiles do
+		tile.Color = warmColor
+	end
+end)
+
 -- Prime from whatever LevelClient already captured before this script started
 -- (Attributes persist even if we missed the BindableEvent's first fire).
 do
@@ -327,8 +395,18 @@ do
 	local background = levelState:GetAttribute("Background")
 	local overlayKey = levelState:GetAttribute("Overlay")
 	if typeof(levelName) == "string" then
-		setBackground(if typeof(background) == "string" then background else nil)
-		setOverlay(if typeof(overlayKey) == "string" then overlayKey else nil)
+		currentLevelName = levelName
+		currentBackgroundKey = if typeof(background) == "string" then background else nil
+		currentOverlayKey = if typeof(overlayKey) == "string" then overlayKey else nil
+		gateTransition(
+			math.max(
+				WorldConfig.TRANSITION_SOFT_CROSSFADE_TIME,
+				WorldConfig.OVERLAY_FADE_TIME,
+				WorldConfig.SUN_TRANSITION_TIME
+			)
+		)
+		setBackground(currentBackgroundKey)
+		setOverlay(currentOverlayKey)
 		setSun(levelName)
 	end
 end
