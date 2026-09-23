@@ -826,3 +826,12 @@ files: src/server/GameServer.server.luau, src/shared/Config.luau, src/shared/Ste
 test: none (no unit suite)
 verified: stylua/selene/luau_check/rojo build pass. In a live Studio session 8 steps rotated at 2.0-37.8 deg/s with mixed signs; a grabbed step's Orientation.Z held at -6.423 (delta 0.0000 over 1.5s) while the others kept turning; console clean. The GripOffset rotation was added after that session and is checked statically only -- no carrot was grabbed mid-spin to watch the hand land.
 review: concern (sonnet) -- GripOffset was still applied in world axes, so a carrot grabbed mid-spin would snap the hand and the pull target off the art, and PlayerRemoving recycled steps without clearing `spin`. Both fixed in the same commit; the reviewer confirmed the spin table is otherwise cleared on grab and recycle, that attract-mode rungs are correctly unspun, and that Lane's step moves are already world-space.
+
+## b-20260923-154345-9iwk  fixed  2026-09-23 16:05
+note: journey 6/8: HUD needs a height meter with level landmarks (Pot -> rim -> Kitchen -> Country)
+cause: the HUD only showed score/best, with nothing relating it to the level thresholds.
+change: the race rail in GameClient gets a "self" marker (leaderstats.Score, which equals steps climbed this run) and Pot/Kitchen/Country landmark ticks at Config.LEVEL_THRESHOLDS; the rail now shows whenever the run is Playing, solo included. Doc 17 deviation row added.
+files: src/client/GameClient.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene src/, tools/luau_check.sh pass on GameClient; not run in Studio (concurrent fixers, no playtest)
+review: n/a

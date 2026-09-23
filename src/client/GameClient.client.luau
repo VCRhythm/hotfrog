@@ -911,6 +911,17 @@ pauseGui.Parent = playerGui
 -- who's ahead even when their lane has scrolled off-screen. Reads
 -- leaderstats.Score directly (doc 07 already keeps that live and public);
 -- no new remote needed.
+--
+-- b-20260923-154345-9iwk (journey 6/8): also a height meter for THIS frog --
+-- a "Self" marker plus fixed landmark ticks at Config.LEVEL_THRESHOLDS (Pot
+-- at 0, Kitchen at 50, Country at 100), so the player can see how far the
+-- next level is from the very first grab, not just a raw score number.
+-- sessionScore and Lane.runSteps are bumped together on every successful grab
+-- (GameServer's addScore + Lane.onStepClimbed, both called back-to-back from
+-- the same GrabStep handler) and reset together at run start/death, so
+-- leaderstats.Score already IS steps-climbed-this-run -- no Lane.luau change
+-- needed. The rail now shows (and the landmarks stay meaningful) as soon as a
+-- run starts, not just when another player is around to compare against.
 -- ---------------------------------------------------------------------------
 local railGui = UIKit.screenGui("RaceRail")
 local rail = Instance.new("Frame")
@@ -919,10 +930,9 @@ rail.Size = UDim2.new(0, 6, 1, -160)
 rail.Position = UDim2.new(1, -18, 0, 80)
 rail.BackgroundColor3 = UIKit.SUBTEXT
 rail.BackgroundTransparency = 0.7
-rail.Visible = false -- solo: no other player to mark, so don't show a bare strip that reads as a stray scrollbar
+rail.Visible = false -- shown once a run starts (Playing); see RunStateChanged below
 rail.Parent = railGui
 UIKit.corner(rail, 3)
-railGui.Parent = playerGui
 
 local railMarkers: { [Player]: Frame } = {}
 local function markerFor(otherPlayer: Player): Frame
@@ -949,21 +959,86 @@ Players.PlayerRemoving:Connect(function(otherPlayer)
 	end
 end)
 
+-- This frog's own height: a bigger, distinct marker so it reads apart from
+-- the other players' dots.
+local selfMarker = Instance.new("Frame")
+selfMarker.Name = "Self"
+selfMarker.Size = UDim2.fromOffset(16, 16)
+selfMarker.AnchorPoint = Vector2.new(0.5, 0.5)
+selfMarker.BackgroundColor3 = UIKit.GOOD
+selfMarker.Parent = rail
+UIKit.corner(selfMarker, 8)
+UIKit.outline(selfMarker, 2)
+
+-- Landmark ticks (Pot/Kitchen/Country): a short bar on the rail plus a label
+-- to its left, both repositioned every poll on the same alpha scale as the
+-- score markers so they stay aligned even as maxScore grows past Country.
+local function addLandmark(name: string, value: number): { tick: Frame, label: TextLabel, value: number }
+	local tick = Instance.new("Frame")
+	tick.Name = "Landmark_" .. name
+	tick.Size = UDim2.fromOffset(18, 3)
+	tick.AnchorPoint = Vector2.new(0.5, 0.5)
+	tick.BackgroundColor3 = UIKit.HUD_TEXT
+	tick.BackgroundTransparency = 0.15
+	tick.BorderSizePixel = 0
+	tick.Parent = rail
+	UIKit.corner(tick, 2)
+
+	local label = Instance.new("TextLabel")
+	label.Name = "Label_" .. name
+	label.AnchorPoint = Vector2.new(1, 0.5)
+	label.Size = UDim2.fromOffset(64, 16)
+	label.BackgroundTransparency = 1
+	label.TextXAlignment = Enum.TextXAlignment.Right
+	label.TextScaled = true
+	label.FontFace = UIKit.FONT
+	label.TextColor3 = UIKit.HUD_TEXT
+	label.Text = name
+	label.Parent = rail
+	UIKit.textStroke(label, 2)
+
+	return { tick = tick, label = label, value = value }
+end
+
+local landmarks = {
+	addLandmark("Pot", 0),
+	addLandmark("Kitchen", Config.LEVEL_THRESHOLDS.Kitchen),
+	addLandmark("Country", Config.LEVEL_THRESHOLDS.Country),
+}
+
+railGui.Parent = playerGui
+
 task.spawn(function()
 	while true do
-		local maxScore = 1
-		local hasOtherPlayer = false
+		local ownStats = player:FindFirstChild("leaderstats")
+		local ownScoreValue = ownStats and ownStats:FindFirstChild("Score")
+		local ownScore = if ownScoreValue and ownScoreValue:IsA("IntValue") then ownScoreValue.Value else 0
+
+		-- Always at least Country, so all three landmarks stay on the strip
+		-- from step 1; grows past that once someone (including this frog)
+		-- climbs higher, the same way the old other-players-only scale did.
+		local maxScore = math.max(1, Config.LEVEL_THRESHOLDS.Country, ownScore)
 		for _, otherPlayer in Players:GetPlayers() do
 			if otherPlayer ~= player then
-				hasOtherPlayer = true
-			end
-			local stats = otherPlayer:FindFirstChild("leaderstats")
-			local score = stats and stats:FindFirstChild("Score")
-			if score and score:IsA("IntValue") then
-				maxScore = math.max(maxScore, score.Value)
+				local stats = otherPlayer:FindFirstChild("leaderstats")
+				local score = stats and stats:FindFirstChild("Score")
+				if score and score:IsA("IntValue") then
+					maxScore = math.max(maxScore, score.Value)
+				end
 			end
 		end
-		rail.Visible = hasOtherPlayer
+
+		rail.Visible = runState == "Playing"
+
+		local ownAlpha = math.clamp(ownScore / maxScore, 0, 1)
+		selfMarker.Position = UDim2.fromScale(0.5, 1 - ownAlpha)
+
+		for _, landmark in landmarks do
+			local alpha = math.clamp(landmark.value / maxScore, 0, 1)
+			landmark.tick.Position = UDim2.fromScale(0.5, 1 - alpha)
+			landmark.label.Position = UDim2.new(0.5, -14, 1 - alpha, 0)
+		end
+
 		for _, otherPlayer in Players:GetPlayers() do
 			if otherPlayer ~= player then
 				local stats = otherPlayer:FindFirstChild("leaderstats")
