@@ -151,6 +151,23 @@ local StepKinds: { [string]: Kind } = {
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
 	},
+	-- PORT ADDITION, no Unity prefab (b-20260923-154343-9twj, ruling
+	-- b-20260928-173934-iff0): the pot's rim, the Pot -> Kitchen landmark. In
+	-- no spawner pool -- Lane.spawnRim places the one rim once a Pot run reaches
+	-- Config.LEVEL_THRESHOLDS.Kitchen, and grabbing it IS the level-up
+	-- (Lane.onStepClimbed). Art: Sprites/Rocks/PotRim.png, 722x75 px, sized to
+	-- one lane's width (2 * Config.LANE_HALF_WIDTH = 44 studs, 16.41 px/stud);
+	-- the grab box is the metal band between the handles, 9.5 px below the
+	-- canvas centre.
+	PotRim = {
+		behavior = "None",
+		sprite = "PotRim",
+		spawnProbability = 0,
+		size = Vector3.new(44, 4.571, 1),
+		hitSize = Vector2.new(38.7, 3.2),
+		gripOffset = Vector2.new(0, -0.579),
+		hitOffset = Vector2.new(0, -0.579),
+	},
 
 	-- Kitchen (Level3) pools add these (doc 11 §2a)
 	Shelf = { behavior = "None", sprite = "Shelf", spawnProbability = 0.5, size = ART_SHELF, hitSize = HIT_SHELF },

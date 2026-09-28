@@ -99,6 +99,7 @@ local Ids: { [string]: number } = {
 	Balloon = 104096570008422,
 	CarrotStalk = 114500582490557,
 	LillipadShadow = 71795008144326,
+	PotRim = 140153915656484,
 	RockShadow = 72804718225774,
 
 	-- Entities (auto)

@@ -510,7 +510,11 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3)
 	end
 
 	step.CFrame = CFrame.new(worldPos) -- also clears any spin a previous life left on the part
-	spin[step] = rollSpin()
+	if kindName == Lane.POT_RIM_KIND then
+		spin[step] = nil -- the pot's rim stays level
+	else
+		spin[step] = rollSpin()
+	end
 	step.Parent = container
 	lane.active[step] = true
 	return step
@@ -624,7 +628,10 @@ RunService.Heartbeat:Connect(function(dt: number)
 		lane:tickSpawners(dt, function(_state, kindName, worldPos)
 			table.insert(batch, acquireStep(lane, kindName, worldPos))
 		end)
-		slideIn(lane, batch) -- the Tutorial ladder's one-shot batch
+		lane:spawnRim(function(kindName, worldPos) -- the pot's rim, once the Pot is climbed
+			table.insert(batch, acquireStep(lane, kindName, worldPos))
+		end)
+		slideIn(lane, batch) -- the Tutorial ladder's one-shot batch, the pot's rim
 
 		-- Classic mode (Config.CLASSIC_SCROLL_SPEED, doc 17): the world keeps
 		-- scrolling whether or not anything is held, once the first grab has armed
@@ -1427,6 +1434,7 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	addScore(player, 1, quality)
 
 	local wasTutorial = lane.levelIndex == Levels.TUTORIAL
+	local wasPot = lane.levelIndex == Levels.POT
 	local kindName = step:GetAttribute("KindName") :: string?
 	lane:onStepClimbed(kindName) -- level-threshold / tutorial progress; fires LevelChanged("soft") itself (doc 13 item 5)
 	if wasTutorial and lane.levelIndex ~= Levels.TUTORIAL then
@@ -1434,6 +1442,13 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 		-- cold at their off-screen staging point, so prefill Pot's first screenful
 		-- the same way StartRun does (no-op if the lane somehow has steps already)
 		prefillLane(lane)
+	elseif wasPot and lane.levelIndex ~= Levels.POT then
+		-- Pot -> Kitchen on the rim (Lane.spawnRim): nothing spawned above it, and
+		-- this grab's pull spent its spawner window on the Pot, so give Kitchen's
+		-- spawners that window along the same pull
+		lane:spawnForPull(distance, function(_state, spawnKind, worldPos)
+			acquireStep(lane, spawnKind, worldPos)
+		end)
 	end
 
 	-- Player.cs TouchStep: the first grab of a (pullable) step arms falling --

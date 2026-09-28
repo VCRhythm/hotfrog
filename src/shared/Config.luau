@@ -164,7 +164,8 @@ local Config = {
 	-- A run's total steps-climbed thresholds for soft level transitions
 	-- (owner's decision, doc 13 -- Unity itself never advances past Pot).
 	-- Changed to a new level every 50 steps 2026-09-22 (b-20260922-101937-mcaj,
-	-- owner's decision; was Kitchen 200, Country 500).
+	-- owner's decision; was Kitchen 200, Country 500). Kitchen is where the Pot
+	-- stops and its rim is laid; grabbing the rim is the level-up (Lane.spawnRim).
 	LEVEL_THRESHOLDS = { Kitchen = 50, Country = 100 },
 
 	-- Step spawners only run while the field is being pulled (SpawnManager.PullStep

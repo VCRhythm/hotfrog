@@ -278,6 +278,15 @@ function Lane.updateStageAttribute(self: Lane)
 	self.folder:SetAttribute("Stage", index)
 end
 
+-- The pot's rim kind (StepKinds.PotRim), and whether this lane has climbed the
+-- Pot up to it: Pot stops spawning there and the rim is laid (Lane.spawnRim).
+local POT_RIM_KIND = "PotRim"
+Lane.POT_RIM_KIND = POT_RIM_KIND
+
+function Lane.atPotTop(self: Lane): boolean
+	return self.levelIndex == Levels.POT and self.runSteps >= Config.LEVEL_THRESHOLDS.Kitchen
+end
+
 -- ---------------------------------------------------------------------------
 -- Weighted kind pick (Spawning/Spawner.cs SetUpSpawnProbabilities + CreateSpawn):
 -- normalize spawnProbability over the spawner's own pool, roll, then gate on the
@@ -293,8 +302,8 @@ end
 -- ---------------------------------------------------------------------------
 function Lane.pickKind(self: Lane, state: SpawnerState): string?
 	local pool = state.def.pool
-	if #pool == 0 then
-		return nil
+	if #pool == 0 or self:atPotTop() then
+		return nil -- nothing spawns above the pot's rim (Lane.spawnRim)
 	end
 
 	local function canSpawnKind(kindName: string): boolean
@@ -1071,8 +1080,8 @@ end
 -- then slides the batch down in from above the view.
 function Lane.scaffold(self: Lane, anchor: Vector3, spawnFn: (kindName: string, worldPos: Vector3) -> ())
 	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
-	if dir3.Magnitude < 1e-4 then
-		return
+	if dir3.Magnitude < 1e-4 or self:atPotTop() then
+		return -- nothing spawns above the pot's rim (Lane.spawnRim)
 	end
 	local travel = dir3.Unit
 	local heading = -travel
@@ -1156,6 +1165,42 @@ function Lane.isOutOfBounds(self: Lane, step: BasePart): boolean
 	return outOfBounds(self, step.Position, step.Size) and outOfBounds(self, self:restPosition(step), step.Size)
 end
 
+-- ---------------------------------------------------------------------------
+-- The pot rim (journey 1/8, b-20260923-154343-9twj; owner's ruling
+-- b-20260928-173934-iff0 -- PORT ADDITION, Unity has no rim, doc 17). Once a
+-- Pot run reaches Config.LEVEL_THRESHOLDS.Kitchen steps the Pot stops spawning
+-- (Lane.pickKind / Lane.scaffold) and one StepKinds.PotRim step is laid across
+-- the lane just above the highest step left, so the steps already on screen
+-- lead up to it; grabbing it -- climbing out over the rim -- is the Pot ->
+-- Kitchen level-up (Lane.onStepClimbed). The rim is an ordinary replicated
+-- step, so every lane's rim renders for every player.
+-- ---------------------------------------------------------------------------
+-- Called every Heartbeat while the run plays: lays the rim once the Pot is
+-- climbed (no-op otherwise, or while this lane's rim is still live -- one that
+-- fell away unclimbed is laid again). Rests centred on the lane, its grab box
+-- SPAWN_GAP above every live step's (at rest, Lane.restPosition), capped at the
+-- recycle line; `spawnFn` gets the position to create it at now (rest less the
+-- running pulls) and GameServer slides it in like a prefill batch.
+function Lane.spawnRim(self: Lane, spawnFn: (kindName: string, worldPos: Vector3) -> ())
+	if not self:atPotTop() then
+		return
+	end
+	local top = -math.huge
+	for step in self.active do
+		if step:GetAttribute("KindName") == POT_RIM_KIND then
+			return
+		end
+		local hit = (step:GetAttribute("HitSize") :: Vector2?) or Vector2.new(step.Size.X, step.Size.Y)
+		local offset = (step:GetAttribute("HitOffset") :: Vector2?) or Vector2.zero
+		top = math.max(top, self:restPosition(step).Y + offset.Y + hit.Y / 2)
+	end
+	local kind = StepKinds[POT_RIM_KIND]
+	local hitOffsetY = if kind.hitOffset then kind.hitOffset.Y else 0
+	local y = math.max(top + Config.SPAWN_GAP + kind.hitSize.Y / 2 - hitOffsetY, self.origin.Y)
+	y = math.min(y, Config.SPAWN_Y + BOUNDS_MARGIN)
+	spawnFn(POT_RIM_KIND, Vector3.new(self.origin.X, y, self.origin.Z) - self:sharedPending())
+end
+
 -- The three Tutorial tree kinds (StepKinds, Levels.luau's Tutorial pool): grabbing
 -- one of these never ends the fall-protection grace period below; grabbing
 -- anything else (the first real Pot step) does.
@@ -1168,7 +1213,8 @@ local TUTORIAL_TREE_KINDS = {
 -- ---------------------------------------------------------------------------
 -- Level flow (Core/LevelManager.cs FillLevelEvents' step-count events, doc 13
 -- item 5): Tutorial -> Pot on the 3rd tree climbed (marks tutorialDone), then
--- Pot -> Kitchen -> Country at LEVEL_THRESHOLDS. Called by GameServer once per
+-- Pot -> Kitchen on grabbing the pot's rim (laid at LEVEL_THRESHOLDS.Kitchen,
+-- Lane.spawnRim), Kitchen -> Country at LEVEL_THRESHOLDS. Called by GameServer once per
 -- successful grab (after it has already bumped the session score), with the
 -- grabbed step's kind name so it can also track tutorialGraceActive
 -- (b-20260922-101541-w1i2).
@@ -1194,7 +1240,7 @@ function Lane.onStepClimbed(self: Lane, kindName: string?)
 			end
 			self:levelUp(Levels.POT)
 		end
-	elseif self.levelIndex == Levels.POT and self.runSteps >= Config.LEVEL_THRESHOLDS.Kitchen then
+	elseif self.levelIndex == Levels.POT and kindName == POT_RIM_KIND then
 		self:levelUp(Levels.KITCHEN)
 	elseif self.levelIndex == Levels.KITCHEN and self.runSteps >= Config.LEVEL_THRESHOLDS.Country then
 		self:levelUp(Levels.COUNTRY)
@@ -1213,8 +1259,8 @@ function Lane.levelUp(self: Lane, levelIndex: number)
 end
 
 -- The level-up ARRIVAL beat (journey 2/8, b-20260923-154343-3h60) -- the one
--- place it's triggered, so it can be repointed (e.g. to grabbing a pot-rim
--- step, b-20260923-154343-9twj) by moving this single call. Holds Classic
+-- place it's triggered; for Pot -> Kitchen that is now the grab of the pot's
+-- rim (Lane.spawnRim, b-20260923-154343-9twj). Holds Classic
 -- drift for Config.CLASSIC_ARRIVAL_HOLD_TIME (Lane.driftSpeed) and bumps the
 -- lane folder's replicated `ArrivalCount` attribute, which every client-side
 -- piece of the beat keys off: GameClient's camera pull-back and Music's sting
