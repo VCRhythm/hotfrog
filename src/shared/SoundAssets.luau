@@ -36,11 +36,13 @@ local Ids: { [string]: number } = {
 	highScore = 111151171883625,
 	hotFrogVO = 87593120929445,
 	hurt = 113097634312056,
+	kitchenRoomTone = 122330171841881,
 	leaves = 137434649313793,
 	new = 100681368854534,
 	okVoice = 116142283148706,
 	perfectVoice = 111376508107588,
 	pop = 107730930869486,
+	potBubbling = 90151979006382,
 	select = 94150736478475,
 	splash = 99385317094275,
 

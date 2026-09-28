@@ -411,6 +411,15 @@ MUSIC = [
     ("music5", "Music/Two Wrongs.wav"),
 ]
 
+# In-repo ambient loops (not from the Unity project, which had none): generated
+# with the Ludo AI CLI (`ludo audio ambiance --loop`) for the Roblox port's
+# Ambience.client.luau and kept under Sounds/Ambience/.
+AMBIENCE_DIR = REPO_ROOT / "Sounds" / "Ambience"
+AMBIENCE = [
+    ("potBubbling", "PotBubbling.wav"),  # Pot level: simmering pot loop
+    ("kitchenRoomTone", "KitchenRoomTone.wav"),  # Kitchen level: quiet room-tone loop
+]
+
 AUDIO_SKIP_REASONS = {
     "MegaManDeath.wav": "third-party copyrighted audio (Mega Man death jingle) — excluded from the port",
     "MegaManDeath2.wav": "third-party copyrighted audio (Mega Man death jingle) — excluded from the port",
@@ -473,6 +482,18 @@ def audio_entry(key: str, path: Path, table: str) -> dict:
             + "); upload_to_roblox.py will transcode via ffmpeg to mp3 before upload if ffmpeg is on PATH, else this entry is skipped with needs_conversion=true"
         )
     return e
+
+
+def collect_ambience() -> tuple[list[dict], list[dict]]:
+    entries: list[dict] = []
+    skips: list[dict] = []
+    for key, filename in AMBIENCE:
+        path = AMBIENCE_DIR / filename
+        if not path.is_file():
+            skips.append(skipped(key, path, "expected file not found on disk", kind="audio"))
+            continue
+        entries.append(audio_entry(key, path, "sound"))
+    return entries, skips
 
 
 def collect_audio(audio_dir: Path | None) -> tuple[list[dict], list[dict]]:
@@ -567,6 +588,10 @@ def build(audio_dir: Path | None) -> dict:
     audio_entries, audio_skips = collect_audio(audio_dir)
     all_entries.extend(audio_entries)
     all_skips.extend(audio_skips)
+
+    amb_entries, amb_skips = collect_ambience()
+    all_entries.extend(amb_entries)
+    all_skips.extend(amb_skips)
 
     # De-dupe by key, deterministic order: stray/duplicate files (e.g. a
     # sprite left directly under Sprites/Frogs/ instead of inside its skin
