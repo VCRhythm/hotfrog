@@ -889,3 +889,12 @@ files: src/client/Ambience.client.luau, src/shared/SoundAssets.luau, tools/build
 test: none
 verified: stylua --check, selene src/, tools/luau_check.sh, rojo build pass; upload/moderation confirmed via upload_to_roblox --status; not run in Studio (committed on branch bugloop/ludo-assets, not the synced checkout)
 review: looks-right
+
+## b-20260928-173934-iff0  fixed  2026-09-28 18:40
+note: DECISION: use ludo to match the style of the existing sprites (answers b-20260923-154343-9twj: climbing out over the pot rim should BE the Pot->Kitchen transition)
+cause: the Pot->Kitchen level-up fired silently at the threshold; no rim landmark or art existed.
+change: Ludo-generated PotRim sprite (Sprites/Rocks/PotRim.png, id 140153915656484 in SkinAssets); new non-spinning StepKinds.PotRim; at 50 Pot run steps spawning stops and Lane.spawnRim (from GameServer Heartbeat) lays the rim above the highest live step; grabbing it is the levelUp + arrival beat (now the 51st grab), then Kitchen spawners fill above it; doc 17 rows added/updated.
+files: Sprites/Rocks/PotRim.png, src/shared/SkinAssets.luau, src/shared/StepKinds.luau, src/shared/Config.luau, src/server/Lane.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene src/, tools/luau_check.sh on touched files, rojo build pass; not run in Studio (committed on branch bugloop/pot-rim, not the synced checkout)
+review: looks-right
