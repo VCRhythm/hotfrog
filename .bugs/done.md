@@ -898,3 +898,21 @@ files: Sprites/Rocks/PotRim.png, src/shared/SkinAssets.luau, src/shared/StepKind
 test: none
 verified: stylua --check, selene src/, tools/luau_check.sh on touched files, rojo build pass; not run in Studio (committed on branch bugloop/pot-rim, not the synced checkout)
 review: looks-right
+
+## b-20260923-154343-9twj  fixed  2026-09-28 19:05
+note: journey 1/8: pot rim landmark: climbing out over the rim should BE the Pot->Kitchen transition
+cause: answered by the DECISION b-20260928-173934-iff0 ("use ludo to match the style of the existing sprites"); the question block had left needs-decision.md but this id was never recorded, so it stayed pending.
+change: built under b-20260928-173934-iff0 (commit 94e589f): PotRim sprite + StepKinds.PotRim, Lane.spawnRim at the Pot threshold, grabbing the rim is the level-up; doc 17 rows.
+files: see b-20260928-173934-iff0
+test: none
+verified: see b-20260928-173934-iff0 (static checks pass; not run in Studio)
+review: n/a
+
+## b-20260923-154345-78ng  fixed  2026-09-28 19:05
+note: journey 8/8: ambient sound should change with height (bubbling in Pot, kitchen room sound)
+cause: answered by the DECISION b-20260928-173905-b7sx ("use ludo"); the question block had left needs-decision.md but this id was never recorded, so it stayed pending.
+change: built under b-20260928-173905-b7sx (commit 4ccfced): Ludo potBubbling / kitchenRoomTone loops, Ambience.client.luau crossfade by level with Pot volume by stage; doc 17 row.
+files: see b-20260928-173905-b7sx
+test: none
+verified: see b-20260928-173905-b7sx (static checks pass; not run in Studio)
+review: n/a
