@@ -880,3 +880,12 @@ files: src/server/Lane.luau, src/shared/Config.luau, src/shared/WorldConfig.luau
 test: none
 verified: stylua --check, selene src/, tools/luau_check.sh on all six, rojo build pass; not run in Studio, so timing and feel are unconfirmed
 review: looks-right
+
+## b-20260928-173905-b7sx  fixed  2026-09-28 18:05
+note: DECISION: use ludo (answers b-20260923-154345-78ng: ambient sound should change with height, bubbling in Pot, kitchen room sound)
+cause: no ambient layer or clips existed (Unity has none); ruling "use ludo".
+change: Ludo-generated potBubbling (90151979006382) and kitchenRoomTone (122330171841881) loops in Sounds/Ambience, uploaded via tools/ and written to SoundAssets; build_manifest.py gained collect_ambience(); Ambience.client.luau crossfades 1.5 s on LevelName, Pot volume by lane Stage, muted by SfxOn; doc 17 row.
+files: src/client/Ambience.client.luau, src/shared/SoundAssets.luau, tools/build_manifest.py, Sounds/Ambience/PotBubbling.wav, Sounds/Ambience/KitchenRoomTone.wav, docs/roblox-port/17-status-and-known-gaps.md
+test: none
+verified: stylua --check, selene src/, tools/luau_check.sh, rojo build pass; upload/moderation confirmed via upload_to_roblox --status; not run in Studio (committed on branch bugloop/ludo-assets, not the synced checkout)
+review: looks-right
