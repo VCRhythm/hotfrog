@@ -935,3 +935,12 @@ test: stylua --check, selene src/, luau_check.sh StoreUI.client.luau, rojo build
 verified: no — needs the store opened in Studio, paging to Space Frog (should show its body, not Hot Frog's head)
 review: n/a
 owed: draw dedicated Blue/Space/Mystery Frog thumbnails, upload as <Skin>Thumbnail, then rewrite ids
+
+## b-20261001-145037-iaa4  fixed  2026-10-01 14:56
+note: DECISION: b (reopens b-20261001-141733-kb4c "when in portrait view, the steps are often only on the sides of the screen and not any down the middle")
+cause: owner ruling "b" (rescale straight-down sweeps to fit the portrait view). clampToLane clamped each Unity Movements X to ±SPAWN_VIEW_HALF_WIDTH (8.84); most of Unity's sweep points lie outside it, so steps piled on x=+8.84 or in one column.
+change: Lane.clampToLane takes the spawner def; for spawners with no X direction component, viewX maps the def's Movements min..max X linearly onto ±(8.84 − m), m = half the widest hitSize.X in its pool (Pot ±5.4, Kitchen/Country ±5.2, Tutorial trees ±4.8), cached per def; min==max -> x=0. Diagonal/sideways spawners unchanged. Doc 17 "Straight-down spawn X" deviation row; older clamp rows corrected.
+files: src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: Edit-mode sim (Studio MCP, real Lane module, 20 runs x 50 grabs/level, dir (0,-1), 9:16): edge share Pot 46%->0%, Kitchen 61%->0%, Country 58%->0%; |x|<3 16-32% -> 34-37%; 0/1000 grabs with no step ahead before and after; Pot ~25% fewer visible steps (clearSpot). stylua, selene, luau_check, rojo build pass.
+verified: no — needs a Studio play at 9:16 through Pot, Kitchen and Country checking vertical-phase steps spread across the screen and none cut off at the edges
+review: looks-right; checked: git diff Lane.luau + doc 17, both clampToLane callers pass state.def, sign-only direction test, per-def cache, hitSize guard, scenery spawners not routed, luau_check exit 0 (stale "Tutorial trees x ≈ ±8.8" in doc 17 Camera aspect row fixed by orchestrator)

@@ -399,12 +399,45 @@ local BOUNDS_MARGIN = 6 -- also used by Lane.isOutOfBounds below -- keep in sync
 -- spawns (the common case) are untouched.
 --
 -- A spawner whose travel has no X component (Down) moves its steps straight down, so X
--- never changes after the spawn: keep it inside Config.SPAWN_VIEW_HALF_WIDTH (Unity's
--- portrait view) or the step is never seen. Diagonal/sideways spawners keep the lane
--- bound, because their travel carries a step in from the side (b-20260921-112713-7mxu).
-local function clampToLane(offset: Vector3, direction: Vector2): Vector3
-	local halfX = if signOf(direction.X) == 0 then Config.SPAWN_VIEW_HALF_WIDTH else Config.LANE_HALF_WIDTH + 3
-	local x = math.clamp(offset.X, -halfX, halfX)
+-- never changes after the spawn: it must land inside Config.SPAWN_VIEW_HALF_WIDTH (Unity's
+-- portrait view) or the step is never seen. Unity's sweeps put most of their points past
+-- that edge (Unity just spawns those off-screen), and a plain clamp stacked them all on
+-- the right edge. Owner's ruling b-20261001-145037-iaa4 (doc 17): rescale the spawner's
+-- whole sweep instead -- its min..max X maps linearly onto the view less a margin of half
+-- the widest grab box (StepKinds hitSize.X) in its pool, so every step sits fully on a
+-- portrait screen and the sweep (and its tweens) spreads steps across the middle. A
+-- sweep with no X range (min == max) is centred. Diagonal/sideways spawners keep the
+-- lane bound, because their travel carries a step in from the side (b-20260921-112713-7mxu).
+local viewSweeps: { [Levels.StepSpawnerDef]: { lo: number, hi: number, half: number } } = {}
+
+local function viewX(x: number, def: Levels.StepSpawnerDef): number
+	local sweep = viewSweeps[def]
+	if not sweep then
+		local lo, hi = math.huge, -math.huge
+		for _, m in def.movements do
+			lo = math.min(lo, m.X)
+			hi = math.max(hi, m.X)
+		end
+		local widest = 0
+		for _, kindName in def.pool do
+			local kind = StepKinds[kindName]
+			if kind and kind.hitSize then
+				widest = math.max(widest, kind.hitSize.X)
+			end
+		end
+		sweep = { lo = lo, hi = hi, half = math.max(0, Config.SPAWN_VIEW_HALF_WIDTH - widest / 2) }
+		viewSweeps[def] = sweep
+	end
+	if sweep.hi - sweep.lo < 1e-4 then
+		return 0
+	end
+	return -sweep.half + (x - sweep.lo) / (sweep.hi - sweep.lo) * 2 * sweep.half
+end
+
+local function clampToLane(offset: Vector3, def: Levels.StepSpawnerDef): Vector3
+	local x = if signOf(def.direction.X) == 0
+		then viewX(offset.X, def)
+		else math.clamp(offset.X, -(Config.LANE_HALF_WIDTH + 3), Config.LANE_HALF_WIDTH + 3)
 	local y = math.clamp(offset.Y, Config.DESPAWN_Y, Config.SPAWN_Y)
 	local planar = Vector2.new(x, y)
 	if planar.Magnitude > Config.MAX_GRAB_DISTANCE then
@@ -507,11 +540,11 @@ function Lane.spawnPosition(self: Lane, state: SpawnerState, indexInBatch: numbe
 
 	if indexInBatch and #movements > 0 then
 		local idx = ((indexInBatch - 1) % #movements) + 1
-		return self.origin + clampToLane(movements[idx], state.def.direction)
+		return self.origin + clampToLane(movements[idx], state.def)
 	end
 
 	if not indexInBatch and #movements > 0 then
-		return self.origin + clampToLane(currentMovementOffset(state), state.def.direction)
+		return self.origin + clampToLane(currentMovementOffset(state), state.def)
 	end
 
 	local dir = state.def.direction
