@@ -944,3 +944,12 @@ files: src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md
 test: Edit-mode sim (Studio MCP, real Lane module, 20 runs x 50 grabs/level, dir (0,-1), 9:16): edge share Pot 46%->0%, Kitchen 61%->0%, Country 58%->0%; |x|<3 16-32% -> 34-37%; 0/1000 grabs with no step ahead before and after; Pot ~25% fewer visible steps (clearSpot). stylua, selene, luau_check, rojo build pass.
 verified: no — needs a Studio play at 9:16 through Pot, Kitchen and Country checking vertical-phase steps spread across the screen and none cut off at the edges
 review: looks-right; checked: git diff Lane.luau + doc 17, both clampToLane callers pass state.def, sign-only direction test, per-def cache, hitSize guard, scenery spawners not routed, luau_check exit 0 (stale "Tutorial trees x ≈ ±8.8" in doc 17 Camera aspect row fixed by orchestrator)
+
+## b-20261001-141733-kb4c  fixed  2026-10-01 14:57
+note: when in portrait view, the steps are often only on the sides of the screen and not any down the middle
+cause: answered by owner ruling b-20261001-145037-iaa4 ("b": rescale straight-down sweeps into the portrait view); see that block.
+change: applied in b-20261001-145037-iaa4 (Lane.clampToLane viewX rescale).
+files: src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: see b-20261001-145037-iaa4
+verified: no — needs a Studio play at 9:16 (see b-20261001-145037-iaa4)
+review: looks-right; checked: see b-20261001-145037-iaa4
