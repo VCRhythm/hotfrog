@@ -44,6 +44,7 @@ local Players = game:GetService("Players")
 local Config = require(ReplicatedStorage.Shared.Config)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
+local StepKinds = require(ReplicatedStorage.Shared.StepKinds)
 
 local player = Players.LocalPlayer
 local playField = workspace:WaitForChild("PlayField")
@@ -132,6 +133,11 @@ local function overOwnStep(worldPos: Vector3): boolean
 				halfX, halfY = hit.X / 2, hit.Y / 2
 			else
 				halfX, halfY = inst.Size.X / 2, inst.Size.Y / 2 -- no collider data: the part itself
+			end
+			local kind = StepKinds[tostring(inst:GetAttribute("KindName"))]
+			local pad = if kind then kind.tapSize else nil -- generous tap pad, as in stepAt
+			if pad then
+				halfX, halfY = math.max(halfX, pad.X / 2), math.max(halfY, pad.Y / 2)
 			end
 			if math.abs(worldPos.X - cx) <= halfX and math.abs(worldPos.Y - cy) <= halfY then
 				return true

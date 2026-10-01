@@ -38,6 +38,12 @@
 --                pivot -- so `hitOffset = gripOffset + offset * UNITY_TO_STUDS`.
 --                nil (collider centred on the canvas) for every kind whose
 --                collider offset is (0,0) and whose sprite pivot is centred.
+--   `tapSize`  -- OPTIONAL generous tap-only rectangle (same centre as `hitSize`,
+--                i.e. `hitOffset`), used ONLY by the client tap test
+--                (GameClient.stepAt, WorldTouchIndicator). Lane spawn spacing and
+--                the server grab check keep using `hitSize`, so enlarging this
+--                never changes layout. A tap inside `hitSize` always beats one
+--                that is only inside another step's `tapSize`.
 --   `color`    -- Unity's SpriteRenderer.color tint (doc 12 §1), applied to the
 --                step Decal by GameServer.acquireStep. Several kinds share
 --                WhiteRock.png -- a blank white silhouette by design, coloured
@@ -57,6 +63,7 @@ export type Kind = {
 	flingeeSprite: string?, -- SplashFlinging's "Flingee" child sprite (doc 12 §1 "Children of note")
 	gripOffset: Vector2?, -- held-limb snap point offset from canvas centre, non-centre pivots only (see header)
 	hitOffset: Vector2?, -- hitSize tap-test rectangle centre offset from canvas centre (see header)
+	tapSize: Vector2?, -- generous client-only tap rectangle around hitSize (see header)
 	color: Color3?, -- Unity SpriteRenderer tint (see header); nil = untinted (white)
 }
 
@@ -105,6 +112,11 @@ local GRIP_CARROT = Vector2.new(-3.7009, -2.0918)
 -- the hit box entirely (b-20260921-142133-wica).
 local HIT_OFFSET_CARROT = GRIP_CARROT + Vector2.new(-0.091, 0.547) * (55 / 175) -- Config.UNITY_TO_STUDS
 
+-- Very generous tap rectangle (owner: b-20261001-141720-tfkt): about 2x the
+-- Collider2D in each axis, covering the whole visible carrot art plus margin.
+-- Deliberate deviation from Unity (doc 17 "Carrot tap area").
+local TAP_CARROT = Vector2.new(13, 10)
+
 -- SpriteRenderer.color tints (doc 12 §1), applied to the step Decal by
 -- GameServer.acquireStep (see `color` in the `Kind` type above). WhiteRock.png
 -- is a blank white silhouette shared by several kinds -- untinted it renders
@@ -129,6 +141,7 @@ local StepKinds: { [string]: Kind } = {
 		hitSize = HIT_CARROT,
 		gripOffset = GRIP_CARROT,
 		hitOffset = HIT_OFFSET_CARROT,
+		tapSize = TAP_CARROT,
 	},
 	UpRock = {
 		behavior = "ChangeDirectionUp",

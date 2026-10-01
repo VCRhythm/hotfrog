@@ -20,6 +20,7 @@ local StarterGui = game:GetService("StarterGui")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
+local StepKinds = require(ReplicatedStorage.Shared.StepKinds)
 local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local ClientSettings = require(script.Parent.ui.ClientSettings)
@@ -427,7 +428,12 @@ end
 -- axis-aligned rectangle test is exact. Nearest centre wins when two colliders
 -- overlap the tap.
 local function stepAt(worldPos: Vector3): BasePart?
+	-- Tier 1: inside the step's real collider. Tier 2: only inside a kind's
+	-- generous `tapSize` pad (Carrot). Any tier-1 hit beats every tier-2 hit, so a
+	-- big pad never steals a tap from a step it overlaps; within a tier the
+	-- nearest centre wins.
 	local best: BasePart? = nil
+	local bestTier = 0
 	local bestDist = math.huge
 	for _, inst in stepsFolder:GetChildren() do
 		if
@@ -449,9 +455,20 @@ local function stepAt(worldPos: Vector3): BasePart?
 			end
 			local dx = worldPos.X - cx
 			local dy = worldPos.Y - cy
+			local tier = 0
 			if math.abs(dx) <= halfX and math.abs(dy) <= halfY then
+				tier = 2
+			else
+				local kind = StepKinds[tostring(inst:GetAttribute("KindName"))]
+				local pad = if kind then kind.tapSize else nil
+				if pad and math.abs(dx) <= pad.X / 2 and math.abs(dy) <= pad.Y / 2 then
+					tier = 1
+				end
+			end
+			if tier > 0 then
 				local d = dx * dx + dy * dy
-				if d < bestDist then
+				if tier > bestTier or (tier == bestTier and d < bestDist) then
+					bestTier = tier
 					bestDist = d
 					best = inst
 				end

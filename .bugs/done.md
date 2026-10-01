@@ -916,3 +916,12 @@ files: see b-20260928-173905-b7sx
 test: none
 verified: see b-20260928-173905-b7sx (static checks pass; not run in Studio)
 review: n/a
+
+## b-20261001-141720-tfkt  fixed  2026-10-01 14:26
+note: make sure carrots have very generous touch areas for grabbing on to
+cause: The carrot tap test used only Unity's small Collider2D (~6.5x4.5 studs), so taps near but outside it missed.
+change: Carrot-only StepKinds `tapSize` (13x10 studs, same centre as hitSize/hitOffset), looked up via the KindName attribute in GameClient.stepAt and WorldTouchIndicator.overOwnStep; a tap inside any real collider beats a pad-only tap, nearest centre breaks ties. hitSize (spawn spacing) and server GrabStep unchanged. Doc 17 deviation row "Carrot tap area".
+files: src/shared/StepKinds.luau, src/client/GameClient.client.luau, src/client/WorldTouchIndicator.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check (touched files), selene src/, luau_check.sh on each touched file, rojo build pass
+verified: no — not playtested; needs a Studio play tapping a few studs outside the carrot art (should grab) and next to a carrot beside another step (should grab the nearer real collider). Pad-edge taps may grade as weaker grab quality (PullMath.gradeGrab uses tapPos).
+review: looks-right; checked: git diff of the 3 files, KindName set in GameServer.acquireStep, tier logic, bug-catch priority, server GrabStep has no tap hit-test, luau_check on all 3 files exit 0
