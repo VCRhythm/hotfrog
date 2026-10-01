@@ -925,3 +925,13 @@ files: src/shared/StepKinds.luau, src/client/GameClient.client.luau, src/client/
 test: stylua --check (touched files), selene src/, luau_check.sh on each touched file, rojo build pass
 verified: no — not playtested; needs a Studio play tapping a few studs outside the carrot art (should grab) and next to a carrot beside another step (should grab the nearer real collider). Pad-edge taps may grade as weaker grab quality (PullMath.gradeGrab uses tapPos).
 review: looks-right; checked: git diff of the 3 files, KindName set in GameServer.acquireStep, tier logic, bug-catch priority, server GrabStep has no tap hit-test, luau_check on all 3 files exit 0
+
+## b-20261001-145112-o2jb  fixed  2026-10-01 14:52
+note: make sure all frogs have proper thumbnails in the store
+cause: StoreUI used Thumbnail, then SkinAssets.part(name,"Head"), which falls back to Hot Frog's head, so Space Frog (no Thumbnail, no Head art) showed Hot Frog's face; Blue and Mystery Frog have no Thumbnail and show their own Head.
+change: StoreUI thumbnail now resolves the skin's own Thumbnail -> own Head -> own Body -> tinted placeholder, never another skin's art (Space Frog shows its own Body). Dedicated thumbnails for Blue/Space/Mystery not drawn; existing doc 17 gap row still applies.
+files: src/client/StoreUI.client.luau
+test: stylua --check, selene src/, luau_check.sh StoreUI.client.luau, rojo build pass
+verified: no — needs the store opened in Studio, paging to Space Frog (should show its body, not Hot Frog's head)
+review: n/a
+owed: draw dedicated Blue/Space/Mystery Frog thumbnails, upload as <Skin>Thumbnail, then rewrite ids

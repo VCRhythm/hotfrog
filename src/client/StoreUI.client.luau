@@ -138,9 +138,12 @@ local function refreshPanel()
 	end
 	nameLabel.Text = entry.name
 
-	-- doc 15 item 2: Thumbnail -> Head (via SkinAssets.part's fallback chain) ->
+	-- doc 15 item 2: Thumbnail -> own Head -> own Body (never another skin's art) ->
 	-- a tinted placeholder box (every id is 0 right now, so this is what shows).
-	local image = SkinAssets.image(SkinAssets.prefix(entry.name) .. "Thumbnail") or SkinAssets.part(entry.name, "Head")
+	local prefix = SkinAssets.prefix(entry.name)
+	local image = SkinAssets.image(prefix .. "Thumbnail")
+		or SkinAssets.image(prefix .. "Head")
+		or SkinAssets.image(prefix .. "Body")
 	if image then
 		thumbImage.Image = image
 		thumbTint.Visible = false
