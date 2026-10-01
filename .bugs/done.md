@@ -953,3 +953,13 @@ files: src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md
 test: see b-20261001-145037-iaa4
 verified: no — needs a Studio play at 9:16 (see b-20261001-145037-iaa4)
 review: looks-right; checked: see b-20261001-145037-iaa4
+
+## b-20261001-145155-yes7  fixed  2026-10-01 15:06
+note: the store should replace your current frog with big arrows on the screen, not just be a small modal (like the unity game) and going back makes that frog drop down and your frog bounce up if you haven't purchased that frog
+cause: The port's store was a small centred thumbnail modal; Unity's (FrogPackages.MakeFrog / MenuManager ArrowPanel) swaps the frog on the play field with big arrows and lowers an unowned frog on Back so the owned one rises.
+change: StoreUI is a full-screen overlay (big </> arrows, name/status top, Buy/Wear low centre, Back bottom centre) previewing a local-only FrogModel clone skinned via SpriteSkin.apply, parked on the real frog (hidden locally via LocalTransparencyModifier); each arrow raises the next frog from Unity's endY over 1 s; Back equips an owned frog (SelectSkin) or drops the unowned one and bounces the equipped frog back up; run start closes the store and cancels any in-flight Back animation. Doc 17 deviation row added; the thumbnail gap row dropped (thumbnails no longer read anywhere).
+files: src/client/StoreUI.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/, luau_check.sh StoreUI.client.luau, rojo build pass
+verified: Studio MCP playtest (fixer): opened store, paged to unowned Hawt Frog ("Locked — 1000 Flys"), per-frame Y trace of rise (-21.8 -> 0 over ~1 s), Back drop then equipped frog bounce (overshoot 3.1, settle 0), real frog unhidden, no previews left; Back on selected frog; repair: Play 200 ms into Back drop -> RunState Playing, no clones, real frog visible; no console errors
+review: concern: starting a run during Back's ~2 s animation left the preview visible and the real frog hidden (closeStore(false) returned early once storeOpen was false); checked: git diff of StoreUI + doc 17, MenuClient hookups, SkinService SelectSkin, grep LocalTransparencyModifier/Thumbnail, luau_check
+re-review: looks-right; checked: StoreUI lines 137-200 and 285-435, token checks at both tween yields, closeStore(false) callers (RunStateChanged only), luau_check exit 0

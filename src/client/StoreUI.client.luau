@@ -8,9 +8,13 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local MarketplaceService = game:GetService("MarketplaceService")
 local Players = game:GetService("Players")
+local RunService = game:GetService("RunService")
+local TweenService = game:GetService("TweenService")
 
 local Catalog = require(ReplicatedStorage.Shared.SkinCatalog)
-local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
+local Config = require(ReplicatedStorage.Shared.Config)
+local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
+local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 local UIKit = require(script.Parent.ui.UIKit)
 
 local player = Players.LocalPlayer
@@ -51,7 +55,7 @@ for id in pairs(Catalog) do
 end
 table.sort(ids)
 
--- latest authoritative profile snapshot + the skin currently shown in the panel
+-- latest authoritative profile snapshot + the skin currently shown in the store
 local profile: any = nil
 local cursor = 1
 
@@ -81,78 +85,149 @@ local giftButton = button("Gift", "Gift", UDim2.fromOffset(150, 44), UDim2.new(0
 giftButton.BackgroundColor3 = ACCENT
 
 -- ---------------------------------------------------------------------------
--- Store panel (hidden until Shop is tapped) -- the CycleFrog analog
+-- Store screen (hidden until Shop/Frogs is tapped) -- the FrogPackages
+-- CycleFrog + MenuManager ArrowPanel analog (b-20261001-145155-yes7). Unity
+-- has no store modal: ShowFrogs leaves the play field up, swaps the frog
+-- itself for each candidate (MakeFrog: a fresh frog rises from below,
+-- Frog.Rise), and shows big left/right arrows, the frog's name and a Buy
+-- button. Back (ShowMainMenu -> MakeSureFrogIsPurchased) keeps an owned frog,
+-- or lowers an unowned one off screen and raises an owned frog in its place.
+--
+-- The real frog is server-owned (doc 13), so the preview is a LOCAL clone of
+-- the FrogModel template parked on the real frog's body, which is hidden for
+-- this viewer only (LocalTransparencyModifier, which also hides its decals).
+-- Other players keep seeing the equipped skin until a real SelectSkin.
 -- ---------------------------------------------------------------------------
-local panel = UIKit.panel("Panel", UDim2.fromOffset(360, 260), UDim2.new(0.5, -180, 0.5, -130), gui)
-UIKit.showPanel(panel, false)
+local store = Instance.new("Frame")
+store.Name = "Store"
+store.Size = UDim2.fromScale(1, 1)
+store.BackgroundTransparency = 1
+store.Visible = false
+store.Parent = gui
 
--- Thumbnail (doc 15 item 2 / FrogPackages carousel): the skin's own Thumbnail
--- sprite, falling back through SkinAssets.part's Arm/Universal/HotFrog chain
--- to its Head sprite (Blue/Space/Mystery ship no Thumbnail at all), and
--- finally to a tinted placeholder box so the carousel still reads with every
--- asset id at 0.
-local thumbBox = Instance.new("Frame")
-thumbBox.Name = "ThumbBox"
-thumbBox.Size = UDim2.fromOffset(96, 96)
-thumbBox.Position = UDim2.fromOffset(132, 16)
-thumbBox.BackgroundColor3 = DARK
-thumbBox.Parent = panel
-UIKit.corner(thumbBox, 10)
-UIKit.outline(thumbBox)
-local thumbTint = Instance.new("Frame")
-thumbTint.Name = "Tint"
-thumbTint.Size = UDim2.fromScale(1, 1)
-thumbTint.BorderSizePixel = 0
-thumbTint.Parent = thumbBox
-UIKit.corner(thumbTint, 10)
-local thumbImage = Instance.new("ImageLabel")
-thumbImage.Name = "Image"
-thumbImage.Size = UDim2.fromScale(1, 1)
-thumbImage.BackgroundTransparency = 1
-thumbImage.ScaleType = Enum.ScaleType.Fit
-thumbImage.Parent = thumbBox
+local nameLabel = label("SkinName", "", UDim2.fromOffset(360, 56), UDim2.new(0.5, -180, 0, 96), store)
+nameLabel.TextColor3 = UIKit.HUD_TEXT
+UIKit.textStroke(nameLabel)
+local statusLabel = label("Status", "", UDim2.fromOffset(360, 30), UDim2.new(0.5, -180, 0, 154), store)
+statusLabel.TextColor3 = UIKit.HUD_SUBTEXT
+UIKit.textStroke(statusLabel)
 
-local nameLabel = label("SkinName", "", UDim2.fromOffset(240, 30), UDim2.fromOffset(60, 116), panel)
-local statusLabel = label("Status", "", UDim2.fromOffset(320, 26), UDim2.fromOffset(20, 148), panel)
-statusLabel.TextColor3 = UIKit.SUBTEXT
-
-local prevButton = button("Prev", "<", UDim2.fromOffset(44, 48), UDim2.fromOffset(12, 40), panel)
-local nextButton = button("Next", ">", UDim2.fromOffset(44, 48), UDim2.new(1, -56, 0, 40), panel)
-local actionButton = button("Action", "", UDim2.fromOffset(220, 44), UDim2.new(0.5, -110, 0, 186), panel)
+local prevButton = button("Prev", "<", UDim2.fromOffset(96, 140), UDim2.new(0, 16, 0.5, -70), store)
+local nextButton = button("Next", ">", UDim2.fromOffset(96, 140), UDim2.new(1, -112, 0.5, -70), store)
+local actionButton = button("Action", "", UDim2.fromOffset(240, 56), UDim2.new(0.5, -120, 1, -128), store)
 actionButton.BackgroundColor3 = ACCENT
-local closeButton = button("Close", "X", UDim2.fromOffset(36, 36), UDim2.new(1, -44, 0, 8), panel)
-closeButton.BackgroundColor3 = DARK
+-- bottom centre, between Gift and Shop: the top-left corner is the HUD's score
+local backButton = button("Back", "Back", UDim2.fromOffset(120, 48), UDim2.new(0.5, -60, 1, -60), store, "Home")
+backButton.BackgroundColor3 = DARK
 
 -- ---------------------------------------------------------------------------
--- Panel state: derive the current skin's button/status from the profile
+-- Preview frog (local clone; see the header above)
+-- ---------------------------------------------------------------------------
+local frogTemplate = ReplicatedStorage:WaitForChild("Assets"):WaitForChild("FrogModel") :: Model
+local frogsFolder = workspace:WaitForChild("PlayField"):WaitForChild("Frogs")
+local DROP = -100 * Config.UNITY_TO_STUDS -- Frog.cs endY: where a lowered frog sits
+local MOVE_TIME = 1 -- Frog.cs Rise / Lower: DOMoveY(..., 1f)
+local RISE_INFO = TweenInfo.new(MOVE_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out)
+local LOWER_INFO = TweenInfo.new(MOVE_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
+local BOUNCE_INFO = TweenInfo.new(MOVE_TIME, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+
+type Preview = { model: Model, y: NumberValue }
+local previews: { Preview } = {}
+local current: Preview? = nil -- the candidate frog on screen while the store is open
+local storeOpen = false
+local closeToken = 0 -- bumped on every open/close so a stale Back animation stops
+
+local function realFrog(): Model?
+	local m = frogsFolder:FindFirstChild("Frog_" .. player.UserId)
+	return if m and m:IsA("Model") then m else nil
+end
+
+local function setRealHidden(hidden: boolean)
+	local m = realFrog()
+	if not m then
+		return
+	end
+	for _, d in m:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.LocalTransparencyModifier = if hidden then 1 else 0
+		end
+	end
+end
+
+local function makePreview(skinName: string, y: number): Preview
+	local model = frogTemplate:Clone()
+	model.PrimaryPart = model:FindFirstChild("Body") :: BasePart
+	for _, d in model:GetDescendants() do
+		if d:IsA("BasePart") then
+			d.Anchored = true
+			d.CanCollide = false
+			d.CanQuery = false
+			d.CanTouch = false
+		end
+	end
+	SpriteSkin.apply(model, skinName)
+	local value = Instance.new("NumberValue")
+	value.Value = y
+	local preview: Preview = { model = model, y = value }
+	table.insert(previews, preview)
+	model.Parent = workspace.CurrentCamera
+	return preview
+end
+
+local function destroyPreview(preview: Preview?)
+	if not preview then
+		return
+	end
+	local i = table.find(previews, preview)
+	if i then
+		table.remove(previews, i)
+	end
+	preview.model:Destroy()
+	preview.y:Destroy()
+end
+
+local function clearPreviews()
+	for i = #previews, 1, -1 do
+		destroyPreview(previews[i])
+	end
+	current = nil
+end
+
+local function tweenY(preview: Preview, y: number, info: TweenInfo): Tween
+	local tween = TweenService:Create(preview.y, info, { Value = y })
+	tween:Play()
+	return tween
+end
+
+-- Park every preview on the real frog's body (offset by its rise/lower y).
+RunService.RenderStepped:Connect(function()
+	if #previews == 0 then
+		return
+	end
+	local m = realFrog()
+	local body = m and m.PrimaryPart
+	if not body then
+		return
+	end
+	for _, preview in previews do
+		preview.model:PivotTo(CFrame.new(body.Position + Vector3.new(0, preview.y.Value, 0)))
+	end
+end)
+
+-- ---------------------------------------------------------------------------
+-- Store state: derive the current skin's button/status from the profile
 -- ---------------------------------------------------------------------------
 local function currentId(): number?
 	return ids[cursor]
 end
 
-local function refreshPanel()
+local function refreshStore()
 	local id = currentId()
 	local entry = id and Catalog[id]
 	if not entry then
 		return
 	end
 	nameLabel.Text = entry.name
-
-	-- doc 15 item 2: Thumbnail -> own Head -> own Body (never another skin's art) ->
-	-- a tinted placeholder box (every id is 0 right now, so this is what shows).
-	local prefix = SkinAssets.prefix(entry.name)
-	local image = SkinAssets.image(prefix .. "Thumbnail")
-		or SkinAssets.image(prefix .. "Head")
-		or SkinAssets.image(prefix .. "Body")
-	if image then
-		thumbImage.Image = image
-		thumbTint.Visible = false
-	else
-		thumbImage.Image = ""
-		thumbTint.Visible = true
-		local hue = ((id or 0) * 0.161803398875) % 1
-		thumbTint.BackgroundColor3 = Color3.fromHSV(hue, 0.35, 0.55)
-	end
 
 	local owned = profile and profile.owned and id and profile.owned[id]
 	local selected = profile and id and profile.selected == id
@@ -161,11 +236,10 @@ local function refreshPanel()
 	-- price, so the icon set on Action here is a fresh call each refresh
 	-- rather than a fixed stem the button was created with.
 	local flysIcon: string? = nil
+	actionButton.Visible = true
 	if selected then
 		statusLabel.Text = "Selected"
-		actionButton.Text = "Selected"
-		actionButton.Active = false
-		actionButton.BackgroundColor3 = DARK
+		actionButton.Visible = false
 	elseif owned then
 		statusLabel.Text = "Owned"
 		actionButton.Text = "Wear"
@@ -184,9 +258,7 @@ local function refreshPanel()
 		actionButton.BackgroundColor3 = ACCENT
 	else
 		statusLabel.Text = "Locked"
-		actionButton.Text = "—"
-		actionButton.Active = false
-		actionButton.BackgroundColor3 = DARK
+		actionButton.Visible = false
 	end
 	UIKit.setButtonIcon(actionButton, flysIcon)
 end
@@ -210,9 +282,106 @@ local function onAction()
 	end
 end
 
+local function equippedName(): string?
+	local entry = profile and Catalog[profile.selected]
+	return entry and entry.name
+end
+
+local function openStore()
+	if storeOpen then
+		return
+	end
+	storeOpen = true
+	closeToken += 1
+	clearPreviews()
+	if profile and profile.selected then
+		cursor = table.find(ids, profile.selected) or cursor
+	end
+	-- Unity ShowFrogs keeps the frog already on screen: the stand-in starts
+	-- in place, wearing the candidate (= the equipped skin) skin.
+	local entry = Catalog[ids[cursor]]
+	if entry then
+		current = makePreview(entry.name, 0)
+	end
+	setRealHidden(true)
+	store.Visible = true
+	refreshStore()
+end
+
+-- Unity MakeFrog: the old frog is destroyed and the new one rises from below.
 local function cycle(delta: number)
 	cursor = (cursor - 1 + delta) % #ids + 1
-	refreshPanel()
+	destroyPreview(current)
+	current = nil
+	local entry = Catalog[ids[cursor]]
+	if entry then
+		local preview = makePreview(entry.name, DROP)
+		current = preview
+		tweenY(preview, 0, RISE_INFO)
+		SoundFX.play("awake") -- Frog.cs Rise: awakeSound
+	end
+	refreshStore()
+end
+
+-- Back. An owned candidate stays (Unity's MakeFrog already equips any owned
+-- frog it shows); an unowned one is lowered off screen and the equipped frog
+-- bounces back up (MakeSureFrogIsPurchased -> LowerAndOpen...). `animate`
+-- is false when a run starts underneath the store: just restore at once.
+local function closeStore(animate: boolean)
+	if not storeOpen then
+		if not animate then
+			-- a run started during Back's drop/bounce: cancel it, restore at once
+			closeToken += 1
+			clearPreviews()
+			setRealHidden(false)
+		end
+		return
+	end
+	storeOpen = false
+	store.Visible = false
+	closeToken += 1
+	local token = closeToken
+
+	local id = currentId()
+	local owned = profile and profile.owned and id and profile.owned[id]
+	if owned or not animate then
+		if owned and profile.selected ~= id then
+			SelectSkin:FireServer(id)
+			-- the server re-skins the real frog for everyone; paint it locally
+			-- now so it doesn't flash the old skin while that replicates
+			local m = realFrog()
+			local entry = Catalog[id]
+			if m and entry then
+				SpriteSkin.apply(m, entry.name)
+			end
+		end
+		clearPreviews()
+		setRealHidden(false)
+		return
+	end
+
+	local leaving = current
+	current = nil
+	task.spawn(function()
+		if leaving then
+			tweenY(leaving, DROP, LOWER_INFO).Completed:Wait()
+			destroyPreview(leaving)
+		end
+		local name = equippedName()
+		if token ~= closeToken then
+			return
+		end
+		if name then
+			local returning = makePreview(name, DROP)
+			SoundFX.play("awake")
+			tweenY(returning, 0, BOUNCE_INFO).Completed:Wait()
+			if token ~= closeToken then
+				return
+			end
+			destroyPreview(returning)
+		end
+		setRealHidden(false)
+	end)
 end
 
 prevButton.Activated:Connect(function()
@@ -223,42 +392,38 @@ nextButton.Activated:Connect(function()
 end)
 actionButton.Activated:Connect(onAction)
 shopToggle.Activated:Connect(function()
-	local show = not panel.Visible
-	UIKit.showPanel(panel, show)
-	if show then
-		refreshPanel()
-		storeOpenedEvent:Fire()
-	else
+	if storeOpen then
+		closeStore(true)
 		storeClosedEvent:Fire()
+	else
+		openStore()
+		storeOpenedEvent:Fire()
 	end
 end)
-closeButton.Activated:Connect(function()
-	UIKit.showPanel(panel, false)
+backButton.Activated:Connect(function()
+	closeStore(true)
 	storeClosedEvent:Fire() -- doc 15: lets MenuClient bring its own panel back
 end)
 
-openStoreEvent.Event:Connect(function()
-	UIKit.showPanel(panel, true)
-	refreshPanel()
-end)
+openStoreEvent.Event:Connect(openStore)
 
 ProfileChanged.OnClientEvent:Connect(function(p)
 	profile = p
-	if panel.Visible then
-		refreshPanel()
+	if storeOpen then
+		refreshStore()
 	end
 end)
 
 -- doc 15 item 1: this bottom bar (Shop toggle + Gift button) is the main
 -- menu's "Gift"/"Shop/Flys" entries reused as-is, so it only makes sense
--- outside an active run. Hidden during Playing; the store panel itself is
--- force-closed too so a run can't be interrupted by a lingering panel.
+-- outside an active run. Hidden during Playing; the store itself is
+-- force-closed too so a run can't be interrupted by a lingering store.
 RunStateChanged.OnClientEvent:Connect(function(state: string)
 	local outOfRun = state ~= "Playing"
 	shopToggle.Visible = outOfRun
 	giftButton.Visible = outOfRun
-	if not outOfRun and panel.Visible then
-		UIKit.showPanel(panel, false)
+	if not outOfRun then
+		closeStore(false)
 	end
 end)
 
