@@ -384,6 +384,41 @@ local function closeStore(animate: boolean)
 	end)
 end
 
+-- b-20261001-150712-8jsz: when the start screen shows (join, or back to Menu
+-- after a death) the equipped frog bounces up into place, like Back's bounce.
+-- Same local stand-in as the store; a run start / store open cancels it via
+-- closeToken (closeStore(false) restores at once).
+local function bounceIn()
+	if storeOpen then
+		return
+	end
+	closeToken += 1
+	local token = closeToken
+	clearPreviews()
+	task.spawn(function()
+		local waited = 0
+		while (not realFrog() or not equippedName()) and waited < 5 do
+			waited += task.wait()
+			if token ~= closeToken then
+				return
+			end
+		end
+		local name = equippedName()
+		if not name or not realFrog() then
+			return
+		end
+		setRealHidden(true)
+		local preview = makePreview(name, DROP)
+		SoundFX.play("awake")
+		tweenY(preview, 0, BOUNCE_INFO).Completed:Wait()
+		if token ~= closeToken then
+			return
+		end
+		destroyPreview(preview)
+		setRealHidden(false)
+	end)
+end
+
 prevButton.Activated:Connect(function()
 	cycle(-1)
 end)
@@ -418,12 +453,25 @@ end)
 -- menu's "Gift"/"Shop/Flys" entries reused as-is, so it only makes sense
 -- outside an active run. Hidden during Playing; the store itself is
 -- force-closed too so a run can't be interrupted by a lingering store.
+local sawRunState = false -- the initial server fire can predate this connection
 RunStateChanged.OnClientEvent:Connect(function(state: string)
+	sawRunState = true
 	local outOfRun = state ~= "Playing"
 	shopToggle.Visible = outOfRun
 	giftButton.Visible = outOfRun
 	if not outOfRun then
 		closeStore(false)
+	elseif state == "Menu" then
+		bounceIn()
+	end
+end)
+
+-- Join: the server's first "Menu" fire may have landed before we connected, so
+-- read the lane's RunState attribute once (unless the event already arrived).
+task.spawn(function()
+	local lane = workspace:WaitForChild("PlayField"):WaitForChild("Lanes"):WaitForChild(tostring(player.UserId), 30)
+	if lane and not sawRunState and lane:GetAttribute("RunState") == "Menu" then
+		bounceIn()
 	end
 end)
 

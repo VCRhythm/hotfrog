@@ -963,3 +963,13 @@ test: stylua --check, selene src/, luau_check.sh StoreUI.client.luau, rojo build
 verified: Studio MCP playtest (fixer): opened store, paged to unowned Hawt Frog ("Locked — 1000 Flys"), per-frame Y trace of rise (-21.8 -> 0 over ~1 s), Back drop then equipped frog bounce (overshoot 3.1, settle 0), real frog unhidden, no previews left; Back on selected frog; repair: Play 200 ms into Back drop -> RunState Playing, no clones, real frog visible; no console errors
 review: concern: starting a run during Back's ~2 s animation left the preview visible and the real frog hidden (closeStore(false) returned early once storeOpen was false); checked: git diff of StoreUI + doc 17, MenuClient hookups, SkinService SelectSkin, grep LocalTransparencyModifier/Thumbnail, luau_check
 re-review: looks-right; checked: StoreUI lines 137-200 and 285-435, token checks at both tween yields, closeStore(false) callers (RunStateChanged only), luau_check exit 0
+
+## b-20261001-150712-8jsz  fixed  2026-10-01 15:14
+note: make sure the frog bounces up playfully on the start screen
+cause: Nothing animated the frog when the Menu run state began; it just sat in place on join and after returning from death.
+change: StoreUI bounceIn() on RunStateChanged "Menu" (skipped while the store is open) hides the real frog locally and raises a local FrogModel clone of the equipped skin from Unity's endY with the store's Back/Out BOUNCE_INFO tween and the "awake" sound; run start (closeStore(false)) and opening the store cancel it via closeToken. A one-shot startup check reads the lane's RunState attribute so the bounce also plays on first join (sawRunState guards a double fire).
+files: src/client/StoreUI.client.luau
+test: stylua --check, selene src/, luau_check.sh StoreUI.client.luau, rojo build pass
+verified: no — not run in Studio; join and watch the frog bounce on the start screen, die and return to Menu, press Play and Shop mid-bounce
+review: concern: the initial join Menu event fires before StoreUI connects, so the join bounce would be missed; checked: git diff StoreUI, StoreUI preview/open/close/RunStateChanged code, GameServer initPlayer/setRunState, MenuClient handler, luau_check exit 0
+re-review: looks-right; checked: git diff StoreUI startup check + handler, bounceIn dependencies all defined earlier, SetAttribute("RunState") at GameServer:173 with Menu/Playing/Dead, luau_check exit 0 (narrow race can replay the awake sound once)
