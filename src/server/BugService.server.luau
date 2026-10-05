@@ -1,11 +1,11 @@
 -- ServerScriptService/Server/BugService (Script)
 -- The bug collectible loop (../../docs/roblox-port/06-bugs-and-tongue.md; ports
 -- Entities/Bug.cs + Spawning/BugSpawner.cs): bugs drift in from an edge, idle for
--- a lifespan, then leave -- unless a player taps one, in which case the server
+-- a lifespan (flying a Hover/FigureEight/Dart/Skittish pattern, occasionally as a
+-- swarm or a golden bug), then leave -- unless a player taps one, in which case the server
 -- validates the catch, awards Flys through the shared AwardFlys faucet (Bug.cs
 -- CollectFly -> the Fly currency), and tells the catcher for tongue/squish
--- feedback. Bugs are pooled with the same Gen guard as steps so the delayed
--- leave timer can't act on a recycled part.
+-- feedback. Bugs are pooled and moved by a single Heartbeat integrator.
 --
 -- Per-lane (doc 13 item 7): each occupied lane runs its own spawn cadence and
 -- picks positions relative to that lane's origin, and a bug is tagged with its
@@ -16,7 +16,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local ServerStorage = game:GetService("ServerStorage")
-local TweenService = game:GetService("TweenService")
+local RunService = game:GetService("RunService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
@@ -133,24 +133,150 @@ if not template then
 end
 
 -- ---------------------------------------------------------------------------
--- Pool + lifecycle
+-- Pool + lifecycle. Unity's Bug.cs runs a DOTween per bug (MoveTo, then Leave
+-- after lifeSpan) and then sits still; the port instead keeps one Heartbeat
+-- integrator over every active bug (below) so flight patterns compose and
+-- nothing but `states` owns a bug's lifetime. `releaseBug` is the single
+-- teardown: it drops the state, so a stale catch or the integrator can never
+-- act on a pooled part. No delayed callbacks remain, so no Gen guard is needed
+-- for bug motion; `Gen` is still bumped per spawn so clients can tell a
+-- recycled part from its previous life.
 -- ---------------------------------------------------------------------------
+type BugState = {
+	part: BasePart,
+	laneUserId: number,
+	laneX: number, -- lane origin X (box centre)
+	pattern: string,
+	golden: boolean,
+	reward: boolean,
+	phase: number, -- per-bug phase offset (radians) so swarms don't wobble in lockstep
+	mode: "enter" | "fly" | "leave",
+	modeT: number, -- seconds in the current mode
+	life: number, -- fly-mode duration
+	start: Vector3,
+	dest: Vector3,
+	exitX: number,
+	pos: Vector3,
+	center: Vector3, -- pattern anchor (moves for Skittish)
+	dartTimer: number,
+	dartTarget: Vector3,
+}
+
 local pool: { BasePart } = {}
-local active: { [BasePart]: boolean } = {}
-local currentTween: { [BasePart]: Tween } = {}
+local states: { [BasePart]: BugState } = {}
+local laneCount: { [number]: number } = {}
 
 local function releaseBug(bug: BasePart)
-	if not active[bug] then
-		return -- idempotent: catch and the leave timer can race
+	local state = states[bug]
+	if not state then
+		return -- idempotent: catch and the lifespan can race
 	end
-	local tween = currentTween[bug]
-	if tween then
-		tween:Cancel() -- a live tween must not keep writing to a pooled part
-		currentTween[bug] = nil
-	end
-	active[bug] = nil
+	states[bug] = nil
+	laneCount[state.laneUserId] = math.max(0, (laneCount[state.laneUserId] or 1) - 1)
 	bug.Parent = nil
-	table.insert(pool, bug)
+	if #pool >= Config.BUG_POOL_MAX then
+		bug:Destroy() -- bound the pool; a gift burst can briefly need far more parts than steady state
+	else
+		table.insert(pool, bug)
+	end
+end
+
+local PATTERN_ORDER = { "Hover", "FigureEight", "Dart", "Skittish" }
+
+local function pickPattern(allowed: { string }?): string
+	local weights = Config.BUG_PATTERN_WEIGHTS :: { [string]: number }
+	local names = allowed or PATTERN_ORDER
+	local total = 0
+	for _, name in names do
+		total += weights[name] or 0
+	end
+	if total <= 0 then
+		return "Hover"
+	end
+	local roll = math.random() * total
+	for _, name in names do
+		roll -= weights[name] or 0
+		if roll <= 0 then
+			return name
+		end
+	end
+	return "Hover"
+end
+
+local function clampToBox(p: Vector3, laneX: number): Vector3
+	return Vector3.new(
+		math.clamp(p.X, laneX - Config.BUG_X_RANGE, laneX + Config.BUG_X_RANGE),
+		math.clamp(p.Y, -Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
+		Config.PLANE_Z
+	)
+end
+
+local function randomInBox(laneX: number): Vector3
+	return Vector3.new(
+		laneX + (math.random() * 2 - 1) * Config.BUG_X_RANGE,
+		(math.random() * 2 - 1) * Config.BUG_Y_RANGE,
+		Config.PLANE_Z
+	)
+end
+
+local function findArt(bug: BasePart): Decal?
+	for _, child in bug:GetChildren() do
+		if child:IsA("Decal") and child:GetAttribute("Sprite") == "Bug" then
+			return child
+		end
+	end
+	return nil
+end
+
+-- Common launch: stamps attributes, parks the part at `startPos` and registers
+-- it with the integrator. `golden` is only ever passed for rewarded bugs.
+local function launch(
+	laneOrigin: Vector3,
+	laneUserId: number,
+	startPos: Vector3,
+	dest: Vector3,
+	reward: boolean,
+	pattern: string,
+	golden: boolean,
+	phase: number
+)
+	local bug = (table.remove(pool) or template:Clone()) :: BasePart
+	bug:SetAttribute("Kind", "Bug")
+	bug:SetAttribute("Gen", ((bug:GetAttribute("Gen") :: number?) or 0) + 1)
+	bug:SetAttribute("LaneUserId", laneUserId)
+	bug:SetAttribute("Reward", reward)
+	bug:SetAttribute("Pattern", pattern)
+	bug:SetAttribute("Golden", golden)
+	bug.Anchored = true
+	SpriteSkin.apply(bug) -- no-op until ids land in SkinAssets
+	local art = findArt(bug)
+	if art then
+		art.Color3 = if golden then Config.GOLDEN_BUG_COLOR else Color3.new(0, 0, 0)
+	end
+	bug.CFrame = CFrame.new(startPos)
+	bug.Parent = container
+
+	local exitSide = if math.random() > 0.5 then 1 else -1
+	states[bug] = {
+		part = bug,
+		laneUserId = laneUserId,
+		laneX = laneOrigin.X,
+		pattern = pattern,
+		golden = golden,
+		reward = reward,
+		phase = phase,
+		mode = "enter",
+		modeT = 0,
+		life = if golden then Config.GOLDEN_BUG_LIFESPAN else Config.BUG_LIFESPAN,
+		start = startPos,
+		dest = dest,
+		exitX = laneOrigin.X + exitSide * (Config.BUG_X_RANGE + Config.BUG_EDGE_EXIT_MARGIN),
+		pos = startPos,
+		center = dest,
+		dartTimer = 0,
+		dartTarget = dest,
+	}
+	laneCount[laneUserId] = (laneCount[laneUserId] or 0) + 1
 end
 
 -- `origin` is set for ActionType.SpawnFly (doc 05): a FlyRock-style step was
@@ -172,80 +298,215 @@ local function spawnBug(
 	reward: boolean?,
 	wideBurst: boolean?
 )
-	local bug = (table.remove(pool) or template:Clone()) :: BasePart
-	bug:SetAttribute("Kind", "Bug")
-	bug:SetAttribute("Gen", ((bug:GetAttribute("Gen") :: number?) or 0) + 1)
-	bug:SetAttribute("LaneUserId", laneUserId)
-	bug:SetAttribute("Reward", reward ~= false)
-	bug.Anchored = true
-	SpriteSkin.apply(bug) -- no-op until ids land in SkinAssets
-	local gen = bug:GetAttribute("Gen")
-
-	local minX, maxX = laneOrigin.X - Config.BUG_X_RANGE, laneOrigin.X + Config.BUG_X_RANGE
-
+	local rewarded = reward ~= false
+	if (laneCount[laneUserId] or 0) >= Config.BUG_MAX_PER_LANE_BURST then
+		return
+	end
+	local laneX = laneOrigin.X
+	local startPos: Vector3
 	local dest: Vector3
 	if origin and wideBurst then
-		bug.CFrame = CFrame.new(origin)
-		dest =
-			Vector3.new(math.random(minX, maxX), math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE), Config.PLANE_Z)
+		startPos = origin
+		dest = randomInBox(laneX)
 	elseif origin then
-		bug.CFrame = CFrame.new(origin)
-		local wanderX = math.random(-Config.BUG_NEAR_WANDER_X, Config.BUG_NEAR_WANDER_X)
-		local wanderY = math.random(-Config.BUG_NEAR_WANDER_Y, Config.BUG_NEAR_WANDER_Y)
-		dest = Vector3.new(
-			math.clamp(origin.X + wanderX, minX, maxX),
-			math.clamp(origin.Y + wanderY, -Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
-			Config.PLANE_Z
+		startPos = origin
+		dest = clampToBox(
+			origin
+				+ Vector3.new(
+					math.random(-Config.BUG_NEAR_WANDER_X, Config.BUG_NEAR_WANDER_X),
+					math.random(-Config.BUG_NEAR_WANDER_Y, Config.BUG_NEAR_WANDER_Y),
+					0
+				),
+			laneX
 		)
 	else
 		-- enter from a side edge, drift to a random on-screen point with the
 		-- original's overshoot feel (Bug.SetUpDestination / MoveTo: DOMove + Ease.OutBack)
 		local side = if math.random() > 0.5 then 1 else -1
-		bug.CFrame = CFrame.new(
-			laneOrigin.X + side * (Config.BUG_X_RANGE + 6),
-			math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE),
+		startPos = Vector3.new(
+			laneX + side * (Config.BUG_X_RANGE + Config.BUG_EDGE_ENTER_MARGIN),
+			(math.random() * 2 - 1) * Config.BUG_Y_RANGE,
 			Config.PLANE_Z
 		)
-		dest =
-			Vector3.new(math.random(minX, maxX), math.random(-Config.BUG_Y_RANGE, Config.BUG_Y_RANGE), Config.PLANE_Z)
+		dest = randomInBox(laneX)
 	end
-	bug.Parent = container
-	active[bug] = true
-
-	local enter = TweenService:Create(
-		bug,
-		TweenInfo.new(Config.BUG_ENTER_TIME, Enum.EasingStyle.Back, Enum.EasingDirection.Out),
-		{ CFrame = CFrame.new(dest) }
-	)
-	currentTween[bug] = enter
-	enter:Play()
-
-	-- after its lifespan, leave unless caught (Bug.Leave)
-	task.delay(Config.BUG_ENTER_TIME + Config.BUG_LIFESPAN, function()
-		if not (active[bug] and bug:GetAttribute("Gen") == gen) then
-			return
-		end
-		local exitX = laneOrigin.X + (if math.random() > 0.5 then 1 else -1) * (Config.BUG_X_RANGE + 10)
-		local leave = TweenService:Create(
-			bug,
-			TweenInfo.new(Config.BUG_LEAVE_TIME),
-			{ CFrame = CFrame.new(exitX, bug.Position.Y, Config.PLANE_Z) }
-		)
-		currentTween[bug] = leave
-		leave.Completed:Once(function()
-			if active[bug] and bug:GetAttribute("Gen") == gen then
-				releaseBug(bug)
-			end
-		end)
-		leave:Play()
-	end)
+	local golden = rewarded and math.random() < Config.GOLDEN_BUG_CHANCE
+	local pattern = if golden then "Dart" else pickPattern()
+	launch(laneOrigin, laneUserId, startPos, dest, rewarded, pattern, golden, math.random() * math.pi * 2)
 end
+
+-- A loose cluster entering together from one edge: members share a destination
+-- centre (offset around it) and a Hover/FigureEight pattern, with evenly spaced
+-- phase offsets so they weave rather than move in lockstep. Never golden.
+local function spawnSwarm(laneOrigin: Vector3, laneUserId: number, count: number)
+	local laneX = laneOrigin.X
+	local side = if math.random() > 0.5 then 1 else -1
+	local entryY = (math.random() * 2 - 1) * Config.BUG_Y_RANGE
+	local centre = randomInBox(laneX)
+	local pattern = pickPattern({ "Hover", "FigureEight" })
+	for i = 1, count do
+		local angle = (i / count) * math.pi * 2
+		local offset = Vector3.new(math.cos(angle), math.sin(angle), 0) * Config.BUG_SWARM_SPREAD
+		local startPos = Vector3.new(
+			laneX + side * (Config.BUG_X_RANGE + Config.BUG_EDGE_ENTER_MARGIN + (i - 1) * 1.5), -- trail in a loose line
+			entryY + offset.Y,
+			Config.PLANE_Z
+		)
+		launch(laneOrigin, laneUserId, startPos, clampToBox(centre + offset, laneX), true, pattern, false, angle)
+	end
+end
+
+-- Timed edge spawn: respects the soft per-lane cap, occasionally a swarm.
+local function spawnEdge(laneOrigin: Vector3, laneUserId: number)
+	local room = Config.BUG_MAX_PER_LANE - (laneCount[laneUserId] or 0)
+	if room <= 0 then
+		return
+	end
+	if room >= Config.BUG_SWARM_MIN and math.random() < Config.BUG_SWARM_CHANCE then
+		spawnSwarm(laneOrigin, laneUserId, math.min(room, math.random(Config.BUG_SWARM_MIN, Config.BUG_SWARM_MAX)))
+	else
+		spawnBug(laneOrigin, laneUserId)
+	end
+end
+
+-- ---------------------------------------------------------------------------
+-- Integrator. One Heartbeat pass over every active bug, throttled to
+-- BUG_UPDATE_HZ (30 Hz: anchored-part CFrame writes replicate unsmoothed, so
+-- the rate is a replication-cost vs smoothness trade; 30 keeps a Dart's zip
+-- readable while halving the traffic of per-frame writes) and dt-clamped so a
+-- server hitch can't teleport bugs. All moves go out in one BulkMoveTo.
+-- ---------------------------------------------------------------------------
+local frogsFolder = playField:WaitForChild("Frogs")
+local limbCache: { [number]: { Vector3 } } = {} -- per integrator step, lazily filled
+
+local function limbPositions(laneUserId: number): { Vector3 }
+	local cached = limbCache[laneUserId]
+	if cached then
+		return cached
+	end
+	local list: { Vector3 } = {}
+	local frog = frogsFolder:FindFirstChild("Frog_" .. laneUserId)
+	if frog then
+		for _, name in { "LeftLimb", "RightLimb" } do
+			local limb = frog:FindFirstChild(name)
+			if limb and limb:IsA("BasePart") then
+				table.insert(list, limb.Position) -- read only; the frog is simulated elsewhere
+			end
+		end
+	end
+	limbCache[laneUserId] = list
+	return list
+end
+
+local function easeOutBack(t: number): number
+	local c1 = 1.70158
+	local c3 = c1 + 1
+	local u = t - 1
+	return 1 + c3 * u * u * u + c1 * u * u
+end
+
+local function flyStep(s: BugState, dt: number)
+	local t = s.modeT
+	local ramp = math.min(1, t / Config.BUG_FLY_IN_RAMP)
+	local pattern = s.pattern
+	if pattern == "Dart" then
+		local interval = if s.golden then Config.GOLDEN_BUG_DART_INTERVAL else Config.BUG_DART_INTERVAL
+		local radius = if s.golden then Config.GOLDEN_BUG_DART_RADIUS else Config.BUG_DART_RADIUS
+		local smooth = if s.golden then Config.GOLDEN_BUG_DART_SMOOTH else Config.BUG_DART_SMOOTH
+		s.dartTimer -= dt
+		if s.dartTimer <= 0 then
+			s.dartTimer = interval * (0.8 + 0.4 * math.random())
+			local jump = Vector3.new((math.random() * 2 - 1) * radius, (math.random() * 2 - 1) * radius, 0)
+			s.dartTarget = clampToBox(s.pos + jump, s.laneX)
+		end
+		s.pos = clampToBox(s.pos:Lerp(s.dartTarget, 1 - math.exp(-smooth * dt)), s.laneX)
+		return
+	end
+	local offset: Vector3
+	if pattern == "FigureEight" then
+		local a = Config.BUG_EIGHT_FREQ * t + s.phase
+		offset = Vector3.new(Config.BUG_EIGHT_AMP_X * math.sin(a), Config.BUG_EIGHT_AMP_Y * math.sin(2 * a), 0)
+	else
+		local a = Config.BUG_HOVER_FREQ * t + s.phase
+		offset = Vector3.new(Config.BUG_HOVER_AMP_X * math.sin(a), Config.BUG_HOVER_AMP_Y * math.sin(1.7 * a + 1), 0)
+		if pattern == "Skittish" then
+			-- drift the anchor away from any frog limb that gets close (read-only)
+			for _, limbPos in limbPositions(s.laneUserId) do
+				local away = Vector3.new(s.center.X - limbPos.X, s.center.Y - limbPos.Y, 0)
+				local dist = away.Magnitude
+				if dist < Config.BUG_SKITTISH_RADIUS then
+					local dir = if dist > 0.01
+						then away / dist
+						else Vector3.new(math.cos(s.phase), math.sin(s.phase), 0)
+					s.center = clampToBox(s.center + dir * Config.BUG_SKITTISH_SPEED * dt, s.laneX)
+				end
+			end
+		end
+	end
+	s.pos = clampToBox(s.center + offset * ramp, s.laneX)
+end
+
+local acc = 0
+local moveParts: { BasePart } = {}
+local moveCFrames: { CFrame } = {}
+local doomed: { BasePart } = {}
+
+RunService.Heartbeat:Connect(function(rawDt: number)
+	acc += rawDt
+	if acc < 1 / Config.BUG_UPDATE_HZ then
+		return
+	end
+	local dt = math.min(acc, Config.BUG_DT_MAX)
+	acc = 0
+	table.clear(limbCache)
+	table.clear(moveParts)
+	table.clear(moveCFrames)
+	table.clear(doomed)
+
+	for bug, s in states do
+		s.modeT += dt
+		if s.mode == "enter" then
+			local a = math.min(1, s.modeT / Config.BUG_ENTER_TIME)
+			s.pos = s.start:Lerp(s.dest, easeOutBack(a))
+			if a >= 1 then
+				s.mode, s.modeT = "fly", 0
+				s.pos, s.center, s.dartTarget = s.dest, s.dest, s.dest
+			end
+		elseif s.mode == "fly" then
+			flyStep(s, dt)
+			if s.modeT >= s.life then
+				-- lifespan over: leave unless caught (Bug.Leave)
+				s.mode, s.modeT = "leave", 0
+				s.start = s.pos
+			end
+		else
+			local a = math.min(1, s.modeT / Config.BUG_LEAVE_TIME)
+			local eased = a * a -- accelerate off-screen
+			s.pos = Vector3.new(s.start.X + (s.exitX - s.start.X) * eased, s.start.Y, Config.PLANE_Z)
+			if a >= 1 then
+				table.insert(doomed, bug)
+				continue
+			end
+		end
+		table.insert(moveParts, bug)
+		table.insert(moveCFrames, CFrame.new(s.pos))
+	end
+
+	for _, bug in doomed do
+		releaseBug(bug)
+	end
+	if #moveParts > 0 then
+		workspace:BulkMoveTo(moveParts, moveCFrames, Enum.BulkMoveMode.FireCFrameChanged)
+	end
+end)
 
 -- ---------------------------------------------------------------------------
 -- Per-lane discovery + spawn cadence (doc 13 item 7). Lane.luau creates one
 -- Folder per lane under `workspace.PlayField.Lanes` carrying `UserId`/`Origin`
 -- attributes; this script only ever reads those, never server/Lane.luau or
--- GameServer directly, so load order between the three is moot.
+-- GameServer directly, so load order between the three is moot. Spawning is
+-- deliberately NOT gated on RunState: bugs still fly and can be eaten on the
+-- Menu/Dead screen (doc 17 attract mode).
 -- ---------------------------------------------------------------------------
 local lanesFolder = playField:WaitForChild("Lanes")
 local laneLoopRunning: { [Instance]: boolean } = {}
@@ -270,7 +531,7 @@ local function onLaneAdded(laneFolder: Instance)
 		while laneLoopRunning[laneFolder] and laneFolder.Parent do
 			local origin, userId = laneOriginOf(laneFolder)
 			if origin and userId then
-				spawnBug(origin, userId)
+				spawnEdge(origin, userId)
 			end
 			task.wait(Config.BUG_INTERVAL)
 		end
@@ -302,18 +563,20 @@ end)
 -- another lane's bug, simply doesn't score.
 -- ---------------------------------------------------------------------------
 CatchBug.OnServerEvent:Connect(function(player, bug)
-	if typeof(bug) ~= "Instance" or not bug:IsA("BasePart") or not active[bug] then
+	if typeof(bug) ~= "Instance" or not bug:IsA("BasePart") then
 		return
 	end
-	if bug:GetAttribute("LaneUserId") ~= player.UserId then
+	local state = states[bug]
+	if not state or state.laneUserId ~= player.UserId then
 		return
 	end
-	local reward = bug:GetAttribute("Reward") ~= false -- false only for gift flies (see spawnBug)
+	local reward = state.reward -- false only for gift flies (see spawnBug)
+	local flys = if state.golden then Config.GOLDEN_BUG_FLYS else Config.BUG_FLYS
 	local position = bug.Position
 	releaseBug(bug)
 	if reward then
-		awardFlys:Fire(player, Config.BUG_FLYS)
-		bugCaughtServer:Fire(player) -- GameServer's exact bugsThisRun counter (doc 17 gap)
+		awardFlys:Fire(player, flys)
+		bugCaughtServer:Fire(player) -- GameServer's exact bugsThisRun counter (doc 17 gap); one count even for golden
 	end
 	BugCaught:FireClient(player, position) -- feedback hook (squish sound / flash) -- always, gift or not
 end)

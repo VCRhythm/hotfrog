@@ -294,6 +294,79 @@ local Config = {
 	STEP_SPIN_MAX_DEG = 40,
 	STEP_SPIN_BIAS = 3,
 
+	-- Step motion layer (GameServer "Step motion layer", Lane.StepState; PORT
+	-- ADDITION except where a Unity file is cited). Each live step has a logical
+	-- BASE position -- what pulls, slide-ins, Classic drift, Falling and a
+	-- drop-away move, and what spawn spacing and pull aim read -- plus a small,
+	-- bounded VISUAL offset on top (grab recoil, sag, a moving behaviour's sweep).
+	-- The server composes the two into one CFrame write per step per Heartbeat.
+	-- Scale to keep in mind when tuning: the camera band is +/-15.7 studs, a
+	-- portrait screen +/-8.84 wide, a typical grab box ~6 x 4 studs.
+	MAX_TICK_DT = 1 / 15, -- both server Heartbeats clamp dt to this, so a hitch can't teleport a step or the frog
+	STEP_OFFSET_MAX = 6, -- studs; hard cap on a behaviour's visual offset (StepBehaviors ctx.setOffset)
+	-- Grab recoil: a grabbed step dips along the lane's pull direction and springs
+	-- back (the held limb is snapped to the step, so it follows). DISTANCE is the
+	-- dip's peak in studs (0 turns it off); FREQUENCY (Hz) and DAMPING (ratio,
+	-- below 1) are chosen so it has settled by ~0.4 s.
+	STEP_RECOIL_DISTANCE = 0.6,
+	STEP_RECOIL_FREQUENCY = 2.9,
+	STEP_RECOIL_DAMPING = 0.6,
+	-- Sag under weight: a held step eases this far down, and back up on release.
+	STEP_SAG_DISTANCE = 0.35, -- studs (0 turns it off)
+	STEP_SAG_TIME = 0.15, -- time constant, seconds (~95% of the way after three of these)
+	-- Moving behaviours speed up with the lane's run height: tempo is
+	-- 1 + min(runSteps * RUN_SPEEDUP, MAX_SPEEDUP), i.e. 1.4x at 100 steps, 1.5x at most.
+	STEP_MOTION_RUN_SPEEDUP = 0.004,
+	STEP_MOTION_MAX_SPEEDUP = 0.5,
+	-- StepBehaviors.Patrol: a horizontal sinusoid about the base. Defaults for
+	-- steps spawned without their own `amplitude` / `period` params.
+	PATROL_AMPLITUDE = 3, -- studs each side
+	PATROL_PERIOD = 3.5, -- seconds per full sweep at tempo 1
+	-- StepBehaviors.RiseAndFall: the same, vertically.
+	RISE_FALL_AMPLITUDE = 1.5,
+	RISE_FALL_PERIOD = 2.5,
+	-- StepBehaviors.Launch: the extra pull a springboard's grab adds (studs; each
+	-- request is capped at PULL_MAX_DISTANCE).
+	LAUNCH_PULL = 8,
+	-- StepBehaviors.Vanish: seconds inside the camera band before the step starts
+	-- blinking (`Unsteady`), then seconds of blinking before it drops away.
+	VANISH_DELAY = 3,
+	VANISH_WARN_TIME = 1.5,
+	-- Motion numbers that used to be literals in Lane / GameServer:
+	BOB_ROCK_OUT_FRACTION = 1 / 3, -- Frog.Bob's DOPunchRotation: share of BOB_ROCK_TIME spent swinging out; the rest swings back
+	SPAWN_NUDGE_STEP = 1, -- Lane.clearSpot: studs per try when moving a crowded spawn upstream
+	SPAWN_NUDGE_MAX = 12, -- ...and how far it may go; about two steps' worth of queue
+	ENTRY_MARGIN = 0.5, -- Lane.entryShift: studs past the band edge, so rounding never leaves a sliver on screen
+	SPLASH_PART_SIZE = Vector3.new(1.2, 1.2, 0.4), -- the "Flingee" part (GameServer.flingSplash)
+
+	-- Dynamic spawning (PORT ADDITION, doc 17): the knobs behind Lane's spawner
+	-- and Shared/Levels' height stages, patterns and events. The first group are
+	-- numbers that used to be literals in Lane.luau, unchanged.
+	BOUNDS_MARGIN = 6, -- studs past the lane's catch bounds before a step is recycled (Lane.isOutOfBounds)
+	SPAWN_SLICE = 1 / 30, -- spawner-seconds per slice of a pull's spawner window (Lane.spawnForPull)
+	SPAWN_MIN_INTERVAL = 0.05, -- floor on a spawner's rolled interval, so a 0-interval def can't loop forever
+	SPAWN_EDGE_MARGIN = 3, -- studs past LANE_HALF_WIDTH a diagonal / sideways spawn may be staged
+	SPAWN_SIDE_BAND = 0.6, -- procedural fallback, sideways entry: +/- this fraction of SPAWN_Y
+	SPAWN_CORNER_BAND = 0.4, -- procedural fallback, diagonal entry: this fraction of LANE_HALF_WIDTH in from the corner
+	TUTORIAL_STEPS = 3, -- tree steps climbed before the Tutorial hands over to the Pot
+	-- Fairness guard (Lane.pickKind): kinds flagged `hazard` in StepKinds
+	-- (crumble, timed, falling) may be at most HAZARD_MAX_RECENT of a lane's last
+	-- HAZARD_WINDOW spawned steps; at the cap the pick is forced onto a safe kind.
+	HAZARD_WINDOW = 6,
+	HAZARD_MAX_RECENT = 2,
+	-- Spawn patterns (Levels.patterns, a height stage's `patternChance`): a
+	-- pattern never carries more than this many hazard members, and each member
+	-- after the first costs the spawner this share of an interval, so a pattern
+	-- is followed by a short breather instead of piling onto the normal cadence.
+	PATTERN_MAX_HAZARDS = 1,
+	PATTERN_INTERVAL_COST = 0.35,
+	-- A pattern's later members are staged upstream of its first, past reach and
+	-- past the recycle bound, and come down as the ones before them are climbed
+	-- (Lane.spawnPattern, StepState.upstream). This is the furthest behind the
+	-- first one a member may be staged, widening included (the deepest pattern,
+	-- ZigZag, is 14.25 studs as written); one that would sit further is left out.
+	PATTERN_MAX_UPSTREAM = 24,
+
 	-- Splash (Entities/Splash.cs; ActionType.SplashFlinging's "Flingee" child).
 	-- Values are FlingingRock's own Splash.cs fields (doc 12), reused directly as
 	-- Roblox impulse velocities (studs/s) -- a rough analog, not physically exact.
@@ -313,6 +386,37 @@ local Config = {
 	BUG_FLYS = 5, -- Flys per catch (Bug.cs CollectFly -> the Fly currency)
 	BUG_NEAR_WANDER_X = 6, -- ActionType.SpawnFly (doc 05): drift near the step instead of the full field, studs
 	BUG_NEAR_WANDER_Y = 4,
+	BUG_EDGE_ENTER_MARGIN = 6, -- studs past the lane's X range where a bug appears (was a literal in BugService)
+	BUG_EDGE_EXIT_MARGIN = 10, -- ...and where it flies off to when its lifespan ends
+	BUG_MAX_PER_LANE = 8, -- concurrent cap for timed edge spawns (a swarm is trimmed to fit)
+	BUG_MAX_PER_LANE_BURST = 24, -- hard ceiling incl. gift bursts / FlyRock spawns, which skip the soft cap
+	BUG_POOL_MAX = 24, -- parked bug parts kept for reuse; extras are Destroyed on release
+	BUG_UPDATE_HZ = 30, -- server position-update rate for the bug integrator (replication cost bound)
+	BUG_DT_MAX = 0.1, -- integrator step clamp, seconds (a hitch must not teleport bugs)
+	BUG_PATTERN_WEIGHTS = { Hover = 6, FigureEight = 2, Dart = 2, Skittish = 2 }, -- flight pattern pick weights
+	BUG_FLY_IN_RAMP = 0.4, -- seconds to fade a pattern's wobble in after arriving (no pop at hand-off)
+	BUG_HOVER_AMP_X = 1.2, -- Hover lissajous amplitude, studs
+	BUG_HOVER_AMP_Y = 0.8,
+	BUG_HOVER_FREQ = 2.2, -- rad/s
+	BUG_EIGHT_AMP_X = 3.5, -- FigureEight amplitude, studs
+	BUG_EIGHT_AMP_Y = 2,
+	BUG_EIGHT_FREQ = 1.6, -- rad/s
+	BUG_DART_INTERVAL = 0.6, -- seconds between Dart destination re-rolls
+	BUG_DART_RADIUS = 5, -- how far a Dart re-roll may pick, studs
+	BUG_DART_SMOOTH = 6, -- exponential chase rate toward the dart target, 1/s (peak speed ~ radius * this)
+	BUG_SKITTISH_RADIUS = 8, -- a frog limb closer than this (studs) pushes a Skittish bug away
+	BUG_SKITTISH_SPEED = 7, -- studs/s drift away from the limb
+	BUG_SWARM_CHANCE = 0.12, -- chance an edge spawn is a loose-formation cluster instead of a single bug
+	BUG_SWARM_MIN = 3,
+	BUG_SWARM_MAX = 5,
+	BUG_SWARM_SPREAD = 2.5, -- formation radius, studs
+	GOLDEN_BUG_CHANCE = 0.06, -- chance a rewarded single edge/near spawn is golden
+	GOLDEN_BUG_FLYS = 25, -- Flys for catching a golden bug (via AwardFlys)
+	GOLDEN_BUG_LIFESPAN = 1.4, -- shorter than BUG_LIFESPAN
+	GOLDEN_BUG_DART_INTERVAL = 0.45,
+	GOLDEN_BUG_DART_RADIUS = 7,
+	GOLDEN_BUG_DART_SMOOTH = 8,
+	GOLDEN_BUG_COLOR = Color3.fromRGB(255, 200, 40),
 
 	-- Tongue (Entities/Tongue.cs expand/retract, scaled to tween times)
 	TONGUE_EXPAND_TIME = 0.12,

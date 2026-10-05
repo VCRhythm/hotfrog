@@ -38,6 +38,9 @@ export type StepSpawnerDef = {
 	-- currently -- every step spawner actually referenced by a level has one); Lane.luau falls
 	-- back to its existing procedural placement when this is empty.
 	movements: { Vector3 },
+	-- PORT ADDITION: true keeps spawn patterns and events (below) off this spawner --
+	-- Country's themed Rocket/Balloon spawner, whose 32-stud canvases leave no room.
+	noPatterns: boolean?,
 }
 
 -- Scenery/Bug spawners: DATA ONLY (doc 13 item 2). Not consumed by Lane.luau yet.
@@ -53,21 +56,77 @@ export type SceneryDef = {
 }
 
 -- Height-stage progression within a single level (b-20260923-154344-dr8a,
--- journey 3/8): OWNER'S FEATURE, not a Unity port -- Unity's Pot spawner pools
--- never change composition mid-level. Optional; nil for every level except Pot.
--- `maxRunSteps` is an exclusive upper bound on Lane.runSteps (the last entry
--- should use math.huge so every runSteps value lands in some stage);
+-- journey 3/8): OWNER'S FEATURE, not a Unity port -- Unity's spawner pools
+-- never change composition mid-level. Optional; nil for Menu and Tutorial.
+-- `maxRunSteps` is an exclusive upper bound on the lane's step count (the last
+-- entry should use math.huge so every count lands in some stage);
 -- Lane.currentHeightStage picks the first stage whose bound isn't yet passed.
+-- WHICH count depends on the level's `stagesFromEntry` (Level, below): unset
+-- (the Pot) it is Lane.runSteps, the whole run's; set (Kitchen, Country) it is
+-- the steps climbed since the lane entered the level, because the run step a
+-- level really begins on is not its Config.LEVEL_THRESHOLDS entry -- the Pot's
+-- rim is only LAID at the threshold, and the Pot steps still below it and the
+-- rim grab itself all count before Kitchen starts.
 -- `weights` overrides StepKinds[kindName].spawnProbability for Lane.pickKind,
 -- per stage, for whichever kind names it lists -- a pool kind with no entry
 -- here falls back to its normal StepKinds weight. `sceneryDensity` multiplies
 -- WorldScenery's Bubble/Flame (bubbles/steam) spawn cadence for the stage (1 =
 -- unchanged); WorldScenery reads it off the lane folder's `Stage` attribute
--- (the 1-based index into this list), which Lane.luau alone sets.
+-- (the 1-based index into this list), which Lane.luau alone sets. That client
+-- re-fires a one-shot scenery batch whenever the density changes, so Kitchen
+-- and Country keep it at 1 throughout.
+-- `patternChance` / `patterns` (PORT ADDITION): the chance that a spawn in this
+-- stage lays one of the listed patterns (picked by `weight`) instead of a single
+-- step; absent = never.
 export type HeightStage = {
 	maxRunSteps: number,
 	weights: { [string]: number },
 	sceneryDensity: number,
+	patternChance: number?,
+	patterns: { PatternDef }?,
+}
+
+-- Spawn patterns (PORT ADDITION, doc 17): a small formation laid in place of one
+-- spawn. Each member is placed relative to the spawner's current staging point:
+-- `lateral` studs across the lane's travel line (the whole pattern is mirrored
+-- at random) and `upstream` studs back along it, i.e. further off-screen, so
+-- later members arrive later. Every member goes through the same placement as a
+-- single spawn (Lane.clearSpot, the off-screen entry), and one with no clear
+-- spot, or out of reach, is skipped. `kind` nil = the spawner's own weighted
+-- pick, restricted to ordinary footholds (no arrows, no hazards). Offsets are
+-- sized for the two columns a portrait screen has room for: 8.8 studs across
+-- clears two rock grab boxes side by side, 4.75 up clears two shelves. They are
+-- the pattern's NOMINAL shape, its tightest: two rocks one RISE apart do not
+-- clear (6.9-stud boxes plus Config.SPAWN_GAP), nor does a mover with its
+-- reserved sweep. Lane.spawnPattern measures each member's actual grab box,
+-- sweep and gap as it lays it (Lane.clearSpot) and moves that member AND every
+-- later one back by whatever was missing, so a pattern opens up to fit what it
+-- is made of. List members outward (ascending `upstream`).
+export type PatternMember = {
+	lateral: number,
+	upstream: number,
+	kind: string?,
+	params: { [string]: any }?, -- replaces the kind's default StepKinds params
+}
+
+export type PatternDef = {
+	name: string,
+	weight: number,
+	members: { PatternMember },
+}
+
+-- Rare event spawns (PORT ADDITION, doc 17): once the lane has reached
+-- `minRunSteps` (counted like a height stage's bound -- see `stagesFromEntry`)
+-- and `cooldown` run steps have passed since this event last fired on it, each
+-- GRAB fires it with probability `chance` (one roll per spawner window, scaled
+-- down for a Classic drift chunk's shorter one -- Lane.rollEvent), and it lays
+-- `pattern` in place of one of that window's spawns.
+export type EventDef = {
+	name: string,
+	chance: number,
+	minRunSteps: number,
+	cooldown: number,
+	pattern: PatternDef,
 }
 
 -- Scripted level-entry steps (b-20260923-154345-g9ea, journey 7/8): OWNER'S
@@ -93,7 +152,11 @@ export type Level = {
 	scenerySpawners: { SceneryDef },
 	levelObjects: { string },
 	heightStages: { HeightStage }?,
+	-- true: `heightStages` bounds and `events` thresholds count steps climbed
+	-- since the lane ENTERED this level (Lane.levelStartSteps), not the whole run
+	stagesFromEntry: boolean?,
 	introSequence: { string }?,
+	events: { EventDef }?,
 }
 
 local Levels = {}
@@ -175,6 +238,83 @@ local function smv(pairs: { { number } }): { Vector3 }
 	end
 	return out
 end
+
+-- ---------------------------------------------------------------------------
+-- Dynamic content (PORT ADDITIONS, doc 17 -- none of this is Unity data).
+-- ---------------------------------------------------------------------------
+-- The moving / timed kinds (Shared/StepKinds), appended to every Kitchen and
+-- Country rock/shelf pool. A pool only makes a kind ELIGIBLE: the level's height
+-- stages give each one its weight, starting at 0.
+local DYNAMIC_KINDS = { "Lillipad", "BobRock", "SpringRock", "BlinkRock", "CrumbleRock" }
+
+local function withDynamic(pool: { string }): { string }
+	local out = table.clone(pool)
+	for _, kindName in DYNAMIC_KINDS do
+		table.insert(out, kindName)
+	end
+	return out
+end
+
+-- Nominal pattern offsets (see PatternMember: Lane widens them per member).
+local COLUMN = 4.4 -- half the gap between a portrait screen's two columns
+local RISE = 4.75 -- one shelf-height step up
+
+local function member(lateral: number, upstream: number, kind: string?, params: { [string]: any }?): PatternMember
+	return { lateral = lateral, upstream = upstream, kind = kind, params = params }
+end
+
+local patterns: { [string]: PatternDef } = {
+	-- alternating columns, climbing
+	ZigZag = {
+		name = "ZigZag",
+		weight = 3,
+		members = { member(-COLUMN, 0), member(COLUMN, RISE), member(-COLUMN, 2 * RISE), member(COLUMN, 3 * RISE) },
+	},
+	-- one diagonal flight across the screen
+	Staircase = {
+		name = "Staircase",
+		weight = 2,
+		members = { member(-COLUMN, 0), member(0, RISE), member(COLUMN, 2 * RISE) },
+	},
+	-- a tight triangle
+	Cluster = {
+		name = "Cluster",
+		weight = 2,
+		members = { member(-COLUMN, 0), member(COLUMN, 0), member(0, RISE) },
+	},
+	-- three FlyRocks: each grab wakes a bug (StepBehaviors.SpawnFly)
+	BugChain = {
+		name = "BugChain",
+		weight = 1,
+		members = {
+			member(-COLUMN, 0, "FlyRock"),
+			member(COLUMN, RISE, "FlyRock"),
+			member(-COLUMN, 2 * RISE, "FlyRock"),
+		},
+	},
+	-- two lily pads gliding in opposite directions, one above the other
+	PadLadder = {
+		name = "PadLadder",
+		weight = 1,
+		members = {
+			member(0, 0, "Lillipad", { amplitude = 2.5, period = 3.5, phase = 0 }),
+			member(0, 7.25, "Lillipad", { amplitude = 2.5, period = 3.5, phase = math.pi }),
+		},
+	},
+	-- event: two springboards and somewhere ordinary to land
+	SpringStreak = {
+		name = "SpringStreak",
+		weight = 1,
+		members = { member(-COLUMN, 0, "SpringRock"), member(COLUMN, RISE, "SpringRock"), member(-COLUMN, 2 * RISE) },
+	},
+	-- event: the tall castle (StepKinds.Castle, in no pool)
+	CastleKeep = {
+		name = "CastleKeep",
+		weight = 1,
+		members = { member(0, 0, "Castle") },
+	},
+}
+Levels.patterns = patterns
 
 -- ---------------------------------------------------------------------------
 -- Menu (doc 11 §1, index 0). Not played yet (doc 13 item 5 starts a run at
@@ -294,7 +434,7 @@ list[Levels.POT] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 0.7,
 			spawnAllOnAwake = false,
-			pool = { "Potato", "Carrot", "UpRock" },
+			pool = { "Potato", "Carrot", "UpRock", "Lillipad" },
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -309,7 +449,7 @@ list[Levels.POT] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 0.7,
 			spawnAllOnAwake = false,
-			pool = { "Carrot", "Potato", "UpRock" },
+			pool = { "Carrot", "Potato", "UpRock", "Lillipad" },
 			movements = mv({ { -1.0, 0.5 }, { -1.0, 1.25 }, { 0.0, 1.25 } }),
 		},
 		{
@@ -324,7 +464,7 @@ list[Levels.POT] = {
 			spawningSpeedMin = 0.25,
 			spawningSpeedMax = 0.35,
 			spawnAllOnAwake = false,
-			pool = { "Potato", "Carrot", "UpLeftRock", "UpRightRock" },
+			pool = { "Potato", "Carrot", "UpLeftRock", "UpRightRock", "Lillipad" },
 			movements = mv({ { -0.5, 1.25 }, { 1.5, 1.25 }, { 2.5, 1.25 } }),
 		},
 	},
@@ -363,21 +503,27 @@ list[Levels.POT] = {
 	-- Potato (crumbles on release) mixed in through the middle, then the Up*Rock
 	-- diagonals dominating and the steam thinning near the top. Every pool kind above
 	-- gets an entry so no stage silently falls back to a flat StepKinds weight.
+	-- PORT ADDITION: the last stage also floats the odd Lillipad (a patrolling step,
+	-- the first dynamic kind a run meets) and lays an occasional plain ZigZag; the
+	-- first two stages are unchanged (Lillipad = 0, no patterns). Three stages exactly:
+	-- Ambience.client.luau maps Pot's Stage attribute onto three volumes.
 	heightStages = {
 		{
 			maxRunSteps = 15,
-			weights = { Carrot = 3, Potato = 0.4, UpRock = 0.2, UpLeftRock = 0.2, UpRightRock = 0.2 },
+			weights = { Carrot = 3, Potato = 0.4, UpRock = 0.2, UpLeftRock = 0.2, UpRightRock = 0.2, Lillipad = 0 },
 			sceneryDensity = 1.75,
 		},
 		{
 			maxRunSteps = 35,
-			weights = { Carrot = 1, Potato = 1.5, UpRock = 0.5, UpLeftRock = 0.5, UpRightRock = 0.5 },
+			weights = { Carrot = 1, Potato = 1.5, UpRock = 0.5, UpLeftRock = 0.5, UpRightRock = 0.5, Lillipad = 0 },
 			sceneryDensity = 1,
 		},
 		{
 			maxRunSteps = math.huge,
-			weights = { Carrot = 0.5, Potato = 0.7, UpRock = 1.6, UpLeftRock = 1.6, UpRightRock = 1.6 },
+			weights = { Carrot = 0.5, Potato = 0.7, UpRock = 1.6, UpLeftRock = 1.6, UpRightRock = 1.6, Lillipad = 0.5 },
 			sceneryDensity = 0.4,
+			patternChance = 0.08,
+			patterns = { patterns.ZigZag },
 		},
 	},
 }
@@ -405,7 +551,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" },
+			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
 			movements = mv({ { -1.0, 0.5 }, { -1.0, 1.25 }, { 0.0, 1.25 } }),
 		},
 		{
@@ -420,7 +566,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" },
+			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -435,7 +581,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" },
+			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" }),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
@@ -450,7 +596,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" },
+			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" }),
 			-- doc 13's worked example: this is the spawner whose Movements sit past the
 			-- RIGHT edge despite a leftward spawnDirection (see "Direction / arrow semantics").
 			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
@@ -470,7 +616,15 @@ list[Levels.KITCHEN] = {
 			-- PORT ADDITION: LeftRock/RightRock are in no shipped Unity pool, which left the
 			-- Left/Right spawners unreachable from a downward scroll; adding them here is
 			-- what makes sideways travel actually happen (doc 13).
-			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpLeftRock", "UpRightRock", "LeftRock", "RightRock" },
+			pool = withDynamic({
+				"ShelfWithSpoon",
+				"ShelfWithFork",
+				"Shelf",
+				"UpLeftRock",
+				"UpRightRock",
+				"LeftRock",
+				"RightRock",
+			}),
 			movements = mv({ { 0.0, 1.25 }, { 1.5, 1.25 }, { 2.0, 1.25 } }),
 		},
 	},
@@ -491,6 +645,51 @@ list[Levels.KITCHEN] = {
 	-- Shelf to let that land, then one RightRock so the player meets the new
 	-- sideways travel deliberately instead of stumbling into it (b-20260923-154345-g9ea).
 	introSequence = { "Shelf", "Shelf", "RightRock" },
+	-- PORT ADDITION: Kitchen's ~45 steps (rim grab to LEVEL_THRESHOLDS.Country) in
+	-- four stages, counted from the lane's arrival (stagesFromEntry). The shelves and arrows
+	-- keep their StepKinds weights throughout (not listed = unchanged), so stage 1
+	-- is the Kitchen as it was; the dynamic kinds are then introduced a pair at a
+	-- time -- movers first, then the springboard and the crumbler, the timed
+	-- BlinkRock last -- and patterns grow more likely. For scale, the shelf and
+	-- arrow weights in a pool sum to 1.6-1.9.
+	stagesFromEntry = true,
+	heightStages = {
+		{
+			maxRunSteps = 12,
+			weights = { Lillipad = 0, BobRock = 0, SpringRock = 0, BlinkRock = 0, CrumbleRock = 0 },
+			sceneryDensity = 1,
+		},
+		{
+			maxRunSteps = 26,
+			weights = { Lillipad = 0.35, BobRock = 0.3, SpringRock = 0, BlinkRock = 0, CrumbleRock = 0 },
+			sceneryDensity = 1,
+			patternChance = 0.1,
+			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster },
+		},
+		{
+			maxRunSteps = 38,
+			weights = { Lillipad = 0.35, BobRock = 0.3, SpringRock = 0.2, BlinkRock = 0, CrumbleRock = 0.3 },
+			sceneryDensity = 1,
+			patternChance = 0.15,
+			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain },
+		},
+		{
+			maxRunSteps = math.huge,
+			weights = { Lillipad = 0.4, BobRock = 0.35, SpringRock = 0.2, BlinkRock = 0.3, CrumbleRock = 0.35 },
+			sceneryDensity = 1,
+			patternChance = 0.2,
+			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain, patterns.PadLadder },
+		},
+	},
+	events = {
+		{
+			name = "SpringStreak",
+			chance = 0.03,
+			minRunSteps = 30,
+			cooldown = 25,
+			pattern = patterns.SpringStreak,
+		},
+	},
 }
 
 -- ---------------------------------------------------------------------------
@@ -523,6 +722,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMax = 3,
 			spawnAllOnAwake = false,
 			pool = { "Rocket", "Balloon" },
+			noPatterns = true,
 			movements = mv({ { 1.0, -1.25 }, { 1.5, -1.25 }, { 2.5, -1.25 } }),
 		},
 		-- Kitchen's (Level3) spawners, reused wholesale (doc 11) -- same Movements as their
@@ -539,7 +739,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" },
+			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -554,7 +754,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" },
+			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" }),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
@@ -569,7 +769,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" },
+			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" }),
 			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
 		},
 		{
@@ -587,7 +787,15 @@ list[Levels.COUNTRY] = {
 			-- PORT ADDITION: LeftRock/RightRock are in no shipped Unity pool, which left the
 			-- Left/Right spawners unreachable from a downward scroll; adding them here is
 			-- what makes sideways travel actually happen (doc 13).
-			pool = { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpLeftRock", "UpRightRock", "LeftRock", "RightRock" },
+			pool = withDynamic({
+				"ShelfWithSpoon",
+				"ShelfWithFork",
+				"Shelf",
+				"UpLeftRock",
+				"UpRightRock",
+				"LeftRock",
+				"RightRock",
+			}),
 			movements = mv({ { 0.0, 1.25 }, { 1.5, 1.25 }, { 2.0, 1.25 } }),
 		},
 	},
@@ -601,6 +809,57 @@ list[Levels.COUNTRY] = {
 		},
 	},
 	levelObjects = { "US" },
+	-- PORT ADDITION: Country is the last level and never ends, so its stages ramp
+	-- from "Kitchen's movers, no hazards" (a breather on arrival) to a mix where
+	-- roughly half the rock/shelf spawns are dynamic. The themed Rocket/Balloon
+	-- spawner is untouched. Counted from the lane's arrival, like Kitchen's.
+	stagesFromEntry = true,
+	heightStages = {
+		{
+			maxRunSteps = 10,
+			weights = { Lillipad = 0.35, BobRock = 0.3, SpringRock = 0.15, BlinkRock = 0, CrumbleRock = 0 },
+			sceneryDensity = 1,
+			patternChance = 0.1,
+			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster },
+		},
+		{
+			maxRunSteps = 30,
+			weights = { Lillipad = 0.4, BobRock = 0.35, SpringRock = 0.25, BlinkRock = 0.2, CrumbleRock = 0.3 },
+			sceneryDensity = 1,
+			patternChance = 0.18,
+			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain },
+		},
+		{
+			maxRunSteps = 60,
+			weights = { Lillipad = 0.45, BobRock = 0.4, SpringRock = 0.25, BlinkRock = 0.35, CrumbleRock = 0.4 },
+			sceneryDensity = 1,
+			patternChance = 0.22,
+			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain, patterns.PadLadder },
+		},
+		{
+			maxRunSteps = math.huge,
+			weights = { Lillipad = 0.5, BobRock = 0.45, SpringRock = 0.3, BlinkRock = 0.45, CrumbleRock = 0.45 },
+			sceneryDensity = 1,
+			patternChance = 0.25,
+			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain, patterns.PadLadder },
+		},
+	},
+	events = {
+		{
+			name = "CastleKeep",
+			chance = 0.04,
+			minRunSteps = 5,
+			cooldown = 20,
+			pattern = patterns.CastleKeep,
+		},
+		{
+			name = "SpringStreak",
+			chance = 0.03,
+			minRunSteps = 25,
+			cooldown = 25,
+			pattern = patterns.SpringStreak,
+		},
+	},
 }
 
 Levels.list = list

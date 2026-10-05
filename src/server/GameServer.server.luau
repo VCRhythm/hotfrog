@@ -20,7 +20,6 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local ServerStorage = game:GetService("ServerStorage")
-local Debris = game:GetService("Debris")
 
 local Config = require(ReplicatedStorage.Shared.Config)
 local PullMath = require(ReplicatedStorage.Shared.PullMath)
@@ -366,7 +365,7 @@ local function flingSplash(step: BasePart)
 	clearFling(step) -- a repeat grab shouldn't stack Splashes
 	local splash = Instance.new("Part")
 	splash.Name = "Flingee"
-	splash.Size = Vector3.new(1.2, 1.2, 0.4)
+	splash.Size = Config.SPLASH_PART_SIZE
 	splash.CanCollide = false
 	splash.CanQuery = false -- must not eat taps
 	splash.Anchored = false
@@ -385,21 +384,65 @@ local function flingSplash(step: BasePart)
 	splash.AssemblyAngularVelocity = Vector3.new(0, 0, -rotForce)
 
 	flingees[step] = splash
-	Debris:AddItem(splash, Config.SPLASH_LIFETIME)
+	-- Splash.cs Invoke("Destroy", 3f). The Parent guard covers a Flingee that
+	-- clearFling already destroyed (its step was recycled or grabbed again).
+	task.delay(Config.SPLASH_LIFETIME, function()
+		if splash.Parent then
+			splash:Destroy()
+		end
+		if flingees[step] == splash then
+			flingees[step] = nil
+		end
+	end)
 end
 
 -- ---------------------------------------------------------------------------
+-- Step motion layer. A step is an anchored, pooled part, and this section is
+-- the ONLY thing that writes its CFrame: once when it is acquired (or re-placed
+-- by slideIn), then at most once per Heartbeat, batched through
+-- workspace:BulkMoveTo. Everything that moves a step edits its Lane.StepState
+-- instead, and the write composes
+--     CFrame.new(base + offset + recoil - sag) * rotation(angle)
+--   * base   -- the logical position. Lane.advanceMotions (pulls, slide-ins),
+--               Lane.drift, StepBehaviors.Falling and a drop-away move it; spawn
+--               spacing, the recycle bound and pull aim read it (Lane.restPosition).
+--   * offset -- a moving behaviour's sweep (StepBehaviors Patrol / RiseAndFall).
+--   * recoil -- a damped spring kicked along the pull on every grab.
+--   * sag    -- a held step hangs a little lower, and eases back on release.
+--   * angle  -- the idle spin, below.
+-- Four writers used to add to the CFrame in turn each tick, and a drop-away was
+-- a TweenService tween to a fixed target on top: it fought any pull or drift
+-- that ran meanwhile, and kept playing on the part after it was pooled and
+-- handed out again. A drop is now just more base travel, so it adds to a pull
+-- and ends with the state when the step is released.
+--
+-- The visual terms are IN the replicated CFrame on purpose: the client
+-- hit-tests it, and the frog Heartbeat further down snaps a held limb to
+-- `step.CFrame * GripOffset`, so a recoiling or patrolling step carries its taps
+-- and its hand with it. That Heartbeat is connected after this section's, so it
+-- reads this tick's CFrames. Translation is always world-space (`+ Vector3`),
+-- never the step's own frame: a step that spun before it was grabbed has a
+-- tilted frame and must still fall, sag and scroll straight.
+--
 -- Idle spin (owner's request b-20260922-194446, doc 17 -- Unity's steps never
 -- rotate): a step that has not been grabbed yet slowly tumbles, so the field
 -- reads as falling debris. One signed rate (rad/s about Z) is rolled per spawn,
 -- biased toward slow (Config.STEP_SPIN_*), and dropped for good on the grab, so
 -- a held step's grip point -- and the limb snapped to it -- never drifts. A
--- pooled part re-rolls when it is acquired again.
---
--- Nothing else depends on a step's orientation: every hit test, reach check and
--- grip offset is taken from step.Position in world space.
+-- pooled part re-rolls when it is acquired again. Nothing else depends on a
+-- step's orientation: every hit test and reach check is taken from its position
+-- in world space.
 -- ---------------------------------------------------------------------------
-local spin: { [BasePart]: number } = {}
+type StepState = Lane.StepState
+
+-- Per-spawn options for acquireStep. `params` reaches the step's behaviour as
+-- ctx.params (and its `sweep`); it is stored on the StepState, not on the part.
+-- nil = the kind's own defaults (StepKinds `params`). A Lane.SpawnRequest is a
+-- StepOpts: spawnStep below passes the lane's request straight through.
+type StepOpts = {
+	params: StepBehaviors.Params?,
+	upstream: number?, -- Lane.SpawnRequest.upstream -> StepState.upstream (the recycle bound's allowance)
+}
 
 local function rollSpin(): number
 	local t = math.random() ^ Config.STEP_SPIN_BIAS
@@ -407,61 +450,205 @@ local function rollSpin(): number
 	return math.rad(deg) * (if math.random() < 0.5 then -1 else 1)
 end
 
--- forward-declared: releaseStep and makeCtx reference each other
-local makeCtx: (lane: Lane.Lane, step: BasePart, player: Player?) -> StepBehaviors.Ctx
--- forward-declared: makeCtx's setSpawnBias scaffolds a direction change (defined with slideIn below)
-local scaffoldLane: (lane: Lane.Lane, anchorStep: BasePart) -> ()
+-- Grab recoil: an underdamped spring (PullMath.springStep) on StepState.recoil,
+-- kicked with RECOIL_KICK studs/s along the pull. An impulse v0 peaks at
+-- (v0 / omega) * e^(-zeta / root * atan(root / zeta)), root = sqrt(1 - zeta^2),
+-- so the kick is solved from Config.STEP_RECOIL_DISTANCE, the peak in studs.
+local RECOIL_OMEGA = 2 * math.pi * Config.STEP_RECOIL_FREQUENCY
+local RECOIL_ZETA = math.clamp(Config.STEP_RECOIL_DAMPING, 0.05, 0.95) -- springStep needs it underdamped
+local RECOIL_ROOT = math.sqrt(1 - RECOIL_ZETA * RECOIL_ZETA)
+local RECOIL_KICK = Config.STEP_RECOIL_DISTANCE
+	* RECOIL_OMEGA
+	/ math.exp(-RECOIL_ZETA / RECOIL_ROOT * math.atan2(RECOIL_ROOT, RECOIL_ZETA))
+local RECOIL_REST = 1e-3 -- studs; below this (and the matching speed) the spring is parked at exactly zero
+local SAG_REST = 1e-3
 
-local function releaseStep(lane: Lane.Lane, step: BasePart)
-	if not lane.active[step] then
-		return -- idempotent: behaviors and the bounds check can both recycle
+local function kickRecoil(lane: Lane.Lane, st: StepState)
+	if RECOIL_KICK <= 0 or RECOIL_OMEGA <= 0 then
+		return
 	end
-	local b = behaviorOf(step)
-	if b.onDestroy then
-		b.onDestroy(makeCtx(lane, step, lane.player))
-	end
-	forceReleaseStep(lane, step)
-	lane.active[step] = nil
-	spin[step] = nil
-	lane:forgetStep(step) -- out of any slide-in still playing (Lane motions)
-	step.Parent = nil
-	step:SetAttribute("LaneUserId", nil)
-	table.insert(pool, step)
+	local dir = lane.spawnDirection
+	-- a lane with no direction (never the case for a live level) dips straight down
+	local along = if dir.Magnitude < 1e-4 then Vector3.new(0, -1, 0) else Vector3.new(dir.X, dir.Y, 0).Unit
+	st.recoilVelocity += along * RECOIL_KICK
 end
 
-makeCtx = function(lane: Lane.Lane, step: BasePart, player: Player?): StepBehaviors.Ctx
-	local gen = step:GetAttribute("Gen")
-	local function stillValid(): boolean
-		return lane.active[step] == true and step:GetAttribute("Gen") == gen
+local function isHeldBy(f: FrogState?, step: BasePart): boolean
+	if f then
+		for i = 1, Config.MAX_HELD_STEPS do
+			if f.held[i] == step then
+				return true
+			end
+		end
 	end
-	return {
+	return false
+end
+
+-- Advance one step's own dynamics by `dt`: spin, drop-away, recoil, sag.
+-- (Motions, drift and the behaviour's onTick have already moved it this tick.)
+local function advanceStep(st: StepState, dt: number, held: boolean)
+	local rate = st.spinRate
+	if rate then
+		st.angle += rate * dt -- ungrabbed: keep tumbling
+	end
+
+	-- ctx.dropAway (Step.cs Fall: DOLocalMoveY(-100), here Quad/In over
+	-- DROP_TIME): played as increments of base travel, so a pull or drift that
+	-- runs meanwhile simply adds to it. The recycle bound ends it long before
+	-- the full DROP_DISTANCE.
+	local elapsed = st.dropElapsed
+	if elapsed then
+		local dropTime = math.max(Config.DROP_TIME, 1e-3)
+		local before = PullMath.quadIn(elapsed / dropTime)
+		elapsed += dt
+		local after = PullMath.quadIn(elapsed / dropTime)
+		st.base -= Vector3.new(0, Config.DROP_DISTANCE * (after - before), 0)
+		st.dropElapsed = if after >= 1 then nil else elapsed
+	end
+
+	if st.recoil ~= Vector3.zero or st.recoilVelocity ~= Vector3.zero then
+		local x, v = PullMath.springStep(st.recoil, st.recoilVelocity, dt, RECOIL_OMEGA, RECOIL_ZETA)
+		if x.Magnitude < RECOIL_REST and v.Magnitude < RECOIL_REST * RECOIL_OMEGA then
+			x, v = Vector3.zero, Vector3.zero -- settled: stop integrating (and stop re-writing the part)
+		end
+		st.recoil, st.recoilVelocity = x, v
+	end
+
+	local target = if held then Config.STEP_SAG_DISTANCE else 0
+	if st.sag ~= target then
+		local sag = st.sag + (target - st.sag) * PullMath.smoothAlpha(dt, Config.STEP_SAG_TIME)
+		st.sag = if math.abs(target - sag) < SAG_REST then target else sag
+	end
+end
+
+local function shownPosition(st: StepState): Vector3
+	return st.base + st.offset + st.recoil - Vector3.new(0, st.sag, 0)
+end
+
+-- Write `step`'s CFrame from its state right now. Only for a step being placed
+-- outside the per-tick batch: a fresh acquire, or slideIn moving a new batch
+-- off-screen before anyone has seen it.
+local function placeStep(step: BasePart, st: StepState)
+	local pos = shownPosition(st)
+	st.shownPosition = pos
+	st.shownAngle = st.angle
+	step.CFrame = CFrame.new(pos) * CFrame.Angles(0, 0, st.angle)
+end
+
+-- This tick's writes, for one workspace:BulkMoveTo at the end of the step
+-- Heartbeat. A step whose composed position and angle did not change (a grabbed
+-- step on a still Normal-mode lane) is left out, so it costs no write and no
+-- replication. Hoisted: cleared and refilled every tick rather than reallocated.
+local moveParts: { BasePart } = {}
+local moveCFrames: { CFrame } = {}
+
+local function queueStep(step: BasePart, st: StepState)
+	local pos = shownPosition(st)
+	if pos ~= st.shownPosition or st.angle ~= st.shownAngle then
+		st.shownPosition = pos
+		st.shownAngle = st.angle
+		table.insert(moveParts, step)
+		table.insert(moveCFrames, CFrame.new(pos) * CFrame.Angles(0, 0, st.angle))
+	end
+end
+
+-- forward-declared: releaseStep and ctxOf reference each other
+local releaseStep: (lane: Lane.Lane, step: BasePart) -> ()
+-- forward-declared: ctxOf's setSpawnBias scaffolds a direction change (defined with slideIn below)
+local scaffoldLane: (lane: Lane.Lane, anchorStep: BasePart) -> ()
+-- forward-declared: ctxOf's requestExtraPull (defined with the pull section below)
+local pullLane: (lane: Lane.Lane, distance: number, duration: number) -> ()
+
+-- Extra pulls a behaviour asked for from inside onTick are held until the step
+-- loop is over: a pull spawns steps, and adding to lane.states while the
+-- Heartbeat is iterating it is undefined.
+local ticking = false
+local deferredPulls: { { lane: Lane.Lane, distance: number } } = {}
+
+-- The behaviour context for one live step (StepBehaviors.Ctx): built the first
+-- time a hook needs it and kept on the StepState until the step is released, so
+-- a ticking step no longer costs a table and a dozen closures per frame. The
+-- StepState table is the step's generation -- a pooled part's next life gets a
+-- new one -- so `lane.states[step] == st` is "still the same live step". Every
+-- entry that acts on the part checks it, so a delayed call that outlived its
+-- step can't hit the part's next life even if the behaviour forgot stillValid().
+local function ctxOf(lane: Lane.Lane, step: BasePart, st: StepState): StepBehaviors.Ctx
+	local existing = st.ctx
+	if existing then
+		return existing
+	end
+	local function stillValid(): boolean
+		return lane.states[step] == st
+	end
+	local ctx: StepBehaviors.Ctx = {
 		step = step,
-		player = player,
+		player = lane.player, -- only the owning lane's player can ever grab or hold its steps
+		origin = lane.origin,
+		state = st.scratch,
+		params = st.params,
 		stillValid = stillValid,
+		isHeld = function()
+			return stillValid() and isHeldBy(frogs[lane.player], step)
+		end,
 		makeUnsteady = function()
-			step:SetAttribute("Unsteady", true) -- clients may shake/emit pebbles off this
+			if stillValid() then
+				step:SetAttribute("Unsteady", true) -- clients may shake/emit pebbles off this
+			end
 		end,
 		explode = function()
-			forceReleaseStep(lane, step)
-			releaseStep(lane, step) -- effects (pebbles/sound) are client polish, doc 05
+			if stillValid() then
+				releaseStep(lane, step) -- knocks the holder off too; effects (pebbles/sound) are client polish, doc 05
+			end
 		end,
 		dropAway = function()
+			if not stillValid() then
+				return
+			end
 			forceReleaseStep(lane, step)
-			local info = TweenInfo.new(Config.DROP_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.In)
-			-- `+ Vector3`, not `* CFrame.new`: a step that spun before it was grabbed
-			-- has a tilted local frame, and it must still fall straight down.
-			TweenService:Create(step, info, { CFrame = step.CFrame + Vector3.new(0, -Config.DROP_DISTANCE, 0) }):Play()
-			-- the bounds check below recycles it once it falls past DESPAWN_Y
+			if not st.dropElapsed then
+				st.dropElapsed = 0 -- advanceStep plays it; the bounds check recycles it past DESPAWN_Y
+			end
 		end,
 		forceRelease = function()
-			forceReleaseStep(lane, step)
+			if stillValid() then
+				forceReleaseStep(lane, step)
+			end
 		end,
 		getSpawnBias = function()
 			return lane.spawnDirection
 		end,
 		setSpawnBias = function(bias: Vector2)
-			if lane:changeDirection(bias) then
+			if stillValid() and lane:changeDirection(bias) then
 				scaffoldLane(lane, step)
+			end
+		end,
+		getRunSteps = function()
+			return lane.runSteps
+		end,
+		getBase = function()
+			return st.base
+		end,
+		moveBase = function(delta: Vector3)
+			if delta == delta then -- not NaN
+				st.base += delta
+			end
+		end,
+		setOffset = function(offset: Vector3)
+			if offset ~= offset then
+				return -- NaN
+			end
+			local length = offset.Magnitude
+			st.offset = if length > Config.STEP_OFFSET_MAX then offset * (Config.STEP_OFFSET_MAX / length) else offset
+		end,
+		requestExtraPull = function(distance: number)
+			if not stillValid() or distance ~= distance or distance <= 0 then
+				return
+			end
+			local capped = math.min(distance, Config.PULL_MAX_DISTANCE)
+			if ticking then
+				table.insert(deferredPulls, { lane = lane, distance = capped })
+			else
+				pullLane(lane, capped, PullMath.pullTime(capped))
 			end
 		end,
 		spawnBug = function()
@@ -474,12 +661,40 @@ makeCtx = function(lane: Lane.Lane, step: BasePart, player: Player?): StepBehavi
 			clearFling(step)
 		end,
 	}
+	st.ctx = ctx
+	return ctx
 end
 
-local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3): BasePart
+releaseStep = function(lane: Lane.Lane, step: BasePart)
+	local st = lane.states[step]
+	if not st then
+		return -- idempotent: behaviors and the bounds check can both recycle
+	end
+	local onDestroy = st.behavior.onDestroy
+	if onDestroy then
+		onDestroy(ctxOf(lane, step, st))
+	end
+	forceReleaseStep(lane, step)
+	-- Drops the StepState -- spin, offset, any drop-away in flight, the cached
+	-- ctx -- and takes the step out of any slide-in still playing (Lane motions),
+	-- so the pooled part carries nothing into its next life.
+	lane:untrackStep(step)
+	step.Parent = nil
+	step:SetAttribute("LaneUserId", nil)
+	table.insert(pool, step)
+end
+
+-- Take a step out of the pool for `lane`, dressed as `kindName`, at `worldPos`
+-- (its base). `opts.params` are this spawn's own parameters for the kind's
+-- behaviour (e.g. a Patrol's amplitude/period -- see each StepBehaviors entry),
+-- defaulting to the kind's own (StepKinds `params`); they live on the step's
+-- StepState, reach the behaviour as ctx.params, and are never re-read from
+-- attributes.
+local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3, opts: StepOpts?): BasePart
 	local kind = StepKinds[kindName]
 	local step = (table.remove(pool) or template:Clone()) :: BasePart
 	step:SetAttribute("Kind", "Step")
+	-- replicated spawn generation; the server's own "same life?" test is the StepState (ctxOf)
 	step:SetAttribute("Gen", ((step:GetAttribute("Gen") :: number?) or 0) + 1)
 	step:SetAttribute("Unsteady", false)
 	step:SetAttribute("Shrugged", false)
@@ -509,15 +724,40 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3)
 		art.Color3 = if kind and kind.color then kind.color else Color3.new(1, 1, 1)
 	end
 
-	step.CFrame = CFrame.new(worldPos) -- also clears any spin a previous life left on the part
-	if kindName == Lane.POT_RIM_KIND then
-		spin[step] = nil -- the pot's rim stays level
-	else
-		spin[step] = rollSpin()
+	-- A fresh StepState: no spin angle, offset, recoil, sag or drop-away from
+	-- the part's previous life, and an empty scratch table for the behaviour.
+	local st = lane:trackStep(step, worldPos)
+	local behavior = behaviorOf(step)
+	local params: StepBehaviors.Params? = opts and opts.params
+	if not params and kind then
+		params = kind.params
 	end
+	st.behavior = behavior
+	if params then
+		st.params = params
+	end
+	local upstream = opts and opts.upstream
+	if upstream and upstream == upstream and upstream > 0 then
+		st.upstream = upstream -- staged upstream on purpose: Lane.isOutOfBounds allows it that far past
+	end
+	if behavior.sweep then
+		st.sweep = behavior.sweep(params) -- reserved by Lane.clearSpot for every later spawn
+	end
+	if kindName ~= Lane.POT_RIM_KIND then
+		st.spinRate = rollSpin() -- the pot's rim stays level
+	end
+	if behavior.onSpawn then
+		behavior.onSpawn(ctxOf(lane, step, st)) -- after the attributes above: it may read HitSize
+	end
+	placeStep(step, st) -- before it is parented, so it never renders where its last life ended
 	step.Parent = container
-	lane.active[step] = true
 	return step
+end
+
+-- The spawn callback every Lane spawn path takes (Lane.SpawnFn): create the
+-- step a lane asked for (Lane.SpawnRequest), its per-spawn params included.
+local function spawnStep(lane: Lane.Lane, request: Lane.SpawnRequest): BasePart
+	return acquireStep(lane, request.kindName, request.position, request)
 end
 
 -- Recycle every one of this lane's live steps immediately (doc 15 item 1):
@@ -548,22 +788,33 @@ end
 -- previous pulls (used by the Tutorial's no-death fall rule below).
 -- ---------------------------------------------------------------------------
 -- Replicate a scroll so clients can move lane-local cosmetics (scenery, walls) in step.
-local function publishPull(lane: Lane.Lane, delta: Vector3, duration: number)
+-- `PullDelta` / `PullTime` / `PullCount` are the original contract, read by
+-- several client scripts, and stay exactly as they were. Two attributes ride
+-- along for world/PullScroller, both written BEFORE the PullCount bump:
+--   * `PullLinear` -- true for a Classic drift chunk, which the steps themselves
+--     travelled at constant speed; a grab's pull is eased (Lane.addMotion).
+--   * `PullTotal`  -- the sum of every delta published since the lane's pulls
+--     last started over (Lane.resetRun zeroes it and bumps `PullEpoch`). Two
+--     pulls published in one server frame -- a drift chunk and a grab, the
+--     Tutorial pull-back and another -- can reach a client as ONE change showing
+--     only the second delta; the total lets the scroller see what it missed.
+local function publishPull(lane: Lane.Lane, delta: Vector3, duration: number, linear: boolean?)
+	local total = lane.folder:GetAttribute("PullTotal")
 	lane.folder:SetAttribute("PullDelta", delta)
 	lane.folder:SetAttribute("PullTime", duration)
+	lane.folder:SetAttribute("PullLinear", linear == true)
+	lane.folder:SetAttribute("PullTotal", (if typeof(total) == "Vector3" then total else Vector3.zero) + delta)
 	lane.folder:SetAttribute("PullCount", ((lane.folder:GetAttribute("PullCount") :: number?) or 0) + 1)
 end
 
-local function pullLane(lane: Lane.Lane, distance: number, duration: number)
+pullLane = function(lane: Lane.Lane, distance: number, duration: number)
 	local delta = lane:addPull(distance, duration)
 	if not delta then
 		return
 	end
 	publishPull(lane, delta, duration)
 	if distance > 0 then
-		lane:spawnForPull(distance, function(_state, kindName, worldPos)
-			acquireStep(lane, kindName, worldPos)
-		end)
+		lane:spawnForPull(distance, spawnStep)
 	end
 end
 
@@ -573,6 +824,7 @@ end
 -- outside the camera band (Lane.entryShift), then play that shift back over
 -- Config.SLIDE_IN_TIME. Where they come to rest is unchanged. `from` overrides
 -- the travel direction (the direction-change scaffold always drops in from the top).
+-- `steps` is only read here (the Heartbeat passes its reused batch table).
 local function slideIn(lane: Lane.Lane, steps: { BasePart }, from: Vector2?)
 	local dir = from or lane.spawnDirection
 	if #steps == 0 or dir.Magnitude < 1e-4 then
@@ -581,15 +833,21 @@ local function slideIn(lane: Lane.Lane, steps: { BasePart }, from: Vector2?)
 	local u = Vector3.new(dir.X, dir.Y, 0).Unit
 	local shift = 0
 	for _, step in steps do
-		shift = math.max(shift, lane:entryShift(step.Position, step.Size, u))
+		shift = math.max(shift, lane:entryShift(lane:basePosition(step), step.Size, u))
 	end
 	if shift <= 0 then
 		return
 	end
 	local set: { [BasePart]: boolean } = {}
 	for _, step in steps do
-		step.CFrame -= u * shift
-		set[step] = true
+		local st = lane.states[step]
+		if st then
+			st.base -= u * shift
+			-- written now, not left to the next Heartbeat's batch: this can run from
+			-- a remote handler, and the part must not replicate at its rest point first
+			placeStep(step, st)
+			set[step] = true
+		end
 	end
 	lane:addMotion(u * shift, Config.SLIDE_IN_TIME, set)
 end
@@ -597,8 +855,8 @@ end
 -- Prefill `lane` (Lane.prefill) and slide the batch in.
 local function prefillLane(lane: Lane.Lane)
 	local batch: { BasePart } = {}
-	lane:prefill(function(_state, kindName, worldPos)
-		table.insert(batch, acquireStep(lane, kindName, worldPos))
+	lane:prefill(function(_lane, request)
+		table.insert(batch, spawnStep(lane, request))
 	end)
 	slideIn(lane, batch)
 end
@@ -609,29 +867,49 @@ end
 -- b-20260921-182631-0a8u, doc 17).
 scaffoldLane = function(lane: Lane.Lane, anchorStep: BasePart)
 	local batch: { BasePart } = {}
-	lane:scaffold(lane:restPosition(anchorStep), function(kindName, worldPos)
-		table.insert(batch, acquireStep(lane, kindName, worldPos))
+	lane:scaffold(lane:restPosition(anchorStep), function(_lane, request)
+		table.insert(batch, spawnStep(lane, request))
 	end)
 	slideIn(lane, batch, Vector2.new(0, -1))
 end
 
+-- The Heartbeat's per-lane spawn batch (the Tutorial ladder's one-shot batch,
+-- the pot's rim) and the callback that fills it, hoisted so an ordinary tick --
+-- where neither spawns anything -- allocates nothing. Cleared per lane, and only
+-- filled by the two Lane calls right after that.
+local spawnBatch: { BasePart } = {}
+
+local function spawnIntoBatch(lane: Lane.Lane, request: Lane.SpawnRequest)
+	table.insert(spawnBatch, spawnStep(lane, request))
+end
+
 -- Per-lane motion/spawn tick + per-tick behavior hook (Falling's constant drift,
--- doc 05) + recycle steps that leave the lane's bounds on any side (doc 13
--- item 4 -- Borders: Left/Right/Top/Bottom catch, not just the lava line).
-RunService.Heartbeat:Connect(function(dt: number)
+-- a Patrol's sweep, doc 05) + each step's own dynamics (advanceStep) + recycle
+-- steps that leave the lane's bounds on any side (doc 13 item 4 -- Borders:
+-- Left/Right/Top/Bottom catch, not just the lava line), then ONE batched write
+-- of every step that moved (the step motion layer above).
+--
+-- Connected before the frog Heartbeat further down, which snaps held limbs to
+-- the CFrames written here -- keep it that way.
+RunService.Heartbeat:Connect(function(frameDt: number)
+	-- A hitch (or a paused server resuming) would otherwise play as one giant
+	-- step: a pull finishing instantly, a drift chunk teleporting the field.
+	local dt = math.min(frameDt, Config.MAX_TICK_DT)
+	-- Reset here as well as after each lane's loop: if anything in that loop
+	-- errored last frame the flag was left set, and every extra pull asked for
+	-- from an onGrab would be deferred to a flush this callback never reached.
+	ticking = false
+	table.clear(moveParts)
+	table.clear(moveCFrames)
 	for _, lane in Lane.iter() do
 		lane:advanceMotions(dt)
 		if runState[lane.player] ~= RunState.Playing then
-			continue -- Menu/Dead: idle lane, no spawning (doc 15 item 1)
+			continue -- Menu/Dead: idle lane, no spawning (doc 15 item 1) -- and no steps to move
 		end
-		local batch: { BasePart } = {}
-		lane:tickSpawners(dt, function(_state, kindName, worldPos)
-			table.insert(batch, acquireStep(lane, kindName, worldPos))
-		end)
-		lane:spawnRim(function(kindName, worldPos) -- the pot's rim, once the Pot is climbed
-			table.insert(batch, acquireStep(lane, kindName, worldPos))
-		end)
-		slideIn(lane, batch) -- the Tutorial ladder's one-shot batch, the pot's rim
+		table.clear(spawnBatch)
+		lane:tickSpawners(dt, spawnIntoBatch)
+		lane:spawnRim(spawnIntoBatch) -- the pot's rim, once the Pot is climbed
+		slideIn(lane, spawnBatch) -- the Tutorial ladder's one-shot batch, the pot's rim
 
 		-- Classic mode (Config.CLASSIC_SCROLL_SPEED, doc 17): the world keeps
 		-- scrolling whether or not anything is held, once the first grab has armed
@@ -642,11 +920,8 @@ RunService.Heartbeat:Connect(function(dt: number)
 		if f and f.canFall and not f.dead then
 			local chunk, chunkTime = lane:drift(dt, lane:driftSpeed(dt))
 			if chunk and chunkTime then
-				local dir = lane.spawnDirection
-				publishPull(lane, Vector3.new(dir.X, dir.Y, 0).Unit * chunk, chunkTime)
-				lane:spawnForPull(chunk, function(_state, kindName, worldPos)
-					acquireStep(lane, kindName, worldPos)
-				end, chunk * Config.CLASSIC_SPAWN_PER_STUD)
+				publishPull(lane, lane.travel * chunk, chunkTime, true) -- linear: the steps drifted at constant speed
+				lane:spawnForPull(chunk, spawnStep, chunk * Config.CLASSIC_SPAWN_PER_STUD)
 			end
 			-- A held step carried down into the lava (or off the lane's side) is
 			-- let go, so the frog has to keep climbing or fall in after it.
@@ -665,19 +940,51 @@ RunService.Heartbeat:Connect(function(dt: number)
 			end
 		end
 
-		for step in pairs(lane.active) do
-			local b = behaviorOf(step)
-			if b.onTick then
-				b.onTick(makeCtx(lane, step, lane.player), dt)
+		-- What the lane's pulls still owe every step: once per lane, not once per
+		-- step inside the bounds check.
+		local pending = lane:sharedPending()
+		ticking = true
+		for step, st in lane.states do
+			local onTick = st.behavior.onTick
+			if onTick then
+				-- Isolated: one step's behaviour erroring must not abort the whole
+				-- Heartbeat (every lane's steps after it would freeze, unwritten). The
+				-- step keeps its place as a plain foothold -- its hooks are dropped so
+				-- it can't error again next frame -- and the error is reported once.
+				-- (the cast: onTick returns nothing, so its typed pcall has no error slot)
+				local ok, err = pcall(onTick :: (...any) -> ...any, ctxOf(lane, step, st), dt)
+				if not ok then
+					local kindName = tostring(step:GetAttribute("KindName"))
+					warn(("[GameServer] %s onTick failed: %s"):format(kindName, tostring(err)))
+					st.behavior = StepBehaviors.None
+				end
+				if lane.states[step] ~= st then
+					continue -- the behaviour recycled its own step
+				end
 			end
-			local rate = spin[step]
-			if rate then
-				step.CFrame *= CFrame.Angles(0, 0, rate * dt) -- ungrabbed: keep tumbling
-			end
-			if lane:isOutOfBounds(step) then
+			advanceStep(st, dt, isHeldBy(f, step))
+			if lane:isOutOfBounds(step, pending) then
 				releaseStep(lane, step)
+			else
+				queueStep(step, st)
 			end
 		end
+		ticking = false
+	end
+
+	if #moveParts > 0 then
+		-- FireCFrameChanged: nothing on the server listens for a step's
+		-- Position/Orientation changing, so skip those per-part signals.
+		workspace:BulkMoveTo(moveParts, moveCFrames, Enum.BulkMoveMode.FireCFrameChanged)
+	end
+
+	if #deferredPulls > 0 then
+		for _, request in deferredPulls do
+			if Lane.get(request.lane.player) == request.lane then
+				pullLane(request.lane, request.distance, PullMath.pullTime(request.distance))
+			end
+		end
+		table.clear(deferredPulls)
 	end
 end)
 
@@ -1149,32 +1456,38 @@ end
 -- DOMoveY overrides Unity's per-frame Translate. The multiplier keeps growing
 -- through it, as in Unity.
 
--- DOTween Ease.OutSine from `tw.from` to `tw.to`; second result is "finished".
+-- DOTween Ease.OutSine (PullMath.sineOut, the curve Lane's pulls share) from
+-- `tw.from` to `tw.to`; second result is "finished".
 local function bobTweenValue(tw: BobTween, now: number): (number, boolean)
 	if tw.duration <= 0 then
 		return tw.to, true
 	end
-	local a = math.clamp((now - tw.started) / tw.duration, 0, 1)
-	return tw.from + (tw.to - tw.from) * math.sin(a * math.pi / 2), a >= 1
+	local a = (now - tw.started) / tw.duration
+	return tw.from + (tw.to - tw.from) * PullMath.sineOut(a), a >= 1
 end
 
 -- DOPunchRotation(strength, 1 s, vibrato 1, elasticity 1): DOTween splits it
--- into 2 segments (1/3 and 2/3 of the duration): out to the punch, back to 0.
+-- into 2 segments (Config.BOB_ROCK_OUT_FRACTION = 1/3 of the duration, then the
+-- other 2/3): out to the punch, back to 0.
 -- nil once it's over (the trailing DORotate(zero) is then a no-op).
 local function rockAngle(r: { angle: number, started: number }, now: number): number?
 	local t = (now - r.started) / Config.BOB_ROCK_TIME
 	if t >= 1 then
 		return nil
 	end
-	if t < 1 / 3 then
-		local u = t * 3
+	local out = Config.BOB_ROCK_OUT_FRACTION
+	if t < out then
+		local u = t / out
 		return r.angle * (1 - (1 - u) * (1 - u))
 	end
-	local u = (t - 1 / 3) * 1.5
+	local u = (t - out) / (1 - out)
 	return r.angle * (1 - (1 - (1 - u) * (1 - u)))
 end
 
-RunService.Heartbeat:Connect(function(dt: number)
+-- Connected after the step Heartbeat above on purpose: the limb loop below
+-- snaps a held hand to its step's CFrame, which that Heartbeat has just written.
+RunService.Heartbeat:Connect(function(frameDt: number)
+	local dt = math.min(frameDt, Config.MAX_TICK_DT) -- a hitch must not drop the frog a screen in one tick
 	for plr, f in pairs(frogs) do
 		local lane = Lane.get(plr)
 		if not lane then
@@ -1282,7 +1595,10 @@ RunService.Heartbeat:Connect(function(dt: number)
 				limbPart.CFrame = reach.from:Lerp(reach.to, 1 - (1 - t) * (1 - t))
 			else
 				local target = bodyCF * f.limbOffsets[i]
-				local alpha = math.clamp(dt / Config.LIMB_RETURN_TIME, 0, 1)
+				-- Exponential, so the ease has the same shape at any frame rate
+				-- (the old `dt / LIMB_RETURN_TIME` closed a different share of the
+				-- gap per second at 30 Hz than at 60); same feel at 60 Hz.
+				local alpha = PullMath.smoothAlpha(dt, Config.LIMB_RETURN_TIME)
 				limbPart.CFrame = limbPart.CFrame:Lerp(target, alpha)
 				-- the empty hand stays open (Reaching) until it's home again
 				if reach and (limbPart.Position - target.Position).Magnitude < 0.5 then
@@ -1371,11 +1687,23 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	if not lane or step:GetAttribute("LaneUserId") ~= lane.userId or not lane.active[step] then
 		return
 	end
+	local st = lane.states[step]
+	if not st then
+		return -- active steps always have one (Lane.trackStep); keeps the type checker honest
+	end
 	if runState[player] ~= RunState.Playing then
 		return -- doc 15 item 1: no grabs outside an active run (Menu/Dead lanes are idle/empty anyway)
 	end
 	local f = frogs[player]
 	if not f or f.dead then
+		ForceRelease:FireClient(player, step)
+		return
+	end
+	-- A step that is dropping away (ctx.dropAway: Fall, Vanish) has already
+	-- shaken its holder off and is on its way to the recycle line; it stays
+	-- active, and within reach, for the first part of the drop. It can't be
+	-- caught again -- that would score a climb and aim a pull at a falling step.
+	if st.dropElapsed then
 		ForceRelease:FireClient(player, step)
 		return
 	end
@@ -1422,8 +1750,10 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- scaled by the step's distance from the target line (SpawnManager.PullVector).
 	local grip = (step:GetAttribute("GripOffset") :: Vector2?) or Vector2.zero
 	-- rotated with the step, as the limb-follow loop does, so a step grabbed
-	-- mid-spin pulls its actual grip point to the target line
-	local gripRest = lane:restPosition(step) + step.CFrame.Rotation * Vector3.new(grip.X, grip.Y, 0)
+	-- mid-spin pulls its actual grip point to the target line. The rest point is
+	-- the step's BASE (Lane.restPosition): recoil, sag or a patrol's sweep must
+	-- not change how far the field scrolls.
+	local gripRest = lane:restPosition(step) + CFrame.Angles(0, 0, st.angle) * Vector3.new(grip.X, grip.Y, 0)
 	local distance =
 		PullMath.pullDistance(Vector2.new(gripRest.X - lane.origin.X, gripRest.Y - lane.origin.Y), lane.spawnDirection)
 	-- ...then a little further while any step would come to rest under the
@@ -1446,9 +1776,7 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 		-- Pot -> Kitchen on the rim (Lane.spawnRim): nothing spawned above it, and
 		-- this grab's pull spent its spawner window on the Pot, so give Kitchen's
 		-- spawners that window along the same pull
-		lane:spawnForPull(distance, function(_state, spawnKind, worldPos)
-			acquireStep(lane, spawnKind, worldPos)
-		end)
+		lane:spawnForPull(distance, spawnStep)
 	end
 
 	-- Player.cs TouchStep: the first grab of a (pullable) step arms falling --
@@ -1458,10 +1786,11 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- step behaviors (doc 05): track the holding limb, then dispatch onGrab
 	endReach(f, limb)
 	f.held[limb] = step
-	spin[step] = nil -- grabbed: the tumble stops here and never resumes for this step
-	local b = behaviorOf(step)
-	if b.onGrab then
-		b.onGrab(makeCtx(lane, step, player))
+	st.spinRate = nil -- grabbed: the tumble stops here and never resumes for this step
+	kickRecoil(lane, st) -- the step dips along the pull and springs back; the limb rides it
+	local onGrab = st.behavior.onGrab
+	if onGrab and lane.states[step] == st then
+		onGrab(ctxOf(lane, step, st))
 	end
 end)
 
@@ -1488,9 +1817,10 @@ ReleaseStep.OnServerEvent:Connect(function(player, limbIndex, step)
 	if not held then
 		return
 	end
-	local b = behaviorOf(step)
-	if b.onRelease and lane.active[step] then
-		b.onRelease(makeCtx(lane, step, player))
+	local st = lane.states[step]
+	local onRelease = st and st.behavior.onRelease
+	if st and onRelease then
+		onRelease(ctxOf(lane, step, st))
 	end
 end)
 
@@ -1782,10 +2112,9 @@ Players.PlayerRemoving:Connect(function(player: Player)
 		for step in pairs(lane.active) do
 			step.Parent = nil
 			step:SetAttribute("LaneUserId", nil)
-			spin[step] = nil
 			table.insert(pool, step)
 		end
-		lane:destroy()
+		lane:destroy() -- drops every StepState with the lane
 	end
 	sessionScore[player] = nil
 	grabQuality[player] = nil

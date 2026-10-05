@@ -1,7 +1,7 @@
 @echo off
 rem bugloop for this project (installed by /bugloop init). Run from the project root like `rojo serve`:
-rem   bugloop                 daily: listener in the background + the fixer-loop session in this window (rojo serve stays yours)
-rem   bugloop down            stop that background listener
+rem   bugloop                 daily: listener + fixer loop in the background, attached in this window (rojo serve stays yours)
+rem   bugloop down            stop the fixer loop and that background listener
 rem   bugloop serve           only the listener, in this window (like `rojo serve`)
 rem   bugloop launch          only the fixer-loop Claude Code session
 rem   bugloop status | pending | add "note" | projects | upgrade ...   any bugloop.py command

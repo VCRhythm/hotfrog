@@ -11,9 +11,9 @@
 -- requires this module (doc 13 item 7).
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
-local TweenService = game:GetService("TweenService")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local PullMath = require(ReplicatedStorage.Shared.PullMath)
 local Levels = require(ReplicatedStorage.Shared.Levels)
 local StepKinds = require(ReplicatedStorage.Shared.StepKinds)
 local StepBehaviors = require(ReplicatedStorage.Shared.StepBehaviors)
@@ -47,6 +47,47 @@ export type Motion = {
 	only: { [BasePart]: boolean }?,
 }
 
+-- One live step's motion state (the "step motion layer"; GameServer composes it
+-- into the part's CFrame once per Heartbeat, and is the only writer of that
+-- CFrame). A step part is pooled and its CFrame used to be its only state, with
+-- four writers adding to it each tick; anything that wobbles would then have
+-- leaked into spawn spacing and pull aim, which read the part's Position. So the
+-- state is split:
+--   * `base` is where the step logically IS. Motions (pulls, slide-ins), Classic
+--     drift, Falling and a drop-away move it, and everything in this module that
+--     asks "where is / where will this step rest" reads it.
+--   * `offset`, `recoil` and `sag` are bounded visual displacement on top, and
+--     `angle` the idle spin. They are in the replicated CFrame (so taps and a
+--     held limb follow them) but never in `base`.
+-- Created by Lane.trackStep when GameServer.acquireStep takes a part out of the
+-- pool, dropped by Lane.untrackStep when it goes back. The table itself is the
+-- step's generation: a pooled part's next life gets a new one.
+export type StepState = {
+	base: Vector3,
+	angle: number, -- Z rotation, radians (idle spin, frozen on grab)
+	spinRate: number?, -- rad/s while it still tumbles; nil once grabbed (and for the pot's rim)
+	offset: Vector3, -- the behaviour's visual offset (StepBehaviors ctx.setOffset)
+	-- How far `offset` may carry the step from `base`, per axis (the behaviour's
+	-- `sweep`); clearSpot keeps other steps' grab boxes out of that whole extent.
+	sweep: Vector2,
+	recoil: Vector3, -- grab-recoil spring displacement and velocity (GameServer)
+	recoilVelocity: Vector3,
+	sag: number, -- studs the step currently hangs below its base under a held limb
+	dropElapsed: number?, -- seconds into a drop-away (ctx.dropAway); nil when not dropping
+	-- Studs this step was deliberately staged upstream of an ordinary spawn (a
+	-- pattern member behind the ones before it, SpawnRequest.upstream); 0 for
+	-- every other step. Lane.isOutOfBounds allows it that much past the bounds.
+	upstream: number,
+	behavior: StepBehaviors.Behavior, -- resolved once at acquire, not re-read from the attribute each tick
+	params: StepBehaviors.Params, -- this spawn's parameters (acquireStep opts.params)
+	scratch: { [string]: any }, -- the behaviour's own per-step state (ctx.state)
+	ctx: StepBehaviors.Ctx?, -- built on first use, reused until the step is released
+	shownPosition: Vector3, -- what the part's CFrame was last written from,
+	shownAngle: number, -- so an unchanged step costs no write (or replication)
+}
+
+local NO_PARAMS: StepBehaviors.Params = table.freeze({})
+
 local Lane = {}
 Lane.__index = Lane
 
@@ -60,9 +101,16 @@ export type Lane = typeof(setmetatable(
 		levelIndex: number,
 		level: Levels.Level,
 		spawnDirection: Vector2,
+		-- spawnDirection as a unit Vector3 on the play plane (zero when the lane
+		-- has no direction): the way this lane's steps travel. Kept in step with
+		-- spawnDirection by setTravel, its only writer.
+		travel: Vector3,
 		spawnerStates: { SpawnerState },
 		activeSpawners: { SpawnerState },
 		active: { [BasePart]: boolean }, -- this lane's own live steps
+		-- Each live step's motion state (StepState above), same keys as `active`
+		-- (Lane.trackStep / Lane.untrackStep keep the two in step).
+		states: { [BasePart]: StepState },
 		-- Pulls and slide-ins still playing (Lane.addMotion / advanceMotions).
 		motions: { Motion },
 		-- Net forward scroll (studs) accumulated since this level began, floored at 0.
@@ -105,6 +153,18 @@ export type Lane = typeof(setmetatable(
 		-- the lane isn't drifting (Lane.obstructionExtra / Lane.clearSpot).
 		obstruction: Rect?,
 		runSteps: number, -- steps climbed this run, across levels (drives LEVEL_THRESHOLDS)
+		-- runSteps when this lane entered its current level (Lane.setLevel): what a
+		-- level flagged `stagesFromEntry` (Levels.luau) counts its height stages and
+		-- event thresholds from, since the step a level really begins on varies.
+		levelStartSteps: number,
+		-- Fairness guard (Lane.pickKind): a ring of this lane's last
+		-- Config.HAZARD_WINDOW spawned steps -- true = a StepKinds `hazard` kind --
+		-- with its write cursor and how many of them are true.
+		recentHazards: { boolean },
+		recentCursor: number,
+		hazardCount: number,
+		-- Levels EventDef name -> runSteps when it last fired on this lane (its cooldown).
+		eventLast: { [string]: number },
 		tutorialStepsClimbed: number,
 		-- Tutorial "no death" protection (GameServer.tutorialRetry), true for a run
 		-- that started in the Tutorial and hasn't yet grabbed a real (non-tree) step.
@@ -120,6 +180,21 @@ export type Lane = typeof(setmetatable(
 	},
 	Lane
 ))
+
+-- One step a lane wants created: the single shape every spawn path -- spawner,
+-- pattern, event, prefill, the Tutorial batch, scaffold, the pot's rim -- hands
+-- to GameServer, which owns the pooled Instances (acquireStep). `position` is
+-- where to create the part NOW: its rest point less whatever the lane's running
+-- pulls still owe it.
+export type SpawnRequest = {
+	kindName: string,
+	position: Vector3,
+	params: StepBehaviors.Params?, -- the behaviour's parameters for this spawn (StepKinds default or a pattern member's)
+	spawner: SpawnerState?, -- the spawner it came from; nil for the scaffold and the rim
+	source: string, -- "spawner" | "pattern" | "event" | "prefill" | "awake" | "scaffold" | "rim"
+	upstream: number?, -- studs it is staged past an ordinary spawn's spot (StepState.upstream); nil = 0
+}
+export type SpawnFn = (lane: Lane, request: SpawnRequest) -> ()
 
 -- ---------------------------------------------------------------------------
 -- Registry + slot allocation. Slots are reused (doc 13 item 1): the first lane
@@ -180,6 +255,13 @@ local function directionKey(v: Vector2): string
 	return signOf(v.X) .. "," .. signOf(v.Y)
 end
 
+-- The one place a lane's direction is set: keeps `travel` (the unit Vector3
+-- every pull, drift and spawn moves along) in step with `spawnDirection`.
+local function setTravel(self: Lane, direction: Vector2)
+	self.spawnDirection = direction
+	self.travel = if direction.Magnitude < 1e-4 then Vector3.zero else Vector3.new(direction.X, direction.Y, 0).Unit
+end
+
 function Lane.spawnersForDirection(self: Lane, dir: Vector2): { SpawnerState }
 	local key = directionKey(dir)
 	local out: { SpawnerState } = {}
@@ -202,7 +284,9 @@ function Lane.setLevel(self: Lane, levelIndex: number)
 	self.levelIndex = levelIndex
 	local level = Levels.list[levelIndex]
 	self.level = level
-	self.spawnDirection = level.initialSpawnDirection
+	setTravel(self, level.initialSpawnDirection)
+	self.eventLast = {} -- event cooldowns are per level
+	self.levelStartSteps = self.runSteps -- the level's own step count starts here (stageSteps)
 	self.netPull = 0 -- fresh scroll baseline for this level (see Lane.addPull)
 	self.introIndex = 1 -- fresh cursor into the new level's introSequence, if any
 
@@ -241,27 +325,40 @@ function Lane.changeDirection(self: Lane, newDirection: Vector2): boolean
 		return false
 	end
 	local changed = directionKey(newDirection) ~= directionKey(self.spawnDirection)
-	self.spawnDirection = newDirection
+	setTravel(self, newDirection)
 	self.activeSpawners = matches
 	return changed
 end
 
 -- ---------------------------------------------------------------------------
 -- Height-stage lookup (b-20260923-154344-dr8a, journey 3/8): the stage from
--- `self.level.heightStages` (Levels.luau, currently only Pot) whose
+-- `self.level.heightStages` (Levels.luau: Pot, Kitchen, Country) whose
 -- `maxRunSteps` bound isn't yet passed, plus its 1-based index -- nil, nil for
--- a level with no heightStages (every level but Pot) or an empty runSteps-less
--- lane. Used by both Lane.pickKind (weight overrides) and
--- Lane.updateStageAttribute (the replicated `Stage` attribute WorldScenery
--- reads for its Bubble/Flame density).
+-- a level with no heightStages (Menu, Tutorial). The bounds are in stageSteps:
+-- the whole run's steps for the Pot, steps since the lane entered the level for
+-- Kitchen and Country (Levels `stagesFromEntry`). Used by both Lane.pickKind
+-- (weight overrides) and Lane.updateStageAttribute (the replicated `Stage`
+-- attribute WorldScenery reads for its Bubble/Flame density).
 -- ---------------------------------------------------------------------------
+
+-- The step count this lane's level measures its height stages and event
+-- thresholds in. A level flagged `stagesFromEntry` counts from where the lane
+-- entered it: Kitchen does not begin at LEVEL_THRESHOLDS.Kitchen but a few steps
+-- later -- the rim is laid there, and the Pot steps still below it plus the rim
+-- grab itself all count -- so bounds written as "threshold + n" cut its first
+-- stage short by however many that was. Every other level counts the whole run.
+local function stageSteps(self: Lane): number
+	return if self.level.stagesFromEntry then self.runSteps - self.levelStartSteps else self.runSteps
+end
+
 local function currentHeightStage(self: Lane): (Levels.HeightStage?, number?)
 	local stages = self.level.heightStages
 	if not stages then
 		return nil, nil
 	end
+	local steps = stageSteps(self)
 	for i, stage in stages do
-		if self.runSteps < stage.maxRunSteps then
+		if steps < stage.maxRunSteps then
 			return stage, i
 		end
 	end
@@ -289,85 +386,183 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Weighted kind pick (Spawning/Spawner.cs SetUpSpawnProbabilities + CreateSpawn):
--- normalize spawnProbability over the spawner's own pool, roll, then gate on the
+-- normalize spawnProbability over the spawner's own pool, roll, and gate on the
 -- picked kind's behavior canSpawn (StepSpawner.CreateSpawn's canBeSpawned retry
--- loop). Bounded retries instead of Unity's unbounded recursion, with a final
--- deterministic fallback so a pathological all-gated pool can't spawn nothing.
+-- loop). Unity re-rolls until a kind passes; rolling once over only the kinds
+-- that pass (pickWeighted) is the same distribution with no retries, and a
+-- deterministic fallback means a pathological all-gated pool still spawns.
 --
 -- Height-stage weight overrides (b-20260923-154344-dr8a): when the lane's
--- level has heightStages (Pot only), the current stage's `weights[kindName]`
--- replaces StepKinds[kindName].spawnProbability for any pool kind it lists;
--- kinds it doesn't list keep their normal StepKinds weight. A level with no
--- heightStages picks exactly as before.
+-- level has heightStages, the current stage's `weights[kindName]` replaces
+-- StepKinds[kindName].spawnProbability for any pool kind it lists; kinds it
+-- doesn't list keep their normal StepKinds weight.
+--
+-- Fairness guard (PORT ADDITION, doc 17). StepKinds flags the kinds that take
+-- themselves away (crumble, timed, falling) as `hazard`. The lane remembers its
+-- last Config.HAZARD_WINDOW spawned steps (noteSpawn), and while
+-- HAZARD_MAX_RECENT of them were hazards the pick is made over the safe kinds
+-- only, so hazards can never crowd out everything else on screen. A `plain`
+-- pick (scaffold rungs, free pattern members) is always safe and also leaves
+-- out the direction arrows.
 -- ---------------------------------------------------------------------------
-function Lane.pickKind(self: Lane, state: SpawnerState): string?
+
+-- What one pick is choosing under. A single table reused by every pick (nothing
+-- here yields), so picking allocates no closures or tables.
+type PickQuery = {
+	direction: Vector2, -- the lane's spawn direction, for canSpawn
+	spawnCount: number, -- the spawner's count so far, for canSpawn
+	weights: { [string]: number }?, -- the current height stage's overrides
+	plain: boolean, -- no arrows
+	safe: boolean, -- no hazards
+}
+local query: PickQuery = { direction = Vector2.zero, spawnCount = 0, weights = nil, plain = false, safe = false }
+
+local function kindWeight(kindName: string, q: PickQuery): number
+	local weights = q.weights
+	local override = weights and weights[kindName]
+	if override then
+		return override
+	end
+	local kind = StepKinds[kindName]
+	return if kind then kind.spawnProbability else 0
+end
+
+-- The query's static filters: arrows out of a plain pick, hazards out of a safe one.
+local function suits(kindName: string, q: PickQuery): boolean
+	local kind = StepKinds[kindName]
+	if not kind then
+		return true
+	end
+	return not (q.plain and kind.isArrow) and not (q.safe and kind.hazard)
+end
+
+-- ...plus the kind's own behaviour gate (Step.cs canBeSpawned).
+local function admits(kindName: string, q: PickQuery): boolean
+	if not suits(kindName, q) then
+		return false
+	end
+	local kind = StepKinds[kindName]
+	local behavior = kind and StepBehaviors[kind.behavior]
+	local canSpawn = behavior and behavior.canSpawn
+	return not canSpawn or canSpawn(q.direction, q.spawnCount)
+end
+
+-- One weighted draw from `pool` in a single pass: each admitted entry replaces
+-- the running choice with probability weight / (total so far), which leaves
+-- every entry chosen with probability weight / total. nil when nothing admitted
+-- has a positive weight.
+local function pickWeighted<T>(
+	pool: { string },
+	weightOf: (kindName: string, arg: T) -> number,
+	gate: (kindName: string, arg: T) -> boolean,
+	arg: T
+): string?
+	local total = 0
+	local chosen: string? = nil
+	for _, kindName in pool do
+		if gate(kindName, arg) then
+			local weight = weightOf(kindName, arg)
+			if weight > 0 then
+				total += weight
+				if math.random() * total < weight then
+					chosen = kindName
+				end
+			end
+		end
+	end
+	return chosen
+end
+
+-- Record a spawned step in the fairness guard's ring.
+local function noteSpawn(self: Lane, kindName: string)
+	local kind = StepKinds[kindName]
+	local hazard = kind ~= nil and kind.hazard == true
+	local i = self.recentCursor % Config.HAZARD_WINDOW + 1
+	if self.recentHazards[i] then
+		self.hazardCount -= 1
+	end
+	self.recentHazards[i] = hazard
+	if hazard then
+		self.hazardCount += 1
+	end
+	self.recentCursor = i
+end
+
+local function resetRecent(self: Lane)
+	table.clear(self.recentHazards)
+	self.recentCursor = 0
+	self.hazardCount = 0
+end
+
+-- Is the level's scripted intro (Levels introSequence) still being handed out?
+-- Only while a spawner that can hand out its next kind is running: pickKind
+-- leaves the cursor alone for any other, so a lane that turned away mid-intro
+-- (Kitchen's RightRock only comes off its DownStepSpawner) would otherwise stay
+-- "pending" -- and keep patterns and events off -- for as long as it travels
+-- that way. The cursor itself is kept; the intro resumes if the lane turns back.
+local function introPending(self: Lane): boolean
+	local intro = self.level.introSequence
+	if not intro or self.introIndex > #intro then
+		return false
+	end
+	local kindName = intro[self.introIndex]
+	for _, state in self.activeSpawners do
+		if table.find(state.def.pool, kindName) then
+			return true
+		end
+	end
+	return false
+end
+
+-- `plain` = an ordinary foothold: never an arrow, never a hazard.
+function Lane.pickKind(self: Lane, state: SpawnerState, plain: boolean?): string?
 	local pool = state.def.pool
 	if #pool == 0 or self:atPotTop() then
 		return nil -- nothing spawns above the pot's rim (Lane.spawnRim)
 	end
 
-	local function canSpawnKind(kindName: string): boolean
-		local kind = StepKinds[kindName]
-		local behavior = kind and StepBehaviors[kind.behavior]
-		return not behavior or not behavior.canSpawn or behavior.canSpawn(self.spawnDirection, state.spawnCount)
-	end
+	local stage = currentHeightStage(self)
+	local q = query
+	q.direction = self.spawnDirection
+	q.spawnCount = state.spawnCount
+	q.weights = if stage then stage.weights else nil
+	q.plain = plain == true
+	q.safe = q.plain or self.hazardCount >= Config.HAZARD_MAX_RECENT
 
 	-- Level-entry intro sequence (b-20260923-154345-g9ea): hand out
 	-- self.level.introSequence in order, one kind per call, ahead of the normal
 	-- weighted pick -- but only when THIS spawner's own pool carries that kind
-	-- (and it still passes the usual canSpawn gate), so a level's other spawners
-	-- (idle at level entry, or grabbed into later) can't be forced into a kind
-	-- they never carry; they just leave the cursor for the spawner that does.
+	-- (and it still passes the gates), so a level's other spawners (idle at
+	-- level entry, or grabbed into later) can't be forced into a kind they never
+	-- carry; they just leave the cursor for the spawner that does.
 	local intro = self.level.introSequence
 	if intro and self.introIndex <= #intro then
 		local kindName = intro[self.introIndex]
-		if table.find(pool, kindName) and canSpawnKind(kindName) then
+		if table.find(pool, kindName) and admits(kindName, q) then
 			self.introIndex += 1
 			return kindName
 		end
 	end
 
-	local stage = currentHeightStage(self)
-
-	local function weightOf(kindName: string): number
-		if stage and stage.weights[kindName] then
-			return stage.weights[kindName] :: number
-		end
-		local kind = StepKinds[kindName]
-		return (kind and kind.spawnProbability) or 0
+	local chosen = pickWeighted(pool, kindWeight, admits, q)
+	if chosen then
+		return chosen
 	end
-
-	local total = 0
+	-- Nothing admitted carries weight. First anything admitted at all (a pool
+	-- whose weights sum to 0), then anything that suits the query even though its
+	-- behaviour gates it; a plain pick with neither spawns nothing, any other
+	-- falls back to the pool's first entry rather than starve the lane.
 	for _, kindName in pool do
-		total += weightOf(kindName)
-	end
-
-	if total > 0 then
-		local attempts = #pool * 2
-		for _ = 1, attempts do
-			local r = math.random() * total
-			local chosen: string = pool[#pool]
-			for _, kindName in pool do
-				r -= weightOf(kindName)
-				if r <= 0 then
-					chosen = kindName
-					break
-				end
-			end
-			if canSpawnKind(chosen) then
-				return chosen
-			end
-		end
-	end
-
-	-- everything gated out (or spawnProbability summed to 0): fall back to the
-	-- first pool entry whose behavior doesn't gate at all
-	for _, kindName in pool do
-		if canSpawnKind(kindName) then
+		if admits(kindName, q) then
 			return kindName
 		end
 	end
-	return pool[1]
+	for _, kindName in pool do
+		if suits(kindName, q) then
+			return kindName
+		end
+	end
+	return if q.plain then nil else pool[1]
 end
 
 -- ---------------------------------------------------------------------------
@@ -380,15 +575,13 @@ end
 -- spawnForPull also sweeps it through each pull's spawner window.
 --
 -- `Lane.spawnPosition` clamps the result into Lane.isOutOfBounds' recycle margin
--- (BOUNDS_MARGIN) before adding it to the lane's origin: the converted Movements
+-- (Config.BOUNDS_MARGIN) before adding it to the lane's origin: the converted Movements
 -- offsets (Levels.luau) are deliberately off-screen "staging" positions, matching
 -- Unity's own adjustedMovements, but Unity drags those onscreen with a continuous
 -- per-frame PullVector (Spawning/SpawnManager.cs Pull/PullStep) while this port's
 -- steps only move on a discrete per-grab pull (Lane.addPull) -- an unclamped
 -- literal offset would be recycled before ever being pulled in.
 -- ---------------------------------------------------------------------------
-local BOUNDS_MARGIN = 6 -- also used by Lane.isOutOfBounds below -- keep in sync
-
 -- Axis clamps alone let a CORNER of the box (max |X| and max |Y| at once) sit
 -- farther from the lane origin (GameServer's GrabStep measures reach from the
 -- origin, not the swaying frog) than Config.MAX_GRAB_DISTANCE, i.e. past
@@ -408,9 +601,10 @@ local BOUNDS_MARGIN = 6 -- also used by Lane.isOutOfBounds below -- keep in sync
 -- portrait screen and the sweep (and its tweens) spreads steps across the middle. A
 -- sweep with no X range (min == max) is centred. Diagonal/sideways spawners keep the
 -- lane bound, because their travel carries a step in from the side (b-20260921-112713-7mxu).
-local viewSweeps: { [Levels.StepSpawnerDef]: { lo: number, hi: number, half: number } } = {}
+type ViewSweep = { lo: number, hi: number, half: number }
+local viewSweeps: { [Levels.StepSpawnerDef]: ViewSweep } = {}
 
-local function viewX(x: number, def: Levels.StepSpawnerDef): number
+local function viewSweepOf(def: Levels.StepSpawnerDef): ViewSweep
 	local sweep = viewSweeps[def]
 	if not sweep then
 		local lo, hi = math.huge, -math.huge
@@ -428,6 +622,11 @@ local function viewX(x: number, def: Levels.StepSpawnerDef): number
 		sweep = { lo = lo, hi = hi, half = math.max(0, Config.SPAWN_VIEW_HALF_WIDTH - widest / 2) }
 		viewSweeps[def] = sweep
 	end
+	return sweep
+end
+
+local function viewX(x: number, def: Levels.StepSpawnerDef): number
+	local sweep = viewSweepOf(def)
 	if sweep.hi - sweep.lo < 1e-4 then
 		return 0
 	end
@@ -435,9 +634,8 @@ local function viewX(x: number, def: Levels.StepSpawnerDef): number
 end
 
 local function clampToLane(offset: Vector3, def: Levels.StepSpawnerDef): Vector3
-	local x = if signOf(def.direction.X) == 0
-		then viewX(offset.X, def)
-		else math.clamp(offset.X, -(Config.LANE_HALF_WIDTH + 3), Config.LANE_HALF_WIDTH + 3)
+	local edge = Config.LANE_HALF_WIDTH + Config.SPAWN_EDGE_MARGIN
+	local x = if signOf(def.direction.X) == 0 then viewX(offset.X, def) else math.clamp(offset.X, -edge, edge)
 	local y = math.clamp(offset.Y, Config.DESPAWN_Y, Config.SPAWN_Y)
 	local planar = Vector2.new(x, y)
 	if planar.Magnitude > Config.MAX_GRAB_DISTANCE then
@@ -450,6 +648,10 @@ end
 -- transform.position && movements.Count > 1)`. Compared by INDEX here (not value) -- strictly
 -- safer than Unity's value compare (guaranteed to terminate even if two entries happen to
 -- share a value) while producing the same observable "don't repeat the current one" behavior.
+local function randomBetween(lo: number, hi: number): number
+	return lo + math.random() * math.max(0, hi - lo)
+end
+
 local function pickMovementIndex(count: number, excludeIndex: number): number
 	if count <= 1 then
 		return 1
@@ -477,8 +679,7 @@ local function updateMovement(state: SpawnerState, dt: number)
 		state.moveFrom = list[1]
 		state.moveElapsed = 0
 		state.moveTweenTime = 0
-		state.moveWaitTime = state.def.moveTimeMin
-			+ math.random() * math.max(0, state.def.moveTimeMax - state.def.moveTimeMin)
+		state.moveWaitTime = randomBetween(state.def.moveTimeMin, state.def.moveTimeMax)
 		return
 	end
 
@@ -489,9 +690,8 @@ local function updateMovement(state: SpawnerState, dt: number)
 
 	-- leg finished: pick the next destination and start a new one (Spawner.cs Move(), L133-145)
 	local nextIndex = pickMovementIndex(count, state.moveToIndex)
-	local speed = state.def.moveSpeedMin + math.random() * math.max(0, state.def.moveSpeedMax - state.def.moveSpeedMin)
-	local nextMoveTime = state.def.moveTimeMin
-		+ math.random() * math.max(0, state.def.moveTimeMax - state.def.moveTimeMin)
+	local speed = randomBetween(state.def.moveSpeedMin, state.def.moveSpeedMax)
+	local nextMoveTime = randomBetween(state.def.moveTimeMin, state.def.moveTimeMax)
 
 	state.moveFrom = state.moveTo
 	state.moveTo = list[nextIndex]
@@ -535,16 +735,18 @@ end
 -- travel AWAY from -- i.e. the side opposite spawnDirection -- with diagonals entering from the
 -- matching top/bottom corner.
 -- ---------------------------------------------------------------------------
-function Lane.spawnPosition(self: Lane, state: SpawnerState, indexInBatch: number?): Vector3
+-- stagingOffset is that point relative to the lane's origin; Lane.spawnPosition
+-- is the same in world space.
+local function stagingOffset(state: SpawnerState, indexInBatch: number?): Vector3
 	local movements = state.def.movements
 
 	if indexInBatch and #movements > 0 then
 		local idx = ((indexInBatch - 1) % #movements) + 1
-		return self.origin + clampToLane(movements[idx], state.def)
+		return clampToLane(movements[idx], state.def)
 	end
 
 	if not indexInBatch and #movements > 0 then
-		return self.origin + clampToLane(currentMovementOffset(state), state.def)
+		return clampToLane(currentMovementOffset(state), state.def)
 	end
 
 	local dir = state.def.direction
@@ -553,12 +755,12 @@ function Lane.spawnPosition(self: Lane, state: SpawnerState, indexInBatch: numbe
 	local x: number, y: number
 	if ex ~= 0 and ey ~= 0 then
 		-- diagonal: spawn in the corresponding top/bottom corner region
-		x = ex * (Config.LANE_HALF_WIDTH - math.random() * (Config.LANE_HALF_WIDTH * 0.4))
+		x = ex * (Config.LANE_HALF_WIDTH - math.random() * (Config.LANE_HALF_WIDTH * Config.SPAWN_CORNER_BAND))
 		y = if ey > 0 then Config.SPAWN_Y else Config.DESPAWN_Y
 	elseif ex ~= 0 then
 		-- pure horizontal: enter from the left/right edge, spread across a vertical band
-		x = ex * (Config.LANE_HALF_WIDTH + 3)
-		y = (math.random() * 2 - 1) * (Config.SPAWN_Y * 0.6)
+		x = ex * (Config.LANE_HALF_WIDTH + Config.SPAWN_EDGE_MARGIN)
+		y = (math.random() * 2 - 1) * (Config.SPAWN_Y * Config.SPAWN_SIDE_BAND)
 	else
 		-- pure vertical (the common case): enter from the top/bottom edge, spread across X
 		x = (math.random() * 2 - 1) * Config.SPAWN_X_RANGE
@@ -573,41 +775,103 @@ function Lane.spawnPosition(self: Lane, state: SpawnerState, indexInBatch: numbe
 		y = Config.TUTORIAL_FIRST_STEP_Y + (indexInBatch - 1) * Config.TUTORIAL_STEP_GAP
 	end
 
-	return self.origin + Vector3.new(x, y, 0)
+	return Vector3.new(x, y, 0)
 end
 
--- Recycle test for a step of `size` centred at `pos` -- see Lane.isOutOfBounds.
-local function outOfBounds(self: Lane, pos: Vector3, size: Vector3): boolean
+function Lane.spawnPosition(self: Lane, state: SpawnerState, indexInBatch: number?): Vector3
+	return self.origin + stagingOffset(state, indexInBatch)
+end
+
+-- Is a step of `size` centred at `pos` wholly past the lane's catch bounds?
+local function pastBounds(self: Lane, pos: Vector3, size: Vector3): boolean
 	local halfX, halfY = size.X / 2, size.Y / 2
 	local relX = pos.X - self.origin.X
-	local boundX = Config.LANE_HALF_WIDTH + BOUNDS_MARGIN
+	local boundX = Config.LANE_HALF_WIDTH + Config.BOUNDS_MARGIN
 	if relX + halfX < -boundX or relX - halfX > boundX then
 		return true
 	end
-	return (pos.Y + halfY) < Config.DESPAWN_Y or (pos.Y - halfY) > (Config.SPAWN_Y + BOUNDS_MARGIN)
+	return (pos.Y + halfY) < Config.DESPAWN_Y or (pos.Y - halfY) > (Config.SPAWN_Y + Config.BOUNDS_MARGIN)
 end
 
-local NUDGE_STEP = 1 -- studs per try
-local NUDGE_MAX = 12 -- studs; about two steps' worth of queue behind a crowded spawn
+-- Recycle test for a step of `size` centred at `pos` -- see Lane.isOutOfBounds.
+-- `slack` (travel * StepState.upstream) is the displacement that takes a step
+-- staged upstream on purpose back to where an ordinary spawn would be: such a
+-- step is only out when it is past the bounds both where it is and there. That
+-- widens the bounds on the upstream side alone -- once the step has travelled
+-- out the far side, moving it further along travel leaves it out.
+local function outOfBounds(self: Lane, pos: Vector3, size: Vector3, slack: Vector3?): boolean
+	if not pastBounds(self, pos, size) then
+		return false
+	end
+	return slack == nil or pastBounds(self, pos + slack, size)
+end
+
 local DEFAULT_SIZE = Vector3.new(6, 6, 1)
+
+-- ---------------------------------------------------------------------------
+-- Step states. GameServer owns the pooled Instances; the lane owns where each
+-- one logically is (StepState.base), because every question this module answers
+-- about a step -- rest position, spacing, bounds -- is about that, not about the
+-- part's replicated CFrame.
+-- ---------------------------------------------------------------------------
+
+-- Start tracking `step` (just taken from the pool) at `base`: marks it active
+-- and gives it a fresh StepState, which GameServer.acquireStep then fills in
+-- (spin, behaviour, params).
+function Lane.trackStep(self: Lane, step: BasePart, base: Vector3): StepState
+	local state: StepState = {
+		base = base,
+		angle = 0,
+		spinRate = nil,
+		offset = Vector3.zero,
+		sweep = Vector2.zero,
+		recoil = Vector3.zero,
+		recoilVelocity = Vector3.zero,
+		sag = 0,
+		dropElapsed = nil,
+		upstream = 0,
+		behavior = StepBehaviors.None,
+		params = NO_PARAMS,
+		scratch = {},
+		ctx = nil,
+		shownPosition = base,
+		shownAngle = 0,
+	}
+	self.active[step] = true
+	self.states[step] = state
+	return state
+end
+
+-- `step` is going back to the pool: forget its state, and drop it from any
+-- slide-in it was part of (forgetStep), so the part's next life inherits nothing.
+function Lane.untrackStep(self: Lane, step: BasePart)
+	self.active[step] = nil
+	self.states[step] = nil
+	self:forgetStep(step)
+end
+
+-- `step`'s logical position (StepState.base). The part's own Position only for
+-- a part this lane isn't tracking, which no caller passes.
+function Lane.basePosition(self: Lane, step: BasePart): Vector3
+	local state = self.states[step]
+	return if state then state.base else step.Position
+end
 
 -- ---------------------------------------------------------------------------
 -- Motions. Every pull (and every slide-in) is an eased displacement played on
 -- the server's own clock (advanceMotions, from GameServer's Heartbeat) rather
 -- than a TweenService tween per step. They add up: a grab that lands mid-pull
 -- keeps the rest of the previous pull instead of cancelling it, and a step
--- spawned during a pull rides whatever is left of it. Easing is Sine/Out, the
--- curve WorldScenery tweens the lane's cosmetics with off PullDelta/PullTime.
+-- spawned during a pull rides whatever is left of it. Easing is Sine/Out
+-- (PullMath.sineOut), the curve WorldScenery tweens the lane's cosmetics with
+-- off PullDelta/PullTime. A motion moves StepState.base; the part itself is
+-- written once per tick by GameServer.
 -- ---------------------------------------------------------------------------
 local function eased(m: Motion, elapsed: number): number
 	if m.duration <= 0 then
 		return 1
 	end
-	return TweenService:GetValue(
-		math.clamp(elapsed / m.duration, 0, 1),
-		Enum.EasingStyle.Sine,
-		Enum.EasingDirection.Out
-	)
+	return PullMath.sineOut(elapsed / m.duration)
 end
 
 local function remaining(m: Motion): Vector3
@@ -631,12 +895,22 @@ function Lane.sharedPending(self: Lane): Vector3
 	return sum
 end
 
--- Where `step` comes to rest once every motion playing on it has finished.
-function Lane.restPosition(self: Lane, step: BasePart): Vector3
-	local pos = step.Position
+-- Where `step`'s base comes to rest once every motion playing on it has
+-- finished. A caller asking about many steps at once passes `shared`, the
+-- lane's sharedPending() computed once, and only the step's own slide-ins are
+-- then walked here.
+function Lane.restPosition(self: Lane, step: BasePart, shared: Vector3?): Vector3
+	local pos = self:basePosition(step)
+	if shared then
+		pos += shared
+	end
 	for _, m in self.motions do
 		local only = m.only
-		if not only or only[step] then
+		if only then
+			if only[step] then
+				pos += remaining(m)
+			end
+		elseif not shared then
 			pos += remaining(m)
 		end
 	end
@@ -654,29 +928,34 @@ function Lane.forgetStep(self: Lane, step: BasePart)
 	end
 end
 
--- Advance every motion by `dt`, moving the lane's steps by each one's eased increment.
+-- Advance every motion by `dt`, moving the lane's step bases by each one's eased
+-- increment. Pulls are summed first, so a lane with several playing still walks
+-- its steps once.
 function Lane.advanceMotions(self: Lane, dt: number)
+	local shared = Vector3.zero
 	for i = #self.motions, 1, -1 do
 		local m = self.motions[i]
 		local before = eased(m, m.elapsed)
 		m.elapsed += dt
 		local inc = m.delta * (eased(m, m.elapsed) - before)
-		if inc.Magnitude > 0 then
-			local only = m.only
-			if only then
-				for step in only do
-					if self.active[step] then
-						step.CFrame += inc
-					end
-				end
-			else
-				for step in self.active do
-					step.CFrame += inc
+		local only = m.only
+		if only then
+			for step in only do
+				local state = self.states[step]
+				if state then
+					state.base += inc
 				end
 			end
+		else
+			shared += inc
 		end
 		if m.elapsed >= m.duration then
 			table.remove(self.motions, i)
+		end
+	end
+	if shared ~= Vector3.zero then
+		for _, state in self.states do
+			state.base += shared
 		end
 	end
 end
@@ -687,18 +966,17 @@ end
 -- it slides in rather than popping up (owner's ruling, b-20260921-164429-ee9c).
 -- Any vertical component decides it (steps entering from the top); pure sideways
 -- travel uses the same half-extent as an assumed half-width, since the server
--- can't see the client's aspect ratio.
-local ENTRY_MARGIN = 0.5 -- studs past the band edge, so rounding never leaves a sliver on screen
-
+-- can't see the client's aspect ratio. Config.ENTRY_MARGIN is the slack past
+-- the band edge.
 function Lane.entryShift(self: Lane, pos: Vector3, size: Vector3, travel: Vector3): number
 	local rel = pos - self.origin
 	local h = Config.VIEW_HALF_HEIGHT
 	if math.abs(travel.Y) > 1e-4 then
-		local clear = h + size.Y / 2 + ENTRY_MARGIN
+		local clear = h + size.Y / 2 + Config.ENTRY_MARGIN
 		local need = if travel.Y < 0 then clear - rel.Y else rel.Y + clear
 		return math.max(0, need / math.abs(travel.Y))
 	elseif math.abs(travel.X) > 1e-4 then
-		local clear = h + size.X / 2 + ENTRY_MARGIN
+		local clear = h + size.X / 2 + Config.ENTRY_MARGIN
 		local need = if travel.X < 0 then clear - rel.X else rel.X + clear
 		return math.max(0, need / math.abs(travel.X))
 	end
@@ -715,28 +993,48 @@ end
 -- Also keeps the new step's grab box out of the client's PlayerList rectangle
 -- (self.obstruction) while the lane isn't drifting -- a drifting step never
 -- stops under it (Lane.obstructionExtra, doc 17).
-function Lane.clearSpot(self: Lane, pos: Vector3, kindName: string, travel: Vector3): Vector3?
+--
+-- Moving steps (StepBehaviors.Patrol / RiseAndFall) are spaced by the centre of
+-- their sweep plus its whole extent, never by wherever they happen to be right
+-- now: a live step's reserved half-extent is its StepState.sweep, and the new
+-- step's own is the optional `sweep` argument (its behaviour's `sweep(params)`;
+-- omitted = a step that stays put). Both widen the gap on their axis, so a
+-- patroller can't slide into a neighbour whichever of the two spawned first.
+-- The PlayerList keep-out tests the base only -- a sweep may graze it.
+--
+-- `slack` (optional) is the bounds allowance of a step staged upstream on
+-- purpose (outOfBounds above): a pattern member behind the ones before it.
+function Lane.clearSpot(
+	self: Lane,
+	pos: Vector3,
+	kindName: string,
+	travel: Vector3,
+	sweep: Vector2?,
+	slack: Vector3?
+): Vector3?
 	local kind = StepKinds[kindName]
 	local size = if kind then kind.size else DEFAULT_SIZE
 	local hit = if kind and kind.hitSize then kind.hitSize else Vector2.new(size.X, size.Y)
 	local hitOffset = if kind and kind.hitOffset then kind.hitOffset else Vector2.zero
+	local reach = sweep or Vector2.zero
 	local avoidObstruction = self.obstruction ~= nil and not self:drifts()
+	local shared = self:sharedPending() -- once, not per step per try
 	local shift = 0
-	while shift <= NUDGE_MAX do
+	while shift <= Config.SPAWN_NUDGE_MAX do
 		local p = pos - travel * shift
-		if outOfBounds(self, p, size) then
+		if outOfBounds(self, p, size, slack) then
 			return nil
 		end
 		local clear = not (avoidObstruction and self:obstructs(p, hit, hitOffset))
-		for step in self.active do
+		for step, state in self.states do
 			if not clear then
 				break
 			end
 			local other = (step:GetAttribute("HitSize") :: Vector2?) or Vector2.new(step.Size.X, step.Size.Y)
-			local d = self:restPosition(step) - p
+			local d = self:restPosition(step, shared) - p
 			if
-				math.abs(d.X) < (hit.X + other.X) / 2 + Config.SPAWN_GAP
-				and math.abs(d.Y) < (hit.Y + other.Y) / 2 + Config.SPAWN_GAP
+				math.abs(d.X) < (hit.X + other.X) / 2 + reach.X + state.sweep.X + Config.SPAWN_GAP
+				and math.abs(d.Y) < (hit.Y + other.Y) / 2 + reach.Y + state.sweep.Y + Config.SPAWN_GAP
 			then
 				clear = false
 				break
@@ -748,7 +1046,7 @@ function Lane.clearSpot(self: Lane, pos: Vector3, kindName: string, travel: Vect
 		if travel.Magnitude < 1e-4 then
 			return nil
 		end
-		shift += NUDGE_STEP
+		shift += Config.SPAWN_NUDGE_STEP
 	end
 	return nil
 end
@@ -762,11 +1060,10 @@ end
 -- scrolled the Tutorial's one-shot ladder, which never respawns, off the top of
 -- the field before it was ever climbed).
 function Lane.addPull(self: Lane, distance: number, duration: number): Vector3?
-	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
-	if dir3.Magnitude < 1e-4 then
+	if self.travel == Vector3.zero then
 		return nil
 	end
-	local delta = dir3.Unit * distance
+	local delta = self.travel * distance
 	self:addMotion(delta, duration)
 	self.netPull = math.max(0, self.netPull + distance)
 	return delta
@@ -830,20 +1127,19 @@ function Lane.driftSpeed(self: Lane, dt: number): number
 	return math.min(speed, self.driftBase * Config.CLASSIC_SCROLL_MAX_MULT)
 end
 
--- Classic mode: scroll every live step `speed * dt` studs along the spawn
+-- Classic mode: scroll every live step's base `speed * dt` studs along the spawn
 -- direction right now (Unity's steps move under SpawnManager.PullVector every
 -- frame; here it never stops). The distance accumulates until
 -- Config.CLASSIC_CHUNK_TIME has passed, then is returned as one chunk (studs,
 -- seconds) for GameServer to spend on spawner time and replicate; nil otherwise.
 function Lane.drift(self: Lane, dt: number, speed: number): (number?, number?)
-	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
-	if speed <= 0 or dt <= 0 or dir3.Magnitude < 1e-4 then
+	if speed <= 0 or dt <= 0 or self.travel == Vector3.zero then
 		return nil, nil
 	end
 	local distance = speed * dt
-	local inc = dir3.Unit * distance
-	for step in self.active do
-		step.CFrame += inc
+	local inc = self.travel * distance
+	for _, state in self.states do
+		state.base += inc
 	end
 	self.netPull += distance
 	self.driftDistance += distance
@@ -901,16 +1197,16 @@ end
 -- none within the cap does, the one leaving the fewest (ties: the shortest).
 -- Call before the pull is added (restPosition then still excludes it).
 function Lane.obstructionExtra(self: Lane, distance: number): number
-	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
-	if not self.obstruction or self:drifts() or distance <= 0 or dir3.Magnitude < 1e-4 then
+	local travel = self.travel
+	if not self.obstruction or self:drifts() or distance <= 0 or travel == Vector3.zero then
 		return 0
 	end
-	local travel = dir3.Unit
 	type Box = { rest: Vector3, hit: Vector2, offset: Vector2 }
 	local boxes: { Box } = {}
+	local shared = self:sharedPending()
 	for step in self.active do
 		table.insert(boxes, {
-			rest = self:restPosition(step),
+			rest = self:restPosition(step, shared),
 			hit = (step:GetAttribute("HitSize") :: Vector2?) or Vector2.new(step.Size.X, step.Size.Y),
 			offset = (step:GetAttribute("HitOffset") :: Vector2?) or Vector2.zero,
 		})
@@ -937,6 +1233,358 @@ function Lane.obstructionExtra(self: Lane, distance: number): number
 end
 
 -- ---------------------------------------------------------------------------
+-- Laying one step. Every spawn path below ends here: fit the staging point to
+-- the kind (fitStaging), find it a clear rest spot (placeStep -> Lane.clearSpot,
+-- with the kind's own sweep reserved), and hand GameServer one SpawnRequest
+-- (emit).
+-- ---------------------------------------------------------------------------
+
+-- How far `kindName`'s behaviour may carry it from its base, per axis, given
+-- `params` (StepBehaviors `sweep`); zero for a step that stays put.
+local function sweepOf(kindName: string, params: StepBehaviors.Params?): Vector2
+	local kind = StepKinds[kindName]
+	local behavior = kind and StepBehaviors[kind.behavior]
+	local sweep = behavior and behavior.sweep
+	return if sweep then sweep(params) else Vector2.zero
+end
+
+local function planarDistance(self: Lane, pos: Vector3): number
+	return Vector2.new(pos.X - self.origin.X, pos.Y - self.origin.Y).Magnitude
+end
+
+-- The fairness guard's reach rule: a step resting at `pos` can be grabbed
+-- anywhere in its sweep (GameServer's GrabStep measures from the lane origin).
+local function withinReach(self: Lane, pos: Vector3, sweep: Vector2): boolean
+	return planarDistance(self, pos) + math.max(sweep.X, sweep.Y) <= Config.MAX_GRAB_DISTANCE
+end
+
+-- Fit a lane-relative staging `offset` to the kind about to spawn there.
+--   * A spawner that travels straight down never moves a step sideways, so the
+--     grab box AND the whole sweep must sit inside the portrait view
+--     (Config.SPAWN_VIEW_HALF_WIDTH) from the start.
+--   * The step must be within reach of the lane origin at either end of its sweep.
+-- A no-op for a pool kind that stays put: clampToLane has already held it to
+-- the same bounds using the pool's widest grab box.
+local function fitStaging(offset: Vector3, def: Levels.StepSpawnerDef, kindName: string, sweep: Vector2): Vector3
+	local x, y = offset.X, offset.Y
+	if signOf(def.direction.X) == 0 then
+		local kind = StepKinds[kindName]
+		local hitX = if kind then kind.hitSize.X else DEFAULT_SIZE.X
+		local limit = math.max(0, Config.SPAWN_VIEW_HALF_WIDTH - hitX / 2 - sweep.X)
+		x = math.clamp(x, -limit, limit)
+	end
+	local reach = Config.MAX_GRAB_DISTANCE - math.max(sweep.X, sweep.Y)
+	local planar = Vector2.new(x, y)
+	if planar.Magnitude > reach then
+		planar = planar.Unit * reach
+	end
+	return Vector3.new(planar.X, planar.Y, 0)
+end
+
+-- Find where a `kindName` step meant to rest at `rest` can actually go, and
+-- return the position to create it at NOW (rest less `pending`, what the lane's
+-- running pulls still owe), or nil when there is no clear spot. Also returns how
+-- far back along the travel line (studs) the step ended up from `rest`: the
+-- entry shift plus clearSpot's nudge.
+--   `entry`  -- first push it back along the travel line until it starts outside
+--               the camera band (Lane.entryShift), sweep included, so it slides in.
+--   `strict` -- refuse a spot the nudging has pushed out of reach (new content:
+--               moving kinds, pattern and event members).
+--   `slack`  -- studs this step is staged upstream ON PURPOSE (a pattern member
+--               behind the ones before it); 0 for anything else.
+-- The reach rule is there so a step can be grabbed when the frog gets to it, and
+-- a step staged upstream is only got to after the scroll has brought it down:
+-- the pulls of the members before it for `slack`, the lane's own scroll for the
+-- entry shift (which only exists to start the step off-screen -- for the tall
+-- Castle that alone is past reach). So reach is tested that far along travel
+-- from the spot found, and the bounds likewise (clearSpot's `slack`). The nudge
+-- gets no such credit: crowding must not push a step out of reach.
+local function placeStep(
+	self: Lane,
+	kindName: string,
+	rest: Vector3,
+	sweep: Vector2,
+	pending: Vector3,
+	entry: boolean,
+	strict: boolean,
+	slack: number
+): (Vector3?, number)
+	local travel = self.travel
+	local wanted = rest
+	local credit = slack
+	if entry then
+		local kind = StepKinds[kindName]
+		local size = (if kind then kind.size else DEFAULT_SIZE) + Vector3.new(2 * sweep.X, 2 * sweep.Y, 0)
+		local shift = self:entryShift(rest - pending, size, travel)
+		rest -= travel * shift
+		credit += shift
+	end
+	local pos = self:clearSpot(rest, kindName, travel, sweep, if slack > 0 then travel * slack else nil)
+	if not pos or (strict and not withinReach(self, pos + travel * credit, sweep)) then
+		return nil, 0
+	end
+	return pos - pending, (wanted - pos):Dot(travel)
+end
+
+-- Hand GameServer one step to create, and account for it. `upstream` is the
+-- step's StepState.upstream (nil = an ordinary spawn).
+local function emit(
+	self: Lane,
+	spawnFn: SpawnFn,
+	kindName: string,
+	params: StepBehaviors.Params?,
+	position: Vector3,
+	spawner: SpawnerState?,
+	source: string,
+	upstream: number?
+)
+	spawnFn(self, {
+		kindName = kindName,
+		position = position,
+		params = params,
+		spawner = spawner,
+		source = source,
+		upstream = upstream,
+	})
+	if spawner then
+		spawner.spawnCount += 1
+	end
+	noteSpawn(self, kindName)
+end
+
+-- One ordinary spawn from `state`: a weighted kind (Lane.pickKind) at the
+-- spawner's `staging` offset, carried `carry` along the travel line. Returns
+-- how many steps it laid (0 = no clear spot), or nil when the spawner has
+-- nothing to offer right now (empty pool, the pot's top).
+local function spawnSingle(
+	self: Lane,
+	state: SpawnerState,
+	staging: Vector3,
+	carry: Vector3,
+	pending: Vector3,
+	spawnFn: SpawnFn,
+	entry: boolean,
+	source: string
+): number?
+	local kindName = self:pickKind(state)
+	if not kindName then
+		return nil
+	end
+	local kind = StepKinds[kindName]
+	local params = if kind then kind.params else nil
+	local sweep = sweepOf(kindName, params)
+	local rest = self.origin + fitStaging(staging, state.def, kindName, sweep) + carry
+	local position = placeStep(self, kindName, rest, sweep, pending, entry, sweep ~= Vector2.zero, 0)
+	if not position then
+		return 0
+	end
+	emit(self, spawnFn, kindName, params, position, state, source)
+	return 1
+end
+
+-- ---------------------------------------------------------------------------
+-- Spawn patterns and events (PORT ADDITIONS, doc 17; data in Levels.luau). A
+-- pattern is laid in place of one spawn: each member sits `lateral` studs across
+-- the travel line (the whole pattern mirrored at random) and `upstream` studs
+-- back along it from the spawner's staging point, and goes through exactly the
+-- placement a single spawn does -- fitStaging, the off-screen entry, clearSpot
+-- with its sweep -- plus the reach rule. A member with no clear spot is skipped.
+--
+-- Upstream members. Only a member's spot in the ANCHOR ROW is fitted to the
+-- lane (fitStaging: the portrait view, reach); its `upstream` is added after
+-- that, because fitting the offset as a whole squeezed every member past reach
+-- onto the reach circle, on top of one another. A member behind the first one
+-- laid (the lead) is not within reach when it spawns and is not meant to be: it
+-- is reached once the members before it have been climbed, so its reach and
+-- bounds are judged where it will be by then -- its own spot brought down by
+-- its distance behind the lead (placeStep's `slack`, StepState.upstream for the
+-- recycle bound). A member more than Config.PATTERN_MAX_UPSTREAM behind the
+-- lead is left out, with every member after it.
+--
+-- Spacing. Levels' offsets are the pattern's nominal shape, sized for its
+-- smallest members. Whatever a member is moved back by on top of that -- the
+-- off-screen entry, or clearSpot's nudge because its actual grab box and sweep
+-- (plus SPAWN_GAP) did not clear the member before it -- is carried on to every
+-- later member (`push`), so the pattern opens up to fit what it is made of and
+-- keeps its order and shape instead of each member being nudged on its own.
+--
+-- Fairness: a member with no `kind` is a plain pick (no arrow, no hazard). A
+-- member that NAMES a hazard kind keeps it only while the pattern has laid
+-- fewer than Config.PATTERN_MAX_HAZARDS, is not that pattern's every member,
+-- and the lane's recent-spawn cap (Lane.pickKind) has room; otherwise it
+-- becomes a plain pick too.
+-- ---------------------------------------------------------------------------
+local function spawnPattern(
+	self: Lane,
+	state: SpawnerState,
+	pattern: Levels.PatternDef,
+	staging: Vector3,
+	carry: Vector3,
+	pending: Vector3,
+	spawnFn: SpawnFn,
+	source: string
+): number
+	local def = state.def
+	local travel = self.travel
+	local across = Vector3.new(-travel.Y, travel.X, 0) * (if math.random() < 0.5 then 1 else -1)
+
+	-- Under straight-down travel the pattern's width has to fit the portrait
+	-- view, so centre it far enough in that its outer members aren't all clamped
+	-- onto one edge.
+	local anchor = staging
+	if signOf(def.direction.X) == 0 then
+		local widest = 0
+		for _, member in pattern.members do
+			widest = math.max(widest, math.abs(member.lateral))
+		end
+		local limit = math.max(0, viewSweepOf(def).half - widest)
+		anchor = Vector3.new(math.clamp(staging.X, -limit, limit), staging.Y, 0)
+	end
+
+	local laid, hazards = 0, 0
+	local hazardRoom = math.min(Config.PATTERN_MAX_HAZARDS, #pattern.members - 1)
+	local push = 0 -- studs the members laid so far were moved back, owed to every later one
+	local lead: number? = nil -- how far upstream of the anchor row the first laid member sits
+	for _, member in pattern.members do
+		local upstream = member.upstream + push
+		local slack = if lead then math.max(0, upstream - lead) else 0
+		if slack > Config.PATTERN_MAX_UPSTREAM then
+			break -- members are listed outward, so every later one is further still
+		end
+		local kindName = member.kind
+		local named = if kindName then StepKinds[kindName] else nil
+		local isHazard = named ~= nil and named.hazard == true
+		if isHazard and (hazards >= hazardRoom or self.hazardCount >= Config.HAZARD_MAX_RECENT) then
+			kindName, isHazard = nil, false
+		end
+		if not kindName then
+			kindName = self:pickKind(state, true)
+		end
+		if kindName then
+			local kind = StepKinds[kindName]
+			local params = if member.kind == kindName and member.params
+				then member.params
+				elseif kind then kind.params
+				else nil
+			local sweep = sweepOf(kindName, params)
+			local row = fitStaging(anchor + across * member.lateral, def, kindName, sweep)
+			local rest = self.origin + row + carry - travel * upstream
+			local position, moved = placeStep(self, kindName, rest, sweep, pending, true, true, slack)
+			if position then
+				push += moved
+				lead = lead or upstream + moved
+				emit(self, spawnFn, kindName, params, position, state, source, slack + moved)
+				laid += 1
+				if isHazard then
+					hazards += 1
+				end
+			end
+		end
+	end
+	return laid
+end
+
+-- A level event (Levels EventDef) due on this lane, rolled now: past its
+-- `minRunSteps` (in stageSteps), off cooldown, and its `chance` came up. nil =
+-- none. Rolled ONCE per spawner window (Lane.spawnForPull), not per spawner
+-- firing: a window fires several spawns, which made a 3-4 % event all but
+-- certain within a few grabs of its cooldown ending. `share` is the window as a
+-- fraction of one grab's (a Classic drift chunk earns a small one), so `chance`
+-- means "per grab's worth of spawning" however the window was earned.
+local function rollEvent(self: Lane, share: number): Levels.EventDef?
+	local events = self.level.events
+	if not events then
+		return nil
+	end
+	local steps = stageSteps(self)
+	for _, event in events do
+		local last = self.eventLast[event.name]
+		if
+			steps >= event.minRunSteps
+			and (not last or self.runSteps - last >= event.cooldown)
+			and math.random() < event.chance * share
+		then
+			return event
+		end
+	end
+	return nil
+end
+
+-- The current height stage's pattern roll: one of its `patterns` by weight, at
+-- its `patternChance`. nil = an ordinary spawn.
+local function rollPattern(self: Lane): Levels.PatternDef?
+	local stage = currentHeightStage(self)
+	local patterns = stage and stage.patterns
+	local chance = stage and stage.patternChance
+	if not patterns or not chance or math.random() >= chance then
+		return nil
+	end
+	local total = 0
+	local chosen: Levels.PatternDef? = nil
+	for _, pattern in patterns do
+		if pattern.weight > 0 then
+			total += pattern.weight
+			if math.random() * total < pattern.weight then
+				chosen = pattern
+			end
+		end
+	end
+	return chosen
+end
+
+-- One firing of a running spawner: `event` (the event this spawner window
+-- rolled, if any -- Lane.spawnForPull), else a pattern, else (or when neither
+-- found room for a single member) one ordinary step. Patterns and events never
+-- appear in the Tutorial, on a spawner flagged `noPatterns`, or while the
+-- level's scripted intro is still being handed out. Returns how many steps were
+-- laid, and whether they were the event's (the caller then stops offering it;
+-- one that found no room is offered to the window's next firing).
+local function spawnFromSpawner(
+	self: Lane,
+	state: SpawnerState,
+	staging: Vector3,
+	carry: Vector3,
+	pending: Vector3,
+	spawnFn: SpawnFn,
+	event: Levels.EventDef?
+): (number, boolean)
+	if
+		self.levelIndex ~= Levels.TUTORIAL
+		and not state.def.noPatterns
+		and not introPending(self)
+		and not self:atPotTop()
+	then
+		if event then
+			local laid = spawnPattern(self, state, event.pattern, staging, carry, pending, spawnFn, "event")
+			if laid > 0 then
+				self.eventLast[event.name] = self.runSteps
+				return laid, true
+			end
+		end
+		local pattern = rollPattern(self)
+		if pattern then
+			local laid = spawnPattern(self, state, pattern, staging, carry, pending, spawnFn, "pattern")
+			if laid > 0 then
+				return laid, false
+			end
+		end
+	end
+	return spawnSingle(self, state, staging, carry, pending, spawnFn, true, "spawner") or 0, false
+end
+
+-- Seconds until `def`'s next spawn (Spawner.cs StartSpawning's Random.Range
+-- wait), floored so a 0-interval def can't loop forever. A firing that laid
+-- several steps (a pattern) waits a share longer per extra step.
+local function rollInterval(def: Levels.StepSpawnerDef, laid: number): number
+	local interval = math.max(Config.SPAWN_MIN_INTERVAL, randomBetween(def.spawningSpeedMin, def.spawningSpeedMax))
+	return interval * (1 + math.max(0, laid - 1) * Config.PATTERN_INTERVAL_COST)
+end
+
+local function underSpawnCap(state: SpawnerState): boolean
+	return state.def.maxSpawnCount < 0 or state.spawnCount < state.def.maxSpawnCount
+end
+
+-- ---------------------------------------------------------------------------
 -- Pull-driven spawning (Spawning/Spawner.cs StartSpawning, run only while the
 -- field is being pulled: SpawnManager.PullStep activates the step spawners and
 -- ReleasePullingStep stops them). Each grab earns Config.PULL_SPAWN_WINDOW
@@ -948,64 +1596,47 @@ end
 -- whatever the lane's running pulls still owe (sharedPending) -- i.e. at the
 -- spawner's staging point or further out -- and the pull carries it in.
 -- Lane.entryShift pushes a spawn further back when even that start would
--- overlap the camera band. `spawnFn` gets the position to create the part at
--- NOW; GameServer owns the pooled Instances.
+-- overlap the camera band. `spawnFn` gets a SpawnRequest whose position is where
+-- to create the part NOW; GameServer owns the pooled Instances.
 -- ---------------------------------------------------------------------------
-local SPAWN_SLICE = 1 / 30 -- spawner-seconds per slice of a pull's window
-
-function Lane.spawnForPull(
-	self: Lane,
-	distance: number,
-	spawnFn: (state: SpawnerState, kindName: string, worldPos: Vector3) -> (),
-	windowOverride: number?
-)
-	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
-	if distance <= 0 or dir3.Magnitude < 1e-4 then
+function Lane.spawnForPull(self: Lane, distance: number, spawnFn: SpawnFn, windowOverride: number?)
+	local travel = self.travel
+	if distance <= 0 or travel == Vector3.zero then
 		return
 	end
-	local travel = dir3.Unit
 	local pending = self:sharedPending()
 	-- a grab earns Unity's fixed window; Classic drift passes its own per-stud share
 	local window = windowOverride or Config.PULL_SPAWN_WINDOW
 	if window <= 0 then
 		return
 	end
+	-- this window's one event roll (rollEvent), laid by its first firing with room
+	local event = rollEvent(self, window / Config.PULL_SPAWN_WINDOW)
 	local left = window
 	while left > 1e-6 do
-		local slice = math.min(SPAWN_SLICE, left)
+		local slice = math.min(Config.SPAWN_SLICE, left)
 		left -= slice
 		for _, state in self.activeSpawners do
 			local def = state.def
 			if def.spawnAllOnAwake then
 				continue
 			end
-			if #def.movements > 0 then
-				updateMovement(state, slice)
-			end
+			updateMovement(state, slice)
 			state.timer -= slice
 			while state.timer <= 0 do
-				if def.maxSpawnCount < 0 or state.spawnCount < def.maxSpawnCount then
-					local kindName = self:pickKind(state)
-					if kindName then
-						-- (left - timer) spawner-seconds of the window remain after
-						-- this spawn (timer <= 0 is the overshoot into this slice)
-						local carry = (left - state.timer) / window * distance
-						local rest = self:spawnPosition(state) + travel * carry
-						local kind = StepKinds[kindName]
-						local size = if kind then kind.size else DEFAULT_SIZE
-						rest -= travel * self:entryShift(rest - pending, size, travel)
-						local pos = self:clearSpot(rest, kindName, travel)
-						if pos then
-							spawnFn(state, kindName, pos - pending)
-							state.spawnCount += 1
-						end
+				local laid = 0
+				if underSpawnCap(state) then
+					-- (left - timer) spawner-seconds of the window remain after
+					-- this spawn (timer <= 0 is the overshoot into this slice)
+					local carry = travel * ((left - state.timer) / window * distance)
+					local fired: boolean
+					laid, fired = spawnFromSpawner(self, state, stagingOffset(state), carry, pending, spawnFn, event)
+					if fired then
+						event = nil
 					end
 				end
 				-- += (not =) keeps the overshoot, so a big window yields every spawn it covers
-				state.timer += math.max(
-					0.05,
-					def.spawningSpeedMin + math.random() * math.max(0, def.spawningSpeedMax - def.spawningSpeedMin)
-				)
+				state.timer += rollInterval(def, laid)
 			end
 		end
 	end
@@ -1016,26 +1647,23 @@ end
 -- spawnAllOnAwake). Continuous spawning only happens on pulls (spawnForPull);
 -- here the Movements cycles advance on the Heartbeat clock (Unity's Move() is its
 -- own coroutine, Spawner.cs Activate() L86-97) and a spawnAllOnAwake spawner
--- (the Tutorial ladder) fires its one batch. `spawnFn` gets the position to
--- create the part at now (GameServer slides that batch in, see slideIn there).
+-- (the Tutorial ladder) fires its one batch, each entry exactly at its own
+-- Movements point. `spawnFn` gets the position to create the part at now
+-- (GameServer slides that batch in, see slideIn there).
 -- ---------------------------------------------------------------------------
-function Lane.tickSpawners(
-	self: Lane,
-	dt: number,
-	spawnFn: (state: SpawnerState, kindName: string, worldPos: Vector3) -> ()
-)
+function Lane.tickSpawners(self: Lane, dt: number, spawnFn: SpawnFn)
 	for _, state in self.activeSpawners do
 		local def = state.def
-		if not def.spawnAllOnAwake and #def.movements > 0 then
+		if not def.spawnAllOnAwake then
 			updateMovement(state, dt)
-		end
-		if def.spawnAllOnAwake and not state.awoken then
+		elseif not state.awoken then
 			state.awoken = true
 			local pending = self:sharedPending()
 			for i, kindName in def.pool do
-				if def.maxSpawnCount < 0 or state.spawnCount < def.maxSpawnCount then
-					spawnFn(state, kindName, self:spawnPosition(state, i) - pending)
-					state.spawnCount += 1
+				if underSpawnCap(state) then
+					local kind = StepKinds[kindName]
+					local params = if kind then kind.params else nil
+					emit(self, spawnFn, kindName, params, self:spawnPosition(state, i) - pending, state, "awake")
 				end
 			end
 		end
@@ -1048,15 +1676,15 @@ end
 -- PREFILL_ROW_STEP apart along the travel direction, oldest (furthest in) first.
 -- `spawnFn` gets the position to create the part at now: the rest position less
 -- whatever the lane's running pulls still owe (GameServer then slides the whole
--- batch in from off-screen). No-op when the lane already has steps, e.g. a
--- respawn after a death.
-function Lane.prefill(self: Lane, spawnFn: (state: SpawnerState, kindName: string, worldPos: Vector3) -> ())
+-- batch in from off-screen). Single steps only -- no patterns or events. No-op
+-- when the lane already has steps, e.g. a respawn after a death.
+function Lane.prefill(self: Lane, spawnFn: SpawnFn)
 	local count = 0
 	for _ in self.active do
 		count += 1
 	end
-	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
-	if count >= Config.PREFILL_MIN_STEPS or dir3.Magnitude < 1e-4 then
+	local travel = self.travel
+	if count >= Config.PREFILL_MIN_STEPS or travel == Vector3.zero then
 		return
 	end
 
@@ -1064,28 +1692,22 @@ function Lane.prefill(self: Lane, spawnFn: (state: SpawnerState, kindName: strin
 	local rows = Config.PREFILL_DEPTH // Config.PREFILL_ROW_STEP
 	local rowTime = Config.PULL_SPAWN_WINDOW -- each row is one grab's window
 	for row = rows, 1, -1 do
-		local travelled = dir3.Unit * ((row - 1) * Config.PREFILL_ROW_STEP)
+		local travelled = travel * ((row - 1) * Config.PREFILL_ROW_STEP)
 		for _, state in self.activeSpawners do
 			local def = state.def
 			if not def.spawnAllOnAwake then
 				state.timer -= rowTime
-				while state.timer <= 0 and (def.maxSpawnCount < 0 or state.spawnCount < def.maxSpawnCount) do
-					local kindName = self:pickKind(state)
-					if not kindName then
-						break
-					end
+				while state.timer <= 0 and underSpawnCap(state) do
 					-- carried the rest of its row's window too (-timer seconds of
 					-- it), so a row's several spawns spread along the travel
 					-- direction instead of stacking (same rule as spawnForPull)
-					local carried = travelled + dir3.Unit * (-state.timer / rowTime * Config.PREFILL_ROW_STEP)
-					local pos = self:clearSpot(self:spawnPosition(state) + carried, kindName, dir3.Unit)
-					if pos then
-						spawnFn(state, kindName, pos - pending)
-						state.spawnCount += 1
+					local carry = travelled + travel * (-state.timer / rowTime * Config.PREFILL_ROW_STEP)
+					local laid =
+						spawnSingle(self, state, stagingOffset(state), carry, pending, spawnFn, false, "prefill")
+					if not laid then
+						break
 					end
-					local interval = def.spawningSpeedMin
-						+ math.random() * math.max(0, def.spawningSpeedMax - def.spawningSpeedMin)
-					interval = math.max(interval, 0.05) -- never loop forever on a 0-interval def
+					local interval = rollInterval(def, laid)
 					state.timer += interval
 					updateMovement(state, interval) -- Move() keeps cycling between spawns, as in spawnForPull
 				end
@@ -1103,20 +1725,20 @@ end
 -- Config.SCAFFOLD_COUNT ordinary steps from `anchor` (the grabbed arrow's rest
 -- point) toward the frog's new heading (-spawnDirection), SCAFFOLD_SPACING apart,
 -- rising SCAFFOLD_RISE per step when that heading is purely sideways. Kinds are
--- the new direction's own weighted picks (Lane.pickKind), minus further arrows.
--- Each spot goes through Lane.clearSpot (spacing, lane bounds, the PlayerList
--- keep-out) and must be within Config.MAX_GRAB_DISTANCE of the origin
--- (GameServer's GrabStep reach check). A rung whose spot is already taken is
+-- the new direction's own weighted PLAIN picks (Lane.pickKind: no further
+-- arrows, no hazards).
+-- Each spot goes through Lane.clearSpot (spacing incl. the kind's sweep, lane
+-- bounds, the PlayerList keep-out) and must be within Config.MAX_GRAB_DISTANCE
+-- of the origin (GameServer's GrabStep reach check). A rung whose spot is already taken is
 -- skipped (the live steps there are that rung); the chain ends at the first rung
 -- beyond reach. `spawnFn` gets the position to create the
 -- part at now (rest less the lane's running pulls, like prefill); GameServer
 -- then slides the batch down in from above the view.
-function Lane.scaffold(self: Lane, anchor: Vector3, spawnFn: (kindName: string, worldPos: Vector3) -> ())
-	local dir3 = Vector3.new(self.spawnDirection.X, self.spawnDirection.Y, 0)
-	if dir3.Magnitude < 1e-4 or self:atPotTop() then
+function Lane.scaffold(self: Lane, anchor: Vector3, spawnFn: SpawnFn)
+	local travel = self.travel
+	if travel == Vector3.zero or self:atPotTop() then
 		return -- nothing spawns above the pot's rim (Lane.spawnRim)
 	end
-	local travel = dir3.Unit
 	local heading = -travel
 	local rise = if math.abs(travel.Y) < 1e-4 then Vector3.new(0, Config.SCAFFOLD_RISE, 0) else Vector3.zero
 
@@ -1130,47 +1752,28 @@ function Lane.scaffold(self: Lane, anchor: Vector3, spawnFn: (kindName: string, 
 		return
 	end
 
-	local function isArrow(kindName: string): boolean
-		local kind = StepKinds[kindName]
-		return kind ~= nil and string.sub(kind.behavior, 1, #"ChangeDirection") == "ChangeDirection"
-	end
-	local function pickPlain(state: SpawnerState): string?
-		for _ = 1, 8 do
-			local kindName = self:pickKind(state)
-			if kindName and not isArrow(kindName) then
-				return kindName
-			end
-		end
-		for _, kindName in state.def.pool do
-			if not isArrow(kindName) then
-				return kindName
-			end
-		end
-		return nil
-	end
-
 	local pending = self:sharedPending()
-	local reach = Config.MAX_GRAB_DISTANCE
+	-- a crowded spot moves a little further along the heading (clearSpot shifts
+	-- against its travel argument, scaled here so its SPAWN_NUDGE_MAX search spans
+	-- only SCAFFOLD_NUDGE studs)
+	local nudge = travel * (Config.SCAFFOLD_NUDGE / Config.SPAWN_NUDGE_MAX)
 	for i = 1, Config.SCAFFOLD_COUNT do
-		local kindName = pickPlain(spawners[math.random(1, #spawners)])
+		local kindName = self:pickKind(spawners[math.random(1, #spawners)], true)
 		if not kindName then
 			return
 		end
+		local kind = StepKinds[kindName]
+		local params = if kind then kind.params else nil
+		local sweep = sweepOf(kindName, params)
 		local want = anchor + heading * (Config.SCAFFOLD_SPACING * i) + rise * i
-		local wantRel = want - self.origin
-		if Vector2.new(wantRel.X, wantRel.Y).Magnitude > reach then
+		if planarDistance(self, want) > Config.MAX_GRAB_DISTANCE then
 			return -- every further rung is further out still
 		end
-		-- a crowded spot moves a little further along the heading (clearSpot shifts
-		-- against its travel argument, scaled here so its NUDGE_MAX search spans
-		-- only SCAFFOLD_NUDGE studs); nil means it is already taken by live steps
-		-- (which then serve as this rung) or would leave the lane, so skip the rung
-		local pos = self:clearSpot(want, kindName, travel * (Config.SCAFFOLD_NUDGE / NUDGE_MAX))
-		if pos then
-			local rel = pos - self.origin
-			if Vector2.new(rel.X, rel.Y).Magnitude <= reach then
-				spawnFn(kindName, pos - pending)
-			end
+		-- nil means the spot is already taken by live steps (which then serve as
+		-- this rung) or would leave the lane, so skip the rung
+		local pos = self:clearSpot(want, kindName, nudge, sweep)
+		if pos and withinReach(self, pos, sweep) then
+			emit(self, spawnFn, kindName, params, pos - pending, nil, "scaffold")
 		end
 	end
 end
@@ -1194,8 +1797,23 @@ end
 -- A step mid-motion is only recycled when BOTH where it is now and where it will
 -- rest are out: a spawn starts off-screen, past the top catch line, and must
 -- survive until the pull carries it in.
-function Lane.isOutOfBounds(self: Lane, step: BasePart): boolean
-	return outOfBounds(self, step.Position, step.Size) and outOfBounds(self, self:restPosition(step), step.Size)
+--
+-- Both tests are on the step's BASE: its visual offset (recoil, sag, a patrol's
+-- sweep) is small and bounded and must not decide whether it lives. `shared` is
+-- the lane's sharedPending(), which GameServer computes once per lane per tick
+-- for this check instead of once per step.
+--
+-- A step staged upstream on purpose (StepState.upstream: a pattern member behind
+-- the ones before it, a rim laid above a tall stack) sits past the entry-side
+-- bound from the moment it spawns, with no pull owed to it. It is allowed that
+-- far past on that side (outOfBounds' `slack`), or it would be recycled on the
+-- very next tick.
+function Lane.isOutOfBounds(self: Lane, step: BasePart, shared: Vector3?): boolean
+	local size = step.Size
+	local state = self.states[step]
+	local slack = if state and state.upstream > 0 then self.travel * state.upstream else nil
+	return outOfBounds(self, self:basePosition(step), size, slack)
+		and outOfBounds(self, self:restPosition(step, shared), size, slack)
 end
 
 -- ---------------------------------------------------------------------------
@@ -1211,27 +1829,60 @@ end
 -- Called every Heartbeat while the run plays: lays the rim once the Pot is
 -- climbed (no-op otherwise, or while this lane's rim is still live -- one that
 -- fell away unclimbed is laid again). Rests centred on the lane, its grab box
--- SPAWN_GAP above every live step's (at rest, Lane.restPosition), capped at the
--- recycle line; `spawnFn` gets the position to create it at now (rest less the
+-- SPAWN_GAP above every live step's (at rest, Lane.restPosition), even when that
+-- is past the recycle line (see `upstream` below); `spawnFn` gets the position to create it at now (rest less the
 -- running pulls) and GameServer slides it in like a prefill batch.
-function Lane.spawnRim(self: Lane, spawnFn: (kindName: string, worldPos: Vector3) -> ())
+function Lane.spawnRim(self: Lane, spawnFn: SpawnFn)
 	if not self:atPotTop() then
 		return
 	end
 	local top = -math.huge
+	local shared = self:sharedPending()
 	for step in self.active do
 		if step:GetAttribute("KindName") == POT_RIM_KIND then
 			return
 		end
 		local hit = (step:GetAttribute("HitSize") :: Vector2?) or Vector2.new(step.Size.X, step.Size.Y)
 		local offset = (step:GetAttribute("HitOffset") :: Vector2?) or Vector2.zero
-		top = math.max(top, self:restPosition(step).Y + offset.Y + hit.Y / 2)
+		top = math.max(top, self:restPosition(step, shared).Y + offset.Y + hit.Y / 2)
 	end
 	local kind = StepKinds[POT_RIM_KIND]
 	local hitOffsetY = if kind.hitOffset then kind.hitOffset.Y else 0
 	local y = math.max(top + Config.SPAWN_GAP + kind.hitSize.Y / 2 - hitOffsetY, self.origin.Y)
-	y = math.min(y, Config.SPAWN_Y + BOUNDS_MARGIN)
-	spawnFn(POT_RIM_KIND, Vector3.new(self.origin.X, y, self.origin.Z) - self:sharedPending())
+	-- Above the recycle line (pattern members rest up there, StepState.upstream)
+	-- the rim is a step staged upstream too: by however far the lane's scroll
+	-- must carry it to bring it down to the line. A lane with no downward travel
+	-- can't bring it down at all, so there it stays capped at the line.
+	local cap = Config.SPAWN_Y + Config.BOUNDS_MARGIN
+	local fall = -self.travel.Y
+	local upstream = 0
+	if y > cap then
+		if fall > 1e-4 then
+			upstream = (y - cap) / fall
+		else
+			y = cap
+		end
+	end
+	-- Under diagonal travel every pull that brings the rim down also carries it
+	-- sideways, so one laid centred arrives off to the side -- seen in Studio
+	-- (2026-10-05) resting at x = 40, past Config.MAX_GRAB_DISTANCE, with the Pot
+	-- no longer spawning anything to climb toward it. Lay it back along the travel
+	-- line instead, so it is centred when it reaches the lane origin's height;
+	-- capped so the rim's near end still starts inside the lane.
+	local x = self.origin.X
+	if fall > 1e-4 then
+		local lean = self.travel.X / fall * (y - self.origin.Y)
+		local maxLean = Config.LANE_HALF_WIDTH + kind.size.X / 2 - Config.BOUNDS_MARGIN
+		x -= math.clamp(lean, -maxLean, maxLean)
+	end
+	spawnFn(self, {
+		kindName = POT_RIM_KIND,
+		position = Vector3.new(x, y, self.origin.Z) - shared,
+		params = kind.params,
+		spawner = nil,
+		source = "rim",
+		upstream = upstream,
+	})
 end
 
 -- The three Tutorial tree kinds (StepKinds, Levels.luau's Tutorial pool): grabbing
@@ -1254,10 +1905,7 @@ local TUTORIAL_TREE_KINDS = {
 -- ---------------------------------------------------------------------------
 function Lane.onStepClimbed(self: Lane, kindName: string?)
 	self.runSteps += 1
-	-- covers a height-stage change WITHIN the current level (e.g. Pot's 15/35
-	-- runSteps stage bounds); a level transition below also calls setLevel,
-	-- which sets this same attribute again for the new level.
-	self:updateStageAttribute()
+	local levelBefore = self.levelIndex
 
 	if self.tutorialGraceActive and not (kindName and TUTORIAL_TREE_KINDS[kindName]) then
 		self.tutorialGraceActive = false
@@ -1265,7 +1913,7 @@ function Lane.onStepClimbed(self: Lane, kindName: string?)
 
 	if self.levelIndex == Levels.TUTORIAL then
 		self.tutorialStepsClimbed += 1
-		if self.tutorialStepsClimbed >= 3 then
+		if self.tutorialStepsClimbed >= Config.TUTORIAL_STEPS then
 			local profile = Profiles.get(self.player)
 			if profile then
 				profile.tutorialDone = true
@@ -1277,6 +1925,12 @@ function Lane.onStepClimbed(self: Lane, kindName: string?)
 		self:levelUp(Levels.KITCHEN)
 	elseif self.levelIndex == Levels.KITCHEN and self.runSteps >= Config.LEVEL_THRESHOLDS.Country then
 		self:levelUp(Levels.COUNTRY)
+	end
+
+	-- A height-stage change WITHIN the level (e.g. Pot's 15/35 runSteps stage
+	-- bounds). A level transition above already set the attribute (setLevel).
+	if self.levelIndex == levelBefore then
+		self:updateStageAttribute()
 	end
 end
 
@@ -1311,7 +1965,14 @@ function Lane.resetRun(self: Lane, tutorialDone: boolean)
 	self.runSteps = 0
 	self.tutorialStepsClimbed = 0
 	self.tutorialGraceActive = not tutorialDone
+	resetRecent(self)
 	table.clear(self.motions) -- the lane was just emptied (GameServer.clearLaneSteps)
+	-- ...so the replicated pull total (GameServer.publishPull) starts over too.
+	-- PullEpoch is bumped FIRST: it tells a client's PullScroller that the total
+	-- restarted, so the drop to zero is not read as a pull back.
+	local epoch = self.folder:GetAttribute("PullEpoch")
+	self.folder:SetAttribute("PullEpoch", (if typeof(epoch) == "number" then epoch else 0) + 1)
+	self.folder:SetAttribute("PullTotal", Vector3.zero)
 	self.driftDistance = 0
 	self.driftTime = 0
 	self.driftElapsed = 0
@@ -1343,6 +2004,8 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 	folder:SetAttribute("UserId", player.UserId)
 	folder:SetAttribute("Origin", origin)
 	folder:SetAttribute("Mode", Config.RUN_MODES.Normal)
+	folder:SetAttribute("PullTotal", Vector3.zero) -- GameServer.publishPull; restarted by Lane.resetRun
+	folder:SetAttribute("PullEpoch", 0)
 	folder.Parent = lanesFolder
 
 	local self = setmetatable({
@@ -1354,9 +2017,11 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		levelIndex = Levels.TUTORIAL,
 		level = Levels.list[Levels.TUTORIAL],
 		spawnDirection = Vector2.new(0, -1),
+		travel = Vector3.new(0, -1, 0),
 		spawnerStates = {},
 		activeSpawners = {},
 		active = {},
+		states = {},
 		motions = {},
 		netPull = 0,
 		mode = Config.RUN_MODES.Normal,
@@ -1368,6 +2033,11 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 		introIndex = 1,
 		obstruction = nil,
 		runSteps = 0,
+		levelStartSteps = 0,
+		recentHazards = {},
+		recentCursor = 0,
+		hazardCount = 0,
+		eventLast = {},
 		tutorialStepsClimbed = 0,
 		tutorialGraceActive = not tutorialDone,
 		notify = notify,
@@ -1386,6 +2056,7 @@ function Lane.destroy(self: Lane)
 	registry[self.player] = nil
 	releaseSlot(self.slot)
 	table.clear(self.active)
+	table.clear(self.states)
 	if self.folder.Parent then
 		self.folder:Destroy()
 	end

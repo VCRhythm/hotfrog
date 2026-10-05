@@ -150,9 +150,20 @@ function BugReportService.report(
     }
     local body = HttpService:JSONEncode(payload)
 
-    local ok, result = pcall(function()
-        return HttpService:PostAsync(_opts.endpoint or ENDPOINT, body, Enum.HttpContentType.ApplicationJson)
-    end)
+    -- A listener restarting on new code is unreachable for a moment: retry before falling
+    -- back to the console line. An HTTP 4xx answer is final. Automatic reports carry a
+    -- fingerprint the listener deduplicates on; a typed note could be filed twice only if the
+    -- listener took it and its answer was lost.
+    local ok, result
+    for attempt = 1, 4 do
+        ok, result = pcall(function()
+            return HttpService:PostAsync(_opts.endpoint or ENDPOINT, body, Enum.HttpContentType.ApplicationJson)
+        end)
+        if ok or attempt == 4 or string.find(tostring(result), "HTTP 4%d%d") then
+            break
+        end
+        task.wait(attempt) -- 1s, 2s, 3s
+    end
     if ok then
         local decoded = HttpService:JSONDecode(result)
         local id = tostring(decoded and decoded.id or "?")

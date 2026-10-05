@@ -49,6 +49,18 @@
 --                WhiteRock.png -- a blank white silhouette by design, coloured
 --                per prefab in Unity -- so this is required to tell them apart
 --                (b-20260921-164509-uork); nil means untinted (white).
+--   `params`   -- OPTIONAL default parameters for the kind's behaviour (each
+--                StepBehaviors entry documents its keys: a Patrol's `amplitude`
+--                / `period`, a Launch's `pull`, ...). A spawn that carries its
+--                own (a Levels pattern member) replaces them wholesale.
+--   `isArrow`  -- a ChangeDirection* step. Lane leaves these out wherever it
+--                needs an ordinary foothold (the direction-change scaffold,
+--                pattern members).
+--   `hazard`   -- the step takes itself away (crumbles, drops, blinks out), so
+--                it must never be the only thing on offer: Lane.pickKind caps
+--                these at Config.HAZARD_MAX_RECENT of the last HAZARD_WINDOW
+--                spawns and never uses one as a scaffold rung or a free pattern
+--                member.
 --
 -- This table + Shared/Levels' per-spawner `pool` lists REPLACE the old global
 -- Config.BEHAVIOR_WEIGHTS roll (doc 13 item 2): a step's behavior is a function
@@ -65,10 +77,14 @@ export type Kind = {
 	hitOffset: Vector2?, -- hitSize tap-test rectangle centre offset from canvas centre (see header)
 	tapSize: Vector2?, -- generous client-only tap rectangle around hitSize (see header)
 	color: Color3?, -- Unity SpriteRenderer tint (see header); nil = untinted (white)
+	params: { [string]: any }?, -- default behaviour parameters (see header)
+	isArrow: boolean?, -- a ChangeDirection* step (see header)
+	hazard: boolean?, -- removes itself; capped by Lane's fairness guard (see header)
 }
 
 -- Sprite canvases: <png pixels> / <.meta spritePixelsToUnits> * Config.UNITY_TO_STUDS.
-local ART_ROCK = Vector3.new(7.314, 7.314, 1) -- 256px @ 11 -- WhiteRock, CrumblyRock, every *Arrow
+local ART_ROCK = Vector3.new(7.314, 7.314, 1) -- 256px @ 11 -- WhiteRock, CrumblyRock, Lillipad, every *Arrow
+local ART_SMALL_ROCK = Vector3.new(3.657, 3.657, 1) -- SmallRock 128px @ 11
 local ART_WRAPPED = Vector3.new(6.437, 6.437, 1) -- WrappedRock 2048px @ 100
 local ART_POTATO = Vector3.new(6.437, 6.437, 1) -- 512px @ 25
 local ART_CARROT = Vector3.new(16.091, 16.091, 1) -- 512px @ 10 -- a small carrot on a very padded canvas
@@ -87,6 +103,10 @@ local HIT_SHELF = Vector2.new(7.229, 3.143) -- BoxCollider2D size=(23,10)
 local HIT_ROCKET = Vector2.new(6.521, 7.832) -- BoxCollider2D size=(20.748,24.920)
 local HIT_BALLOON = Vector2.new(12.571, 12.571) -- BoxCollider2D size=(40,40)
 local HIT_ACORN = Vector2.new(8.046, 8.046) -- BoxCollider2D size=(25.6,25.6), the trees' "Acorn" child
+-- Port additions with no Unity collider: the art's own extent on its canvas.
+local HIT_LILLIPAD = Vector2.new(5.6, 5.6) -- the pad is ~196 of Lillipad.png's 256 px
+local HIT_SMALL_ROCK = Vector2.new(3.657, 3.657) -- the whole 128 px canvas
+local TAP_SMALL_ROCK = Vector2.new(6, 6) -- client-only: a 3.7-stud target is too small for a thumb
 
 -- Grip offsets: (pivot - 0.5) * canvasSize, from the sprite's .meta (see header).
 -- Carrot.png.meta: alignment 9 (Custom), spritePivot=(0.30466288, 0.3970804) --
@@ -123,6 +143,11 @@ local TAP_CARROT = Vector2.new(13, 10)
 -- white regardless of the kind, which is what b-20260921-164509-uork reported.
 local TINT_SALMON = Color3.new(1, 0.459, 0.395) -- FallingRock, Castle
 local TINT_BLACK = Color3.new(0, 0, 0) -- Beetle
+-- Port additions (no Unity prefab): one tint per moving / timed kind, so each
+-- reads at a glance against the white, salmon and black rocks above.
+local TINT_SKY = Color3.new(0.45, 0.75, 1) -- BobRock
+local TINT_LIME = Color3.new(0.6, 0.95, 0.3) -- SpringRock
+local TINT_VIOLET = Color3.new(0.78, 0.55, 1) -- BlinkRock
 
 local StepKinds: { [string]: Kind } = {
 	-- Pot (Level2) pools (doc 11 §2a)
@@ -149,6 +174,7 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.1,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
+		isArrow = true,
 	},
 	UpLeftRock = {
 		behavior = "ChangeDirectionUpLeft",
@@ -156,6 +182,7 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.1,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
+		isArrow = true,
 	},
 	UpRightRock = {
 		behavior = "ChangeDirectionUpRight",
@@ -163,6 +190,7 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.1,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
+		isArrow = true,
 	},
 	-- PORT ADDITION, no Unity prefab (b-20260923-154343-9twj, ruling
 	-- b-20260928-173934-iff0): the pot's rim, the Pot -> Kitchen landmark. In
@@ -206,6 +234,7 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.1,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
+		isArrow = true,
 	},
 	RightRock = {
 		behavior = "ChangeDirectionRight",
@@ -213,6 +242,7 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.1,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
+		isArrow = true,
 	},
 
 	-- Country (Level4, Multiplayer-exclusive) themed pool (doc 11 §2a)
@@ -256,6 +286,7 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.5,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
+		hazard = true,
 	},
 	FallingRock = {
 		behavior = "Falling",
@@ -264,6 +295,7 @@ local StepKinds: { [string]: Kind } = {
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
 		color = TINT_SALMON,
+		hazard = true,
 	},
 	FlingingRock = {
 		behavior = "SplashFlinging",
@@ -297,6 +329,69 @@ local StepKinds: { [string]: Kind } = {
 		size = ART_CASTLE,
 		hitSize = HIT_CASTLE,
 		color = TINT_SALMON,
+	},
+
+	-- -----------------------------------------------------------------------
+	-- PORT ADDITIONS: dynamic kinds with no Unity prefab (doc 17). Each rides a
+	-- behaviour Unity's ActionType enum names but never implemented (Patrol
+	-- stands in for Move), or one no shipped prefab uses (Crumble). They appear
+	-- only where Shared/Levels' height stages, patterns and events name them --
+	-- never in the Tutorial. `spawnProbability` is the weight in a pool whose
+	-- level has no height stage listing the kind.
+	-- -----------------------------------------------------------------------
+	-- Glides left and right. Under straight-down travel Lane keeps the whole
+	-- sweep inside the portrait view (Config.SPAWN_VIEW_HALF_WIDTH).
+	Lillipad = {
+		behavior = "Patrol",
+		sprite = "Lillipad",
+		spawnProbability = 0.15,
+		size = ART_ROCK,
+		hitSize = HIT_LILLIPAD,
+		params = { amplitude = 2.5, period = 3.5 },
+	},
+	-- Bobs up and down.
+	BobRock = {
+		behavior = "RiseAndFall",
+		sprite = "WhiteRock",
+		spawnProbability = 0.15,
+		size = ART_ROCK,
+		hitSize = HIT_ROCK,
+		color = TINT_SKY,
+		params = { amplitude = 1.5, period = 2.5 },
+	},
+	-- Springboard: its grab pulls the field a further `pull` studs.
+	SpringRock = {
+		behavior = "Launch",
+		sprite = "WhiteRock",
+		spawnProbability = 0.1,
+		size = ART_ROCK,
+		hitSize = HIT_ROCK,
+		color = TINT_LIME,
+		params = { pull = 8 },
+	},
+	-- Timed: `delay` seconds in view, `warn` seconds of blinking, then it drops
+	-- away whether or not it is held.
+	BlinkRock = {
+		behavior = "Vanish",
+		sprite = "SmallRock",
+		spawnProbability = 0.1,
+		size = ART_SMALL_ROCK,
+		hitSize = HIT_SMALL_ROCK,
+		tapSize = TAP_SMALL_ROCK,
+		color = TINT_VIOLET,
+		params = { delay = 3, warn = 1.5 },
+		hazard = true,
+	},
+	-- CrumblyRock's art with the Crumble behaviour Unity wrote but never put on
+	-- a prefab (see CrumblyRock above, which stays "None"): explodes
+	-- Config.CRUMBLE_FUSE seconds after the grab.
+	CrumbleRock = {
+		behavior = "Crumble",
+		sprite = "CrumblyRock",
+		spawnProbability = 0.1,
+		size = ART_ROCK,
+		hitSize = HIT_ROCK,
+		hazard = true,
 	},
 
 	-- Tutorial (Level1) tree steps (doc 11/12): the "Acorn" child Step component

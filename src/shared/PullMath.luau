@@ -56,4 +56,44 @@ function PullMath.pullTime(distance: number): number
 	return math.clamp(math.abs(distance) / Config.PULL_SPEED, Config.PULL_TIME, Config.PULL_TIME_MAX)
 end
 
+-- Sine/Out easing of `alpha` (clamped to 0..1): DOTween's Ease.OutSine and
+-- TweenService's Sine/Out. The one curve every server-played motion shares --
+-- Lane's pulls and slide-ins, Frog.Bob's sway/rise, the death sink -- and the one
+-- WorldScenery tweens a lane's cosmetics with off PullDelta/PullTime, so it lives
+-- here rather than once per caller.
+function PullMath.sineOut(alpha: number): number
+	return math.sin(math.clamp(alpha, 0, 1) * (math.pi / 2))
+end
+
+-- Quad/In easing of `alpha` (clamped to 0..1): a step dropping away (Step.cs
+-- Fall's DOLocalMoveY, GameServer's step motion layer).
+function PullMath.quadIn(alpha: number): number
+	local a = math.clamp(alpha, 0, 1)
+	return a * a
+end
+
+-- Lerp alpha that closes the same share of a gap over `dt` whatever the frame
+-- rate: 1 - e^(-dt / timeConstant). At 60 Hz it matches the old per-frame
+-- `dt / timeConstant` to within a few percent, but a hitch (or a 240 Hz server)
+-- no longer changes the shape of the ease.
+function PullMath.smoothAlpha(dt: number, timeConstant: number): number
+	if timeConstant <= 0 then
+		return 1
+	end
+	return 1 - math.exp(-dt / timeConstant)
+end
+
+-- One exact step of an underdamped spring pulling `x` back to zero: angular
+-- frequency `omega` (rad/s), damping ratio `zeta` (0 < zeta < 1). Closed form
+-- rather than an Euler step, so the result is the same at any frame rate and
+-- cannot blow up on a long tick. Returns the new displacement and velocity.
+function PullMath.springStep(x: Vector3, v: Vector3, dt: number, omega: number, zeta: number): (Vector3, Vector3)
+	local sigma = zeta * omega
+	local damped = omega * math.sqrt(1 - zeta * zeta)
+	local decay = math.exp(-sigma * dt)
+	local c, s = math.cos(damped * dt), math.sin(damped * dt)
+	local b = (v + x * sigma) / damped
+	return (x * c + b * s) * decay, ((b * damped - x * sigma) * c - (x * damped + b * sigma) * s) * decay
+end
+
 return PullMath

@@ -11,6 +11,11 @@
 -- Analogous to Shared/StepKinds.luau but for Spawning/ScenerySpawner.cs +
 -- Entities/Scenery.cs / MovingScenery.cs (doc 11 §2a, doc 12 §3).
 
+local ReplicatedStorage = game:GetService("ReplicatedStorage")
+
+local Config = require(ReplicatedStorage.Shared.Config)
+local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
+
 -- SIZES: every `size` below is the sprite's WHOLE Unity canvas, in studs --
 -- `<png pixels> / <the .png.meta's spritePixelsToUnits> * Config.UNITY_TO_STUDS`,
 -- times the prefab's own localScale (only BackGrass (1,2,1), Stars (2,1,1) and US
@@ -44,7 +49,71 @@ export type SceneryKind = {
 	-- grabClip, Audio/Pop.wav), a short particle burst (Grab's particles.Play()),
 	-- and recycles it (Grab's Destroy(0, 0, 1f)) -- doc 14 "Bubble pop".
 	poppable: boolean,
+	-- ---- Client-only dynamics (ADAPTED/additive -- Unity scenery has none of these) ----
+	-- Plane the part sits on (WorldConfig.SCENERY_Z by default). Far parallax layers sit
+	-- further back, near ones just behind the step plane (steps are 1 stud thick at Z 0).
+	z: number,
+	-- Sprite opacity 0..1 (atmospheric far layers are fainter).
+	opacity: number,
+	-- Per-frame motion layered ON TOP of pull + autoMove (see SceneryMotion).
+	motion: SceneryMotion?,
+	-- How strongly Country's gusts (world/Wind.luau) push this kind's drift and
+	-- amplify its sway. 0 = unaffected.
+	windSensitivity: number,
+	-- What a tap on the part does (WorldScenery's generalised Bubble pop): "pop" (burst
+	-- + recycle, MovingScenery.cs Grab), "wobble" (squash and damped roll), "flare"
+	-- (swell + a few sparks). nil = not tappable (CanQuery stays false).
+	reaction: Reaction?,
 }
+
+-- Optional per-kind motion descriptor, evaluated every frame in WorldScenery on top
+-- of the pull/autoMove position. All amplitudes are studs / degrees / fractions and
+-- are scaled by WorldConfig.MOTION_AMPLITUDE_SCALE; periods are seconds (scaled by
+-- MOTION_SPEED_SCALE). Each part gets its own random phase so a field of them
+-- doesn't move in lockstep.
+export type SceneryMotion = {
+	swayX: number, -- horizontal sine offset amplitude, studs
+	swayY: number, -- vertical sine (bob) amplitude, studs
+	swayPeriod: number,
+	roll: number, -- Z-rotation sine amplitude, degrees
+	rollPeriod: number,
+	spin: number, -- constant Z spin, degrees/second (0 = none)
+	pulse: number, -- fractional size breathing amplitude (0.05 = +/-5%)
+	pulsePeriod: number,
+	flicker: number, -- extra fractional size jitter from noise (flames)
+}
+
+export type Reaction = "pop" | "wobble" | "flare"
+
+local function motion(def: {
+	swayX: number?,
+	swayY: number?,
+	swayPeriod: number?,
+	roll: number?,
+	rollPeriod: number?,
+	spin: number?,
+	pulse: number?,
+	pulsePeriod: number?,
+	flicker: number?,
+}): SceneryMotion
+	return {
+		swayX = def.swayX or 0,
+		swayY = def.swayY or 0,
+		swayPeriod = def.swayPeriod or 4,
+		roll = def.roll or 0,
+		rollPeriod = def.rollPeriod or 4,
+		spin = def.spin or 0,
+		pulse = def.pulse or 0,
+		pulsePeriod = def.pulsePeriod or 2,
+		flicker = def.flicker or 0,
+	}
+end
+
+-- A sprite's whole canvas in studs (the SIZES rule above), times an optional
+-- display scale for the parallax layers that reuse one sprite at several sizes.
+local function canvas(pixels: number, pixelsPerUnit: number, scale: number?): number
+	return pixels / pixelsPerUnit * Config.UNITY_TO_STUDS * (scale or 1)
+end
 
 local function kind(def: {
 	sprite: string?,
@@ -56,6 +125,11 @@ local function kind(def: {
 	moveDirection: Vector2?,
 	moveSpeed: number?,
 	poppable: boolean?,
+	z: number?,
+	opacity: number?,
+	motion: SceneryMotion?,
+	windSensitivity: number?,
+	reaction: Reaction?,
 }): SceneryKind
 	return {
 		sprite = def.sprite,
@@ -66,7 +140,12 @@ local function kind(def: {
 		moving = def.moving == true,
 		moveDirection = def.moveDirection or Vector2.zero,
 		moveSpeed = def.moveSpeed or 0,
-		poppable = def.poppable == true,
+		poppable = def.poppable == true or def.reaction == "pop",
+		z = def.z or WorldConfig.SCENERY_Z,
+		opacity = def.opacity or 1,
+		motion = def.motion,
+		windSensitivity = def.windSensitivity or 0,
+		reaction = def.reaction or (if def.poppable == true then "pop" :: Reaction else nil),
 	}
 end
 
@@ -115,6 +194,53 @@ local SceneryKinds: { [string]: SceneryKind } = {
 		colors = CLOUD_TINTS,
 		speedModifier = 0.4,
 		autoMove = Vector2.new(-1.5, 0), -- Scenery.cs autoMovement (-5,0)/(-5,0), scaled (ADAPTED)
+		-- Dynamics: a slow bob and a hint of roll, wind-pushed, wobbles when tapped.
+		motion = motion({ swayY = 0.45, swayPeriod = 7, roll = 1.2, rollPeriod = 9 }),
+		windSensitivity = 0.7,
+		reaction = "wobble",
+	}),
+
+	-- Parallax depth layers from the otherwise unused Cloud/Cloud2 art (client-only,
+	-- merged into Menu and Country by `extraSpawners` below). Same sprite sheet
+	-- convention as Cloud3 (CLOUD_TINTS); each is a different canvas scale, parallax
+	-- speedModifier, plane and opacity so the sky reads as layers, not one cloud size.
+	-- CloudFar: small, faint, nearly fixed, right in front of the backdrop tile (Z -5).
+	CloudFar = kind({
+		sprite = "Cloud",
+		size = Vector3.new(canvas(1024, 50, 2.4), canvas(1024, 50, 2.4), 0.2), -- 1024px @ 50, shown at 2.4x
+		colors = CLOUD_TINTS,
+		speedModifier = 0.12,
+		autoMove = Vector2.new(-0.5, 0),
+		z = -4.6,
+		opacity = 0.55,
+		motion = motion({ swayY = 0.3, swayPeriod = 9 }),
+		windSensitivity = 0.35,
+	}),
+	-- CloudNear: big, bright, scrolls almost with the steps, just behind them (steps are
+	-- 1 stud thick at Z 0). Tappable: a quick squash-and-wobble.
+	CloudNear = kind({
+		sprite = "Cloud2",
+		size = Vector3.new(canvas(1024, 50, 3.2), canvas(1024, 50, 3.2), 0.2), -- 1024px @ 50, shown at 3.2x
+		colors = CLOUD_TINTS,
+		speedModifier = 0.7,
+		autoMove = Vector2.new(-1.8, 0),
+		z = -1.5,
+		opacity = 0.9,
+		motion = motion({ swayY = 0.55, swayPeriod = 6, roll = 1.8, rollPeriod = 8, pulse = 0.015, pulsePeriod = 5 }),
+		windSensitivity = 1,
+		reaction = "wobble",
+	}),
+	-- Country: a leaf drifting down and sideways. Leaf.png is 16px @ 100 (a 0.05-stud
+	-- speck at native size), so it is shown at 30x (~1.5 studs). It is a dark
+	-- silhouette (the art is black + alpha), so it takes no colour tint.
+	Leaf = kind({
+		sprite = "Leaf",
+		size = Vector3.new(canvas(16, 100, 30), canvas(16, 100, 30), 0.05),
+		speedModifier = 0.9,
+		autoMove = Vector2.new(0, -2.2), -- falls; the flutter below is on top
+		z = -1.3,
+		motion = motion({ swayX = 1.6, swayPeriod = 2.4, swayY = 0.4, roll = 40, rollPeriod = 2.4 }),
+		windSensitivity = 1,
 	}),
 
 	-- Tutorial (Level1). Stars.prefab (doc 11 §3) has spawnProbability=0 -- it's a
@@ -133,6 +259,34 @@ local SceneryKinds: { [string]: SceneryKind } = {
 		size = Vector3.new(5.029, 5.029, 0.2), -- 64px @ 4
 		colors = { Color3.fromRGB(255, 130, 40) },
 		speedModifier = 1.0,
+		-- Dynamics: a quick size flicker and a lazy sway; a tap flares it.
+		motion = motion({
+			swayX = 0.25,
+			swayPeriod = 1.9,
+			roll = 3.5,
+			rollPeriod = 1.3,
+			pulse = 0.07,
+			pulsePeriod = 0.45,
+			flicker = 0.06,
+		}),
+		reaction = "flare",
+	}),
+	-- Pot: a bigger, fainter Flame2 (256px @ 10, shown at 1.3x) further back, so the
+	-- pot wall has depth behind the foreground flames. Merged in by `extraSpawners`.
+	FlameBack = kind({
+		sprite = "Flame2",
+		size = Vector3.new(canvas(256, 10, 1.3), canvas(256, 10, 1.3), 0.2),
+		speedModifier = 0.45,
+		z = -2.2,
+		opacity = 0.5,
+		motion = motion({
+			swayX = 0.4,
+			swayPeriod = 2.6,
+			pulse = 0.09,
+			pulsePeriod = 0.7,
+			flicker = 0.08,
+		}),
+		reaction = "flare",
 	}),
 	-- Multiplayer-only UpScenerySpawner override (doc 11): MovingScenery.cs, own
 	-- constant upward drift independent of pulls. Also the only "GrabableScenery"-
@@ -146,6 +300,9 @@ local SceneryKinds: { [string]: SceneryKind } = {
 		moveDirection = Vector2.new(0, 1),
 		moveSpeed = 5,
 		poppable = true,
+		reaction = "pop",
+		-- Dynamics: wobbles side to side as it rises, slight breathing.
+		motion = motion({ swayX = 0.9, swayPeriod = 2.3, pulse = 0.05, pulsePeriod = 1.7 }),
 	}),
 
 	-- Kitchen / Country (Level3/4)
@@ -209,9 +366,69 @@ local SpawnerCadence: { [string]: SpawnerCadence } = {
 	DownScenerySpawner = { maxSpawnCount = 5, spawningSpeedMin = 10, spawningSpeedMax = 20, spawnAllOnAwake = false },
 }
 
+-- ---------------------------------------------------------------------------
+-- Client-side extra scenery spawners per level name (ADAPTED/additive).
+-- Levels.luau is the gameplay data and stays untouched; WorldScenery merges these
+-- with the level's own `scenerySpawners` (same SpawnerRuntime shape, same
+-- direction-by-sign placement, see WorldScenery.spawnPosition). They exist for the
+-- parallax-depth layers and Country's drifting leaves. `initialScatter` places that
+-- many parts at random spots over the field when the spawner starts, so the sky is
+-- not empty for the first minute. The key is the effective level name WorldScenery
+-- uses ("Menu" while the lane is idle).
+-- ---------------------------------------------------------------------------
+export type ExtraSpawner = {
+	name: string,
+	direction: Vector2,
+	pool: { string },
+	cadence: SpawnerCadence,
+	initialScatter: number,
+}
+
+local SKY_LAYERS: { ExtraSpawner } = {
+	{
+		name = "FarCloudSpawner",
+		direction = Vector2.new(-1, 0),
+		pool = { "CloudFar" },
+		cadence = { maxSpawnCount = 5, spawningSpeedMin = 9, spawningSpeedMax = 16, spawnAllOnAwake = false },
+		initialScatter = 3,
+	},
+	{
+		name = "NearCloudSpawner",
+		direction = Vector2.new(-1, 0),
+		pool = { "CloudNear" },
+		cadence = { maxSpawnCount = 3, spawningSpeedMin = 14, spawningSpeedMax = 24, spawnAllOnAwake = false },
+		initialScatter = 1,
+	},
+}
+
+local ExtraSpawners: { [string]: { ExtraSpawner } } = {
+	Menu = SKY_LAYERS,
+	Country = {
+		SKY_LAYERS[1] :: ExtraSpawner,
+		SKY_LAYERS[2] :: ExtraSpawner,
+		{
+			name = "LeafSpawner",
+			direction = Vector2.new(0, -1), -- spawns along the top edge and falls
+			pool = { "Leaf" },
+			cadence = { maxSpawnCount = 14, spawningSpeedMin = 1.2, spawningSpeedMax = 2.6, spawnAllOnAwake = false },
+			initialScatter = 5,
+		},
+	},
+	Pot = {
+		{
+			name = "BackFlameSpawner",
+			direction = Vector2.new(0, 1),
+			pool = { "FlameBack" },
+			cadence = { maxSpawnCount = 4, spawningSpeedMin = 3, spawningSpeedMax = 6, spawnAllOnAwake = false },
+			initialScatter = 2,
+		},
+	},
+}
+
 local Kinds = {
 	defs = SceneryKinds,
 	cadence = SpawnerCadence,
+	extraSpawners = ExtraSpawners,
 }
 
 -- P2 duplicate spawners are intentionally never ticked (see BackGrassP2/GrassP2

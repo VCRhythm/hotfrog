@@ -35,16 +35,22 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
+local Lanes = require(script.Parent.world.Lanes)
+local PullScroller = require(script.Parent.world.PullScroller)
 
 local player = Players.LocalPlayer
-local playField = workspace:WaitForChild("PlayField")
-local myLane = playField:WaitForChild("Lanes"):WaitForChild(tostring(player.UserId), math.huge) :: Folder
-
-local levelState = player:WaitForChild("LevelState", math.huge) :: Folder
-local changed = levelState:WaitForChild("Changed") :: BindableEvent
+local lane = Lanes.waitForLocal()
+local levelStateInstance = player:WaitForChild("LevelState", WorldConfig.LANE_WAIT_TIMEOUT)
+if not (lane and levelStateInstance) then
+	warn("[WorldBackdrop] lane or LevelState never appeared; backdrop is disabled")
+	return
+end
+local myLane: Folder = lane
+local levelState = levelStateInstance
+local changed = levelState:WaitForChild("Changed", WorldConfig.LANE_WAIT_TIMEOUT) :: BindableEvent
 
 -- Journey 4/8 (b-20260923-154344-xac3): tracked so the heat-modulation
--- Heartbeat below (see its own header comment, near the bottom of this file)
+-- PreRender update below (see its own header comment, near the bottom of this file)
 -- knows what level/keys it's blending from and never fights the crossfade
 -- tweens setBackground/setOverlay/setSun below kick off on every transition.
 local currentLevelName: string? = nil
@@ -59,8 +65,7 @@ local function gateTransition(duration: number)
 end
 
 local function laneOrigin(): Vector3
-	local origin = myLane:GetAttribute("Origin")
-	return if typeof(origin) == "Vector3" then origin else Vector3.new(0, 0, 0)
+	return Lanes.originOf(myLane)
 end
 
 -- ---------------------------------------------------------------------------
@@ -90,7 +95,7 @@ local BACKGROUND_COLORS: { [string]: Color3 } = {
 local DEFAULT_BACKGROUND_COLOR = Color3.fromRGB(155, 255, 255) -- Sky.mat's own _Color
 
 local TILE_HEIGHT = (Config.SPAWN_Y - Config.DESPAWN_Y) + WorldConfig.SCENERY_BOUNDS_MARGIN
-local TILE_WIDTH = Config.LANE_HALF_WIDTH * 2 + 40
+local TILE_WIDTH = Config.LANE_HALF_WIDTH * 2 + WorldConfig.BACKDROP_EXTRA_WIDTH
 
 -- StudsPerTileU/V for the Texture instance below, derived from each
 -- material's _MainTex tiling `scale` (dump_materials.py's tex_env dump):
@@ -107,7 +112,7 @@ local BACKGROUND_TILING: { [string]: { u: number, v: number } } = {
 local function makeBackgroundTile(index: number): BasePart
 	local tile = Instance.new("Part")
 	tile.Name = "BackgroundTile" .. index
-	tile.Size = Vector3.new(TILE_WIDTH, TILE_HEIGHT, 0.2)
+	tile.Size = Vector3.new(TILE_WIDTH, TILE_HEIGHT, WorldConfig.BACKDROP_TILE_THICKNESS)
 	tile.Anchored = true
 	tile.CanCollide = false
 	tile.CanQuery = false
@@ -130,8 +135,8 @@ end
 local bgTiles = { makeBackgroundTile(1), makeBackgroundTile(2) }
 local function layoutBackgroundTiles()
 	local origin = laneOrigin()
-	bgTiles[1].CFrame = CFrame.new(origin.X, origin.Y, Config.PLANE_Z - 5)
-	bgTiles[2].CFrame = CFrame.new(origin.X, origin.Y + TILE_HEIGHT, Config.PLANE_Z - 5)
+	bgTiles[1].CFrame = CFrame.new(origin.X, origin.Y, Config.PLANE_Z + WorldConfig.BACKDROP_DEPTH)
+	bgTiles[2].CFrame = CFrame.new(origin.X, origin.Y + TILE_HEIGHT, Config.PLANE_Z + WorldConfig.BACKDROP_DEPTH)
 end
 layoutBackgroundTiles()
 
@@ -158,6 +163,9 @@ end
 local X_DRIFT_LIMIT = (TILE_WIDTH - Config.LANE_HALF_WIDTH * 2) / 2
 
 local function scrollBackground(delta: Vector3)
+	if delta.X == 0 and delta.Y == 0 then
+		return
+	end
 	local origin = laneOrigin()
 	for _, tile in bgTiles do
 		tile.Position += delta
@@ -203,7 +211,7 @@ local OVERLAY_COLORS: { [string]: Color3 } = {
 
 local overlay = Instance.new("Part")
 overlay.Name = "LevelOverlay"
-overlay.Size = Vector3.new(TILE_WIDTH, TILE_HEIGHT, 0.2)
+overlay.Size = Vector3.new(TILE_WIDTH, TILE_HEIGHT, WorldConfig.BACKDROP_TILE_THICKNESS)
 overlay.Anchored = true
 overlay.CanCollide = false
 overlay.CanQuery = false
@@ -219,7 +227,7 @@ overlay.Parent = workspace
 
 local function layoutOverlay()
 	local origin = laneOrigin()
-	overlay.CFrame = CFrame.new(origin.X, origin.Y, Config.PLANE_Z - 3)
+	overlay.CFrame = CFrame.new(origin.X, origin.Y, Config.PLANE_Z + WorldConfig.OVERLAY_DEPTH)
 end
 layoutOverlay()
 
@@ -237,7 +245,7 @@ end
 local sun = Instance.new("Part")
 sun.Name = "Sun"
 sun.Shape = Enum.PartType.Ball
-sun.Size = Vector3.new(4, 4, 4)
+sun.Size = Vector3.one * WorldConfig.SUN_SIZE
 sun.Anchored = true
 sun.CanCollide = false
 sun.CanQuery = false
@@ -252,7 +260,11 @@ sun.Parent = workspace
 
 local function layoutSun()
 	local origin = laneOrigin()
-	sun.CFrame = CFrame.new(origin.X - Config.LANE_HALF_WIDTH * 0.5, Config.SPAWN_Y + 8, Config.PLANE_Z - 4)
+	sun.CFrame = CFrame.new(
+		origin.X + Config.LANE_HALF_WIDTH * WorldConfig.SUN_X_FRACTION,
+		Config.SPAWN_Y + WorldConfig.SUN_Y_ABOVE_SPAWN,
+		Config.PLANE_Z + WorldConfig.SUN_DEPTH
+	)
 end
 layoutSun()
 
@@ -340,11 +352,13 @@ changed.Event:Connect(function(levelName, _musicIndex, background, overlayKey, t
 	applyLevel(levelName, background, overlayKey, transition)
 end)
 
-myLane:GetAttributeChangedSignal("PullCount"):Connect(function()
-	local delta = myLane:GetAttribute("PullDelta")
-	if typeof(delta) == "Vector3" then
-		scrollBackground(delta * 0.6) -- background sits further back: slower parallax than scenery
-	end
+-- The same eased, additive pull the scenery uses (world/PullScroller: Sine/Out over
+-- PullTime, matching the server's own pull), integrated once per frame -- the
+-- backdrop used to step by the whole PullDelta the instant a grab landed while the
+-- scenery eased in. It sits further back, hence the slower parallax.
+local pullScroller = PullScroller.new(myLane)
+RunService.PreRender:Connect(function(dt: number)
+	scrollBackground(pullScroller:step(dt) * WorldConfig.BACKDROP_PARALLAX)
 end)
 
 -- ---------------------------------------------------------------------------
@@ -363,7 +377,7 @@ end)
 -- so arriving in Kitchen reads as immediate relief rather than a lingering
 -- flush.
 -- ---------------------------------------------------------------------------
-RunService.Heartbeat:Connect(function()
+RunService.PreRender:Connect(function()
 	if transitioning or currentLevelName ~= "Pot" then
 		return
 	end

@@ -136,7 +136,7 @@ WorldConfig.TRANSITION_START_FADE_TIME = 0.6
 -- ---------------------------------------------------------------------------
 WorldConfig.SCENERY_BOUNDS_MARGIN = 10 -- extra studs beyond the lane's step bounds before recycling
 WorldConfig.SCENERY_POOL_CAP = 24 -- clamp for spawners whose maxSpawnCount is "-1" (infinite)
-WorldConfig.SCENERY_AUTOMOVE_SCALE = 0.12 -- Unity autoMovement units -> studs/s (ADAPTED, cosmetic-only)
+-- (SCENERY_AUTOMOVE_SCALE was dead config -- SceneryKinds.autoMove is already in studs/s -- and is gone.)
 
 -- ---------------------------------------------------------------------------
 -- Pebbles (Entities/Pebble.cs Explode: xForce=Random(-5,5), yForce=Random(1,5),
@@ -262,5 +262,118 @@ WorldConfig.ARRIVAL_STING_LEAD = 0.8 -- seconds
 -- WorldScenery: the previous level's leftover scenery (Pot's Flame/Bubble)
 -- fades out over this long instead of drifting off with the new level.
 WorldConfig.ARRIVAL_SCENERY_FADE_TIME = 0.6
+
+-- ---------------------------------------------------------------------------
+-- World-dressing modernisation pass (all ADAPTED/additive cosmetics -- the
+-- Unity original has none of the dynamics below; nothing here is gameplay).
+-- ---------------------------------------------------------------------------
+
+-- Lane discovery (world/Lanes.luau): how long a cosmetic script waits for the
+-- PlayField / its lane folder / its frog before giving up with a warning.
+-- Unbounded: the lane folder only appears once the player's profile has loaded,
+-- which can stall well past any fixed limit, and a script that gave up would
+-- stay dead for the whole session. A finite value is for debugging only.
+WorldConfig.LANE_WAIT_TIMEOUT = math.huge
+
+-- Shared pools: parked-part caps so a one-off spike of spawns isn't kept forever.
+WorldConfig.BURST_POOL_CAP = 48
+WorldConfig.SCENERY_PARK_CAP = 24 -- parked parts kept per scenery kind
+
+-- Scenery spawn placement (WorldScenery.spawnPosition). Mirrors Lane.luau's
+-- "opposite of travel" edge logic for steps.
+WorldConfig.SCENERY_Z = -1 -- default plane for scenery: slightly behind the Z 0 step plane
+WorldConfig.SPAWN_EDGE_INSET_FRACTION = 0.4 -- corner spawns sit up to this fraction of the lane half-width in from the edge
+WorldConfig.SPAWN_SIDE_OUTSET = 3 -- studs past the lane edge a side spawner places its parts
+WorldConfig.SPAWN_SIDE_Y_FRACTION = 0.6 -- side spawns scatter over +/- this fraction of SPAWN_Y
+WorldConfig.SCATTER_Y_MIN_FRACTION = 0.2 -- initial scatter (extra spawners): Y between DESPAWN_Y and SPAWN_Y...
+WorldConfig.SCATTER_Y_MAX_FRACTION = 0.85 -- ...from this fraction of the way up to this one
+WorldConfig.AWAKE_BATCH_PER_POOL_ENTRY = 4 -- spawnAllOnAwake batch size = pool entries x this x stage density
+WorldConfig.SPAWNER_MIN_INTERVAL = 0.05 -- floor on a scenery spawner's timer, seconds
+WorldConfig.US_SWAP_PERIOD = 5 -- UnitedStates.cs DOColor(..., 5f) + WaitForSeconds(5f)
+
+-- Scenery motion descriptors (SceneryKinds `motion`): global scale knobs.
+WorldConfig.MOTION_SPEED_SCALE = 1 -- multiplies every descriptor's frequency
+WorldConfig.MOTION_AMPLITUDE_SCALE = 1 -- multiplies every descriptor's sway/roll/pulse amplitude
+
+-- Wind (world/Wind.luau + WorldScenery): per-lane gusts, Country only.
+WorldConfig.WIND_LEVELS = { Country = true } -- level names with ambient wind
+WorldConfig.WIND_DIRECTION = Vector2.new(-1, 0) -- the way a gust pushes autoMove drift (blowing leftwards, same as Cloud3's drift)
+WorldConfig.WIND_GUST_INTERVAL_MIN = 5 -- calm gap between gusts, seconds
+WorldConfig.WIND_GUST_INTERVAL_MAX = 11
+WorldConfig.WIND_GUST_DURATION_MIN = 2.5 -- one gust's swell-and-fade, seconds
+WorldConfig.WIND_GUST_DURATION_MAX = 4.5
+WorldConfig.WIND_STRENGTH = 5 -- studs/s a full gust adds to a kind with windSensitivity 1
+WorldConfig.WIND_SWAY_BOOST = 1.6 -- a full gust multiplies sway/roll amplitude by 1 + this x windSensitivity
+WorldConfig.WIND_RESPONSE_RATE = 3 -- per-second smoothing of the gust value
+
+-- Interactive scenery (kind `reaction`): tap reactions.
+WorldConfig.REACTION_COOLDOWN = 0.4 -- seconds before the same part reacts again
+WorldConfig.WOBBLE_DURATION = 0.9 -- reaction "wobble" (clouds): damped roll + squash
+WorldConfig.WOBBLE_ROLL_DEGREES = 9
+WorldConfig.WOBBLE_SQUASH = 0.07 -- fractional X/Y squash-and-stretch
+WorldConfig.WOBBLE_FREQUENCY = 3 -- oscillations over WOBBLE_DURATION
+WorldConfig.FLARE_DURATION = 0.6 -- reaction "flare" (flames): swell then settle
+WorldConfig.FLARE_SCALE = 0.45 -- fractional extra size at the peak
+WorldConfig.FLARE_SPARK_COUNT = 5
+WorldConfig.FLARE_SPARK_SPEED = 7
+WorldConfig.FLARE_SPARK_LIFETIME = 0.5
+WorldConfig.FLARE_SPARK_SIZE = Vector3.new(0.5, 0.5, 0.2)
+WorldConfig.FLARE_SPARK_COLOR = Color3.fromRGB(255, 190, 70)
+WorldConfig.POP_BURST_COUNT = 8 -- MovingScenery.cs Grab: particles.Play() (Bubble.prefab's ParticleSystem, doc 12 §3)
+WorldConfig.POP_BURST_LIFETIME = 0.25
+WorldConfig.POP_BURST_SPEED = 6
+WorldConfig.POP_BURST_SIZE = Vector3.new(0.2, 0.2, 0.2)
+WorldConfig.TAP_RAY_LENGTH = 300 -- same reach as GameClient's tap rays
+
+-- Backdrop (WorldBackdrop): the background sits further back than scenery, so
+-- it takes the same eased pull at a slower parallax. It used to step instantly.
+WorldConfig.BACKDROP_PARALLAX = 0.6
+WorldConfig.BACKDROP_DEPTH = -5 -- Z offsets from Config.PLANE_Z, back to front: tiles, sun, overlay
+WorldConfig.SUN_DEPTH = -4
+WorldConfig.OVERLAY_DEPTH = -3
+WorldConfig.BACKDROP_TILE_THICKNESS = 0.2
+WorldConfig.BACKDROP_EXTRA_WIDTH = 40 -- tile width beyond the lane's own width, studs
+WorldConfig.SUN_SIZE = 4
+WorldConfig.SUN_X_FRACTION = -0.5 -- Sun X = origin.X + LANE_HALF_WIDTH x this
+WorldConfig.SUN_Y_ABOVE_SPAWN = 8 -- Sun Y = Config.SPAWN_Y + this
+
+-- Pot heat publishing (WorldLava): only write the `PotHeat` attribute when the
+-- smoothed value moved by at least this much (or hit exactly 0 / 1).
+WorldConfig.POT_HEAT_EPSILON = 0.004
+
+-- Lava surges (WorldLava, Pot only): as PotHeat rises the lava surface swells and
+-- pulses and now and then throws embers. Visual warning only -- the swell strip
+-- is a client-only part that never rises more than SURGE_MAX_RISE above
+-- Config.LAVA_Y (about 1 Unity-ish unit x 4), and the real death line never moves.
+WorldConfig.SURGE_MIN_HEAT = 0.05 -- below this the swell strip is hidden
+WorldConfig.SURGE_BASE_RISE = 0.5 -- studs the strip stands above the lava top at full heat, before the pulse
+WorldConfig.SURGE_PULSE_RISE = 0.5 -- extra studs at the crest of the pulse (full heat)
+WorldConfig.SURGE_MAX_RISE = 1.1 -- hard clamp on the total
+WorldConfig.SURGE_PULSE_PERIOD = 1.6 -- seconds per swell at full heat...
+WorldConfig.SURGE_PULSE_PERIOD_CALM = 3.2 -- ...and at the lowest heat; interpolated between
+WorldConfig.SURGE_WIDTH = 120 -- strip width, studs (wider than the camera at any zoom)
+WorldConfig.SURGE_Z = -1.2 -- behind the lava part's back face; only the part above its top shows
+WorldConfig.SURGE_COLOR = Color3.fromRGB(255, 150, 40)
+WorldConfig.SURGE_TRANSPARENCY_CALM = 0.75
+WorldConfig.SURGE_TRANSPARENCY_HOT = 0.3
+WorldConfig.SURGE_BURST_MIN_HEAT = 0.45 -- no embers below this heat
+WorldConfig.SURGE_BURST_INTERVAL_HOT = 1.4 -- seconds between ember bursts at full heat (jittered +/- 40%)
+WorldConfig.SURGE_BURST_INTERVAL_CALM = 4.0 -- ...and at SURGE_BURST_MIN_HEAT
+WorldConfig.SURGE_BURST_SPREAD = 11 -- studs either side of the local frog the embers erupt from
+WorldConfig.SURGE_EMBER_COUNT = 2 -- Flame2 embers per burst
+WorldConfig.SURGE_EMBER_SIZE = Vector3.new(2.4, 2.4, 0.2) -- Flame2 canvas is 8.05 studs, this is a small spark
+WorldConfig.SURGE_EMBER_VX = NumberRange.new(-5, 5)
+WorldConfig.SURGE_EMBER_VY = NumberRange.new(14, 22)
+WorldConfig.SURGE_EMBER_LIFETIME = 1.1
+WorldConfig.SURGE_SPLASH_COUNT = 2 -- LavaSplash chunks per burst (the existing splash path, fewer)
+WorldConfig.LAVA_SPLASH_SIZE = Vector3.new(0.6, 0.6, 0.3)
+WorldConfig.LAVA_SPLASH_SPIN = 4 -- torque opposing the X impulse (Splash.cs)
+WorldConfig.LAVA_SPLASH_JITTER_X = 1 -- spawn scatter around the impact X
+WorldConfig.LAVA_SPLASH_LIFT = 0.2 -- spawn Y above the surface
+WorldConfig.LAVA_FALL_SPLASH_MARGIN = 3 -- a recycled step counts as "fell in" within this many studs of DESPAWN_Y
+
+-- Pebble burst scatter (Effects)
+WorldConfig.PEBBLE_JITTER_X = 1.5
+WorldConfig.PEBBLE_DROP_Y = 0.5 -- spawn this far below the step centre
 
 return WorldConfig

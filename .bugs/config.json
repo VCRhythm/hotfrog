@@ -5,5 +5,7 @@
     "tickInterval": "10m",
     "signalNotify": true,
     "autoCompact": "200k",
-    "port": 8644
+    "port": 8644,
+    "description": "Fixes bugs in the Roblox port of HotFrog, the 2D physics climber.",
+    "model": "opus"
 }
