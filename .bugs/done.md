@@ -1114,3 +1114,13 @@ test: none
 verified: yes — dry-run against the live Open Cloud Game Passes list endpoint returned 200
 review: n/a
 owed: create the 4 Game Passes (Run it), see owed.md
+
+## b-20261008-142125-1ucz  fixed  2026-10-08 15:35
+note: Add skin colourways (3-4 tints per skin, 400-1500 Flys) via SkinCatalog Tints, Profiles ownedTints/selectedTint, SkinService BuyTint, base Color3 in WorldFrogCosmetics, swatch row in StoreUI
+cause: The port had no colourways, so a player who owned every skin had nothing left to spend Flys on.
+change: The new shared SkinTints module defines 4 tints bought per skin: Mint 400, Berry 600, Midnight 800 and Gold 1500 Flys. It is a separate module because SkinCatalog is looped as a numeric id map. Profiles gains ownedTints (a union on save, so no purchase is lost) and per-skin selectedTints. SkinService adds the BuyTint RemoteFunction and the SelectTint RemoteEvent, both validated on the server (skin owned, tint valid and owned, enough Flys), and sets a replicated FrogTint player attribute that follows skin switches. WorldFrogCosmetics multiplies the tint over every frog sprite except the eyes, for every lane, combined with the Pot heat tint. StoreUI shows a swatch row (Off plus the 4 tints) for owned skins. The new remotes are in GameServer's list, and doc 17 has a row.
+files: src/shared/SkinTints.luau, src/server/Profiles.luau, src/server/SkinService.server.luau, src/server/GameServer.server.luau, src/client/WorldFrogCosmetics.client.luau, src/client/StoreUI.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check on the touched files (clean), selene src/ (0 warnings), tools/luau_check.sh on the touched files (clean), rojo build (ok)
+verified: no — the HotFrog place is not open in Studio (the Studio MCP lists only Centralia and Tactics.rbxl), so no playtest ran; static checks only
+review: looks-right; checked: git diff of the 6 files plus SkinTints.luau and SpriteSkin.luau, luau_check on the 6 files, selene, stylua; BuyTint/SelectTint validation (unknown tint, unowned skin, short Flys, no yield before the deduct), ownedTints union merge with Flys not merged upward, refreshFrogTint on SelectSkin/SelectTint/initPlayer, SpriteSkin.apply never writes Color3, heat-tween composition, eye exclusion by Suffix, respawned and late-joined frogs read the attribute; nit: a tint change during a heat tween ends that tween on the old colour
+owed: none

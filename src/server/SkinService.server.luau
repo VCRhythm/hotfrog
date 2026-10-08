@@ -15,6 +15,7 @@ local Players = game:GetService("Players")
 local Catalog = require(ReplicatedStorage.Shared.SkinCatalog)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 local JarTiers = require(ReplicatedStorage.Shared.JarTiers)
+local SkinTints = require(ReplicatedStorage.Shared.SkinTints)
 local Profiles = require(script.Parent.Profiles)
 
 -- Developer Product id -> Flys granted. FILL IN real product ids.
@@ -47,6 +48,8 @@ local BuyWithFlys = ensure("BuyWithFlys", "RemoteFunction") :: RemoteFunction
 local ProfileChanged = ensure("ProfileChanged", "RemoteEvent") :: RemoteEvent
 local GetProfile = ensure("GetProfile", "RemoteFunction") :: RemoteFunction
 local FeedJar = ensure("FeedJar", "RemoteFunction") :: RemoteFunction
+local BuyTint = ensure("BuyTint", "RemoteFunction") :: RemoteFunction
+local SelectTint = ensure("SelectTint", "RemoteEvent") :: RemoteEvent
 
 local function push(player: Player)
 	local p = Profiles.get(player)
@@ -101,6 +104,21 @@ local function grantGamePassSkins(player: Player)
 	end
 end
 
+-- Skin colourways (b-20261008-142125-1ucz; doc 17): the tint worn on the
+-- selected skin rides on the player as the replicated `FrogTint` attribute
+-- (a SkinTints id, 0 = none); WorldFrogCosmetics tints that frog for everyone.
+local function refreshFrogTint(player: Player)
+	local p = Profiles.get(player)
+	if not p then
+		return
+	end
+	local tint = p.selectedTints[tostring(p.selected)] or 0
+	if tint ~= 0 and not p.ownedTints[SkinTints.key(p.selected, tint)] then
+		tint = 0
+	end
+	player:SetAttribute("FrogTint", tint)
+end
+
 -- ---------------------------------------------------------------------------
 -- Intents from the client (server validates everything)
 -- ---------------------------------------------------------------------------
@@ -108,6 +126,7 @@ SelectSkin.OnServerEvent:Connect(function(player, id)
 	local p = Profiles.get(player)
 	if p and p.owned[id] then
 		p.selected = id
+		refreshFrogTint(player)
 		push(player)
 		-- retexture the live server-owned frog (GameServer names it Frog_<userId>);
 		-- the new look replicates to every client
@@ -148,6 +167,41 @@ FeedJar.OnServerInvoke = function(player, amount)
 	Profiles.save(player)
 	return true
 end
+
+-- (skinId, tintId): the skin must be owned and the tint real; costs the
+-- tint's flyCost once per skin. Returns true when owned (already or now).
+BuyTint.OnServerInvoke = function(player, skinId, tintId)
+	local p, tint = Profiles.get(player), SkinTints.get(tintId)
+	if not (p and tint and type(skinId) == "number" and p.owned[skinId]) then
+		return false
+	end
+	local key = SkinTints.key(skinId, tint.id)
+	if p.ownedTints[key] then
+		return true
+	end
+	if p.flys < tint.flyCost then
+		return false
+	end
+	p.flys -= tint.flyCost
+	p.ownedTints[key] = true
+	push(player)
+	Profiles.save(player)
+	return true
+end
+
+-- (skinId, tintId): wear an owned tint on an owned skin; tintId 0 clears it.
+SelectTint.OnServerEvent:Connect(function(player, skinId, tintId)
+	local p = Profiles.get(player)
+	if not (p and type(skinId) == "number" and p.owned[skinId] and type(tintId) == "number") then
+		return
+	end
+	if tintId ~= 0 and not (SkinTints.get(tintId) and p.ownedTints[SkinTints.key(skinId, tintId)]) then
+		return
+	end
+	p.selectedTints[tostring(skinId)] = tintId
+	refreshFrogTint(player)
+	push(player)
+end)
 
 BuyWithFlys.OnServerInvoke = function(player, id)
 	local p, entry = Profiles.get(player), Catalog[id]
@@ -213,6 +267,7 @@ end
 local function initPlayer(player: Player)
 	grantGamePassSkins(player)
 	refreshJarTitle(player)
+	refreshFrogTint(player)
 	push(player)
 end
 

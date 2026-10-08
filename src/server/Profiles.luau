@@ -44,6 +44,8 @@ export type Profile = {
 	missionDay: number, -- UTC day index the `missions` progress belongs to (MissionService; not in Unity)
 	missions: { [string]: number }, -- daily mission id -> progress, clamped to its target
 	jarFlys: number, -- lifetime Flys fed into the Fly Jar (SkinService FeedJar; JarTiers titles; not in Unity)
+	ownedTints: { [string]: boolean }, -- SkinTints.key(skinId, tintId) -> owned (SkinService BuyTint; not in Unity)
+	selectedTints: { [string]: number }, -- tostring(skinId) -> tint id worn on that skin, 0 = none
 }
 
 -- What actually lives at the DataStore key: the profile plus the session lock.
@@ -113,6 +115,8 @@ local function defaultProfile(): Profile
 		missionDay = 0,
 		missions = {},
 		jarFlys = 0,
+		ownedTints = {},
+		selectedTints = {},
 	}
 end
 
@@ -165,6 +169,21 @@ local function reconcile(p: Profile, data: any)
 		for k, v in pairs(data.applied) do
 			if v then
 				p.applied[tostring(k)] = true
+			end
+		end
+	end
+	if type(data.ownedTints) == "table" then
+		for k, v in pairs(data.ownedTints) do
+			if v then
+				p.ownedTints[tostring(k)] = true
+			end
+		end
+	end
+	if type(data.selectedTints) == "table" then
+		for k, v in pairs(data.selectedTints) do
+			local tint = tonumber(v)
+			if tint then
+				p.selectedTints[tostring(k)] = tint
 			end
 		end
 	end
@@ -227,7 +246,7 @@ probeStudioAccess()
 
 -- Build the record to write for `p`, merging onto whatever `old` (the value
 -- UpdateAsync just handed us) already holds so a stale/slow writer can never
--- lower highScore, bugsCaught or jarFlys, drop an owned skin, or un-apply a receipt.
+-- lower highScore, bugsCaught or jarFlys, drop an owned skin or tint, or un-apply a receipt.
 local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecord
 	local merged: Profile = {
 		highScore = p.highScore,
@@ -245,7 +264,12 @@ local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecor
 		missionDay = p.missionDay,
 		missions = table.clone(p.missions),
 		jarFlys = p.jarFlys,
+		ownedTints = {},
+		selectedTints = table.clone(p.selectedTints),
 	}
+	for key in pairs(p.ownedTints) do
+		merged.ownedTints[key] = true
+	end
 	for id in pairs(p.owned) do
 		merged.owned[id] = true
 	end
@@ -303,6 +327,14 @@ local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecor
 			for k, v in pairs(oldProfile.applied) do
 				if v then
 					merged.applied[tostring(k)] = true
+				end
+			end
+		end
+		-- Bought tints are a union, like owned skins.
+		if type(oldProfile.ownedTints) == "table" then
+			for k, v in pairs(oldProfile.ownedTints) do
+				if v then
+					merged.ownedTints[tostring(k)] = true
 				end
 			end
 		end

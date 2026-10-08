@@ -110,6 +110,8 @@ ensureRemoteFunction("ClaimDailyReward") -- client -> server: claim today's dail
 ensureRemoteFunction("GetMissions") -- client -> server: today's 3 daily missions; nil until the profile loads, else { { text, progress, target, reward } } (MissionService owns it)
 ensureRemote("MissionCompleted") -- server -> client: a daily mission just finished and paid its Flys (text, reward) (MissionService owns it)
 ensureRemoteFunction("FeedJar") -- client -> server: (amount: positive whole Flys <= balance) move Flys into the Fly Jar for good; returns true when fed, new totals arrive via ProfileChanged, the tier title on the player's JarTitle attribute (SkinService owns it)
+ensureRemoteFunction("BuyTint") -- client -> server: (skinId, tintId) buy a SkinTints colourway for an owned skin with Flys; returns true when owned, new totals via ProfileChanged (SkinService owns it)
+ensureRemote("SelectTint") -- client -> server: (skinId, tintId; 0 = none) wear an owned tint on an owned skin; the worn tint of the selected skin replicates as the player's FrogTint attribute (SkinService owns it)
 local SetEndPanelOpen = ensureRemote("SetEndPanelOpen") -- client -> server: true while MenuClient's end-of-run/gift panel is still up (b-20260922-162231): the server flips Dead -> Menu on its own RESPAWN_DELAY timer, well before the player dismisses that panel (Home/Replay), so attract mode must wait on this rather than on RunState alone
 
 local function ensureBindable(name: string): BindableEvent

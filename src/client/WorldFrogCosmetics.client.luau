@@ -24,6 +24,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 local Levels = require(ReplicatedStorage.Shared.Levels)
+local SkinTints = require(ReplicatedStorage.Shared.SkinTints)
 local GrabTarget = require(script.Parent.world.GrabTarget)
 
 local player = Players.LocalPlayer
@@ -76,6 +77,7 @@ type FrogState = {
 	lookDown: boolean, -- overrides lookTarget: glancing down at nearby Pot lava
 	nearLava: boolean,
 	heatTinted: boolean, -- current state of the Body decal's heat tween
+	tint: Color3, -- skin colourway (owner's FrogTint attribute; white = none)
 	laneFolder: Folder?, -- workspace.PlayField.Lanes/<UserId>, resolved lazily
 	laneLevelIndex: number?, -- last seen Levels.list index for this lane (remote soft-transition heuristic)
 	reacting: boolean, -- true while the level-up look-around plays
@@ -259,13 +261,30 @@ local function laneFolderFor(state: FrogState): Folder?
 	return state.laneFolder
 end
 
+local function mulColor(a: Color3, b: Color3): Color3
+	return Color3.new(a.R * b.R, a.G * b.G, a.B * b.B)
+end
+
+-- Skin colourway (b-20261008-142125-1ucz; doc 17): multiply the owner's
+-- FrogTint (a SkinTints id, set by SkinService) over the frog's sprites. The
+-- Body decal also carries the heat tint, so it keeps that on top.
+local function applySkinTint(state: FrogState)
+	local owner = Players:GetPlayerByUserId(state.userId)
+	state.tint = SkinTints.color(owner and owner:GetAttribute("FrogTint"))
+	SkinTints.apply(state.model, state.tint)
+	local decal = state.bodyDecal
+	if decal and state.heatTinted then
+		decal.Color3 = mulColor(WorldConfig.FROG_HEAT_TINT_COLOR, state.tint)
+	end
+end
+
 local function setHeatTint(state: FrogState, hot: boolean)
 	local decal = state.bodyDecal
 	if not decal or state.heatTinted == hot then
 		return
 	end
 	state.heatTinted = hot
-	local color = if hot then WorldConfig.FROG_HEAT_TINT_COLOR else Color3.new(1, 1, 1)
+	local color = if hot then mulColor(WorldConfig.FROG_HEAT_TINT_COLOR, state.tint) else state.tint
 	TweenService:Create(decal, TweenInfo.new(WorldConfig.FROG_HEAT_TINT_TIME), { Color3 = color }):Play()
 end
 
@@ -442,6 +461,7 @@ local function trackFrog(model: Model)
 		lookDown = false,
 		nearLava = false,
 		heatTinted = false,
+		tint = SkinTints.NONE,
 		laneFolder = nil,
 		laneLevelIndex = nil,
 		reacting = false,
@@ -461,6 +481,19 @@ local function trackFrog(model: Model)
 	model:GetAttributeChangedSignal("Dead"):Connect(function()
 		onDeadChanged(state)
 	end)
+
+	applySkinTint(state)
+	local owner = Players:GetPlayerByUserId(state.userId)
+	if owner then
+		local conn: RBXScriptConnection
+		conn = owner:GetAttributeChangedSignal("FrogTint"):Connect(function()
+			if state.alive then
+				applySkinTint(state)
+			else
+				conn:Disconnect()
+			end
+		end)
+	end
 
 	-- The local player's own frog gets the real "soft" transition straight off
 	-- LevelState (LevelClient.client.luau), instead of the Level-attribute

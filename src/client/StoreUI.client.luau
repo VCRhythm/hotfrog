@@ -14,6 +14,7 @@ local TweenService = game:GetService("TweenService")
 local Catalog = require(ReplicatedStorage.Shared.SkinCatalog)
 local Config = require(ReplicatedStorage.Shared.Config)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
+local SkinTints = require(ReplicatedStorage.Shared.SkinTints)
 local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 local UIKit = require(script.Parent.ui.UIKit)
 
@@ -22,6 +23,8 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ProfileChanged = remotes:WaitForChild("ProfileChanged") :: RemoteEvent
 local SelectSkin = remotes:WaitForChild("SelectSkin") :: RemoteEvent
 local BuyWithFlys = remotes:WaitForChild("BuyWithFlys") :: RemoteFunction
+local BuyTint = remotes:WaitForChild("BuyTint") :: RemoteFunction
+local SelectTint = remotes:WaitForChild("SelectTint") :: RemoteEvent
 local ClaimGift = remotes:WaitForChild("ClaimGift") :: RemoteFunction
 local GiftStatus = remotes:WaitForChild("GiftStatus") :: RemoteEvent
 local RunStateChanged = remotes:WaitForChild("RunStateChanged") :: RemoteEvent
@@ -126,6 +129,35 @@ robuxButton.Visible = false
 local backButton = button("Back", "Back", UDim2.fromOffset(120, 48), UDim2.new(0.5, -60, 1, -60), store, "Home")
 backButton.BackgroundColor3 = DARK
 
+-- Colourway swatches for the shown skin (b-20261008-142125-1ucz; doc 17):
+-- only for an owned skin, so they sit where the Robux button would be. "Off"
+-- clears the tint; an unowned swatch shows its Flys price and buys (then
+-- wears) it; an owned one wears it. The server validates all of it.
+local SWATCH_W, SWATCH_GAP = 72, 8
+local swatchRow = Instance.new("Frame")
+swatchRow.Name = "Tints"
+swatchRow.BackgroundTransparency = 1
+swatchRow.Size = UDim2.fromOffset((#SkinTints.list + 1) * (SWATCH_W + SWATCH_GAP) - SWATCH_GAP, 52)
+swatchRow.Position = UDim2.new(0.5, -swatchRow.Size.X.Offset / 2, 1, -192)
+swatchRow.Visible = false
+swatchRow.Parent = store
+local swatchLayout = Instance.new("UIListLayout")
+swatchLayout.FillDirection = Enum.FillDirection.Horizontal
+swatchLayout.Padding = UDim.new(0, SWATCH_GAP)
+swatchLayout.SortOrder = Enum.SortOrder.LayoutOrder
+swatchLayout.Parent = swatchRow
+local swatches: { [number]: TextButton } = {}
+local function makeSwatch(tintId: number, color: Color3)
+	local b = button("Tint" .. tintId, "", UDim2.fromOffset(SWATCH_W, 52), UDim2.new(), swatchRow)
+	b.LayoutOrder = tintId
+	b.BackgroundColor3 = color
+	swatches[tintId] = b
+end
+makeSwatch(0, SkinTints.NONE)
+for _, tint in SkinTints.list do
+	makeSwatch(tint.id, tint.color)
+end
+
 -- ---------------------------------------------------------------------------
 -- Preview frog (local clone; see the header above)
 -- ---------------------------------------------------------------------------
@@ -160,6 +192,25 @@ local function setRealHidden(hidden: boolean)
 	end
 end
 
+-- The tint worn on skin `id` per the latest profile (white when none/unowned).
+local function wornTint(id: number?): Color3
+	local tints = profile and profile.selectedTints
+	local tintId = if tints and id then tints[tostring(id)] else nil
+	if tintId and tintId ~= 0 and profile.ownedTints and profile.ownedTints[SkinTints.key(id :: number, tintId)] then
+		return SkinTints.color(tintId)
+	end
+	return SkinTints.NONE
+end
+
+local function skinIdByName(skinName: string): number?
+	for id, entry in pairs(Catalog) do
+		if entry.name == skinName then
+			return id
+		end
+	end
+	return nil
+end
+
 local function makePreview(skinName: string, y: number): Preview
 	local model = frogTemplate:Clone()
 	model.PrimaryPart = model:FindFirstChild("Body") :: BasePart
@@ -172,6 +223,7 @@ local function makePreview(skinName: string, y: number): Preview
 		end
 	end
 	SpriteSkin.apply(model, skinName)
+	SkinTints.apply(model, wornTint(skinIdByName(skinName)))
 	local value = Instance.new("NumberValue")
 	value.Value = y
 	local preview: Preview = { model = model, y = value }
@@ -268,6 +320,45 @@ local function refreshStore()
 		actionButton.Visible = false
 	end
 	UIKit.setButtonIcon(actionButton, flysIcon)
+
+	swatchRow.Visible = owned == true
+	if owned and id then
+		local tints = profile.selectedTints
+		local worn = (tints and tints[tostring(id)]) or 0
+		local ownedTints = profile.ownedTints or {}
+		for tintId, swatch in swatches do
+			local tint = SkinTints.get(tintId)
+			local has = tintId == 0 or ownedTints[SkinTints.key(id, tintId)] == true
+			if has and worn == tintId then
+				swatch.Text = "On"
+			elseif has then
+				swatch.Text = if tintId == 0 then "Off" else ""
+			else
+				swatch.Text = tostring(tint and tint.flyCost or "")
+			end
+		end
+	end
+	if current then
+		SkinTints.apply(current.model, wornTint(id))
+	end
+end
+
+local function onSwatch(tintId: number)
+	local id = currentId()
+	if not (id and profile and profile.owned and profile.owned[id]) then
+		return
+	end
+	local ownedTints = profile.ownedTints or {}
+	if tintId == 0 or ownedTints[SkinTints.key(id, tintId)] then
+		SelectTint:FireServer(id, tintId)
+	else
+		task.spawn(function()
+			-- server checks skin ownership + balance; wear it once bought
+			if BuyTint:InvokeServer(id, tintId) then
+				SelectTint:FireServer(id, tintId)
+			end
+		end)
+	end
 end
 
 local function onAction()
@@ -433,6 +524,11 @@ nextButton.Activated:Connect(function()
 	cycle(1)
 end)
 actionButton.Activated:Connect(onAction)
+for tintId, swatch in swatches do
+	swatch.Activated:Connect(function()
+		onSwatch(tintId)
+	end)
+end
 robuxButton.Activated:Connect(function()
 	local entry = Catalog[currentId() or 0]
 	if entry and entry.gamePassId and entry.gamePassId > 0 then
