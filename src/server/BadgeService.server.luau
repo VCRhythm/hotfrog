@@ -28,12 +28,27 @@ local BadgeServiceApi = game:GetService("BadgeService")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Badges = require(ReplicatedStorage.Shared.Badges)
+-- Read-only (streak); same pattern as the other services.
+local Profiles = require(script.Parent.Profiles)
+
+-- Level order for "reached" badges (Lane.luau sets the lane's `Level` attribute
+-- to Levels' names); anything unlisted (Tutorial) ranks 0.
+local LEVEL_RANK: { [string]: number } = { Pot = 1, Kitchen = 2, Country = 3 }
+local STREAK_POLL = 20 -- seconds; DailyService has no event, the claim just bumps profile.streak
 
 -- Sorted ascending once, so "which thresholds did this jump cross" is a
 -- simple linear scan per score change.
 local sorted: { Badges.BadgeEntry } = {}
+local levelBadges: { Badges.BadgeEntry } = {}
+local streakBadges: { Badges.BadgeEntry } = {}
 for _, entry in Badges do
-	table.insert(sorted, entry)
+	if entry.kind == "level" then
+		table.insert(levelBadges, entry)
+	elseif entry.kind == "streak" then
+		table.insert(streakBadges, entry)
+	else
+		table.insert(sorted, entry)
+	end
 end
 table.sort(sorted, function(a, b)
 	return a.threshold < b.threshold
@@ -43,10 +58,10 @@ end)
 -- already-owned) THIS SESSION -- purely to skip redundant
 -- UserHasBadgeAsync/AwardBadge calls; actual badge ownership persists in
 -- BadgeService regardless of what's cached here.
-local sessionAwarded: { [Player]: { [number]: boolean } } = {}
+local sessionAwarded: { [Player]: { [string]: boolean } } = {}
 local lastScore: { [Player]: number } = {}
 
-local function tryAward(player: Player, threshold: number, badgeId: number)
+local function tryAward(player: Player, key: string, badgeId: number)
 	if badgeId == 0 then
 		return -- FILL IN: not configured in Badges.luau yet -- silently skipped
 	end
@@ -56,10 +71,10 @@ local function tryAward(player: Player, threshold: number, badgeId: number)
 		awarded = {}
 		sessionAwarded[player] = awarded
 	end
-	if awarded[threshold] then
+	if awarded[key] then
 		return
 	end
-	awarded[threshold] = true -- set BEFORE the async call so a rapid re-trigger can't double-fire it
+	awarded[key] = true -- set BEFORE the async call so a rapid re-trigger can't double-fire it
 
 	task.spawn(function()
 		local hasOk, hasBadge = pcall(function()
@@ -96,7 +111,7 @@ local function checkThresholds(player: Player, newScore: number)
 	end
 	for _, entry in sorted do
 		if previous < entry.threshold and newScore >= entry.threshold then
-			tryAward(player, entry.threshold, entry.id)
+			tryAward(player, "steps" .. entry.threshold, entry.id)
 		end
 	end
 end
@@ -106,6 +121,40 @@ local function watchScore(player: Player, score: IntValue)
 	score:GetPropertyChangedSignal("Value"):Connect(function()
 		checkThresholds(player, score.Value)
 	end)
+end
+
+local function checkLevel(player: Player, levelName: unknown)
+	local rank = if type(levelName) == "string" then LEVEL_RANK[levelName] or 0 else 0
+	for _, entry in levelBadges do
+		if entry.level and rank >= (LEVEL_RANK[entry.level] or math.huge) then
+			tryAward(player, "level" .. entry.level, entry.id)
+		end
+	end
+end
+
+local function watchLane(folder: Instance)
+	local userId = tonumber(folder.Name)
+	local player = if userId then Players:GetPlayerByUserId(userId) else nil
+	if not player then
+		return
+	end
+	checkLevel(player, folder:GetAttribute("Level"))
+	folder:GetAttributeChangedSignal("Level"):Connect(function()
+		checkLevel(player, folder:GetAttribute("Level"))
+	end)
+end
+
+local function watchLanes()
+	local playField = workspace:WaitForChild("PlayField", 60)
+	local lanes = playField and playField:WaitForChild("Lanes", 60)
+	if not lanes then
+		warn("BadgeService: workspace.PlayField.Lanes never appeared; level badges disabled")
+		return
+	end
+	lanes.ChildAdded:Connect(watchLane)
+	for _, folder in lanes:GetChildren() do
+		task.spawn(watchLane, folder)
+	end
 end
 
 local function watchLeaderstats(player: Player)
@@ -132,4 +181,23 @@ end
 Players.PlayerRemoving:Connect(function(player: Player)
 	sessionAwarded[player] = nil
 	lastScore[player] = nil
+end)
+
+task.spawn(watchLanes)
+
+-- Daily streak badges: read-only poll of the profile (DailyService owns it).
+task.spawn(function()
+	while true do
+		for _, player in Players:GetPlayers() do
+			local profile = Profiles.get(player)
+			if profile then
+				for _, entry in streakBadges do
+					if profile.streak >= entry.threshold then
+						tryAward(player, "streak" .. entry.threshold, entry.id)
+					end
+				end
+			end
+		end
+		task.wait(STREAK_POLL)
+	end
 end)

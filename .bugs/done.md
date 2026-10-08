@@ -1021,3 +1021,13 @@ files: src/server/DailyService.server.luau, src/server/Profiles.luau, src/server
 test: stylua --check on touched files, selene src/ (0 warnings), tools/luau_check.sh on the 4 Luau files (clean), rojo build (ok)
 verified: no — the HotFrog place is not open in Studio (the Studio MCP lists only Centralia and Tactics.rbxl), so no playtest ran; static checks only
 review: looks-right; checked: git diff of Profiles/GameServer/MenuClient, DailyService read in full, doc 17 row, luau_check clean; no yield between the streakDay check and the set (no double claim), nil profile handled with client retry, UTC day math and the client's Tomorrow calc match REWARDS, mergeForSave keeps the newer streakDay, invoke takes no args, popup only on grant and destroyed on Collect. Minor: if the profile load fails, the unsaved default can repay each session
+
+## b-20261008-141644-lzg7  fixed  2026-10-08 14:50
+note: add long-tail badges
+cause: All 10 badges were single-run step thresholds of 100 or less, so nothing was left to earn after the first 100 steps.
+change: Badges.luau entries take an optional kind ("steps", "level", "streak") plus level; BadgeService watches the lane Level attribute and polls Profiles.get(p).streak read-only every 20 s. New badges (id 0 until created): 150/200/300/500 Steps!, Out of the Pot (reach Kitchen), Country Frog (reach Country), 3/7/30-Day Streak. Perfect-chain and golden-bug badges were skipped: the chain is client-only and BugCaughtServer carries no golden flag.
+files: src/shared/Badges.luau, src/server/BadgeService.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check on touched files, selene src/ (0 warnings), tools/luau_check.sh (clean), rojo build (ok)
+verified: no — the HotFrog place is not open in Studio, and every badge id is 0 (skipped) until created; static checks only
+review: looks-right; checked: git diff of both files, luau_check clean, kindless rows keep the old threshold path, Lane.luau:314 sets Level to level.name matching LEVEL_RANK Pot/Kitchen/Country, Kitchen 50 / Country 100 reachable and no run cap found (300/500 practicality is tuning), streak poll nil-checks the profile, lane ChildAdded plus an existing-folder scan
+owed: create the 19 badges in Creator Hub and paste their ids into src/shared/Badges.luau (see .bugs/owed.md)
