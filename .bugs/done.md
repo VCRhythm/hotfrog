@@ -1012,3 +1012,12 @@ files: src/shared/Config.luau, src/shared/SoundFX.luau, src/client/GameClient.cl
 test: stylua --check on touched files, selene src/ (0 warnings), tools/luau_check.sh on touched files (clean), rojo build (ok)
 verified: no — the HotFrog place is not open in Studio (the Studio MCP lists only Centralia and Tactics.rbxl), so no playtest ran; static checks only
 review: looks-right; checked: git diff of the 5 src files, luau_check clean, GameServer ScoreChanged/GameOver/RunStateChanged all FireClient(player) so other lanes can't bump the chain, the three scripts' reset paths agree, updateCamera stays the only CFrame writer, pitch applies only to the cloned Perfect shot, haptic motor is zeroed after each pulse
+
+## b-20261008-124506-lo4a  fixed  2026-10-08 14:32
+note: Add a daily login streak with escalating Fly rewards shown on the main menu (Profiles.luau, GiftService or a new DailyService, MenuClient)
+cause: There was no daily login streak; the only free Flys came from GiftService's flat escalating-cooldown gift.
+change: New DailyService with a ClaimDailyReward RemoteFunction: one claim per UTC day, a next-day claim extends profile.streak, a missed day resets it to 1, 7-day cycle 25/50/75/100/150/200/500 Flys paid via ServerStorage/AwardFlys. MenuClient claims each time the menu shows; a grant opens a full-screen popup (sunburst, day tiles, count-up, confetti, Collect), and a "Day N streak! Tomorrow: +X Flys" line sits under the main panel. Profiles gains streak/streakDay (the save merge keeps the newer claim day); doc 17 has a row.
+files: src/server/DailyService.server.luau, src/server/Profiles.luau, src/server/GameServer.server.luau, src/client/MenuClient.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check on touched files, selene src/ (0 warnings), tools/luau_check.sh on the 4 Luau files (clean), rojo build (ok)
+verified: no — the HotFrog place is not open in Studio (the Studio MCP lists only Centralia and Tactics.rbxl), so no playtest ran; static checks only
+review: looks-right; checked: git diff of Profiles/GameServer/MenuClient, DailyService read in full, doc 17 row, luau_check clean; no yield between the streakDay check and the set (no double claim), nil profile handled with client retry, UTC day math and the client's Tomorrow calc match REWARDS, mergeForSave keeps the newer streakDay, invoke takes no args, popup only on grant and destroyed on Collect. Minor: if the profile load fails, the unsaved default can repay each session

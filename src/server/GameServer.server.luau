@@ -106,6 +106,7 @@ local RunSummary = ensureRemote("RunSummary") -- server -> client: end-of-run st
 local SetMusicOn = ensureRemote("SetMusicOn") -- client -> server: settings toggle (writes profile.musicOn)
 local ReplayTutorial = ensureRemote("ReplayTutorial") -- client -> server: settings action (Menu-only)
 local GetTopScores = ensureRemoteFunction("GetTopScores") -- client -> server: cached global top-10 (name, score)
+ensureRemoteFunction("ClaimDailyReward") -- client -> server: claim today's daily login streak reward; returns nil until the profile loads, else { granted, streak, reward, rewards } (DailyService owns it)
 local SetEndPanelOpen = ensureRemote("SetEndPanelOpen") -- client -> server: true while MenuClient's end-of-run/gift panel is still up (b-20260922-162231): the server flips Dead -> Menu on its own RESPAWN_DELAY timer, well before the player dismisses that panel (Home/Replay), so attract mode must wait on this rather than on RunState alone
 
 local function ensureBindable(name: string): BindableEvent

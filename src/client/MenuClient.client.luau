@@ -23,6 +23,8 @@ local TweenService = game:GetService("TweenService")
 
 local UIKit = require(script.Parent.ui.UIKit)
 local ClientSettings = require(script.Parent.ui.ClientSettings)
+local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
+local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -37,6 +39,7 @@ local ClaimGift = remotes:WaitForChild("ClaimGift") :: RemoteFunction
 local GiftStatus = remotes:WaitForChild("GiftStatus") :: RemoteEvent
 local GetGiftStatus = remotes:WaitForChild("GetGiftStatus") :: RemoteFunction
 local SetEndPanelOpen = remotes:WaitForChild("SetEndPanelOpen") :: RemoteEvent
+local ClaimDailyReward = remotes:WaitForChild("ClaimDailyReward") :: RemoteFunction
 
 -- Bridge into StoreUI's existing panel (doc 15: "reuse ... rather than
 -- duplicating"). StoreUI creates this Folder; wait for it rather than racing
@@ -90,6 +93,12 @@ local hintLabel = UIKit.label("Hint", "", UDim2.fromOffset(220, 30), UDim2.fromO
 hintLabel.TextColor3 = UIKit.SUBTEXT
 hintLabel.TextScaled = false
 hintLabel.TextSize = 16
+
+-- Daily streak line just under the main panel (DailyService); filled in once
+-- the first ClaimDailyReward answer arrives.
+local streakLine = UIKit.label("DailyStreak", "", UDim2.fromOffset(280, 28), UDim2.new(0, 0, 1, 16), mainPanel)
+streakLine.TextColor3 = UIKit.GOOD
+UIKit.textStroke(streakLine, 2)
 
 -- ---------------------------------------------------------------------------
 -- End-of-run panel (RunState.Dead)
@@ -265,7 +274,10 @@ local function focusFirst(button: GuiButton)
 	end
 end
 
+local checkDaily: () -> () = function() end -- assigned in the Daily streak section below
+
 local function showMainMenu()
+	checkDaily()
 	title.Visible = true
 	UIKit.showPanel(mainPanel, true)
 	UIKit.showPanel(endPanel, false)
@@ -560,6 +572,265 @@ task.spawn(function()
 		task.wait(1)
 	end
 end)
+
+-- ---------------------------------------------------------------------------
+-- Daily login streak (DailyService, b-20261008-124506-lo4a). Asked every time
+-- the main menu shows (cheap; the server answers granted = false after the
+-- first claim of a UTC day), so a session that crosses midnight still gets the
+-- next day's reward. A grant plays the full-screen reward popup.
+-- ---------------------------------------------------------------------------
+type DailyResult = { granted: boolean, streak: number, reward: number, rewards: { number } }
+
+local DAILY_RETRIES, DAILY_RETRY_WAIT = 15, 2 -- the profile may still be loading at join
+local dailyBusy = false
+local popupOpen = false
+
+local function cycleReward(rewards: { number }, streak: number): number
+	return rewards[(math.max(streak, 1) - 1) % #rewards + 1]
+end
+
+local function refreshStreakLine(r: DailyResult)
+	if r.streak <= 0 then
+		streakLine.Text = ""
+		return
+	end
+	streakLine.Text =
+		string.format("Day %d streak!  Tomorrow: +%d Flys", r.streak, cycleReward(r.rewards, r.streak + 1))
+end
+
+-- Confetti: little coloured chips that tumble down past the popup.
+local CONFETTI_COLORS = {
+	UIKit.ACCENT,
+	UIKit.GOOD,
+	UIKit.WARN,
+	Color3.fromRGB(255, 105, 180),
+	Color3.fromRGB(90, 200, 255),
+}
+local function confetti(parent: GuiObject, count: number)
+	for _ = 1, count do
+		local chip = Instance.new("Frame")
+		chip.Name = "Confetti"
+		chip.AnchorPoint = Vector2.new(0.5, 0.5)
+		chip.Size = UDim2.fromOffset(math.random(8, 14), math.random(14, 22))
+		local x = math.random()
+		chip.Position = UDim2.new(x, 0, 0, -30)
+		chip.Rotation = math.random(0, 360)
+		chip.BackgroundColor3 = CONFETTI_COLORS[math.random(1, #CONFETTI_COLORS)]
+		chip.BorderSizePixel = 0
+		chip.ZIndex = 3 -- over the popup panel
+		chip.Parent = parent
+		local fall = 1.6 + math.random() * 1.4
+		task.delay(math.random() * 0.6, function()
+			local tween =
+				TweenService:Create(chip, TweenInfo.new(fall, Enum.EasingStyle.Quad, Enum.EasingDirection.In), {
+					Position = UDim2.new(x + (math.random() - 0.5) * 0.3, 0, 1, 40),
+					Rotation = chip.Rotation + math.random(-540, 540),
+				})
+			tween.Completed:Connect(function()
+				chip:Destroy()
+			end)
+			tween:Play()
+		end)
+	end
+end
+
+local function showDailyPopup(r: DailyResult)
+	if popupOpen then
+		return
+	end
+	popupOpen = true
+	SoundFX.play("highScore")
+
+	-- Full-screen dim layer that also swallows clicks meant for the menu below.
+	local overlay = Instance.new("TextButton")
+	overlay.Name = "DailyReward"
+	overlay.Text = ""
+	overlay.AutoButtonColor = false
+	overlay.Selectable = false
+	overlay.Size = UDim2.fromScale(1, 1)
+	overlay.BackgroundColor3 = Color3.new(0, 0, 0)
+	overlay.BackgroundTransparency = 1
+	overlay.ZIndex = 20
+	overlay.Parent = gui
+	TweenService:Create(overlay, TweenInfo.new(0.25), { BackgroundTransparency = 0.4 }):Play()
+
+	-- Spinning sunburst behind the panel. Each bar spins on its own: a
+	-- GuiObject's Rotation doesn't carry over to its children.
+	local burst = Instance.new("Frame")
+	burst.Name = "Burst"
+	burst.AnchorPoint = Vector2.new(0.5, 0.5)
+	burst.Position = UDim2.fromScale(0.5, 0.5)
+	burst.Size = UDim2.fromOffset(0, 0)
+	burst.BackgroundTransparency = 1
+	burst.Parent = overlay
+	for i = 0, 5 do
+		local ray = Instance.new("Frame")
+		ray.Name = "Ray"
+		ray.AnchorPoint = Vector2.new(0.5, 0.5)
+		ray.Size = UDim2.fromOffset(46, 620)
+		ray.Rotation = i * 30
+		ray.BackgroundColor3 = UIKit.GOOD
+		ray.BackgroundTransparency = 1
+		ray.BorderSizePixel = 0
+		ray.Parent = burst
+		TweenService:Create(ray, TweenInfo.new(0.4), { BackgroundTransparency = 0.55 }):Play()
+		TweenService:Create(
+			ray,
+			TweenInfo.new(12, Enum.EasingStyle.Linear, Enum.EasingDirection.In, -1),
+			{ Rotation = ray.Rotation + 360 }
+		):Play()
+	end
+
+	local panel = UIKit.panel("Panel", UDim2.fromOffset(360, 330), UDim2.new(0.5, -180, 0.5, -165), overlay)
+	panel.ZIndex = 2 -- over the sunburst
+	local pop = Instance.new("UIScale")
+	pop.Scale = 0
+	pop.Parent = panel
+	TweenService:Create(pop, TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 }):Play()
+
+	local heading = UIKit.label("Title", "DAILY STREAK!", UDim2.fromOffset(320, 40), UDim2.fromOffset(20, 14), panel)
+	heading.TextColor3 = UIKit.WARN
+	UIKit.textStroke(heading)
+	local dayLabel = UIKit.label(
+		"Day",
+		string.format("Day %d", r.streak),
+		UDim2.fromOffset(320, 30),
+		UDim2.fromOffset(20, 56),
+		panel
+	)
+	dayLabel.TextColor3 = UIKit.SUBTEXT
+
+	-- The 7-day cycle: done days green, today gold and bouncing, the rest white.
+	local cycleLen = #r.rewards
+	local todayIndex = (math.max(r.streak, 1) - 1) % cycleLen + 1
+	local tileW, gap = 42, 4
+	local rowX = (360 - (cycleLen * tileW + (cycleLen - 1) * gap)) // 2
+	for i, amount in r.rewards do
+		local tile = Instance.new("Frame")
+		tile.Name = "Day" .. i
+		tile.AnchorPoint = Vector2.new(0.5, 0.5)
+		tile.Size = UDim2.fromOffset(tileW, 58)
+		tile.Position = UDim2.fromOffset(rowX + (i - 1) * (tileW + gap) + tileW // 2, 126)
+		tile.BackgroundColor3 = if i < todayIndex
+			then UIKit.ACCENT
+			elseif i == todayIndex then UIKit.GOOD
+			else UIKit.DARK
+		tile.Parent = panel
+		UIKit.corner(tile, 10)
+		UIKit.outline(tile, 2)
+		local dayText = UIKit.label("D", "D" .. i, UDim2.new(1, 0, 0, 22), UDim2.fromOffset(0, 4), tile)
+		dayText.TextColor3 = UIKit.SUBTEXT
+		UIKit.label("Amount", tostring(amount), UDim2.new(1, -6, 0, 24), UDim2.fromOffset(3, 28), tile)
+		local tileScale = Instance.new("UIScale")
+		tileScale.Scale = 0
+		tileScale.Parent = tile
+		task.delay(0.25 + i * 0.07, function()
+			SoundFX.play("pop")
+			TweenService
+				:Create(tileScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+				:Play()
+			if i == todayIndex then
+				task.wait(0.35)
+				TweenService:Create(
+					tileScale,
+					TweenInfo.new(0.45, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut, -1, true),
+					{ Scale = 1.18 }
+				):Play()
+			end
+		end)
+	end
+
+	-- "+N" beside the fly icon, counting up from 0 and then thumping.
+	local amountRow = Instance.new("Frame")
+	amountRow.Name = "Amount"
+	amountRow.AnchorPoint = Vector2.new(0.5, 0.5)
+	amountRow.Size = UDim2.fromOffset(240, 60)
+	amountRow.Position = UDim2.fromOffset(180, 200)
+	amountRow.BackgroundTransparency = 1
+	amountRow.Parent = panel
+	local icon = Instance.new("ImageLabel")
+	icon.Name = "Icon"
+	icon.Size = UDim2.fromOffset(52, 52)
+	icon.Position = UDim2.fromOffset(0, 4)
+	icon.BackgroundTransparency = 1
+	icon.Image = SkinAssets.image("BugIcon") or ""
+	icon.Parent = amountRow
+	local amountLabel = UIKit.label("Value", "+0", UDim2.fromOffset(180, 60), UDim2.fromOffset(60, 0), amountRow)
+	amountLabel.TextColor3 = UIKit.GOOD
+	amountLabel.TextXAlignment = Enum.TextXAlignment.Left
+	UIKit.textStroke(amountLabel)
+	local amountScale = Instance.new("UIScale")
+	amountScale.Parent = amountRow
+	task.spawn(function()
+		task.wait(0.8)
+		local start, dur = os.clock(), 0.9
+		while overlay.Parent do
+			local t = math.min((os.clock() - start) / dur, 1)
+			amountLabel.Text = "+" .. tostring(math.floor(r.reward * (1 - (1 - t) ^ 3) + 0.5))
+			if t >= 1 then
+				break
+			end
+			task.wait()
+		end
+		if not overlay.Parent then
+			return
+		end
+		SoundFX.play("pop")
+		amountScale.Scale = 1.35
+		TweenService
+			:Create(amountScale, TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+			:Play()
+		confetti(overlay, 40)
+	end)
+
+	local collect =
+		UIKit.button("Collect", "Collect!", UDim2.fromOffset(200, 56), UDim2.fromOffset(80, 254), panel, "Present")
+	collect.BackgroundColor3 = UIKit.ACCENT
+	focusFirst(collect)
+	confetti(overlay, 30)
+
+	local closing = false
+	collect.Activated:Connect(function()
+		if closing then
+			return
+		end
+		closing = true
+		SoundFX.play("select")
+		TweenService:Create(pop, TweenInfo.new(0.2, Enum.EasingStyle.Back, Enum.EasingDirection.In), { Scale = 0 })
+			:Play()
+		TweenService:Create(overlay, TweenInfo.new(0.25), { BackgroundTransparency = 1 }):Play()
+		task.wait(0.25)
+		overlay:Destroy()
+		popupOpen = false
+		if mainPanel.Visible then
+			focusFirst(playButton)
+		end
+	end)
+end
+
+checkDaily = function()
+	if dailyBusy then
+		return
+	end
+	dailyBusy = true
+	task.spawn(function()
+		for _ = 1, DAILY_RETRIES do
+			local ok, result = pcall(function()
+				return ClaimDailyReward:InvokeServer()
+			end)
+			if ok and typeof(result) == "table" and typeof(result.streak) == "number" then
+				local r = result :: DailyResult
+				refreshStreakLine(r)
+				if r.granted then
+					showDailyPopup(r)
+				end
+				break
+			end
+			task.wait(DAILY_RETRY_WAIT)
+		end
+		dailyBusy = false
+	end)
+end
 
 -- ---------------------------------------------------------------------------
 -- Gamepad hint text (doc 15 item 7): show button glyph names as plain text

@@ -39,6 +39,8 @@ export type Profile = {
 	musicOn: boolean, -- Unity VariableManager.IsPlayingMusic
 	tutorialDone: boolean,
 	bugsCaught: number, -- lifetime stat; Unity VariableManager.BugsCaught
+	streak: number, -- daily login streak length (DailyService; not in Unity)
+	streakDay: number, -- UTC day index (os.time() // 86400) of the last daily claim, 0 = never
 }
 
 -- What actually lives at the DataStore key: the profile plus the session lock.
@@ -96,6 +98,8 @@ local function defaultProfile(): Profile
 		musicOn = true,
 		tutorialDone = false,
 		bugsCaught = 0,
+		streak = 0,
+		streakDay = 0,
 	}
 end
 
@@ -121,6 +125,8 @@ local function reconcile(p: Profile, data: any)
 	p.giftSeed = tonumber(data.giftSeed) or p.giftSeed
 	p.lastGift = tonumber(data.lastGift) or p.lastGift
 	p.bugsCaught = tonumber(data.bugsCaught) or p.bugsCaught
+	p.streak = tonumber(data.streak) or p.streak
+	p.streakDay = tonumber(data.streakDay) or p.streakDay
 	if type(data.musicOn) == "boolean" then
 		p.musicOn = data.musicOn
 	end
@@ -214,6 +220,8 @@ local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecor
 		musicOn = p.musicOn,
 		tutorialDone = p.tutorialDone,
 		bugsCaught = p.bugsCaught,
+		streak = p.streak,
+		streakDay = p.streakDay,
 	}
 	for id in pairs(p.owned) do
 		merged.owned[id] = true
@@ -231,6 +239,13 @@ local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecor
 		local oldBugs = tonumber(oldProfile.bugsCaught)
 		if oldBugs and oldBugs > merged.bugsCaught then
 			merged.bugsCaught = oldBugs
+		end
+		-- A stale writer must not roll the daily streak back (that would let the
+		-- same UTC day be claimed twice): keep whichever claim day is newer.
+		local oldStreakDay = tonumber(oldProfile.streakDay)
+		if oldStreakDay and oldStreakDay > merged.streakDay then
+			merged.streakDay = oldStreakDay
+			merged.streak = tonumber(oldProfile.streak) or merged.streak
 		end
 		if type(oldProfile.owned) == "table" then
 			for k, v in pairs(oldProfile.owned) do
