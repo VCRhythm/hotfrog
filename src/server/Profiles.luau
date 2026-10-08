@@ -51,6 +51,13 @@ type StoredRecord = { profile: any, lock: StoredLock? }
 
 local store = DataStoreService:GetDataStore("HotfrogProfiles_v1")
 local orderedBest = DataStoreService:GetOrderedDataStore("HotfrogGlobalBest_v1")
+-- Daily/weekly boards: one OrderedDataStore per period, keyed by period index
+-- (see periodKeys below), fetched lazily so old periods are never touched again.
+local periodStores: { [string]: OrderedDataStore } = {}
+-- Best score already written to the current day/week board this session, per
+-- player, so a run only costs an OrderedDataStore write when it beats it.
+type PeriodBest = { day: number, dayBest: number, week: number, weekBest: number }
+local periodBest: { [Player]: PeriodBest } = {}
 local cache: { [Player]: Profile } = {}
 local loadFailed: { [Player]: boolean } = {}
 local loadedEvent = Instance.new("BindableEvent")
@@ -321,17 +328,92 @@ function Profiles.recordGlobalBest(player: Player, best: number)
 	end, SAVE_ATTEMPTS, SAVE_RETRY_BASE, "recordGlobalBest for " .. key)
 end
 
-export type TopEntry = { userId: number, score: number }
+-- Period indices for the daily/weekly boards, both UTC: day = days since the
+-- Unix epoch; week = (day + 3) // 7, i.e. weeks run Monday 00:00 UTC to
+-- Sunday 23:59 UTC (epoch day 0 was a Thursday, so +3 puts the boundary on
+-- Monday). Not the ISO week number, just a monotonic Monday-aligned index.
+function Profiles.periodKeys(): (number, number)
+	local day = os.time() // 86400
+	return day, (day + 3) // 7
+end
 
--- Global top-N personal bests for a world-leaderboard surface. Returns an empty
--- list on DataStore failure rather than erroring.
-function Profiles.topScores(count: number): { TopEntry }
+local function periodStore(name: string): OrderedDataStore
+	local s = periodStores[name]
+	if not s then
+		s = DataStoreService:GetOrderedDataStore(name)
+		periodStores[name] = s
+	end
+	return s
+end
+
+local function dailyStore(day: number): OrderedDataStore
+	return periodStore("HotfrogDailyBest_v1_d" .. day)
+end
+
+local function weeklyStore(week: number): OrderedDataStore
+	return periodStore("HotfrogWeeklyBest_v1_w" .. week)
+end
+
+local function writeMax(ordered: OrderedDataStore, key: string, score: number, context: string)
+	withRetry(function()
+		ordered:UpdateAsync(key, function(old: any)
+			local oldBest = tonumber(old)
+			if oldBest and oldBest >= score then
+				return nil -- cancel: nothing to raise, saves the write
+			end
+			return score
+		end)
+	end, SAVE_ATTEMPTS, SAVE_RETRY_BASE, context)
+end
+
+-- Record a finished run on the daily and weekly boards. Called for every run;
+-- only writes the period(s) whose in-session best this score beats (UpdateAsync
+-- + max covers a best set earlier on another server). Yields; spawn it.
+function Profiles.recordPeriodScore(player: Player, score: number)
+	if apiAccessDisabled or score <= 0 then
+		return
+	end
+	local day, week = Profiles.periodKeys()
+	local pb = periodBest[player]
+	if not pb then
+		pb = { day = day, dayBest = 0, week = week, weekBest = 0 }
+		periodBest[player] = pb
+	end
+	if pb.day ~= day then
+		pb.day, pb.dayBest = day, 0
+	end
+	if pb.week ~= week then
+		pb.week, pb.weekBest = week, 0
+	end
+	local key = keyFor(player)
+	if score > pb.dayBest then
+		pb.dayBest = score
+		writeMax(dailyStore(day), key, score, "recordPeriodScore (day) for " .. key)
+	end
+	if score > pb.weekBest then
+		pb.weekBest = score
+		writeMax(weeklyStore(week), key, score, "recordPeriodScore (week) for " .. key)
+	end
+end
+
+export type TopEntry = { userId: number, score: number }
+export type Period = "all" | "daily" | "weekly"
+
+-- Global top-N for a world-leaderboard surface: all-time personal bests, or
+-- the current UTC day's / week's best runs. Returns an empty list on
+-- DataStore failure rather than erroring.
+function Profiles.topScores(count: number, period: Period?): { TopEntry }
 	local results: { TopEntry } = {}
 	if apiAccessDisabled then
 		return results
 	end
+	local ordered = orderedBest
+	if period == "daily" or period == "weekly" then
+		local day, week = Profiles.periodKeys()
+		ordered = if period == "daily" then dailyStore(day) else weeklyStore(week)
+	end
 	local ok, pages = pcall(function()
-		return orderedBest:GetSortedAsync(false, math.clamp(count, 1, 100))
+		return ordered:GetSortedAsync(false, math.clamp(count, 1, 100))
 	end)
 	if not ok then
 		return results
@@ -467,6 +549,7 @@ Players.PlayerRemoving:Connect(function(player)
 	doSave(player, true) -- final save; release the session lock
 	cache[player] = nil
 	loadFailed[player] = nil
+	periodBest[player] = nil
 end)
 
 task.spawn(function()

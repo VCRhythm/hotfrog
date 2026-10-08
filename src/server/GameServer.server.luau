@@ -105,7 +105,7 @@ local RunStateChanged = ensureRemote("RunStateChanged") -- server -> client: thi
 local RunSummary = ensureRemote("RunSummary") -- server -> client: end-of-run stats for the end-of-run panel (score, newBest, isNewBest, quality, bugs, flys, cause)
 local SetMusicOn = ensureRemote("SetMusicOn") -- client -> server: settings toggle (writes profile.musicOn)
 local ReplayTutorial = ensureRemote("ReplayTutorial") -- client -> server: settings action (Menu-only)
-local GetTopScores = ensureRemoteFunction("GetTopScores") -- client -> server: cached global top-10 (name, score)
+local GetTopScores = ensureRemoteFunction("GetTopScores") -- client -> server: (period: "all" | "daily" | "weekly", optional, default "all"; anything else = "all") -> cached global top-10 { userId, name, score } for that board
 ensureRemoteFunction("ClaimDailyReward") -- client -> server: claim today's daily login streak reward; returns nil until the profile loads, else { granted, streak, reward, rewards } (DailyService owns it)
 local SetEndPanelOpen = ensureRemote("SetEndPanelOpen") -- client -> server: true while MenuClient's end-of-run/gift panel is still up (b-20260922-162231): the server flips Dead -> Menu on its own RESPAWN_DELAY timer, well before the player dismisses that panel (Home/Replay), so attract mode must wait on this rather than on RunState alone
 
@@ -1070,6 +1070,9 @@ local function commitHighScore(player: Player)
 		Profiles.save(player)
 		Profiles.recordGlobalBest(player, score) -- mirror into the global top-N (doc 07)
 	end
+	-- Daily/weekly boards take every run, not just all-time bests; Profiles
+	-- only writes when this beats the player's best for the current period.
+	task.spawn(Profiles.recordPeriodScore, player, score)
 end
 
 local function resetScore(player: Player)
@@ -2023,14 +2026,17 @@ ReplayTutorial.OnServerEvent:Connect(function(player)
 	end
 end)
 
--- Global top-scores board (doc 15 item 5): Profiles.topScores(10) + name
--- resolution are both DataStore-ish calls, so cache the assembled list for 60s
--- rather than hitting them on every panel open. Names are cached forever
--- (a UserId's name essentially never changes mid-session) and resolved in a
--- pcall so one bad lookup can't fail the whole board.
+-- Global top-scores boards (doc 15 item 5; daily/weekly per doc 17):
+-- Profiles.topScores(10, period) + name resolution are both DataStore-ish
+-- calls, so cache each board's assembled list for 60s rather than hitting
+-- them on every panel open. A board's cache also drops when its UTC day/week
+-- rolls over. Names are cached forever (a UserId's name essentially never
+-- changes mid-session) and resolved in a pcall so one bad lookup can't fail
+-- the whole board.
 local TOP_SCORES_TTL = 60
-local topScoresCache: { { userId: number, score: number, name: string } }? = nil
-local topScoresCachedAt = 0
+type TopRow = { userId: number, score: number, name: string }
+type TopCache = { list: { TopRow }, at: number, periodKey: number }
+local topScoresCache: { [string]: TopCache } = {}
 local nameCache: { [number]: string } = {}
 
 local function resolveName(userId: number): string
@@ -2046,18 +2052,23 @@ local function resolveName(userId: number): string
 	return resolved
 end
 
-GetTopScores.OnServerInvoke = function(_player: Player)
+GetTopScores.OnServerInvoke = function(_player: Player, period: any)
+	local board: Profiles.Period = if period == "daily" then "daily" elseif period == "weekly" then "weekly" else "all"
+	local day, week = Profiles.periodKeys()
+	local periodKey = if board == "daily" then day elseif board == "weekly" then week else 0
 	local now = os.clock()
-	if not topScoresCache or (now - topScoresCachedAt) > TOP_SCORES_TTL then
-		local raw = Profiles.topScores(10)
-		local list: { { userId: number, score: number, name: string } } = {}
+	local cached = topScoresCache[board]
+	if not cached or cached.periodKey ~= periodKey or (now - cached.at) > TOP_SCORES_TTL then
+		local raw = Profiles.topScores(10, board)
+		local list: { TopRow } = {}
 		for _, entry in raw do
 			table.insert(list, { userId = entry.userId, score = entry.score, name = resolveName(entry.userId) })
 		end
-		topScoresCache = list
-		topScoresCachedAt = now
+		local fresh: TopCache = { list = list, at = now, periodKey = periodKey }
+		topScoresCache[board] = fresh
+		return fresh.list
 	end
-	return topScoresCache
+	return cached.list
 end
 
 -- ---------------------------------------------------------------------------

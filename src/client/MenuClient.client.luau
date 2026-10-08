@@ -103,7 +103,7 @@ UIKit.textStroke(streakLine, 2)
 -- ---------------------------------------------------------------------------
 -- End-of-run panel (RunState.Dead)
 -- ---------------------------------------------------------------------------
-local endPanel = UIKit.panel("EndOfRun", UDim2.fromOffset(320, 360), UDim2.new(0.5, -160, 0.5, -180), gui)
+local endPanel = UIKit.panel("EndOfRun", UDim2.fromOffset(320, 404), UDim2.new(0.5, -160, 0.5, -202), gui)
 UIKit.showPanel(endPanel, false)
 
 UIKit.label("Title", "Run Over", UDim2.fromOffset(280, 36), UDim2.fromOffset(20, 16), endPanel)
@@ -152,6 +152,10 @@ local homeButton = UIKit.button("Home", "Home", UDim2.fromOffset(125, 52), UDim2
 local giftPromptButton =
 	UIKit.button("GiftPrompt", "", UDim2.fromOffset(280, 56), UDim2.fromOffset(20, 278), endPanel, "Present")
 giftPromptButton.BackgroundColor3 = UIKit.WARN
+-- Leaderboards after every run (b-20261008-124506-tmdz): opens the Top Scores
+-- panel on its Today tab.
+local endTopScoresButton =
+	UIKit.button("TopScores", "Top Scores", UDim2.fromOffset(280, 44), UDim2.fromOffset(20, 344), endPanel, "BugIcon")
 
 -- ---------------------------------------------------------------------------
 -- Settings panel
@@ -190,10 +194,29 @@ local topTitle = UIKit.label("Title", "Top Scores", UDim2.fromOffset(170, 32), U
 topTitle.TextXAlignment = Enum.TextXAlignment.Left
 local topCloseButton = UIKit.button("Close", "Close", UDim2.fromOffset(80, 34), UDim2.new(1, -100, 0, 10), topPanel)
 
+-- Today / Week / All-time tabs (b-20261008-124506-tmdz). Periods are UTC;
+-- see Profiles.periodKeys.
+type Board = string -- "daily" | "weekly" | "all" (GetTopScores period)
+local TAB_DEFS: { { board: Board, text: string } } = {
+	{ board = "daily", text = "Today" },
+	{ board = "weekly", text = "Week" },
+	{ board = "all", text = "All-time" },
+}
+local tabButtons: { [string]: TextButton } = {}
+for i, def in TAB_DEFS do
+	tabButtons[def.board] = UIKit.button(
+		"Tab" .. def.text,
+		def.text,
+		UDim2.fromOffset(82, 32),
+		UDim2.fromOffset(20 + (i - 1) * 89, 54),
+		topPanel
+	)
+end
+
 local topList = Instance.new("ScrollingFrame")
 topList.Name = "List"
-topList.Size = UDim2.fromOffset(260, 260)
-topList.Position = UDim2.fromOffset(20, 56)
+topList.Size = UDim2.fromOffset(260, 226)
+topList.Position = UDim2.fromOffset(20, 96)
 topList.BackgroundTransparency = 1
 topList.BorderSizePixel = 0
 topList.CanvasSize = UDim2.fromOffset(0, 0)
@@ -460,39 +483,105 @@ end)
 -- ---------------------------------------------------------------------------
 -- Top scores (doc 15 item 5)
 -- ---------------------------------------------------------------------------
-local function populateTopScores()
+-- Friend lookups are web calls; cache per session (pcall: they can fail).
+local friendCache: { [number]: boolean } = {}
+local function isFriend(userId: number): boolean
+	local cached = friendCache[userId]
+	if cached ~= nil then
+		return cached
+	end
+	local ok, result = pcall(function()
+		return player:IsFriendsWith(userId)
+	end)
+	local friend = ok and result == true
+	friendCache[userId] = friend
+	return friend
+end
+
+local currentBoard: Board = "daily"
+local populateGeneration = 0 -- a slow answer for a tab the player already left is dropped
+
+local function populateTopScores(board: Board)
+	currentBoard = board
+	populateGeneration += 1
+	local generation = populateGeneration
+	for b, button in tabButtons do
+		button.BackgroundColor3 = if b == board then UIKit.ACCENT else UIKit.DARK
+	end
 	for _, child in topList:GetChildren() do
 		if child:IsA("TextLabel") then
 			child:Destroy()
 		end
 	end
 	local ok, list = pcall(function()
-		return GetTopScores:InvokeServer()
+		return GetTopScores:InvokeServer(board)
 	end)
+	if generation ~= populateGeneration then
+		return
+	end
 	if not ok or typeof(list) ~= "table" then
 		UIKit.label("Error", "Couldn't load scores", UDim2.fromOffset(240, 28), UDim2.fromOffset(0, 0), topList)
 		return
 	end
-	for i, entry in list :: { any } do
+	local rows = list :: { any }
+	if #rows == 0 then
+		UIKit.label("Empty", "No scores yet", UDim2.fromOffset(240, 28), UDim2.fromOffset(0, 0), topList)
+		return
+	end
+	-- Resolve friendship before drawing so highlights don't pop in afterwards.
+	local friends: { [number]: boolean } = {}
+	for _, entry in rows do
+		local userId = tonumber(entry.userId)
+		if userId and userId ~= player.UserId then
+			friends[userId] = isFriend(userId)
+		end
+	end
+	if generation ~= populateGeneration then
+		return
+	end
+	for i, entry in rows do
+		local userId = tonumber(entry.userId) or 0
+		local isSelf = userId == player.UserId
+		local isFriendRow = friends[userId] == true
+		local tag = if isSelf then "  (you)" elseif isFriendRow then "  (friend)" else ""
 		local row = UIKit.label(
 			"Row" .. i,
-			string.format("%d. %s — %s", i, tostring(entry.name), tostring(entry.score)),
-			UDim2.new(1, 0, 0, 28),
+			string.format("%d. %s — %s%s", i, tostring(entry.name), tostring(entry.score), tag),
+			UDim2.new(1, -8, 0, 28),
 			UDim2.fromOffset(0, 0),
 			topList
 		)
 		row.TextXAlignment = Enum.TextXAlignment.Left
 		row.LayoutOrder = i
+		if isSelf or isFriendRow then
+			row.BackgroundTransparency = 0.3
+			row.BackgroundColor3 = if isSelf then UIKit.ACCENT else UIKit.GOOD
+			UIKit.corner(row, 6)
+		end
 	end
 end
 
-topScoresButton.Activated:Connect(function()
+for _, def in TAB_DEFS do
+	local board = def.board
+	tabButtons[board].Activated:Connect(function()
+		if board ~= currentBoard then
+			populateTopScores(board)
+		end
+	end)
+end
+
+-- Opened from the main menu and from the end-of-run panel; always lands on Today.
+local function openTopScores()
 	hideMainPanels()
 	UIKit.showPanel(topPanel, true)
-	populateTopScores()
 	focusFirst(topCloseButton)
-end)
+	populateTopScores("daily")
+end
+
+topScoresButton.Activated:Connect(openTopScores)
+endTopScoresButton.Activated:Connect(openTopScores)
 topCloseButton.Activated:Connect(function()
+	populateGeneration += 1
 	UIKit.showPanel(topPanel, false)
 	restoreMainPanels()
 end)
