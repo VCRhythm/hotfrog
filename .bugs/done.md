@@ -982,3 +982,24 @@ report: .bugs/reports/b-20261008-124136-b89y.md
 files: none
 review: holds; checked: read the report, Badges.luau ids, SkinCatalog.luau:21-24 gamePassIds, SkinService FLY_PRODUCTS, Profiles.luau OrderedDataStore + topScores, GiftService clamp/seed logic; grepped src for streak/combo/CameraShake/HapticService/daily/weekly (none); icon/playtest claims not checkable from code
 followups: b-20261008-124506-tmdz, b-20261008-124506-lo4a, b-20261008-124506-kx46 (filed held in backlog)
+
+## b-20261008-141608-z239  closed-by-user  2026-10-08 14:17
+note: add a daily and weekly leaderboard that shows after every run. ideally players would see their friends highlighted and then others globally would be filled in any leftover spaces
+resolved: from dashboard
+
+## b-20261008-141620-0ch8  closed-by-user  2026-10-08 14:17
+note: add a daily login streak reward with big juicy graphics
+resolved: from dashboard
+
+## b-20261008-141637-3p3w  closed-by-user  2026-10-08 14:17
+note: add perfect-combo juice with a chain counter, camera punch, and haptics
+resolved: from dashboard
+
+## b-20261008-141652-rdl8  answered  2026-10-08 14:22
+note: brainstorm some fly sinks once the skin set is bought
+finding: The four Fly skins cost 5000 Flys in total. Bugs pay about 50-100 Flys per 60 s run (estimated; the ceiling is about 235/min) and the gift is 100 Flys on a cooldown that settles at 6 h, so the set is done after about 1-1.5 h of play, and after that a player banks about 75 Flys per run with nothing to spend them on. Build these first: (1) a Fly Jar, where you feed in Flys with no limit to earn titles shown on the race rail at 1k/2.5k/5k/10k/25k+ (no balance risk); (2) skin colourways, 3-4 tints per skin at 400/600/800, with Gold at 1500 (about 16-25k Flys of content, no new art); (3) a Second Chance continue at 150, then 300, at most twice per run, once you decide whether continued runs count on the leaderboards. Players can also catch bugs on the menu without playing, at up to about 235/min, which makes run-priced sinks cheap; capping that is your call (doc 17 rules menu bugs deliberate).
+evidence: src/shared/SkinCatalog.luau, src/server/SkinService.server.luau:19-22,43-54, src/server/GiftService.server.luau:13-16,69,94, src/server/BugService.server.luau:360-372,503-537, src/shared/Config.luau:380-419, src/server/Profiles.luau:31-42
+report: .bugs/reports/b-20261008-141652-rdl8.md
+files: none
+review: holds; checked: SkinCatalog prices sum 500+1000+1500+2000=5000, GIFT_FLYS=100 and the clamp reaching 21600 s at seed 10, BUG_FLYS=5 with golden 25 at 6%, spawn every 2 s with 12% swarms (~41 bugs/min, ~235 Flys/min), BugService spawn loop not gated on RunState (menu catching); per-run figure is an estimate
+followups: b-20261008-142124-qw4r, b-20261008-142125-1ucz, b-20261008-142125-cxm0 (filed held in backlog; release the ones you want built)
