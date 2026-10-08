@@ -25,6 +25,7 @@ local UIKit = require(script.Parent.ui.UIKit)
 local ClientSettings = require(script.Parent.ui.ClientSettings)
 local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
 local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
+local JarTiers = require(ReplicatedStorage.Shared.JarTiers)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -42,6 +43,8 @@ local SetEndPanelOpen = remotes:WaitForChild("SetEndPanelOpen") :: RemoteEvent
 local ClaimDailyReward = remotes:WaitForChild("ClaimDailyReward") :: RemoteFunction
 local GetMissions = remotes:WaitForChild("GetMissions") :: RemoteFunction
 local MissionCompleted = remotes:WaitForChild("MissionCompleted") :: RemoteEvent
+local FeedJar = remotes:WaitForChild("FeedJar") :: RemoteFunction
+local GetProfile = remotes:WaitForChild("GetProfile") :: RemoteFunction
 
 -- Bridge into StoreUI's existing panel (doc 15: "reuse ... rather than
 -- duplicating"). StoreUI creates this Folder; wait for it rather than racing
@@ -90,7 +93,8 @@ local frogsButton =
 local settingsButton =
 	UIKit.button("Settings", "Settings", UDim2.fromOffset(105, 48), UDim2.fromOffset(145, 152), mainPanel, "GearIcon")
 local topScoresButton =
-	UIKit.button("TopScores", "Top Scores", UDim2.fromOffset(220, 44), UDim2.fromOffset(30, 210), mainPanel, "BugIcon")
+	UIKit.button("TopScores", "Top Scores", UDim2.fromOffset(105, 44), UDim2.fromOffset(30, 210), mainPanel, "BugIcon")
+local jarButton = UIKit.button("Jar", "Fly Jar", UDim2.fromOffset(105, 44), UDim2.fromOffset(145, 210), mainPanel)
 local hintLabel = UIKit.label("Hint", "", UDim2.fromOffset(220, 30), UDim2.fromOffset(30, 262), mainPanel)
 hintLabel.TextColor3 = UIKit.SUBTEXT
 hintLabel.TextScaled = false
@@ -242,6 +246,39 @@ topListLayout.Padding = UDim.new(0, 4)
 topListLayout.Parent = topList
 
 -- ---------------------------------------------------------------------------
+-- Fly Jar panel (b-20261008-142124-qw4r): feed Flys in for good to unlock
+-- JarTiers titles. The server (SkinService FeedJar) validates and deducts.
+-- ---------------------------------------------------------------------------
+local jarPanel = UIKit.panel("FlyJar", UDim2.fromOffset(300, 300), UDim2.new(0.5, -150, 0.5, -150), gui)
+UIKit.showPanel(jarPanel, false)
+jarPanel.ZIndex = 2
+
+local jarTitleLabel = UIKit.label("Title", "Fly Jar", UDim2.fromOffset(170, 32), UDim2.fromOffset(20, 14), jarPanel)
+jarTitleLabel.TextXAlignment = Enum.TextXAlignment.Left
+local jarCloseButton = UIKit.button("Close", "Close", UDim2.fromOffset(80, 34), UDim2.new(1, -100, 0, 10), jarPanel)
+local jarTotalLine = UIKit.label("Total", "", UDim2.fromOffset(260, 30), UDim2.fromOffset(20, 56), jarPanel)
+local jarRankLine = UIKit.label("Rank", "", UDim2.fromOffset(260, 24), UDim2.fromOffset(20, 90), jarPanel)
+jarRankLine.TextColor3 = UIKit.ACCENT_LIP
+local jarNextLine = UIKit.label("Next", "", UDim2.fromOffset(260, 24), UDim2.fromOffset(20, 118), jarPanel)
+jarNextLine.TextColor3 = UIKit.SUBTEXT
+local jarBalanceLine = UIKit.label("Balance", "", UDim2.fromOffset(260, 24), UDim2.fromOffset(20, 146), jarPanel)
+jarBalanceLine.TextColor3 = UIKit.SUBTEXT
+local jarFeedSmall =
+	UIKit.button("Feed100", "+100", UDim2.fromOffset(80, 48), UDim2.fromOffset(20, 184), jarPanel, "BugIcon")
+local jarFeedBig =
+	UIKit.button("Feed1000", "+1000", UDim2.fromOffset(80, 48), UDim2.fromOffset(110, 184), jarPanel, "BugIcon")
+local jarFeedAll = UIKit.button("FeedAll", "All", UDim2.fromOffset(80, 48), UDim2.fromOffset(200, 184), jarPanel)
+jarFeedAll.BackgroundColor3 = UIKit.WARN
+local jarNote = UIKit.label(
+	"Note",
+	"Flys fed in are gone for good.",
+	UDim2.fromOffset(260, 22),
+	UDim2.fromOffset(20, 246),
+	jarPanel
+)
+jarNote.TextColor3 = UIKit.SUBTEXT
+
+-- ---------------------------------------------------------------------------
 -- Panel switching: exactly one of {mainPanel, endPanel} is visible per
 -- RunState; settingsPanel/topPanel float above whichever is showing.
 -- ---------------------------------------------------------------------------
@@ -385,6 +422,7 @@ RunStateChanged.OnClientEvent:Connect(function(state: string)
 		UIKit.showPanel(endPanel, false)
 		UIKit.showPanel(settingsPanel, false)
 		UIKit.showPanel(topPanel, false)
+		UIKit.showPanel(jarPanel, false)
 	elseif state == "Dead" then
 		setEndPanelDismissed(false)
 		showEndPanel()
@@ -460,11 +498,14 @@ local function refreshSettingsButtons()
 	sfxButton.Text = "SFX: " .. (if ClientSettings.sfxOn() then "On" else "Off")
 end
 
+local refreshJar: (profile: any) -> () = function() end -- assigned in the Fly Jar section below
+
 ProfileChanged.OnClientEvent:Connect(function(profile: any)
 	if profile and typeof(profile.musicOn) == "boolean" then
 		musicOn = profile.musicOn
 		refreshSettingsButtons()
 	end
+	refreshJar(profile)
 end)
 
 musicButton.Activated:Connect(function()
@@ -558,9 +599,15 @@ local function populateTopScores(board: Board)
 		local isSelf = userId == player.UserId
 		local isFriendRow = friends[userId] == true
 		local tag = if isSelf then "  (you)" elseif isFriendRow then "  (friend)" else ""
+		-- Fly Jar title (replicated JarTitle attribute), for players in this server
+		local inServer = Players:GetPlayerByUserId(userId)
+		local jarTitle = if inServer then inServer:GetAttribute("JarTitle") else nil
+		local titled = if type(jarTitle) == "string" and jarTitle ~= ""
+			then string.format("%s [%s]", tostring(entry.name), jarTitle)
+			else tostring(entry.name)
 		local row = UIKit.label(
 			"Row" .. i,
-			string.format("%d. %s — %s%s", i, tostring(entry.name), tostring(entry.score), tag),
+			string.format("%d. %s — %s%s", i, titled, tostring(entry.score), tag),
 			UDim2.new(1, -8, 0, 28),
 			UDim2.fromOffset(0, 0),
 			topList
@@ -597,6 +644,88 @@ endTopScoresButton.Activated:Connect(openTopScores)
 topCloseButton.Activated:Connect(function()
 	populateGeneration += 1
 	UIKit.showPanel(topPanel, false)
+	restoreMainPanels()
+end)
+
+-- ---------------------------------------------------------------------------
+-- Fly Jar (b-20261008-142124-qw4r)
+-- ---------------------------------------------------------------------------
+local jarBalance, jarTotal = 0, 0
+local jarBusy = false
+
+local function drawJar()
+	jarTotalLine.Text = string.format("In the jar: %d Flys", jarTotal)
+	local rankTitle = JarTiers.title(jarTotal)
+	jarRankLine.Text = if rankTitle ~= "" then "Title: " .. rankTitle else "No title yet"
+	local nextTier = JarTiers.nextTier(jarTotal)
+	jarNextLine.Text = if nextTier
+		then string.format(
+			"Next: %s at %d (%d to go)",
+			nextTier.title,
+			nextTier.threshold,
+			nextTier.threshold - jarTotal
+		)
+		else "Every title unlocked!"
+	jarBalanceLine.Text = string.format("You have %d Flys", jarBalance)
+	jarFeedSmall.Active = jarBalance >= 100
+	jarFeedBig.Active = jarBalance >= 1000
+	jarFeedAll.Active = jarBalance >= 1
+	for _, b in { jarFeedSmall, jarFeedBig, jarFeedAll } do
+		b.TextColor3 = if b.Active then UIKit.TEXT else UIKit.SUBTEXT
+	end
+end
+
+refreshJar = function(profile: any)
+	if typeof(profile) ~= "table" then
+		return
+	end
+	jarBalance = tonumber(profile.flys) or jarBalance
+	jarTotal = tonumber(profile.jarFlys) or jarTotal
+	drawJar()
+end
+
+local function feed(amount: number)
+	if jarBusy or amount < 1 or amount > jarBalance then
+		return
+	end
+	jarBusy = true
+	task.spawn(function()
+		local ok, fed = pcall(function()
+			return FeedJar:InvokeServer(amount)
+		end)
+		if ok and fed then
+			SoundFX.play("pop")
+		end
+		jarBusy = false -- the new totals arrive through ProfileChanged
+	end)
+end
+
+jarFeedSmall.Activated:Connect(function()
+	feed(100)
+end)
+jarFeedBig.Activated:Connect(function()
+	feed(1000)
+end)
+jarFeedAll.Activated:Connect(function()
+	feed(jarBalance)
+end)
+
+jarButton.Activated:Connect(function()
+	hideMainPanels()
+	drawJar()
+	UIKit.showPanel(jarPanel, true)
+	focusFirst(jarCloseButton)
+	task.spawn(function()
+		local ok, profile = pcall(function()
+			return GetProfile:InvokeServer()
+		end)
+		if ok then
+			refreshJar(profile)
+		end
+	end)
+end)
+jarCloseButton.Activated:Connect(function()
+	UIKit.showPanel(jarPanel, false)
 	restoreMainPanels()
 end)
 

@@ -1051,7 +1051,32 @@ rail.Visible = false -- shown once a run starts (Playing); see RunStateChanged b
 rail.Parent = railGui
 UIKit.corner(rail, 3)
 
+-- Name tag to the left of a marker: the player's name, plus their Fly Jar
+-- title (b-20261008-142124-qw4r) from the replicated `JarTitle` attribute.
+local function addMarkerTag(marker: Frame): TextLabel
+	local tag = Instance.new("TextLabel")
+	tag.Name = "Tag"
+	tag.AnchorPoint = Vector2.new(1, 0.5)
+	tag.Size = UDim2.fromOffset(200, 16)
+	tag.Position = UDim2.new(0, -6, 0.5, 0)
+	tag.BackgroundTransparency = 1
+	tag.TextXAlignment = Enum.TextXAlignment.Right
+	tag.TextScaled = true
+	tag.FontFace = UIKit.FONT
+	tag.TextColor3 = UIKit.HUD_TEXT
+	tag.Text = ""
+	tag.Parent = marker
+	UIKit.textStroke(tag, 2)
+	return tag
+end
+
+local function jarTitleOf(somePlayer: Player): string
+	local value = somePlayer:GetAttribute("JarTitle")
+	return if type(value) == "string" then value else ""
+end
+
 local railMarkers: { [Player]: Frame } = {}
+local railTags: { [Player]: TextLabel } = {}
 local function markerFor(otherPlayer: Player): Frame
 	local existing = railMarkers[otherPlayer]
 	if existing then
@@ -1065,6 +1090,7 @@ local function markerFor(otherPlayer: Player): Frame
 	marker.Parent = rail
 	UIKit.corner(marker, 7)
 	railMarkers[otherPlayer] = marker
+	railTags[otherPlayer] = addMarkerTag(marker)
 	return marker
 end
 
@@ -1073,6 +1099,7 @@ Players.PlayerRemoving:Connect(function(otherPlayer)
 	if marker then
 		marker:Destroy()
 		railMarkers[otherPlayer] = nil
+		railTags[otherPlayer] = nil
 	end
 end)
 
@@ -1086,6 +1113,7 @@ selfMarker.BackgroundColor3 = UIKit.GOOD
 selfMarker.Parent = rail
 UIKit.corner(selfMarker, 8)
 UIKit.outline(selfMarker, 2)
+local selfTag = addMarkerTag(selfMarker) -- own Jar title only; the name is obvious
 
 -- Landmark ticks (Pot/Kitchen/Country): a short bar on the rail plus a label
 -- to its left, both repositioned every poll on the same alpha scale as the
@@ -1149,6 +1177,7 @@ task.spawn(function()
 
 		local ownAlpha = math.clamp(ownScore / maxScore, 0, 1)
 		selfMarker.Position = UDim2.fromScale(0.5, 1 - ownAlpha)
+		selfTag.Text = jarTitleOf(player)
 
 		for _, landmark in landmarks do
 			local alpha = math.clamp(landmark.value / maxScore, 0, 1)
@@ -1164,6 +1193,13 @@ task.spawn(function()
 				local marker = markerFor(otherPlayer)
 				local alpha = math.clamp(value / maxScore, 0, 1)
 				marker.Position = UDim2.fromScale(0.5, 1 - alpha)
+				local title = jarTitleOf(otherPlayer)
+				local tag = railTags[otherPlayer]
+				if tag then
+					tag.Text = if title ~= ""
+						then string.format("%s [%s]", otherPlayer.DisplayName, title)
+						else otherPlayer.DisplayName
+				end
 			end
 		end
 		task.wait(0.5)

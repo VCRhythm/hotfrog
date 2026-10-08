@@ -43,6 +43,7 @@ export type Profile = {
 	streakDay: number, -- UTC day index (os.time() // 86400) of the last daily claim, 0 = never
 	missionDay: number, -- UTC day index the `missions` progress belongs to (MissionService; not in Unity)
 	missions: { [string]: number }, -- daily mission id -> progress, clamped to its target
+	jarFlys: number, -- lifetime Flys fed into the Fly Jar (SkinService FeedJar; JarTiers titles; not in Unity)
 }
 
 -- What actually lives at the DataStore key: the profile plus the session lock.
@@ -111,6 +112,7 @@ local function defaultProfile(): Profile
 		streakDay = 0,
 		missionDay = 0,
 		missions = {},
+		jarFlys = 0,
 	}
 end
 
@@ -139,6 +141,7 @@ local function reconcile(p: Profile, data: any)
 	p.streak = tonumber(data.streak) or p.streak
 	p.streakDay = tonumber(data.streakDay) or p.streakDay
 	p.missionDay = tonumber(data.missionDay) or p.missionDay
+	p.jarFlys = tonumber(data.jarFlys) or p.jarFlys
 	if type(data.missions) == "table" then
 		for k, v in pairs(data.missions) do
 			p.missions[tostring(k)] = tonumber(v) or 0
@@ -224,7 +227,7 @@ probeStudioAccess()
 
 -- Build the record to write for `p`, merging onto whatever `old` (the value
 -- UpdateAsync just handed us) already holds so a stale/slow writer can never
--- lower highScore or bugsCaught, drop an owned skin, or un-apply a receipt.
+-- lower highScore, bugsCaught or jarFlys, drop an owned skin, or un-apply a receipt.
 local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecord
 	local merged: Profile = {
 		highScore = p.highScore,
@@ -241,6 +244,7 @@ local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecor
 		streakDay = p.streakDay,
 		missionDay = p.missionDay,
 		missions = table.clone(p.missions),
+		jarFlys = p.jarFlys,
 	}
 	for id in pairs(p.owned) do
 		merged.owned[id] = true
@@ -258,6 +262,11 @@ local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecor
 		local oldBugs = tonumber(oldProfile.bugsCaught)
 		if oldBugs and oldBugs > merged.bugsCaught then
 			merged.bugsCaught = oldBugs
+		end
+		-- The jar only ever fills, so a stale writer can't empty it.
+		local oldJar = tonumber(oldProfile.jarFlys)
+		if oldJar and oldJar > merged.jarFlys then
+			merged.jarFlys = oldJar
 		end
 		-- A stale writer must not roll the daily streak back (that would let the
 		-- same UTC day be claimed twice): keep whichever claim day is newer.

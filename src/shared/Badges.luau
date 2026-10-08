@@ -19,12 +19,14 @@
 --   "steps"  -- `threshold` steps in one run (leaderstats.Score)
 --   "level"  -- `level` ("Kitchen"/"Country") reached, via Lanes/<UserId>.Level
 --   "streak" -- `threshold` = daily login streak length (Profiles.get(p).streak)
+--   "jar"    -- `threshold` = Flys fed into the Fly Jar (Profiles.get(p).jarFlys;
+--               same thresholds as Shared/JarTiers' titles)
 -- Not badged for lack of a server-side signal: Perfect chains (client-only)
 -- and golden bugs (BugCaughtServer carries no golden flag).
 export type BadgeEntry = {
-	kind: ("steps" | "level" | "streak")?,
+	kind: ("steps" | "level" | "streak" | "jar")?,
 	level: string?, -- kind = "level" only
-	threshold: number, -- steps (kind "steps") or streak days (kind "streak"); 0 for "level"
+	threshold: number, -- steps (kind "steps"), streak days (kind "streak") or jar Flys (kind "jar"); 0 for "level"
 	id: number, -- FILL IN: Creator Hub badge id (0 = not configured yet, skipped)
 	name: string, -- suggested Creator Hub badge name, for reference only
 }
@@ -50,6 +52,13 @@ local Badges: { BadgeEntry } = {
 	{ kind = "streak", threshold = 3, id = 0, name = "3-Day Streak" },
 	{ kind = "streak", threshold = 7, id = 0, name = "7-Day Streak" },
 	{ kind = "streak", threshold = 30, id = 0, name = "30-Day Streak" },
+	{ kind = "jar", threshold = 1000, id = 0, name = "Fly Snacker" },
+	{ kind = "jar", threshold = 2500, id = 0, name = "Fly Keeper" },
+	{ kind = "jar", threshold = 5000, id = 0, name = "Swarm Tender" },
+	{ kind = "jar", threshold = 10000, id = 0, name = "Jar Master" },
+	{ kind = "jar", threshold = 25000, id = 0, name = "Fly Baron" },
+	{ kind = "jar", threshold = 50000, id = 0, name = "Lord of the Flies" },
+	{ kind = "jar", threshold = 100000, id = 0, name = "Frog Royalty" },
 }
 
 return Badges

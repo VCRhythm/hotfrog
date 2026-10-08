@@ -41,11 +41,14 @@ local STREAK_POLL = 20 -- seconds; DailyService has no event, the claim just bum
 local sorted: { Badges.BadgeEntry } = {}
 local levelBadges: { Badges.BadgeEntry } = {}
 local streakBadges: { Badges.BadgeEntry } = {}
+local jarBadges: { Badges.BadgeEntry } = {}
 for _, entry in Badges do
 	if entry.kind == "level" then
 		table.insert(levelBadges, entry)
 	elseif entry.kind == "streak" then
 		table.insert(streakBadges, entry)
+	elseif entry.kind == "jar" then
+		table.insert(jarBadges, entry)
 	else
 		table.insert(sorted, entry)
 	end
@@ -185,7 +188,8 @@ end)
 
 task.spawn(watchLanes)
 
--- Daily streak badges: read-only poll of the profile (DailyService owns it).
+-- Daily streak and Fly Jar badges: read-only poll of the profile (DailyService
+-- owns the streak, SkinService's FeedJar the jar total).
 task.spawn(function()
 	while true do
 		for _, player in Players:GetPlayers() do
@@ -194,6 +198,11 @@ task.spawn(function()
 				for _, entry in streakBadges do
 					if profile.streak >= entry.threshold then
 						tryAward(player, "streak" .. entry.threshold, entry.id)
+					end
+				end
+				for _, entry in jarBadges do
+					if profile.jarFlys >= entry.threshold then
+						tryAward(player, "jar" .. entry.threshold, entry.id)
 					end
 				end
 			end

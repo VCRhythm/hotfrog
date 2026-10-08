@@ -28,9 +28,10 @@ command: python tools/create_badges.py
 done-check: ! grep -q 'id = 0' src/shared/Badges.luau
 cleared: 2026-10-08 14:50 marked done on the dashboard although the done-check failed
 
-## o-20261008-145601-9osr  open  2026-10-08 14:56
+## o-20261008-145601-9osr  done  2026-10-08 14:56
 for: b-20261008-145031-uwm3
 kind: login
 step: Give the Open Cloud API key in .env (ROBLOX_API_KEY) the Game Passes scope: Creator Hub -> Open Cloud -> API Keys -> that key -> Add API System 'Game Passes' (game-pass read + write) -> select HotFrog -> Save. Then press Run it (prices are in PRICES at the top of tools/create_gamepasses.py: Business Frog 99, Hot Lawyer 149, Invisible Man 199, Crossy Frog 249 Robux)
 command: python tools/create_gamepasses.py
 done-check: ! grep -q 'gamePassId = 0' src/shared/SkinCatalog.luau
+cleared: 2026-10-08 15:07 sent back to loop as b-20261008-150752-kf7u: api key has been added. use studio to add the api system and save. then I will press run it

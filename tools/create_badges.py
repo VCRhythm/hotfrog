@@ -44,6 +44,14 @@ def describe(name: str) -> str:
     return {
         "Out of the Pot": "Climb out of the pot and reach the Kitchen.",
         "Country Frog": "Reach the Country.",
+        # Fly Jar tiers (src/shared/JarTiers.luau)
+        "Fly Snacker": "Feed 1,000 Flys into the Fly Jar.",
+        "Fly Keeper": "Feed 2,500 Flys into the Fly Jar.",
+        "Swarm Tender": "Feed 5,000 Flys into the Fly Jar.",
+        "Jar Master": "Feed 10,000 Flys into the Fly Jar.",
+        "Fly Baron": "Feed 25,000 Flys into the Fly Jar.",
+        "Lord of the Flies": "Feed 50,000 Flys into the Fly Jar.",
+        "Frog Royalty": "Feed 100,000 Flys into the Fly Jar.",
     }.get(name, name)
 
 

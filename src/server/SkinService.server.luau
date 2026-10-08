@@ -14,6 +14,7 @@ local Players = game:GetService("Players")
 
 local Catalog = require(ReplicatedStorage.Shared.SkinCatalog)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
+local JarTiers = require(ReplicatedStorage.Shared.JarTiers)
 local Profiles = require(script.Parent.Profiles)
 
 -- Developer Product id -> Flys granted. FILL IN real product ids.
@@ -45,6 +46,7 @@ local SelectSkin = ensure("SelectSkin", "RemoteEvent") :: RemoteEvent
 local BuyWithFlys = ensure("BuyWithFlys", "RemoteFunction") :: RemoteFunction
 local ProfileChanged = ensure("ProfileChanged", "RemoteEvent") :: RemoteEvent
 local GetProfile = ensure("GetProfile", "RemoteFunction") :: RemoteFunction
+local FeedJar = ensure("FeedJar", "RemoteFunction") :: RemoteFunction
 
 local function push(player: Player)
 	local p = Profiles.get(player)
@@ -119,6 +121,34 @@ SelectSkin.OnServerEvent:Connect(function(player, id)
 	end
 end)
 
+-- Fly Jar (b-20261008-142124-qw4r; doc 17): Flys fed in are spent for good and
+-- added to the lifetime profile.jarFlys, whose tier title (JarTiers) rides on
+-- the player as the replicated `JarTitle` attribute for every client to show.
+local function refreshJarTitle(player: Player)
+	local p = Profiles.get(player)
+	if p then
+		player:SetAttribute("JarTitle", JarTiers.title(p.jarFlys))
+	end
+end
+
+-- amount: a positive whole number of Flys, at most the current balance.
+-- Returns true once fed (the new totals arrive via ProfileChanged).
+FeedJar.OnServerInvoke = function(player, amount)
+	local p = Profiles.get(player)
+	if not p or type(amount) ~= "number" or amount ~= amount or amount < 1 or amount % 1 ~= 0 then
+		return false
+	end
+	if amount > p.flys then
+		return false
+	end
+	p.flys -= amount
+	p.jarFlys += amount
+	refreshJarTitle(player)
+	push(player)
+	Profiles.save(player)
+	return true
+end
+
 BuyWithFlys.OnServerInvoke = function(player, id)
 	local p, entry = Profiles.get(player), Catalog[id]
 	if not (p and entry and entry.flyCost) then
@@ -182,6 +212,7 @@ end
 -- ---------------------------------------------------------------------------
 local function initPlayer(player: Player)
 	grantGamePassSkins(player)
+	refreshJarTitle(player)
 	push(player)
 end
 
