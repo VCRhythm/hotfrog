@@ -373,3 +373,22 @@ python tools/create_badges.py
 
 The API key needs the `legacy-universe.badge` scopes (read, write,
 manage-and-spend-robux) for this experience.
+
+---
+
+## `create_gamepasses.py`
+
+Creates the four premium-skin Game Passes (Business Frog, Hot Lawyer, Invisible
+Man, Crossy Frog) through Open Cloud and writes each id over `gamePassId = 0` in
+`src/shared/SkinCatalog.luau`. Robux prices are the `PRICES` table at the top of
+the script. Icons are each skin's `...Body.png`, squared to 512. Resumable:
+passes already on the experience (matched by name) or in the gitignored
+`tools/gamepass_ids.json` are reused. Creating a pass costs nothing.
+
+```bat
+python tools/create_gamepasses.py --dry-run
+python tools/create_gamepasses.py
+```
+
+The API key needs the Game Passes API system (read + write) for this experience
+(Creator Hub > Open Cloud > API Keys).

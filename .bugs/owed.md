@@ -13,15 +13,24 @@ step: Create the 19 HotFrog badges in Creator Hub (create.roblox.com -> this exp
 done-check: ! grep -q 'id = 0' src/shared/Badges.luau
 cleared: 2026-10-08 14:38 sent back to loop as b-20261008-143855-nuf1: can you do this through open cloud with the right permissions?
 
-## o-20261008-144708-cka8  open  2026-10-08 14:47
+## o-20261008-144708-cka8  done  2026-10-08 14:47
 for: b-20261008-142458-vo87
 kind: approval
 step: Create Game Passes for Business Frog, Hot Lawyer, Invisible Man and Crossy Frog (Creator Hub -> HotFrog -> Monetization -> Passes) and put each pass id over its gamePassId = 0 in src/shared/SkinCatalog.luau (or hand the ids to the loop)
 done-check: ! grep -q 'gamePassId = 0' src/shared/SkinCatalog.luau
+cleared: 2026-10-08 14:50 sent back to loop as b-20261008-145031-uwm3: can you do this with roblox open cloud?
 
-## o-20261008-144823-fg29  open  2026-10-08 14:48
+## o-20261008-144823-fg29  done  2026-10-08 14:48
 for: b-20261008-143855-nuf1
 kind: login
 step: Give the Open Cloud API key in .env (ROBLOX_API_KEY) the badge scope: Creator Hub -> Open Cloud -> API Keys -> that key -> Add API System 'legacy-universe.badge' -> select HotFrog -> tick Read, Write and manage-and-spend-robux -> Save (keep your IP on its allowlist). Then press Run it; free creation is capped per day, so Run it again on a later day if it stops early
 command: python tools/create_badges.py
 done-check: ! grep -q 'id = 0' src/shared/Badges.luau
+cleared: 2026-10-08 14:50 marked done on the dashboard although the done-check failed
+
+## o-20261008-145601-9osr  open  2026-10-08 14:56
+for: b-20261008-145031-uwm3
+kind: login
+step: Give the Open Cloud API key in .env (ROBLOX_API_KEY) the Game Passes scope: Creator Hub -> Open Cloud -> API Keys -> that key -> Add API System 'Game Passes' (game-pass read + write) -> select HotFrog -> Save. Then press Run it (prices are in PRICES at the top of tools/create_gamepasses.py: Business Frog 99, Hot Lawyer 149, Invisible Man 199, Crossy Frog 249 Robux)
+command: python tools/create_gamepasses.py
+done-check: ! grep -q 'gamePassId = 0' src/shared/SkinCatalog.luau

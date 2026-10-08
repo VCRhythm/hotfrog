@@ -1071,3 +1071,15 @@ verified: partly — the real Open Cloud run made the paged GET (200, no badges)
 review: concern: there was no try/except around the requests calls, a failed listing GET was ignored, and Badges.luau was written with CRLF; checked: git diff of README/.gitignore, read create_badges.py, ran --dry-run, compared git status
 re-review: concern: --dry-run still writes the gitignored cache file tools/badge_ids.json as "{}" (harmless; the three repairs are correct); checked: read create_badges.py in full, ran --dry-run with git status before and after, grep for CR in Badges.luau
 owed: Add the legacy-universe.badge scope to the API key, then run python tools/create_badges.py (o- block in owed.md)
+
+## b-20261008-145031-uwm3  answered  2026-10-08 15:35
+note: can you do this with roblox open cloud? (sent back from owed step o-20261008-144708-cka8 for b-20261008-142458-vo87: create Game Passes for the 4 premium skins)
+finding: Yes. tools/create_gamepasses.py creates the 4 skin Game Passes through Open Cloud (Business Frog 99, Hot Lawyer 149, Invisible Man 199, Crossy Frog 249 Robux; change PRICES at the top of the script) and writes their ids into src/shared/SkinCatalog.luau. Your API key has no Game Passes scope yet, so it got 403 "Scope not authorized" and created nothing. Add the Game Passes API system (read and write) for HotFrog to the key, then press Run it on the owed step.
+cause: Game Passes could only be made by hand, and the .env API key lacks the Game Passes scope.
+change: Added tools/create_gamepasses.py, modelled on create_badges.py. It lists passes first and aborts before creating anything if the listing fails, reuses passes by name, guards each create and its response parse, caches ids in the gitignored tools/gamepass_ids.json (never on --dry-run), and rewrites only those 4 rows' gamePassId with LF line endings. Documented in tools/README.md.
+files: tools/create_gamepasses.py, tools/README.md, .gitignore
+test: py_compile; --dry-run against the live API (403, exit 2, no files touched)
+verified: partly — the real Open Cloud list call returned 403 Scope not authorized; the create path and id write have not run against a real pass
+review: concern: a successful create whose JSON lacks gamePassId/id (or doesn't parse) crashed before the catalog rewrite, and --dry-run wrote the cache; checked: read create_gamepasses.py and create_badges.py, regex against SkinCatalog rows, git diff of README/.gitignore, ran --dry-run with git status and the SkinCatalog sha1 before and after
+re-review: looks-right; checked: read the script in full, py_compile, --dry-run (403 abort before any create), git status diff before/after, no cache file created
+owed: Add the Game Passes scope to the API key, then run python tools/create_gamepasses.py (o- block in owed.md)
