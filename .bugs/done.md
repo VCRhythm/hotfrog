@@ -973,3 +973,12 @@ test: stylua --check, selene src/, luau_check.sh StoreUI.client.luau, rojo build
 verified: no — not run in Studio; join and watch the frog bounce on the start screen, die and return to Menu, press Play and Shop mid-bounce
 review: concern: the initial join Menu event fires before StoreUI connects, so the join bounce would be missed; checked: git diff StoreUI, StoreUI preview/open/close/RunStateChanged code, GameServer initPlayer/setRunState, MenuClient handler, luau_check exit 0
 re-review: looks-right; checked: git diff StoreUI startup check + handler, bounceIn dependencies all defined earlier, SetAttribute("RunState") at GameServer:173 with Menu/Playing/Dead, luau_check exit 0 (narrow race can replay the awake sound once)
+
+## b-20261008-124136-b89y  answered  2026-10-08 12:46
+note: what else is left for this game to be a fun popcorn level experience worth playing every day?
+finding: The core loop is solid: grab grading and popups, dynamic steps, a level-up beat, the race rail, quick Replay, Flys and skins, and a gift. What is missing is mostly the daily-return layer. First come the ship blockers only you can do: every badge, Game Pass and Fly product id is still 0 (so badges, premium skins and Fly packs do nothing), there is no icon or thumbnails, and most fixes have never been playtested. The biggest code gaps, in order: (1) a daily or weekly leaderboard, since the only board is the all-time top 10; (2) a daily login streak, since the gift is a flat cooldown that grows to 6 h and is never streak-based; (3) Perfect-combo juice, since there is no chain counter, camera punch or haptics. After those come long-tail badges (all 10 are earned in the first 100 steps), a Fly sink once the skin set is bought, and daily missions. Full ranked list in the report.
+evidence: src/shared/Badges.luau (all id=0); src/shared/SkinCatalog.luau:17-24; src/server/SkinService.server.luau:20 (empty FLY_PRODUCTS); src/server/GiftService.server.luau:15-16,69,94; src/server/Profiles.luau:51,313 (single all-time OrderedDataStore); docs/roblox-port/17-status-and-known-gaps.md
+report: .bugs/reports/b-20261008-124136-b89y.md
+files: none
+review: holds; checked: read the report, Badges.luau ids, SkinCatalog.luau:21-24 gamePassIds, SkinService FLY_PRODUCTS, Profiles.luau OrderedDataStore + topScores, GiftService clamp/seed logic; grepped src for streak/combo/CameraShake/HapticService/daily/weekly (none); icon/playtest claims not checkable from code
+followups: b-20261008-124506-tmdz, b-20261008-124506-lo4a, b-20261008-124506-kx46 (filed held in backlog)
