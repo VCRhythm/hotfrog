@@ -1059,3 +1059,15 @@ files: none
 test: none
 verified: no — the ruling is applied and recorded under vo87
 review: n/a
+
+## b-20261008-143855-nuf1  answered  2026-10-08 15:15
+note: can you do this through open cloud with the right permissions? (sent back from owed step o-20261008-143616-fzdz for b-20261008-141644-lzg7: create the 19 HotFrog badges)
+finding: Yes. tools/create_badges.py creates all 19 badges through Open Cloud and writes their ids into src/shared/Badges.luau. It only spends nothing: every create sends expectedCost 0, and the run stops at the first refusal. Your current API key lacks the badge scope (the create returned 403 "Scope not authorized"), so 0 of 19 exist yet. Add "legacy-universe.badge" (Read, Write, manage-and-spend-robux) to the key, then press Run it on the owed step. Roblox caps free badge creation per day, so it may take more than one day's run.
+cause: Badge creation had only a manual Creator Hub path, and the .env API key has no legacy-universe.badge scope.
+change: Added tools/create_badges.py. It is resumable: it reuses badges that already exist by name (paged GET, aborting if the listing fails), creates the rest at expectedCost 0, stops on the first refusal or network error, caches ids in the gitignored tools/badge_ids.json, and writes ids into Badges.luau with LF line endings. It is documented in tools/README.md.
+files: tools/create_badges.py, tools/README.md, .gitignore
+test: python tools/create_badges.py --dry-run (19 would-create, 0/19 have ids); stylua/luau_check on Badges.luau (unchanged)
+verified: partly — the real Open Cloud run made the paged GET (200, no badges) and the POST create (403 Scope not authorized), so no badge was created and the id write path has not run against a real id.
+review: concern: there was no try/except around the requests calls, a failed listing GET was ignored, and Badges.luau was written with CRLF; checked: git diff of README/.gitignore, read create_badges.py, ran --dry-run, compared git status
+re-review: concern: --dry-run still writes the gitignored cache file tools/badge_ids.json as "{}" (harmless; the three repairs are correct); checked: read create_badges.py in full, ran --dry-run with git status before and after, grep for CR in Badges.luau
+owed: Add the legacy-universe.badge scope to the API key, then run python tools/create_badges.py (o- block in owed.md)

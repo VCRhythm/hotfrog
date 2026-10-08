@@ -18,3 +18,10 @@ for: b-20261008-142458-vo87
 kind: approval
 step: Create Game Passes for Business Frog, Hot Lawyer, Invisible Man and Crossy Frog (Creator Hub -> HotFrog -> Monetization -> Passes) and put each pass id over its gamePassId = 0 in src/shared/SkinCatalog.luau (or hand the ids to the loop)
 done-check: ! grep -q 'gamePassId = 0' src/shared/SkinCatalog.luau
+
+## o-20261008-144823-fg29  open  2026-10-08 14:48
+for: b-20261008-143855-nuf1
+kind: login
+step: Give the Open Cloud API key in .env (ROBLOX_API_KEY) the badge scope: Creator Hub -> Open Cloud -> API Keys -> that key -> Add API System 'legacy-universe.badge' -> select HotFrog -> tick Read, Write and manage-and-spend-robux -> Save (keep your IP on its allowlist). Then press Run it; free creation is capped per day, so Run it again on a later day if it stops early
+command: python tools/create_badges.py
+done-check: ! grep -q 'id = 0' src/shared/Badges.luau

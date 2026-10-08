@@ -29,3 +29,4 @@ tools/.asset_cache/
 
 # Roblox credentials + experience ids for tools/ (see .env.example)
 .env
+tools/badge_ids.json

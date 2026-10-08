@@ -354,3 +354,22 @@ lost.
 python tools/list_assets.py -t Image -t Audio -o docs/asset_inventory.md
 ```
 
+
+---
+
+## `create_badges.py`
+
+Creates the HotFrog badges (the rows of `src/shared/Badges.luau`) through Open
+Cloud and writes each real id over `id = 0`. Resumable: badges already on the
+experience (matched by name, via the badges GET) or in the gitignored
+`tools/badge_ids.json` are reused; run again on a later day to finish the rest.
+It never spends Robux (`expectedCost=0`; stops on the first refusal). The icon
+defaults to `Sprites/Menu/FrogHeadIcon.png` (`--icon` to change).
+
+```bat
+python tools/create_badges.py --dry-run
+python tools/create_badges.py
+```
+
+The API key needs the `legacy-universe.badge` scopes (read, write,
+manage-and-spend-robux) for this experience.
