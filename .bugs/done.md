@@ -1040,3 +1040,22 @@ files: src/server/Profiles.luau, src/server/GameServer.server.luau, src/client/M
 test: stylua --check on touched files, selene src/ (0 warnings), tools/luau_check.sh (clean), rojo build (ok)
 verified: no — the HotFrog place is not open in Studio (the Studio MCP lists only Centralia and Tactics.rbxl); static checks only
 review: looks-right; checked: git diff of the 3 files and the doc 17 row, luau_check clean, the recordPeriodScore spawn sits outside the new-best branch so it runs on every death (GameServer:1372), writeMax handles a nil old value, the week formula is Monday-aligned (epoch day 4 -> week 1), periodBest resets on index change, any unknown period string falls back to "all", IsFriendsWith is pcall'd and cached. Nits: the period best is set before the write succeeds; concurrent stale-cache reads can double-fetch (as before)
+
+## b-20261008-142458-vo87  fixed  2026-10-08 15:05
+note: extend out the existing frog skin rewards so a player earns one after 2 runs, then 5 more runs, then 10 runs, etc
+cause: Decision (b-20261008-143831-k4ys): "skins should be unlocked with flys and/or robux. when I was talking about the runs to unlock, I meant by setting fly prices". The catalog still had Unity's 500/1000/1500/2000 Fly prices, and the four premium skins could only be bought with Robux.
+change: Every non-free skin now has a flyCost on a run ladder, assuming about 50 Flys per typical run. The run gaps are 2, 5, 10, 20, 30, 45, 60 and 80, and the prices are Blue 100, Hawt 250, Space 500, Mystery 1000, Business 1500, Hot Lawyer 2250, Invisible Man 3000, Crossy 4000. The premium skins keep gamePassId. StoreUI shows "Buy with Robux" next to the Flys buy when a skin has a real Game Pass id. Doc 17 has a row recording the prices.
+files: src/shared/SkinCatalog.luau, src/client/StoreUI.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/, tools/luau_check.sh on both files, rojo build (all pass)
+verified: no — the HotFrog place is not open in Studio (only Centralia and Tactics are), so only static checks ran.
+review: looks-right; checked: git diff of the 3 files, SkinService BuyWithFlys and the Game Pass grant paths, a grep for gamePassId/flyCost, StoreUI states (free/fly-only/both/owned) and button layout, the Flys/run estimate against Config and BugService, luau_check on StoreUI
+owed: Create the 4 skin Game Passes and set their gamePassId in SkinCatalog.luau (o- block in owed.md)
+
+## b-20261008-143831-k4ys  answer  2026-10-08 15:05
+note: DECISION: skins should be unlocked with flys and/or robux. when I was talking about the runs to unlock, I meant by setting fly prices
+cause: The user's ruling on b-20261008-142458-vo87.
+change: see b-20261008-142458-vo87
+files: none
+test: none
+verified: no — the ruling is applied and recorded under vo87
+review: n/a

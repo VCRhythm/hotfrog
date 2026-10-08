@@ -116,6 +116,12 @@ local prevButton = button("Prev", "<", UDim2.fromOffset(96, 140), UDim2.new(0, 1
 local nextButton = button("Next", ">", UDim2.fromOffset(96, 140), UDim2.new(1, -112, 0.5, -70), store)
 local actionButton = button("Action", "", UDim2.fromOffset(240, 56), UDim2.new(0.5, -120, 1, -128), store)
 actionButton.BackgroundColor3 = ACCENT
+-- Robux alternative for a skin that has BOTH a flyCost and a real gamePassId
+-- (b-20261008-142458-vo87: every skin is on the Fly ladder, premium ones keep
+-- their Game Pass); the Action button stays the Flys buy.
+local robuxButton = button("Robux", "Buy with Robux", UDim2.fromOffset(200, 40), UDim2.new(0.5, -100, 1, -176), store)
+robuxButton.BackgroundColor3 = ACCENT
+robuxButton.Visible = false
 -- bottom centre, between Gift and Shop: the top-left corner is the HUD's score
 local backButton = button("Back", "Back", UDim2.fromOffset(120, 48), UDim2.new(0.5, -60, 1, -60), store, "Home")
 backButton.BackgroundColor3 = DARK
@@ -237,6 +243,7 @@ local function refreshStore()
 	-- rather than a fixed stem the button was created with.
 	local flysIcon: string? = nil
 	actionButton.Visible = true
+	robuxButton.Visible = not owned and entry.flyCost ~= nil and (entry.gamePassId or 0) > 0
 	if selected then
 		statusLabel.Text = "Selected"
 		actionButton.Visible = false
@@ -426,6 +433,12 @@ nextButton.Activated:Connect(function()
 	cycle(1)
 end)
 actionButton.Activated:Connect(onAction)
+robuxButton.Activated:Connect(function()
+	local entry = Catalog[currentId() or 0]
+	if entry and entry.gamePassId and entry.gamePassId > 0 then
+		MarketplaceService:PromptGamePassPurchase(player, entry.gamePassId)
+	end
+end)
 shopToggle.Activated:Connect(function()
 	if storeOpen then
 		closeStore(true)
