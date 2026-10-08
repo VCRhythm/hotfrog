@@ -35,3 +35,10 @@ step: Give the Open Cloud API key in .env (ROBLOX_API_KEY) the Game Passes scope
 command: python tools/create_gamepasses.py
 done-check: ! grep -q 'gamePassId = 0' src/shared/SkinCatalog.luau
 cleared: 2026-10-08 15:07 sent back to loop as b-20261008-150752-kf7u: api key has been added. use studio to add the api system and save. then I will press run it
+
+## o-20261008-150843-4wri  open  2026-10-08 15:08
+for: b-20261008-150752-kf7u
+kind: approval
+step: Create the 4 skin Game Passes (Business Frog 99, Hot Lawyer 149, Invisible Man 199, Crossy Frog 249 Robux; edit PRICES at the top of tools/create_gamepasses.py first if you want other prices) by pressing Run it. The key's Game Passes scope now works.
+command: python tools/create_gamepasses.py
+done-check: ! grep -q 'gamePassId = 0' src/shared/SkinCatalog.luau

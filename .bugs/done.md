@@ -1102,4 +1102,15 @@ files: src/shared/JarTiers.luau, src/shared/Badges.luau, src/server/Profiles.lua
 test: stylua --check on the touched files (clean), selene src/ (0 warnings), tools/luau_check.sh on the touched files (clean), rojo build (ok)
 verified: no — the HotFrog place is not open in Studio (the Studio MCP lists only Centralia and Tactics.rbxl), so no playtest ran; static checks only
 review: looks-right; checked: full diff of the 9 files plus JarTiers.luau, SkinService AwardFlys/BuyWithFlys/initPlayer, Profiles mergeForSave (flys is written as-is, so spent Flys are not resurrected; jarFlys takes the max), FeedJar rejects NaN, inf, fractions and non-positive amounts, and has no yield between the check and the deduct; badge thresholds match JarTiers; luau_check and selene clean
-owed: none (the new jar badges are created by the existing badge-scope step o-20261008-144823-fg29)
+owed: none
+note: the new jar badges are created by the existing badge-scope step o-20261008-144823-fg29
+
+## b-20261008-150752-kf7u  answered  2026-10-08 15:24
+note: api key has been added. use studio to add the api system and save. then I will press run it (sent back from owed step o-20261008-145601-9osr)
+finding: The key now has the Game Passes scope. A read-only `python tools/create_gamepasses.py --dry-run` lists the experience's passes without a 403 and would create all 4. Nothing needed doing in Studio. The step is open again for you to press Run it.
+evidence: tools/create_gamepasses.py --dry-run output "would create 'Business Frog' at 99 Robux ... 0/4 passes have ids"; tools/create_badges.py --dry-run also lists without a 403 (0/26 badges have ids)
+files: none
+test: none
+verified: yes — dry-run against the live Open Cloud Game Passes list endpoint returned 200
+review: n/a
+owed: create the 4 Game Passes (Run it), see owed.md
