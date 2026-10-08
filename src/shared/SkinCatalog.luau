@@ -24,8 +24,8 @@ return {
 	[3] = { name = "Hawt Frog", flyCost = 250 }, -- 5 more
 	[4] = { name = "Space Frog", flyCost = 500 }, -- 10 more
 	[5] = { name = "Mystery Frog", flyCost = 1000 }, -- 20 more
-	[6] = { name = "Business Frog", flyCost = 1500, gamePassId = 0 }, -- 30 more; premium (set real Game Pass id)
-	[7] = { name = "Hot Lawyer", flyCost = 2250, gamePassId = 0 }, -- 45 more
-	[8] = { name = "Invisible Man", flyCost = 3000, gamePassId = 0 }, -- 60 more
-	[9] = { name = "Crossy Frog", flyCost = 4000, gamePassId = 0 }, -- 80 more
+	[6] = { name = "Business Frog", flyCost = 1500, gamePassId = 2019110445 }, -- 30 more; premium (set real Game Pass id)
+	[7] = { name = "Hot Lawyer", flyCost = 2250, gamePassId = 2019278450 }, -- 45 more
+	[8] = { name = "Invisible Man", flyCost = 3000, gamePassId = 2021282272 }, -- 60 more
+	[9] = { name = "Crossy Frog", flyCost = 4000, gamePassId = 2021648260 }, -- 80 more
 }
