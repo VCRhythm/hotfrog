@@ -1083,3 +1083,13 @@ verified: partly — the real Open Cloud list call returned 403 Scope not author
 review: concern: a successful create whose JSON lacks gamePassId/id (or doesn't parse) crashed before the catalog rewrite, and --dry-run wrote the cache; checked: read create_gamepasses.py and create_badges.py, regex against SkinCatalog rows, git diff of README/.gitignore, ran --dry-run with git status and the SkinCatalog sha1 before and after
 re-review: looks-right; checked: read the script in full, py_compile, --dry-run (403 abort before any create), git status diff before/after, no cache file created
 owed: Add the Game Passes scope to the API key, then run python tools/create_gamepasses.py (o- block in owed.md)
+
+## b-20261008-141702-e0za  fixed  2026-10-08 15:50
+note: add rotating daily missions
+cause: The game had no daily missions; it only had the daily login streak and the gift.
+change: New MissionService picks 3 missions per UTC day from an 8-mission pool, seeded by the day so every player gets the same set: climb 30 / 75 in one run (30 / 60 Flys), catch 5 / 15 bugs (30 / 60), play 3 / 8 runs (25 / 50), reach Kitchen (40), reach Country (75). Progress is stored in Profiles (missionDay + missions; the save merge keeps the newer day and the higher count). A finished mission pays automatically through AwardFlys and fires MissionCompleted, and the menu shows 3 progress lines plus a 3 s toast. Run-score missions only count runs that started today. Doc 17 has a row for it.
+files: src/server/MissionService.server.luau, src/server/Profiles.luau, src/server/GameServer.server.luau, src/client/MenuClient.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/, tools/luau_check.sh per file, rojo build (all pass)
+verified: no — the HotFrog place is not open in Studio (only Tactics.rbxl and Centralia are), so only static checks ran.
+review: concern: a run straddling midnight UTC credited its pre-midnight steps to the new day's "climb N in one run" mission; checked: git diff of Profiles/GameServer/MenuClient/doc 17, read MissionService in full, cross-read BadgeService, BugService, the GameServer sessionScore/leaderstats code and Profiles mergeForSave, luau_check
+re-review: looks-right; checked: read MissionService in full and GameServer setRunState/StartRun/leaderstats, luau_check and stylua (rc 0); noted that a lane already Playing when the service attaches gets no credit for that one run (fails safe)

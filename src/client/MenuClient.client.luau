@@ -40,6 +40,8 @@ local GiftStatus = remotes:WaitForChild("GiftStatus") :: RemoteEvent
 local GetGiftStatus = remotes:WaitForChild("GetGiftStatus") :: RemoteFunction
 local SetEndPanelOpen = remotes:WaitForChild("SetEndPanelOpen") :: RemoteEvent
 local ClaimDailyReward = remotes:WaitForChild("ClaimDailyReward") :: RemoteFunction
+local GetMissions = remotes:WaitForChild("GetMissions") :: RemoteFunction
+local MissionCompleted = remotes:WaitForChild("MissionCompleted") :: RemoteEvent
 
 -- Bridge into StoreUI's existing panel (doc 15: "reuse ... rather than
 -- duplicating"). StoreUI creates this Folder; wait for it rather than racing
@@ -99,6 +101,16 @@ hintLabel.TextSize = 16
 local streakLine = UIKit.label("DailyStreak", "", UDim2.fromOffset(280, 28), UDim2.new(0, 0, 1, 16), mainPanel)
 streakLine.TextColor3 = UIKit.GOOD
 UIKit.textStroke(streakLine, 2)
+
+-- Today's 3 daily missions under the streak line (MissionService); refreshed
+-- every time the main menu shows.
+local missionLines: { TextLabel } = {}
+for i = 1, 3 do
+	local line = UIKit.label("Mission" .. i, "", UDim2.fromOffset(280, 24), UDim2.new(0, 0, 1, 20 + i * 26), mainPanel)
+	line.TextColor3 = UIKit.HUD_TEXT
+	UIKit.textStroke(line, 2)
+	missionLines[i] = line
+end
 
 -- ---------------------------------------------------------------------------
 -- End-of-run panel (RunState.Dead)
@@ -298,9 +310,11 @@ local function focusFirst(button: GuiButton)
 end
 
 local checkDaily: () -> () = function() end -- assigned in the Daily streak section below
+local refreshMissions: () -> () = function() end -- assigned in the Daily missions section below
 
 local function showMainMenu()
 	checkDaily()
+	refreshMissions()
 	title.Visible = true
 	UIKit.showPanel(mainPanel, true)
 	UIKit.showPanel(endPanel, false)
@@ -920,6 +934,65 @@ checkDaily = function()
 		dailyBusy = false
 	end)
 end
+
+-- ---------------------------------------------------------------------------
+-- Daily missions (MissionService, b-20261008-141702-e0za): the list under the
+-- main panel, pulled like the daily streak, plus a short toast whenever the
+-- server says one finished (it has already paid the Flys).
+-- ---------------------------------------------------------------------------
+type MissionInfo = { text: string, progress: number, target: number, reward: number }
+local missionsBusy = false
+
+refreshMissions = function()
+	if missionsBusy then
+		return
+	end
+	missionsBusy = true
+	task.spawn(function()
+		for _ = 1, DAILY_RETRIES do
+			local ok, result = pcall(function()
+				return GetMissions:InvokeServer()
+			end)
+			if ok and typeof(result) == "table" then
+				for i, line in missionLines do
+					local m = (result :: { MissionInfo })[i]
+					if not m then
+						line.Text = ""
+					elseif m.progress >= m.target then
+						line.Text = string.format("Done: %s", m.text)
+						line.TextColor3 = UIKit.GOOD
+					else
+						line.Text = string.format("%s  %d/%d  +%d", m.text, m.progress, m.target, m.reward)
+						line.TextColor3 = UIKit.HUD_TEXT
+					end
+				end
+				break
+			end
+			task.wait(DAILY_RETRY_WAIT)
+		end
+		missionsBusy = false
+	end)
+end
+
+MissionCompleted.OnClientEvent:Connect(function(text: string, reward: number)
+	SoundFX.play("pop")
+	local toast = UIKit.label(
+		"MissionToast",
+		string.format("Mission done: %s  +%d Flys", text, reward),
+		UDim2.fromOffset(420, 36),
+		UDim2.new(0.5, -210, 0.2, 0),
+		gui
+	)
+	toast.TextColor3 = UIKit.GOOD
+	toast.ZIndex = 10
+	local stroke = UIKit.textStroke(toast, 2)
+	task.delay(3, function()
+		TweenService:Create(toast, TweenInfo.new(0.5), { TextTransparency = 1 }):Play()
+		TweenService:Create(stroke, TweenInfo.new(0.5), { Transparency = 1 }):Play()
+		task.wait(0.5)
+		toast:Destroy()
+	end)
+end)
 
 -- ---------------------------------------------------------------------------
 -- Gamepad hint text (doc 15 item 7): show button glyph names as plain text

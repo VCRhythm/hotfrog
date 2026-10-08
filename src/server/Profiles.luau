@@ -41,6 +41,8 @@ export type Profile = {
 	bugsCaught: number, -- lifetime stat; Unity VariableManager.BugsCaught
 	streak: number, -- daily login streak length (DailyService; not in Unity)
 	streakDay: number, -- UTC day index (os.time() // 86400) of the last daily claim, 0 = never
+	missionDay: number, -- UTC day index the `missions` progress belongs to (MissionService; not in Unity)
+	missions: { [string]: number }, -- daily mission id -> progress, clamped to its target
 }
 
 -- What actually lives at the DataStore key: the profile plus the session lock.
@@ -107,6 +109,8 @@ local function defaultProfile(): Profile
 		bugsCaught = 0,
 		streak = 0,
 		streakDay = 0,
+		missionDay = 0,
+		missions = {},
 	}
 end
 
@@ -134,6 +138,12 @@ local function reconcile(p: Profile, data: any)
 	p.bugsCaught = tonumber(data.bugsCaught) or p.bugsCaught
 	p.streak = tonumber(data.streak) or p.streak
 	p.streakDay = tonumber(data.streakDay) or p.streakDay
+	p.missionDay = tonumber(data.missionDay) or p.missionDay
+	if type(data.missions) == "table" then
+		for k, v in pairs(data.missions) do
+			p.missions[tostring(k)] = tonumber(v) or 0
+		end
+	end
 	if type(data.musicOn) == "boolean" then
 		p.musicOn = data.musicOn
 	end
@@ -229,6 +239,8 @@ local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecor
 		bugsCaught = p.bugsCaught,
 		streak = p.streak,
 		streakDay = p.streakDay,
+		missionDay = p.missionDay,
+		missions = table.clone(p.missions),
 	}
 	for id in pairs(p.owned) do
 		merged.owned[id] = true
@@ -253,6 +265,22 @@ local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecor
 		if oldStreakDay and oldStreakDay > merged.streakDay then
 			merged.streakDay = oldStreakDay
 			merged.streak = tonumber(oldProfile.streak) or merged.streak
+		end
+		-- Same for daily missions: a newer day wins outright, the same day keeps
+		-- the higher progress per mission, so a reward can't be earned twice.
+		local oldMissionDay = tonumber(oldProfile.missionDay) or 0
+		local oldMissions = if type(oldProfile.missions) == "table" then oldProfile.missions else {}
+		if oldMissionDay > merged.missionDay then
+			merged.missionDay = oldMissionDay
+			merged.missions = {}
+		end
+		if oldMissionDay == merged.missionDay then
+			for k, v in pairs(oldMissions) do
+				local n = tonumber(v)
+				if n and n > (merged.missions[tostring(k)] or 0) then
+					merged.missions[tostring(k)] = n
+				end
+			end
 		end
 		if type(oldProfile.owned) == "table" then
 			for k, v in pairs(oldProfile.owned) do
