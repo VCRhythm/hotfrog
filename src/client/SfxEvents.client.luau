@@ -11,6 +11,7 @@
 local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 
 local player = Players.LocalPlayer
@@ -18,6 +19,14 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ScoreChanged = remotes:WaitForChild("ScoreChanged") :: RemoteEvent
 local GameOver = remotes:WaitForChild("GameOver") :: RemoteEvent
 local BugCaught = remotes:WaitForChild("BugCaught") :: RemoteEvent
+local RunStateChanged = remotes:WaitForChild("RunStateChanged") :: RemoteEvent
+
+-- Perfect chain (doc 17): consecutive Perfect grabs raise the Perfect voice's
+-- pitch, capped; anything else resets it. Counted locally from ScoreChanged.
+local perfectChain = 0
+RunStateChanged.OnClientEvent:Connect(function()
+	perfectChain = 0
+end)
 
 -- ---------------------------------------------------------------------------
 -- Grab quality voice lines (Player.cs TrackGrabQuality: OK/Great/Perfect).
@@ -46,8 +55,15 @@ local QUALITY_STEM: { [string]: string } = {
 ScoreChanged.OnClientEvent:Connect(function(score: number, best: number, quality: string?)
 	if quality then
 		local stem = QUALITY_STEM[quality]
+		if quality == "Perfect" then
+			perfectChain += 1
+		else
+			perfectChain = 0
+		end
 		if stem then
-			SoundFX.play(stem)
+			local pitch =
+				math.min(1 + (perfectChain - 1) * Config.PERFECT_CHAIN_PITCH_STEP, Config.PERFECT_CHAIN_PITCH_MAX)
+			SoundFX.play(stem, if quality == "Perfect" then pitch else nil)
 		end
 	end
 
@@ -84,6 +100,7 @@ end)
 -- only place `hurt` plays.
 -- ---------------------------------------------------------------------------
 GameOver.OnClientEvent:Connect(function(cause: string?)
+	perfectChain = 0
 	SoundFX.play("splash")
 	if cause == "Lava" then
 		SoundFX.play("hurt")

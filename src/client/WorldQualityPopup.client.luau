@@ -27,6 +27,7 @@ local RunService = game:GetService("RunService")
 local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 
+local Config = require(ReplicatedStorage.Shared.Config)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local GrabTarget = require(script.Parent.world.GrabTarget)
 local Pool = require(script.Parent.world.Pool)
@@ -34,6 +35,8 @@ local Pool = require(script.Parent.world.Pool)
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local ScoreChanged = remotes:WaitForChild("ScoreChanged") :: RemoteEvent
+local GameOver = remotes:WaitForChild("GameOver") :: RemoteEvent
+local RunStateChanged = remotes:WaitForChild("RunStateChanged") :: RemoteEvent
 
 local playField = workspace:WaitForChild("PlayField")
 local myFrog = playField:WaitForChild("Frogs"):WaitForChild("Frog_" .. player.UserId, math.huge) :: Model
@@ -79,7 +82,7 @@ end)
 -- ---------------------------------------------------------------------------
 -- Popup spawn/animate (QualityText.cs OnEnable: Invoke("Destroy", lifetime))
 -- ---------------------------------------------------------------------------
-local function spawnPopup(quality: string, position: Vector3)
+local function spawnPopup(quality: string, position: Vector3, chain: number)
 	local color = WorldConfig.QUALITY_POPUP_COLORS[quality]
 	local text = WorldConfig.QUALITY_POPUP_TEXT[quality]
 	if not color or not text then
@@ -89,6 +92,9 @@ local function spawnPopup(quality: string, position: Vector3)
 	local popup = pool.acquire()
 	popup.part.CFrame = CFrame.new(position + Vector3.new(0, 0.5, 0))
 	popup.part.Parent = workspace
+	if quality == "Perfect" and chain >= Config.PERFECT_CHAIN_SHOW_MIN then
+		text = text .. " x" .. chain -- Perfect-chain counter (doc 17)
+	end
 	popup.label.Text = text
 	popup.label.TextColor3 = color
 	popup.label.TextTransparency = 0
@@ -124,6 +130,8 @@ local lastGrabTime = -math.huge
 -- resolves a position, or the match window lapses and it falls back.
 local pendingQuality: string? = nil
 local pendingQualityTime = -math.huge
+local pendingChain = 0
+local perfectChain = 0 -- consecutive Perfects; reset by any other grab, death or run change
 
 local function withinWindow(since: number): boolean
 	return (os.clock() - since) <= WorldConfig.QUALITY_POPUP_MATCH_WINDOW
@@ -149,7 +157,7 @@ RunService.Heartbeat:Connect(function()
 			lastGrabPos = pos
 			lastGrabTime = os.clock()
 			if pendingQuality and withinWindow(pendingQualityTime) then
-				spawnPopup(pendingQuality, pos)
+				spawnPopup(pendingQuality, pos, pendingChain)
 				pendingQuality = nil
 			end
 		end
@@ -157,7 +165,7 @@ RunService.Heartbeat:Connect(function()
 	end
 
 	if pendingQuality and not withinWindow(pendingQualityTime) then
-		spawnPopup(pendingQuality, fallbackPosition())
+		spawnPopup(pendingQuality, fallbackPosition(), pendingChain)
 		pendingQuality = nil
 	end
 end)
@@ -172,10 +180,23 @@ ScoreChanged.OnClientEvent:Connect(function(_score, _best, quality)
 	if typeof(quality) ~= "string" then
 		return
 	end
+	if quality == "Perfect" then
+		perfectChain += 1
+	else
+		perfectChain = 0
+	end
 	if lastGrabPos and withinWindow(lastGrabTime) then
-		spawnPopup(quality, lastGrabPos)
+		spawnPopup(quality, lastGrabPos, perfectChain)
 		return
 	end
+	pendingChain = perfectChain
 	pendingQuality = quality
 	pendingQualityTime = os.clock()
+end)
+
+GameOver.OnClientEvent:Connect(function()
+	perfectChain = 0
+end)
+RunStateChanged.OnClientEvent:Connect(function()
+	perfectChain = 0
 end)

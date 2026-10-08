@@ -16,6 +16,7 @@ local TweenService = game:GetService("TweenService")
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local GuiService = game:GetService("GuiService")
+local HapticService = game:GetService("HapticService")
 local StarterGui = game:GetService("StarterGui")
 
 local Config = require(ReplicatedStorage.Shared.Config)
@@ -35,6 +36,7 @@ local ScoreChanged = remotes:WaitForChild("ScoreChanged") :: RemoteEvent
 local ForceRelease = remotes:WaitForChild("ForceRelease") :: RemoteEvent
 local CatchBug = remotes:WaitForChild("CatchBug") :: RemoteEvent
 local RunStateChanged = remotes:WaitForChild("RunStateChanged") :: RemoteEvent
+local GameOver = remotes:WaitForChild("GameOver") :: RemoteEvent
 local ProfileChanged = remotes:WaitForChild("ProfileChanged") :: RemoteEvent
 local GetProfile = remotes:WaitForChild("GetProfile") :: RemoteFunction
 local BugCaught = remotes:WaitForChild("BugCaught") :: RemoteEvent
@@ -166,11 +168,18 @@ end
 local arrivalZoom = Instance.new("NumberValue")
 arrivalZoom.Value = 1
 
+-- Perfect-chain camera punch (client-only juice, doc 17): a small dolly-in
+-- multiplier that eases back to 1; stacks multiplicatively with arrivalZoom.
+local chainPunch = Instance.new("NumberValue")
+chainPunch.Value = 1
+
 local function updateCamera()
 	local origin = spectateOrigin()
-	camera.CFrame = CFrame.lookAt(origin + Vector3.new(0, 0, CAMERA_DISTANCE * arrivalZoom.Value), origin)
+	camera.CFrame =
+		CFrame.lookAt(origin + Vector3.new(0, 0, CAMERA_DISTANCE * arrivalZoom.Value * chainPunch.Value), origin)
 end
 updateCamera()
+chainPunch.Changed:Connect(updateCamera)
 myLane:GetAttributeChangedSignal("Origin"):Connect(updateCamera)
 arrivalZoom.Changed:Connect(updateCamera)
 
@@ -862,7 +871,57 @@ bugsLabel.TextColor3 = UIKit.HUD_SUBTEXT
 
 hud.Parent = playerGui
 
+-- Perfect chain: camera punch and haptics. SfxEvents (pitch) and
+-- WorldQualityPopup (counter) keep their own count off the same remote.
+local perfectChain = 0
+local punchTween: Tween? = nil
+local function perfectJuice()
+	local punch = math.min(perfectChain * Config.PERFECT_CHAIN_PUNCH, Config.PERFECT_CHAIN_PUNCH_MAX)
+	chainPunch.Value = 1 - punch
+	if punchTween then
+		punchTween:Cancel()
+	end
+	local tween = TweenService:Create(
+		chainPunch,
+		TweenInfo.new(Config.PERFECT_CHAIN_PUNCH_TIME, Enum.EasingStyle.Quad, Enum.EasingDirection.Out),
+		{ Value = 1 }
+	)
+	punchTween = tween
+	tween:Play()
+
+	-- Haptics: touch where the device exposes it, plus a gamepad motor. pcall'd
+	-- because support varies by device and enum.
+	local strength = math.min(0.3 + 0.1 * perfectChain, 1)
+	for _, inputType in { Enum.UserInputType.Touch, Enum.UserInputType.Gamepad1 } do
+		pcall(function()
+			if
+				HapticService:IsVibrationSupported(inputType)
+				and HapticService:IsMotorSupported(inputType, Enum.VibrationMotor.Small)
+			then
+				HapticService:SetMotor(inputType, Enum.VibrationMotor.Small, strength)
+				task.delay(Config.PERFECT_CHAIN_HAPTIC_TIME, function()
+					pcall(function()
+						HapticService:SetMotor(inputType, Enum.VibrationMotor.Small, 0)
+					end)
+				end)
+			end
+		end)
+	end
+end
+RunStateChanged.OnClientEvent:Connect(function()
+	perfectChain = 0
+end)
+GameOver.OnClientEvent:Connect(function()
+	perfectChain = 0
+end)
+
 ScoreChanged.OnClientEvent:Connect(function(score, best, quality)
+	if quality == "Perfect" then
+		perfectChain += 1
+		perfectJuice()
+	else
+		perfectChain = 0
+	end
 	scoreLabel.Text = tostring(score)
 	bestLabel.Text = "Best: " .. tostring(best or 0)
 	if quality == "Perfect" then

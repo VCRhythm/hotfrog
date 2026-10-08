@@ -61,7 +61,9 @@ local function sfxWanted(): boolean
 	return player == nil or player:GetAttribute("SfxOn") ~= false -- nil = on (doc contract)
 end
 
-function SoundFX.play(stem: string)
+-- `pitch` (optional, default 1) sets PlaybackSpeed for this one shot (Perfect-chain
+-- escalation; Unity never varies pitch).
+function SoundFX.play(stem: string, pitch: number?)
 	if not sfxWanted() then
 		return
 	end
@@ -76,6 +78,9 @@ function SoundFX.play(stem: string)
 	activeCounts[stem] = count + 1
 
 	local shot = template:Clone()
+	if pitch then
+		shot.PlaybackSpeed = pitch
+	end
 	shot.Parent = SoundService
 	-- One release path for every way a clone stops existing (normal end via
 	-- Destroy(), or the Debris safety net below), so the count can never be

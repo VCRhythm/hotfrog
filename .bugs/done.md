@@ -1003,3 +1003,12 @@ report: .bugs/reports/b-20261008-141652-rdl8.md
 files: none
 review: holds; checked: SkinCatalog prices sum 500+1000+1500+2000=5000, GIFT_FLYS=100 and the clamp reaching 21600 s at seed 10, BUG_FLYS=5 with golden 25 at 6%, spawn every 2 s with 12% swarms (~41 bugs/min, ~235 Flys/min), BugService spawn loop not gated on RunState (menu catching); per-run figure is an estimate
 followups: b-20261008-142124-qw4r, b-20261008-142125-1ucz, b-20261008-142125-cxm0 (filed held in backlog; release the ones you want built)
+
+## b-20261008-124506-kx46  fixed  2026-10-08 14:31
+note: Add a Perfect-chain combo counter with escalating SFX pitch, a small camera punch and mobile haptics (WorldQualityPopup, GameClient, SfxEvents, Config)
+cause: Nothing tracked consecutive Perfect grabs, so there was no chain counter, pitch escalation, camera punch or haptics.
+change: GameClient, SfxEvents and WorldQualityPopup each count Perfects from ScoreChanged.quality, and a non-Perfect grab, GameOver or RunStateChanged resets the count. The popup reads "Perfect xN" from 2, the Perfect voice pitches 1+0.06(N-1) up to 1.5 (new optional pitch arg on SoundFX.play), the camera dollies in 2% per link (max 6%), and HapticService pulses on Touch/Gamepad1. Knobs are Config.PERFECT_CHAIN_*; doc 17 has a row.
+files: src/shared/Config.luau, src/shared/SoundFX.luau, src/client/GameClient.client.luau, src/client/SfxEvents.client.luau, src/client/WorldQualityPopup.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check on touched files, selene src/ (0 warnings), tools/luau_check.sh on touched files (clean), rojo build (ok)
+verified: no — the HotFrog place is not open in Studio (the Studio MCP lists only Centralia and Tactics.rbxl), so no playtest ran; static checks only
+review: looks-right; checked: git diff of the 5 src files, luau_check clean, GameServer ScoreChanged/GameOver/RunStateChanged all FireClient(player) so other lanes can't bump the chain, the three scripts' reset paths agree, updateCamera stays the only CFrame writer, pitch applies only to the cloned Perfect shot, haptic motor is zeroed after each pulse

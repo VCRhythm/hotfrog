@@ -427,6 +427,16 @@ local Config = {
 	-- instantly; only the DataStore write is throttled to at most once per this
 	-- many seconds (see GameServer.server.luau's SetMusicOn handler).
 	MUSIC_SAVE_DEBOUNCE = 5,
+
+	-- Perfect-chain combo (client-only juice, doc 17): consecutive Perfect grabs
+	-- build a chain; any other grab, death or run end resets it.
+	PERFECT_CHAIN_SHOW_MIN = 2, -- popup shows "Perfect xN" from this chain length
+	PERFECT_CHAIN_PITCH_STEP = 0.06, -- Perfect voice PlaybackSpeed added per chain link
+	PERFECT_CHAIN_PITCH_MAX = 1.5, -- PlaybackSpeed cap
+	PERFECT_CHAIN_PUNCH = 0.02, -- camera dolly-in per link (fraction of distance)
+	PERFECT_CHAIN_PUNCH_MAX = 0.06, -- cap on that fraction
+	PERFECT_CHAIN_PUNCH_TIME = 0.18, -- seconds to ease back
+	PERFECT_CHAIN_HAPTIC_TIME = 0.08, -- seconds of vibration per Perfect
 }
 
 return Config
