@@ -1208,3 +1208,13 @@ test: stylua --check, tools/luau_check.sh GameServer (0 errors), selene src/ (0 
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: arrow steps falling at rotation 0 while ordinary steps still tumble.
 review: looks-right; checked: git diff of GameServer and doc 17, isArrow set on all 5 ChangeDirection kinds in StepKinds (lines 177-245), spinRate assigned only in acquireStep and cleared on grab, Lane.trackStep resets angle 0 / spinRate nil on re-pooled parts, stylua --check.
 leftover: b-20261012-135637-pscf (Studio playtest once Studio runs)
+
+## b-20261010-192046-ptz8  fixed  2026-10-12 13:56
+note: make sure the tongue is coming out of the mouth for all the frog skins
+cause: expandTongue started the tongue at Head.Position, the centre of the 40-stud head part that holds the whole 1024px sprite canvas, which is well above the drawn mouth.
+change: The tongue now starts at head.CFrame:PointToWorldSpace((0, -3.5, 0)) (local TONGUE_MOUTH_DROP in GameClient), where the Mouth sprites sit (y ~589-610 of 1024 across skins). Every skin shares the rig, and the offset is head-local so it follows head rotation.
+files: src/client/GameClient.client.luau
+test: stylua --check, tools/luau_check.sh GameClient (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: the tongue leaving from the drawn mouth on several skins.
+review: looks-right; checked: git diff, expandTongue lines 490-545 (all uses of the origin), FrogModel.model.json Head size 40.229 and decal Face Back (+Y is image up), offset arithmetic (600-512)/1024*40.229 ≈ 3.46, BugService has no reach gate, gamepadTongue's Head.Position is a target pick not an origin, stylua --check.
+leftover: b-20261012-135650-hhny (Studio playtest once Studio runs)

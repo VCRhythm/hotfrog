@@ -490,12 +490,16 @@ end
 -- Tongue visual (Entities/Tongue.cs Expand/FixedUpdate): a thin part stretches
 -- from the head to the tap point, then retracts. Pure local cosmetics -- the
 -- server is authoritative on whether the catch actually scored (doc 06).
+local TONGUE_MOUTH_DROP = 3.5
 local function expandTongue(targetPos: Vector3)
 	local head = myFrog:FindFirstChild("Head")
 	if not (head and head:IsA("BasePart")) then
 		return
 	end
-	local from = head.Position
+	-- The Head part is the whole 1024px sprite canvas; every skin's mouth sits
+	-- ~x 512, y 590-610 (centre 512), i.e. ~3.5 studs below the part centre.
+	-- Offset in head-local space so it follows the head's rotation.
+	local from = head.CFrame:PointToWorldSpace(Vector3.new(0, -TONGUE_MOUTH_DROP, 0))
 	local length = (targetPos - from).Magnitude
 	if length < 0.5 then
 		return
