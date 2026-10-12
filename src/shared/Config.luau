@@ -49,9 +49,11 @@ local Config = {
 	-- CheckTouch miss -> Limb.Move: DOMove over 0.1 s) before it eases back to rest.
 	LIMB_REACH_TIME = 0.1,
 
-	-- Grab quality buckets by squared distance (Player/Controller.cs: TouchStep)
+	-- Grab quality buckets by squared distance (Player/Controller.cs: TouchStep):
+	-- Unity grades <= 10 u^2 Perfect, <= 20 u^2 Great, beyond OK; times
+	-- UNITY_TO_STUDS^2 (~0.0988) that is ~0.99 and ~1.98 studs^2.
 	GRAB_PERFECT_SQR = 1.0,
-	GRAB_GREAT_SQR = 4.0, -- <= great; beyond = ok
+	GRAB_GREAT_SQR = 2.0, -- <= great; beyond = ok
 
 	-- Spawning (Spawning/StepSpawner.cs + SpawnManager.cs)
 	SPAWN_INTERVAL = 0.6, -- seconds between steps
