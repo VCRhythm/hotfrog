@@ -1321,3 +1321,10 @@ files: src/server/Chef.luau
 test: none
 verified: see b-20261010-191719-3rn3
 review: see b-20261010-191719-3rn3 (reviewed and re-reviewed there)
+
+## b-20261010-192344-aj8n  answered  2026-10-12 14:46
+note: what's the difference between "bugs caught" and "flys earned"?
+finding: "Bugs caught" is how many bugs you ate this run, and a golden bug counts as one like any other. "Flys earned" is how much Fly currency the run paid you: 5 for a normal bug, 25 for a golden one, plus the reward for any mission you complete during the run. So the two only line up (Flys = 5 x bugs) on a run with no golden bugs and no mission completed. Both are exact counts; nothing is miscounted. If the label reads as confusing, it could say "Flys earned (incl. golden bugs and missions)".
+evidence: src/client/MenuClient.client.luau:387 (end-panel line); src/server/BugService.server.luau:565-582 (25 for golden, else 5, one BugCaughtServer per rewarded catch; gift flies pay nothing and don't count); src/server/GameServer.server.luau:192-213 (flysThisRun sums every AwardFlys, bugsThisRun counts catches), 1408-1417 (RunSummary), 2008-2009 (reset at StartRun); src/server/MissionService.server.luau:116 (mission reward mid-run); src/shared/Config.luau:388, 416
+files: none
+review: holds; checked by the orchestrator: BugService CatchBug handler, Config BUG_FLYS/GOLDEN_BUG_FLYS, GameServer AwardFlys/BugCaughtServer counters, MenuClient end-panel line
