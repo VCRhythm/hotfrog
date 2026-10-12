@@ -186,7 +186,9 @@ local function setRealHidden(hidden: boolean)
 		return
 	end
 	for _, d in m:GetDescendants() do
-		if d:IsA("BasePart") then
+		-- a part's modifier does not reach its sprite Decals/Textures, so the real
+		-- frog's art drew under the preview clone (b-20261010-191413-h4s9)
+		if d:IsA("BasePart") or d:IsA("Decal") then
 			d.LocalTransparencyModifier = if hidden then 1 else 0
 		end
 	end
@@ -330,7 +332,7 @@ local function refreshStore()
 			local tint = SkinTints.get(tintId)
 			local has = tintId == 0 or ownedTints[SkinTints.key(id, tintId)] == true
 			if has and worn == tintId then
-				swatch.Text = "On"
+				swatch.Text = "Worn"
 			elseif has then
 				swatch.Text = if tintId == 0 then "Off" else ""
 			else
@@ -417,6 +419,12 @@ local function cycle(delta: number)
 		current = preview
 		tweenY(preview, 0, RISE_INFO)
 		SoundFX.play("awake") -- Frog.cs Rise: awakeSound
+	end
+	-- Unity MakeFrog equips any owned frog it shows: no Wear press needed
+	-- (b-20261010-191445-xv4n); unowned skins only preview
+	local shownId = ids[cursor]
+	if shownId and profile and profile.owned and profile.owned[shownId] and profile.selected ~= shownId then
+		SelectSkin:FireServer(shownId)
 	end
 	refreshStore()
 end

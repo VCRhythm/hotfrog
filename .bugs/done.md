@@ -1124,3 +1124,33 @@ test: stylua --check on the touched files (clean), selene src/ (0 warnings), too
 verified: no — the HotFrog place is not open in Studio (the Studio MCP lists only Centralia and Tactics.rbxl), so no playtest ran; static checks only
 review: looks-right; checked: git diff of the 6 files plus SkinTints.luau and SpriteSkin.luau, luau_check on the 6 files, selene, stylua; BuyTint/SelectTint validation (unknown tint, unowned skin, short Flys, no yield before the deduct), ownedTints union merge with Flys not merged upward, refreshFrogTint on SelectSkin/SelectTint/initPlayer, SpriteSkin.apply never writes Color3, heat-tween composition, eye exclusion by Suffix, respawned and late-joined frogs read the attribute; nit: a tint change during a heat tween ends that tween on the old colour
 owed: none
+
+## b-20261010-191413-h4s9  fixed  2026-10-12 13:47
+note: I'm seeing two frogs on load layered on top of each other
+cause: setRealHidden only set LocalTransparencyModifier on BaseParts, so the real frog's sprite Decals/Textures stayed visible under the store preview / menu bounce-in clone ("on load" is the bounce-in path, same defect).
+change: setRealHidden now also sets LocalTransparencyModifier on Decal descendants (Texture included), so the real frog's art is hidden while a preview clone shows.
+files: src/client/StoreUI.client.luau
+test: stylua --check, tools/luau_check.sh StoreUI.client.luau (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: only one frog on join (Menu bounce-in) and in the store.
+review: looks-right; checked: git diff of StoreUI, read setRealHidden/cycle/closeStore/bounceIn/openStore, WorldFrogCosmetics Transparency writes (no clash), luau_check on StoreUI exit 0. Noted: comment at StoreUI ~101 is now stale (cosmetic).
+leftover: b-20261012-134552-h6nd (Studio playtest once Studio runs)
+
+## b-20261010-191445-xv4n  fixed  2026-10-12 13:47
+note: the frog "skin" is not appearing in my place when shopping in the store (it should happen automatically, not require hitting "wear")
+cause: Same decal-hide defect as h4s9, and browsing to an owned skin only changed the local preview; SelectSkin was sent only on Wear/Back.
+change: cycle() now fires SelectSkin as soon as the shown skin is owned and not already selected; unowned skins still only preview, Wear/Back remain as fallbacks.
+files: src/client/StoreUI.client.luau
+test: stylua --check, luau_check, selene src/, rojo build: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: cycling onto an owned skin flips status to "Selected" without Wear, and the real frog wears it on close.
+review: looks-right; checked: git diff of StoreUI, SkinService SelectSkin handler validates p.owned[id]; repeat fires are idempotent and ordered.
+leftover: b-20261012-134553-5e9t (Studio playtest once Studio runs)
+
+## b-20261010-191925-0re3  fixed  2026-10-12 13:47
+note: what does "ON" mean? should be it "OWNED"?
+cause: The worn-tint swatch label read "On", which was unclear.
+change: The worn tint swatch now reads "Worn"; owned-but-not-worn tints stay blank (no-tint swatch still "Off"), unowned show their price.
+files: src/client/StoreUI.client.luau
+test: stylua --check, luau_check, selene src/, rojo build: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: active tint swatch reads "Worn".
+review: looks-right; checked: git diff of StoreUI swatch label code.
+leftover: b-20261012-134553-kdv4 (Studio playtest once Studio runs)
