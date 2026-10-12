@@ -221,25 +221,36 @@ RunStateChanged.OnClientEvent:Connect(function(state: string)
 	end
 end)
 
--- Bottom-center, well clear of MenuClient's centred title/panels and
--- StoreUI's own bottom bar (Shop/Gift sit at 1,-56 from the bottom).
+-- Bottom-centre, 110 units up: above StoreUI's Gift/Shop toggles (bottom 56) and
+-- below the frog's face. Shown only while the main menu panel itself is up
+-- (MenuClient mirrors that as the player attribute MainMenuOpen), so no centred
+-- panel (end-of-run, store, settings...) can cover it or swallow its clicks.
+-- It publishes SpectateStripShown so MenuClient.layoutMainPanel can keep the
+-- main panel clear of it (b-20261012-150254-k9vy).
 local spectateGui = UIKit.screenGui("SpectateGui")
 local spectateLeft =
-	UIKit.button("SpectateLeft", "<", UDim2.fromOffset(40, 40), UDim2.new(0.5, -140, 1, -170), spectateGui)
+	UIKit.button("SpectateLeft", "<", UDim2.fromOffset(40, 40), UDim2.new(0.5, -140, 1, -110), spectateGui)
 local spectateRight =
-	UIKit.button("SpectateRight", ">", UDim2.fromOffset(40, 40), UDim2.new(0.5, 100, 1, -170), spectateGui)
+	UIKit.button("SpectateRight", ">", UDim2.fromOffset(40, 40), UDim2.new(0.5, 100, 1, -110), spectateGui)
 local spectateLabel =
-	UIKit.label("SpectateLabel", "", UDim2.fromOffset(160, 40), UDim2.new(0.5, -80, 1, -170), spectateGui)
+	UIKit.label("SpectateLabel", "", UDim2.fromOffset(160, 40), UDim2.new(0.5, -80, 1, -110), spectateGui)
 spectateLabel.TextXAlignment = Enum.TextXAlignment.Center
 spectateLabel.TextColor3 = UIKit.HUD_TEXT -- over the world, not a panel
 UIKit.textStroke(spectateLabel)
 
 local function refreshSpectateVisibility()
-	local visible = runState ~= "Playing" and #otherLanes() > 0
+	local count = #otherLanes()
+	local visible = runState == "Menu" and player:GetAttribute("MainMenuOpen") == true and count > 0
+	if spectateIndex ~= 0 and (not visible or spectateIndex > count) then
+		-- no controls (a panel opened, death, or that lane left): back to my lane
+		spectateIndex = 0
+		updateCamera()
+	end
 	spectateLeft.Visible = visible
 	spectateRight.Visible = visible
 	spectateLabel.Visible = visible
 	spectateLabel.Text = if spectateIndex == 0 then "My Lane" else ("Watching Player " .. spectateIndex)
+	player:SetAttribute("SpectateStripShown", visible)
 end
 
 local function cycleSpectate(delta: number)
@@ -260,6 +271,7 @@ spectateRight.Activated:Connect(function()
 	cycleSpectate(1)
 end)
 RunStateChanged.OnClientEvent:Connect(refreshSpectateVisibility)
+player:GetAttributeChangedSignal("MainMenuOpen"):Connect(refreshSpectateVisibility)
 lanesFolder.ChildAdded:Connect(refreshSpectateVisibility)
 lanesFolder.ChildRemoved:Connect(refreshSpectateVisibility)
 refreshSpectateVisibility()

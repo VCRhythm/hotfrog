@@ -160,10 +160,26 @@ local function layoutMainPanel()
 	-- the mouth rather than leave the screen).
 	local overToggles = left < (12 + 150) * s - 6 or left + panelW > view.X - 132 * s + 6
 	local limit = view.Y - (if overToggles then 60 else 24) * s
+	-- GameClient's Spectate strip (bottom-centre, y -110..-70 units, x +-140 around
+	-- the centre) is another bottom obstacle while it is showing
+	-- (b-20261012-150254-k9vy).
+	if
+		player:GetAttribute("SpectateStripShown") == true
+		and left < view.X / 2 + 140 * s
+		and left + panelW > view.X / 2 - 140 * s
+	then
+		limit = math.min(limit, view.Y - 118 * s)
+	end
 	top = math.max(inset, math.min(top, limit - stackH))
 	mainPanel.Position = UDim2.fromScale(left / view.X, (top - inset) / (view.Y - inset))
 end
 task.defer(layoutMainPanel)
+player:GetAttributeChangedSignal("SpectateStripShown"):Connect(layoutMainPanel)
+-- GameClient shows its Spectate strip only while this panel is up.
+mainPanel:GetPropertyChangedSignal("Visible"):Connect(function()
+	player:SetAttribute("MainMenuOpen", mainPanel.Visible)
+end)
+player:SetAttribute("MainMenuOpen", mainPanel.Visible)
 do
 	local function hook(camera: Camera?)
 		if camera then
