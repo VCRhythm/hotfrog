@@ -172,10 +172,42 @@ local endPanelOpen: { [Player]: boolean } = {}
 -- decorative ladder. Forward-declared so setRunState can drive it.
 local refreshAttract: (player: Player) -> ()
 
+-- Normal-mode combo streak (b-20261010-192608-4bs3, ruling 8zmn): lives on the
+-- lane folder as `Streak` (points) and `StreakSpeed` (the multiplier) so the HUD
+-- and cosmetics can read it. Classic lanes never build one.
+local function setStreak(lane: Lane.Lane, streak: number)
+	lane.folder:SetAttribute("Streak", streak)
+	lane.folder:SetAttribute("StreakSpeed", PullMath.streakSpeed(streak))
+end
+
+local function streakOf(lane: Lane.Lane): number
+	local v = lane.folder:GetAttribute("Streak")
+	return if typeof(v) == "number" then v else 0
+end
+
+-- The lane's current speed multiplier: 1 outside a Normal run.
+local function laneSpeed(lane: Lane.Lane): number
+	if lane.mode ~= Config.RUN_MODES.Normal then
+		return 1
+	end
+	local v = lane.folder:GetAttribute("StreakSpeed")
+	return if typeof(v) == "number" then v else 1
+end
+
+local function streakWeight(quality: string): number
+	if quality == "Perfect" then
+		return Config.STREAK_WEIGHTS.Perfect
+	elseif quality == "Great" then
+		return Config.STREAK_WEIGHTS.Great
+	end
+	return Config.STREAK_WEIGHTS.OK
+end
+
 local function setRunState(player: Player, state: string)
 	runState[player] = state
 	local lane = Lane.get(player)
 	if lane then
+		setStreak(lane, 0) -- any run-state change (start, death, menu) breaks the streak
 		lane.folder:SetAttribute("RunState", state) -- every client dresses an idle lane as the Menu level
 	end
 	RunStateChanged:FireClient(player, state)
@@ -630,6 +662,9 @@ local function ctxOf(lane: Lane.Lane, step: BasePart, st: StepState): StepBehavi
 				scaffoldLane(lane, step)
 			end
 		end,
+		getStreakSpeed = function()
+			return laneSpeed(lane)
+		end,
 		getRunSteps = function()
 			return lane.runSteps
 		end,
@@ -973,6 +1008,7 @@ RunService.Heartbeat:Connect(function(frameDt: number)
 		-- What the lane's pulls still owe every step: once per lane, not once per
 		-- step inside the bounds check.
 		local pending = lane:sharedPending()
+		local speed = laneSpeed(lane) -- combo streak speed-up (1 in Classic / no streak)
 		ticking = true
 		for step, st in lane.states do
 			local onTick = st.behavior.onTick
@@ -1002,7 +1038,7 @@ RunService.Heartbeat:Connect(function(frameDt: number)
 		ticking = false
 
 		-- The Kitchen Chef (server/Chef.luau): only once the frog is armed and alive.
-		Chef.tick(lane, dt, f ~= nil and f.canFall and not f.dead, chefIsHeld, chefStrike)
+		Chef.tick(lane, dt, f ~= nil and f.canFall and not f.dead, chefIsHeld, chefStrike, speed)
 	end
 
 	if #moveParts > 0 then
@@ -1109,6 +1145,7 @@ end
 
 local function resetScore(player: Player)
 	sessionScore[player] = 0
+	player:SetAttribute("RunSteps", 0)
 	resetGrabQuality(player)
 	pushScore(player)
 end
@@ -1473,6 +1510,7 @@ local function tutorialRetry(lane: Lane.Lane, f: FrogState)
 			forceReleaseStep(lane, step)
 		end
 	end
+	setStreak(lane, 0) -- a fall breaks the combo
 	local retreat = -math.min(Config.PULL_MAX_DISTANCE * Config.TUTORIAL_PULL_BACK, lane.netPull)
 	if retreat < 0 then
 		pullLane(lane, retreat, 0.6)
@@ -1809,12 +1847,23 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- client's open Roblox PlayerList (owner's decision b-20260921-182502-qgbw,
 	-- Lane.obstructionExtra; never shorter, not while the lane drifts).
 	distance += lane:obstructionExtra(distance)
-	pullLane(lane, distance, PullMath.pullTime(distance))
-	addScore(player, 1, quality)
+	-- Normal-mode combo (b-20261010-192608-4bs3): this grab grows the streak, the
+	-- NEW streak sets the speed (pull duration shrinks by it) and the bonus score.
+	local bonus = 0
+	local speed = 1
+	if lane.mode == Config.RUN_MODES.Normal then
+		local streak = streakOf(lane) + streakWeight(quality)
+		setStreak(lane, streak)
+		bonus = PullMath.streakBonus(streak)
+		speed = laneSpeed(lane)
+	end
+	pullLane(lane, distance, PullMath.pullTime(distance) / speed)
+	addScore(player, 1 + bonus, quality)
 
 	local wasTutorial = lane.levelIndex == Levels.TUTORIAL
 	local wasPot = lane.levelIndex == Levels.POT
 	local kindName = step:GetAttribute("KindName") :: string?
+	player:SetAttribute("RunSteps", lane.runSteps + 1) -- real steps for missions/badges; score carries the combo bonus
 	lane:onStepClimbed(kindName) -- level-threshold / tutorial progress; fires LevelChanged("soft") itself (doc 13 item 5)
 	if wasTutorial and lane.levelIndex ~= Levels.TUTORIAL then
 		-- Tutorial -> Pot: the tree ladder never respawns and Pot's spawners start
@@ -1946,6 +1995,14 @@ ReachEmpty.OnServerEvent:Connect(function(player, tapPos, limbIndex)
 	end
 	if f.held[limb] then
 		return
+	end
+	if state == RunState.Playing then
+		-- a tap that grabbed nothing (the client only sends this for a free limb
+		-- and an empty tap point) breaks the Normal-mode combo (ruling 8zmn)
+		local lane = Lane.get(player)
+		if lane and lane.mode == Config.RUN_MODES.Normal and streakOf(lane) > 0 then
+			setStreak(lane, 0)
+		end
 	end
 	if state == RunState.Menu then
 		-- The player's click pauses the attract climb: that arm lets go of its

@@ -240,7 +240,10 @@ end
 -- One server tick for `lane`. `active` is the caller's gate (Playing, frog
 -- armed and alive); the Kitchen check is made here. `strike` applies the
 -- effect to a still-live, un-held target.
-function Chef.tick(lane: Lane.Lane, dt: number, active: boolean, isHeld: IsHeld, strike: Strike)
+-- `speed` (optional, default 1) is the Normal-mode streak speed-up
+-- (b-20261010-192608-4bs3 ruling 8zmn): it shortens every wait except the Strike
+-- phase, so CHEF_STRIKE_GRACE (the fairness window) is never shortened.
+function Chef.tick(lane: Lane.Lane, dt: number, active: boolean, isHeld: IsHeld, strike: Strike, speed: number?)
 	if not active or lane.levelIndex ~= Levels.KITCHEN then
 		Chef.reset(lane)
 		return
@@ -263,7 +266,7 @@ function Chef.tick(lane: Lane.Lane, dt: number, active: boolean, isHeld: IsHeld,
 		end
 	end
 
-	s.timer -= dt
+	s.timer -= if s.phase == "Strike" then dt else dt * (speed or 1)
 	if s.timer > 0 then
 		return
 	end

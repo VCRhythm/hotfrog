@@ -143,14 +143,12 @@ bugCaughtServer.Event:Connect(function(player: Player)
 end)
 
 local function watchLeaderstats(player: Player)
-	local stats = player:WaitForChild("leaderstats", 30)
-	local score = stats and stats:WaitForChild("Score", 10)
-	if not (score and score:IsA("IntValue")) then
-		return
-	end
-	score:GetPropertyChangedSignal("Value"):Connect(function()
+	-- "RunSteps": real steps climbed this run (GameServer), NOT leaderstats.Score,
+	-- which carries the Normal-mode combo bonus (b-20261010-192608-4bs3).
+	player:GetAttributeChangedSignal("RunSteps"):Connect(function()
 		if runDay[player] == os.time() // SECONDS_PER_DAY then
-			report(player, "score", score.Value)
+			local steps = player:GetAttribute("RunSteps")
+			report(player, "score", if typeof(steps) == "number" then steps else 0)
 		end
 	end)
 end

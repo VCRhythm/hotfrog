@@ -51,6 +51,7 @@ export type Ctx = {
 	forceRelease: () -> (), -- make the holder's limb let go (Step.cs ForceRelease)
 	getSpawnBias: () -> Vector2, -- the lane's spawn direction: the way the WORLD scrolls
 	setSpawnBias: (bias: Vector2) -> (), -- SpawnManager.SpawnDirection analog
+	getStreakSpeed: () -> number, -- Normal-mode combo speed multiplier (1 in Classic / no streak)
 	getRunSteps: () -> number, -- steps the lane's frog has climbed this run (its height / difficulty)
 	getBase: () -> Vector3, -- the step's logical world position, without any visual offset
 	moveBase: (delta: Vector3) -> (), -- shift the logical position (world space); spawn spacing and pull aim follow
@@ -218,7 +219,7 @@ Behaviors.Falling = {
 		-- will rest (spawn spacing, the recycle bound) has to follow it. World
 		-- space, so an idly spinning step (Config.STEP_SPIN_*, doc 17) still
 		-- falls straight down.
-		ctx.moveBase(Vector3.new(0, -Config.FALLING_DRIFT_SPEED * dt, 0))
+		ctx.moveBase(Vector3.new(0, -Config.FALLING_DRIFT_SPEED * dt * ctx.getStreakSpeed(), 0))
 	end,
 }
 
@@ -280,8 +281,12 @@ local function numberParam(params: Params?, key: string, default: number): numbe
 	return if type(value) == "number" and value == value then value else default
 end
 
+-- The combo streak speed-up (b-20261010-192608-4bs3) takes the LARGER of the
+-- height tempo and the streak multiplier rather than multiplying them: both top
+-- out at 1.5x, and a product (2.25x) would make movers unreadable.
 local function tempo(ctx: Ctx): number
-	return 1 + math.min(ctx.getRunSteps() * Config.STEP_MOTION_RUN_SPEEDUP, Config.STEP_MOTION_MAX_SPEEDUP)
+	local height = 1 + math.min(ctx.getRunSteps() * Config.STEP_MOTION_RUN_SPEEDUP, Config.STEP_MOTION_MAX_SPEEDUP)
+	return math.max(height, ctx.getStreakSpeed())
 end
 
 -- Advance a step's sinusoid by `dt` and return its new displacement (studs).

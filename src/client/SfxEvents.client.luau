@@ -12,6 +12,7 @@ local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local PullMath = require(ReplicatedStorage.Shared.PullMath)
 local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 
 local player = Players.LocalPlayer
@@ -40,6 +41,34 @@ local QUALITY_STEM: { [string]: string } = {
 	Great = "greatVoice",
 	Perfect = "perfectVoice",
 }
+
+-- Combo streak (b-20261010-192608-4bs3, ruling 8zmn; Normal mode): a "pop" that
+-- climbs in pitch with the streak on every grab once it is worth hearing, and a
+-- brighter "base10" chime when the speed multiplier passes a cue threshold.
+-- Reads the local lane's replicated Streak / StreakSpeed attributes.
+do
+	local myLane =
+		workspace:WaitForChild("PlayField"):WaitForChild("Lanes"):WaitForChild(tostring(player.UserId), math.huge)
+	local lastStreak = 0
+	local lastCue = 0
+	myLane:GetAttributeChangedSignal("Streak"):Connect(function()
+		local v = myLane:GetAttribute("Streak")
+		local streak = if typeof(v) == "number" then v else 0
+		if streak > lastStreak and streak >= 4 then
+			local heat = math.clamp(streak / Config.STREAK_FULL, 0, 1)
+			SoundFX.play("pop", 1 + 0.6 * heat)
+			local speed = myLane:GetAttribute("StreakSpeed")
+			local cue = if typeof(speed) == "number" then PullMath.cueIndex(speed) else 0
+			if cue > lastCue then
+				lastCue = cue
+				SoundFX.play("base10", 1 + 0.1 * cue)
+			end
+		elseif streak < lastStreak then
+			lastCue = 0
+		end
+		lastStreak = streak
+	end)
+end
 
 -- ---------------------------------------------------------------------------
 -- base10 / highScore (UI/HUD.cs's StepsClimbed setter). `best` on ScoreChanged

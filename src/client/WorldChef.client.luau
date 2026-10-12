@@ -216,7 +216,11 @@ local function update(view: View, dt: number, now: number)
 		view.phase = if typeof(phase) == "string" then phase else nil
 		view.clock = 0
 	else
-		view.clock += dt
+		-- Normal-mode combo streak (b-20261010-192608-4bs3): the server runs every
+		-- phase but Strike faster by the lane's StreakSpeed, so the animation clock
+		-- must too or the tell would be cut off part-way (Chef.tick).
+		local speed = folder:GetAttribute("StreakSpeed")
+		view.clock += if phase ~= "Strike" and typeof(speed) == "number" then dt * speed else dt
 	end
 	local clock = view.clock
 

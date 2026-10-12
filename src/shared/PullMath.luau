@@ -56,6 +56,29 @@ function PullMath.pullTime(distance: number): number
 	return math.clamp(math.abs(distance) / Config.PULL_SPEED, Config.PULL_TIME, Config.PULL_TIME_MAX)
 end
 
+-- Normal-mode combo speed multiplier for a streak value (Config.STREAK_*;
+-- b-20261010-192608-4bs3): 1 at no streak, STREAK_SPEED_MAX at STREAK_FULL.
+function PullMath.streakSpeed(streak: number): number
+	local t = math.clamp(streak / Config.STREAK_FULL, 0, 1)
+	return 1 + (Config.STREAK_SPEED_MAX - 1) * t
+end
+
+-- How many Config.STREAK_SPEED_CUES thresholds `speed` has reached (0..#cues).
+function PullMath.cueIndex(speed: number): number
+	local n = 0
+	for i, threshold in Config.STREAK_SPEED_CUES do
+		if speed >= threshold - 1e-6 then
+			n = i
+		end
+	end
+	return n
+end
+
+-- Extra score a grab earns at `streak` (Config.STREAK_BONUS_*).
+function PullMath.streakBonus(streak: number): number
+	return math.min(math.floor(streak / Config.STREAK_BONUS_EVERY), Config.STREAK_BONUS_MAX)
+end
+
 -- Sine/Out easing of `alpha` (clamped to 0..1): DOTween's Ease.OutSine and
 -- TweenService's Sine/Out. The one curve every server-played motion shares --
 -- Lane's pulls and slide-ins, Frog.Bob's sway/rise, the death sink -- and the one

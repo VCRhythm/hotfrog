@@ -320,6 +320,21 @@ local Config = {
 	-- 1 + min(runSteps * RUN_SPEEDUP, MAX_SPEEDUP), i.e. 1.4x at 100 steps, 1.5x at most.
 	STEP_MOTION_RUN_SPEEDUP = 0.004,
 	STEP_MOTION_MAX_SPEEDUP = 0.5,
+	-- Normal-mode combo streak (b-20261010-192608-4bs3, owner's ruling
+	-- b-20261012-160551-8zmn; Unity has no equivalent, doc 17). Every grab adds its
+	-- quality's weight; only a missed tap, a fall or the run ending resets it.
+	STREAK_WEIGHTS = { OK = 1, Great = 2, Perfect = 3 },
+	-- The speed multiplier rises linearly from 1 to STREAK_SPEED_MAX as the streak
+	-- reaches STREAK_FULL (20 = ten Great grabs). It divides pull durations and
+	-- scales moving steps' and the Chef's clocks (never CHEF_STRIKE_GRACE).
+	STREAK_FULL = 20,
+	STREAK_SPEED_MAX = 1.5,
+	-- Combo bonus score: +1 per STREAK_BONUS_EVERY streak points, at most
+	-- STREAK_BONUS_MAX extra per grab. Level progression counts steps, not score.
+	STREAK_BONUS_EVERY = 6,
+	STREAK_BONUS_MAX = 5,
+	-- Client "SPEED UP!" cue fires when the multiplier first passes each of these.
+	STREAK_SPEED_CUES = { 1.15, 1.3, 1.5 },
 	-- StepBehaviors.Patrol: a horizontal sinusoid about the base. Defaults for
 	-- steps spawned without their own `amplitude` / `period` params.
 	PATROL_AMPLITUDE = 3, -- studs each side

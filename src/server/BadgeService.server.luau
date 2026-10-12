@@ -119,10 +119,16 @@ local function checkThresholds(player: Player, newScore: number)
 	end
 end
 
-local function watchScore(player: Player, score: IntValue)
-	checkThresholds(player, score.Value) -- catch up if it's already non-zero (script started late)
-	score:GetPropertyChangedSignal("Value"):Connect(function()
-		checkThresholds(player, score.Value)
+-- Counts real steps (the player's `RunSteps` attribute from GameServer), not
+-- leaderstats.Score, which includes the Normal-mode combo bonus.
+local function watchScore(player: Player)
+	local function current(): number
+		local v = player:GetAttribute("RunSteps")
+		return if typeof(v) == "number" then v else 0
+	end
+	checkThresholds(player, current()) -- catch up if it's already non-zero (script started late)
+	player:GetAttributeChangedSignal("RunSteps"):Connect(function()
+		checkThresholds(player, current())
 	end)
 end
 
@@ -168,12 +174,7 @@ local function watchLeaderstats(player: Player)
 		warn(("BadgeService: %s never got leaderstats (is GameServer running?)"):format(player.Name))
 		return
 	end
-	local score = stats:WaitForChild("Score", 10)
-	if not (score and score:IsA("IntValue")) then
-		warn(("BadgeService: %s's leaderstats has no Score IntValue"):format(player.Name))
-		return
-	end
-	watchScore(player, score)
+	watchScore(player)
 end
 
 Players.PlayerAdded:Connect(watchLeaderstats)

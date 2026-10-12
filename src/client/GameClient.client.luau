@@ -20,6 +20,7 @@ local HapticService = game:GetService("HapticService")
 local StarterGui = game:GetService("StarterGui")
 
 local Config = require(ReplicatedStorage.Shared.Config)
+local PullMath = require(ReplicatedStorage.Shared.PullMath)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 local StepKinds = require(ReplicatedStorage.Shared.StepKinds)
 local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
@@ -765,6 +766,7 @@ local function gamepadGrab()
 	local worldPos = laneOrigin() + Vector3.new(cursorWorld.X, cursorWorld.Y, 0)
 	local step = nearestOwnStep(worldPos)
 	if not step then
+		ReachEmpty:FireServer(worldPos, slotIndex) -- a miss: the server breaks the combo streak
 		return
 	end
 	slots[slotIndex].heldStep = step -- optimistic; the server corrects via ForceRelease
@@ -949,6 +951,115 @@ ScoreChanged.OnClientEvent:Connect(function(score, best, quality)
 	end
 end)
 
+-- Combo streak HUD (b-20261010-192608-4bs3, owner's ruling b-20261012-160551-8zmn;
+-- Normal mode only -- Classic lanes never publish a Streak). Purely cosmetic: it
+-- reads the replicated `Streak` / `StreakSpeed` attributes on my lane folder.
+-- Sits under the Bugs label at the left, clear of the world-space "Perfect xN"
+-- popup, which floats at the grab point.
+local COMBO_COLD = Color3.fromRGB(255, 255, 255)
+local COMBO_HOT = Color3.fromRGB(255, 120, 40)
+local comboLabel = makeLabel("ComboLabel", 168, "")
+comboLabel.Size = UDim2.fromOffset(260, 44)
+comboLabel.Visible = false
+local comboScale = Instance.new("UIScale")
+comboScale.Parent = comboLabel
+local speedLabel = makeLabel("SpeedCueLabel", 244, "SPEED UP!")
+speedLabel.Size = UDim2.fromOffset(220, 30)
+speedLabel.TextColor3 = UIKit.GOOD
+speedLabel.TextTransparency = 1
+local speedStroke = speedLabel:FindFirstChildOfClass("UIStroke")
+if speedStroke then
+	speedStroke.Transparency = 1
+end
+local speedScale = Instance.new("UIScale")
+speedScale.Parent = speedLabel
+
+local lastStreak = 0
+local lastCue = 0 -- highest Config.STREAK_SPEED_CUES index reached this streak
+local lostToken = 0
+
+local function comboPunch(streak: number)
+	local heat = math.clamp(streak / Config.STREAK_FULL, 0, 1)
+	comboLabel.TextColor3 = COMBO_COLD:Lerp(COMBO_HOT, heat)
+	local rest = 1 + 0.45 * heat -- the counter itself grows with the streak
+	comboScale.Scale = rest * 1.35
+	TweenService
+		:Create(comboScale, TweenInfo.new(0.22, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = rest })
+		:Play()
+end
+
+local function showSpeedCue(cue: number)
+	speedLabel.Text = if cue >= #Config.STREAK_SPEED_CUES then "MAX SPEED!!" else "SPEED UP!"
+	speedLabel.TextTransparency = 0
+	if speedStroke then
+		speedStroke.Transparency = 0
+	end
+	speedScale.Scale = 1.6
+	TweenService:Create(speedScale, TweenInfo.new(0.3, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+		:Play()
+	local fade = TweenInfo.new(0.6, Enum.EasingStyle.Quad, Enum.EasingDirection.In, 0, false, 0.9)
+	TweenService:Create(speedLabel, fade, { TextTransparency = 1 }):Play()
+	if speedStroke then
+		TweenService:Create(speedStroke, fade, { Transparency = 1 }):Play()
+	end
+end
+
+local function comboLost(streak: number)
+	lostToken += 1
+	local token = lostToken
+	comboLabel.Text = "COMBO LOST"
+	comboLabel.TextColor3 = Color3.fromRGB(255, 70, 60)
+	comboLabel.Visible = true
+	comboScale.Scale = 1.3
+	TweenService:Create(comboScale, TweenInfo.new(0.25, Enum.EasingStyle.Back, Enum.EasingDirection.Out), { Scale = 1 })
+		:Play()
+	task.delay(0.9, function()
+		if lostToken == token then
+			comboLabel.Visible = false
+		end
+	end)
+	if streak >= 6 then
+		chainPunch.Value = 0.97 -- a quick camera flinch only for a streak worth losing
+		TweenService
+			:Create(chainPunch, TweenInfo.new(0.25, Enum.EasingStyle.Quad, Enum.EasingDirection.Out), { Value = 1 })
+			:Play()
+	end
+end
+
+local function refreshCombo()
+	local v = myLane:GetAttribute("Streak")
+	local streak = if typeof(v) == "number" then v else 0
+	local speed = myLane:GetAttribute("StreakSpeed")
+	if streak > lastStreak then
+		lostToken += 1 -- cancels a pending "COMBO LOST" hide
+		comboLabel.Text = "COMBO x" .. tostring(streak)
+		comboLabel.Visible = true
+		comboPunch(streak)
+		if typeof(speed) == "number" then
+			local cue = PullMath.cueIndex(speed)
+			if cue > lastCue then
+				lastCue = cue
+				showSpeedCue(cue)
+			end
+		end
+	elseif streak < lastStreak then
+		lastCue = 0
+		if streak == 0 and lastStreak >= 2 and runState == "Playing" then
+			comboLost(lastStreak)
+		elseif streak == 0 then
+			comboLabel.Visible = false
+		end
+	end
+	lastStreak = streak
+end
+myLane:GetAttributeChangedSignal("Streak"):Connect(refreshCombo)
+RunStateChanged.OnClientEvent:Connect(function()
+	lostToken += 1
+	lastStreak = 0
+	lastCue = 0
+	comboLabel.Visible = false
+end)
+
 -- Bugs caught THIS RUN: BugCaught only fires on a confirmed catch (BugService
 -- validates before firing it), so counting its events client-side is exact,
 -- unlike the server's own end-of-run amount-based heuristic (doc 15 item 1).
@@ -973,22 +1084,22 @@ end)
 
 -- ---------------------------------------------------------------------------
 -- Race rail (doc 15 item 5): a vertical strip on the right edge showing every
--- OTHER player's current run score as a marker between 0 and the highest
+-- OTHER player's current run height (steps) as a marker between 0 and the highest
 -- score anyone (including me) has reached this session -- so you can tell
 -- who's ahead even when their lane has scrolled off-screen. Reads
--- leaderstats.Score directly (doc 07 already keeps that live and public);
+-- a replicated player attribute (see below);
 -- no new remote needed.
 --
 -- b-20260923-154345-9iwk (journey 6/8): also a height meter for THIS frog --
 -- a "Self" marker plus fixed landmark ticks at Config.LEVEL_THRESHOLDS (Pot
 -- at 0, Kitchen at 50, Country at 100), so the player can see how far the
 -- next level is from the very first grab, not just a raw score number.
--- sessionScore and Lane.runSteps are bumped together on every successful grab
--- (GameServer's addScore + Lane.onStepClimbed, both called back-to-back from
--- the same GrabStep handler) and reset together at run start/death, so
--- leaderstats.Score already IS steps-climbed-this-run -- no Lane.luau change
--- needed. The rail now shows (and the landmarks stay meaningful) as soon as a
--- run starts, not just when another player is around to compare against.
+-- Markers read the player's `RunSteps` attribute (GameServer, real steps
+-- climbed this run), not leaderstats.Score: Normal's combo bonus
+-- (b-20261010-192608-4bs3) makes Score run ahead of the steps the level
+-- landmarks count. The rail now shows (and the landmarks stay meaningful) as
+-- soon as a run starts, not just when another player is around to compare
+-- against.
 -- ---------------------------------------------------------------------------
 local railGui = UIKit.screenGui("RaceRail")
 local rail = Instance.new("Frame")
@@ -1103,11 +1214,15 @@ local landmarks = {
 
 railGui.Parent = playerGui
 
+-- Real steps climbed this run (0 before the first grab or for a new player).
+local function runStepsOf(p: Player): number
+	local v = p:GetAttribute("RunSteps")
+	return if typeof(v) == "number" then v else 0
+end
+
 task.spawn(function()
 	while true do
-		local ownStats = player:FindFirstChild("leaderstats")
-		local ownScoreValue = ownStats and ownStats:FindFirstChild("Score")
-		local ownScore = if ownScoreValue and ownScoreValue:IsA("IntValue") then ownScoreValue.Value else 0
+		local ownScore = runStepsOf(player)
 
 		-- Always at least Country, so all three landmarks stay on the strip
 		-- from step 1; grows past that once someone (including this frog)
@@ -1115,11 +1230,7 @@ task.spawn(function()
 		local maxScore = math.max(1, Config.LEVEL_THRESHOLDS.Country, ownScore)
 		for _, otherPlayer in Players:GetPlayers() do
 			if otherPlayer ~= player then
-				local stats = otherPlayer:FindFirstChild("leaderstats")
-				local score = stats and stats:FindFirstChild("Score")
-				if score and score:IsA("IntValue") then
-					maxScore = math.max(maxScore, score.Value)
-				end
+				maxScore = math.max(maxScore, runStepsOf(otherPlayer))
 			end
 		end
 
@@ -1137,9 +1248,7 @@ task.spawn(function()
 
 		for _, otherPlayer in Players:GetPlayers() do
 			if otherPlayer ~= player then
-				local stats = otherPlayer:FindFirstChild("leaderstats")
-				local score = stats and stats:FindFirstChild("Score")
-				local value = if score and score:IsA("IntValue") then score.Value else 0
+				local value = runStepsOf(otherPlayer)
 				local marker = markerFor(otherPlayer)
 				local alpha = math.clamp(value / maxScore, 0, 1)
 				marker.Position = UDim2.fromScale(0.5, 1 - alpha)

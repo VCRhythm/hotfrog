@@ -1,6 +1,2 @@
 # hotfrog — questions the bug loop needs answered
 
-## b-20261010-192608-4bs3  2026-10-12 15:06
-note: on normal, have the stage "speed up" as a player goes on a streak
-question: Two choices before I build this. (1) What counts as a streak? A: consecutive Great-or-Perfect grabs, reset by an OK grab, a missed tap or a fall (recommended; the client already counts a Perfect-only chain for the "Perfect xN" popup). B: consecutive Perfect grabs only. C: fast grabbing, each grab within about 1 s of the last. (2) What speeds up? a: everything moves faster. Each grab's pull gets snappier and moving steps (sliders, arrows, the Chef's tells) speed up, up to about 1.5x at a 10-grab streak, with a visible "speed" cue, and it all drops back when the streak breaks (recommended). b: Normal gains a gentle Classic-style auto-scroll that starts at a 5-grab streak and grows with it, adding pressure, and it stops when the streak breaks. c: something else; describe it. Reply e.g. "A + a".
-context: Normal mode only pulls once per grab (Config.PULL_SPEED 40 studs/s, PULL_TIME 0.25-0.6 s) and has no constant scroll; Classic's drift is Lane.drift at CLASSIC_SCROLL_SPEED. Grab grades come from PullMath.gradeGrab in GameServer, so the streak would be tracked per lane on the server and replicated as a lane attribute for the HUD and cosmetics.
