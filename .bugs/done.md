@@ -1409,7 +1409,7 @@ files: src/server/Lane.luau, src/server/Chef.luau
 test: stylua --check and tools/luau_check.sh on both files (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.) A pure refactor, so no separate playtest check was filed; the Chef playtest check b-20261012-143704-0raj covers it.
 review: looks-right (orchestrator review). checked: the old and new loops term by term, Chef's hitOf against the HitSize fallback in crowdsSpot, sharedPending computed once per caller, the obstruction short-circuit order in clearSpot, the exclude of the shoved step.
-leftover: b-20261012-143704-0raj (the existing Kitchen Chef playtest check covers the shove landing; a pure refactor needs no separate check)
+leftover: b-20261012-152359-xgne (Studio playtest once Studio runs)
 
 ## b-20261012-150254-k9vy  fixed  2026-10-12 15:23
 note: Main menu panel can sit under the Spectate buttons in portrait (and clip at 4:3) when other lanes exist
