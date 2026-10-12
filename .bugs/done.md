@@ -1154,3 +1154,25 @@ test: stylua --check, luau_check, selene src/, rojo build: all pass
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: active tint swatch reads "Worn".
 review: looks-right; checked: git diff of StoreUI swatch label code.
 leftover: b-20261012-134553-kdv4 (Studio playtest once Studio runs)
+
+## b-20261010-192255-ctop  fixed  2026-10-12 13:48
+note: go ahead and remove the circle on a successful grab, but keep the X for a missed grab
+cause: show() displayed the circle decal whenever the tap overlapped one of the player's own steps.
+change: A grab tap now shows nothing; a miss still shows the red X.
+files: src/client/WorldTouchIndicator.client.luau
+test: stylua --check, tools/luau_check.sh WorldTouchIndicator (clean), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: tap own step = no marker; tap empty space = red X.
+review: concern: the bug test raycast included Steps, so a step in front of a bug hid it and a real catch could show a stray X (shared with 4cof); checked: git diff, GameClient tryCatchBug/stepAt/rayParams, BugService attributes, stylua + luau_check.
+re-review: looks-right; checked: git diff after repair, GameClient lines 405-575, bugRayParams mirrors tryCatchBug, hitBug returned on all four paths, stylua exit 0, luau_check clean.
+leftover: b-20261012-134553-fwg9 (Studio playtest once Studio runs)
+
+## b-20261010-192422-4cof  fixed  2026-10-12 13:48
+note: eating a frog shouldn't resut in an X being shown
+cause: The indicator only treated steps as hits, so a tap that caught a bug (fly) with the tongue counted as a miss and showed the X.
+change: worldPointFor does a separate Bugs-only raycast (same filter as GameClient tryCatchBug) and flags own-lane bugs (Kind=="Bug", LaneUserId==local); show() hides both decals for that tap. Another lane's bug still shows the X (server rejects the catch).
+files: src/client/WorldTouchIndicator.client.luau
+test: stylua --check, luau_check, selene src/, rojo build: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: tapping a fly (even behind a step) catches it with no X.
+review: concern: single raycast included Steps so a step in front of a bug hid the catch; checked: git diff, GameClient tryCatchBug/rayParams, BugService attributes.
+re-review: looks-right; checked: repaired diff, Bugs-only bugRayParams, Bugs folder waited on at line 57, nil guards intact, luau_check clean.
+leftover: b-20261012-134554-1830 (Studio playtest once Studio runs)

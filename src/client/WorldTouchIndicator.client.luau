@@ -56,6 +56,12 @@ local rayParams = RaycastParams.new()
 rayParams.FilterType = Enum.RaycastFilterType.Include
 rayParams.FilterDescendantsInstances = { stepsFolder, playField:WaitForChild("Bugs") }
 
+-- Bugs-only ray, mirroring GameClient.tryCatchBug's rayParams, so a step in
+-- front of a bug cannot hide a real tongue catch from the indicator.
+local bugRayParams = RaycastParams.new()
+bugRayParams.FilterType = Enum.RaycastFilterType.Include
+bugRayParams.FilterDescendantsInstances = { playField:WaitForChild("Bugs") }
+
 -- Anchor part: always fully transparent (see header) -- it only carries
 -- position, never a visible fill.
 local dot = Instance.new("Part")
@@ -147,12 +153,14 @@ local function overOwnStep(worldPos: Vector3): boolean
 	return false
 end
 
-local function show(worldPos: Vector3)
+-- b-20261010-192255-ctop: a successful grab shows nothing (no circle); only a
+-- miss shows the red X. b-20261010-192422-4cof: catching a bug with the tongue
+-- is a hit too, so no X. The circle decal is kept built but never shown.
+local function show(worldPos: Vector3, hitBug: boolean)
 	cancelFade()
 	dot.CFrame = CFrame.new(worldPos.X, worldPos.Y, Config.PLANE_Z + 0.6)
-	local inReach = overOwnStep(worldPos)
-	if inReach then
-		decal.Transparency = 0
+	if hitBug or overOwnStep(worldPos) then
+		decal.Transparency = 1
 		missLabel.TextTransparency = 1
 		missLabel.TextStrokeTransparency = 1
 	else
@@ -176,21 +184,28 @@ end
 -- raycast hit against Steps/Bugs (matches what was actually tapped), else fall
 -- back to intersecting the ray with the play plane itself so the dot still
 -- tracks a miss.
-local function worldPointFor(screenX: number, screenY: number): Vector3?
+-- Second return: true when a Bugs-only ray hits a bug of the local lane (the
+-- same test GameClient's tryCatchBug uses, plus a lane check: the server rejects
+-- other lanes' bugs, so those tongue-catches fail and still show the X).
+local function worldPointFor(screenX: number, screenY: number): (Vector3?, boolean)
 	local unitRay = camera:ScreenPointToRay(screenX, screenY)
+	local bugResult = workspace:Raycast(unitRay.Origin, unitRay.Direction * 300, bugRayParams)
+	local hitBug = bugResult ~= nil
+		and bugResult.Instance:GetAttribute("Kind") == "Bug"
+		and bugResult.Instance:GetAttribute("LaneUserId") == player.UserId
 	local result = workspace:Raycast(unitRay.Origin, unitRay.Direction * 300, rayParams)
 	if result then
-		return result.Position
+		return result.Position, hitBug
 	end
 	local dz = Config.PLANE_Z - unitRay.Origin.Z
 	if math.abs(unitRay.Direction.Z) < 1e-4 then
-		return nil
+		return nil, hitBug
 	end
 	local t = dz / unitRay.Direction.Z
 	if t <= 0 then
-		return nil
+		return nil, hitBug
 	end
-	return unitRay.Origin + unitRay.Direction * t
+	return unitRay.Origin + unitRay.Direction * t, hitBug
 end
 
 local activeInputType: Enum.UserInputType? = nil
@@ -202,10 +217,10 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if input.UserInputType ~= Enum.UserInputType.MouseButton1 and input.UserInputType ~= Enum.UserInputType.Touch then
 		return
 	end
-	local pos = worldPointFor(input.Position.X, input.Position.Y)
+	local pos, hitBug = worldPointFor(input.Position.X, input.Position.Y)
 	if pos then
 		activeInputType = input.UserInputType
-		show(pos)
+		show(pos, hitBug)
 	end
 end)
 
@@ -215,9 +230,9 @@ UserInputService.InputChanged:Connect(function(input)
 	if input.UserInputType ~= Enum.UserInputType.Touch or activeInputType ~= Enum.UserInputType.Touch then
 		return
 	end
-	local pos = worldPointFor(input.Position.X, input.Position.Y)
+	local pos, hitBug = worldPointFor(input.Position.X, input.Position.Y)
 	if pos then
-		show(pos)
+		show(pos, hitBug)
 	end
 end)
 
