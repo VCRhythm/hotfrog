@@ -638,7 +638,8 @@ list[Levels.KITCHEN] = {
 		},
 	},
 	-- Multiplayer-only override (doc 11): Level3 gets a Chef levelObject appended.
-	levelObjects = { "Chef" },
+	-- The port draws the Chef as a hazard instead (server/Chef.luau + WorldChef).
+	levelObjects = {},
 	-- First three DownStepSpawner spawns after arriving from Pot: a plain Shelf
 	-- (matches DownStepSpawner's own first movements-list entry, (0, 1.25) --
 	-- straight above the frog, no tween-in per Lane.updateMovement), a second

@@ -290,7 +290,7 @@ type LaneScenery = {
 	skyHidden: boolean,
 	spawners: { SpawnerRuntime },
 	active: { [BasePart]: PartState },
-	oneOffs: { [string]: { BasePart }? }, -- levelObjects (Chef/US), one-or-more parts per lane (US is two stacked decal layers, doc 14)
+	oneOffs: { [string]: { BasePart }? }, -- levelObjects (US), one-or-more parts per lane (US is two stacked decal layers, doc 14)
 	-- Multiplies this lane's scenery spawn cadence (b-20260923-154344-dr8a):
 	-- Levels.list[..].heightStages[Stage attribute].sceneryDensity, read off the
 	-- lane folder (Lane.luau owns `Stage`); 1 on a level with no heightStages
@@ -379,21 +379,9 @@ end
 -- levelObjects (doc 11 §3): one-off decorations placed for the duration of a
 -- level, not repeat-spawned. Stars/SpeckManager are covered elsewhere (Stars
 -- via its own scenerySpawner pseudo-entry above; specks by
--- WorldTutorialSpecks.client.luau) -- only Chef/US need a placement here.
+-- WorldTutorialSpecks.client.luau) -- only US needs a placement here. The
+-- Kitchen Chef is a hazard now (server/Chef.luau, drawn by WorldChef.client.luau).
 local function updateLevelObjects(lane: LaneScenery)
-	local wantChef = lane.levelName == "Kitchen"
-	if wantChef and not lane.oneOffs.Chef then
-		local part = createSceneryPart("Chef")
-		part.CFrame = CFrame.new(lane.origin + Vector3.new(0, Config.DESPAWN_Y * 0.5, WorldConfig.SCENERY_Z))
-		part.Parent = workspace
-		lane.oneOffs.Chef = { part }
-	elseif not wantChef and lane.oneOffs.Chef then
-		for _, part in lane.oneOffs.Chef do
-			part:Destroy()
-		end
-		lane.oneOffs.Chef = nil
-	end
-
 	local wantUS = lane.levelName == "Country"
 	if wantUS and not lane.oneOffs.US then
 		local position = lane.origin + Vector3.new(Config.LANE_HALF_WIDTH * 0.5, 0, WorldConfig.SCENERY_Z)

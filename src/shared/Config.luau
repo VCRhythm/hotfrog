@@ -437,6 +437,23 @@ local Config = {
 	PERFECT_CHAIN_PUNCH_MAX = 0.06, -- cap on that fraction
 	PERFECT_CHAIN_PUNCH_TIME = 0.18, -- seconds to ease back
 	PERFECT_CHAIN_HAPTIC_TIME = 0.08, -- seconds of vibration per Perfect
+
+	-- Kitchen Chef (owner's ruling b-20261012-141130-fhme, doc 17): on the
+	-- Kitchen level each lane's Chef (server/Chef.luau, drawn by WorldChef)
+	-- picks one visible, un-held step every CHEF_INTERVAL_MIN..MAX seconds and,
+	-- after a readable tell, cuts it with a knife, knocks it loose with a thrown
+	-- potato, or shoves it sideways. Seconds unless noted.
+	CHEF_INTERVAL_MIN = 6,
+	CHEF_INTERVAL_MAX = 10,
+	CHEF_RETRY_TIME = 1, -- no step in view he can fairly hit: look again this soon
+	CHEF_WALK_TIME = 0.8, -- knife / shove: walk over to the target first
+	CHEF_WINDUP_TIME = 1.0, -- the tell: knife raised / potato wound back / hands set
+	CHEF_FOOD_FLIGHT_TIME = 0.6, -- the potato's arc to the step
+	CHEF_STRIKE_TIME = 0.5, -- the blow's whole shown follow-through, grace included
+	CHEF_STRIKE_GRACE = 0.15, -- blow shown but not yet applied: a grab already in flight still saves the step
+	CHEF_SHOVE_DISTANCE = 4, -- studs the shoved step slides
+	CHEF_SHOVE_TIME = 0.35,
+	CHEF_TARGET_MARGIN = 3, -- studs a target's base must sit inside the view band (vertically)
 }
 
 return Config

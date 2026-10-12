@@ -39,7 +39,8 @@ export type SpawnerState = {
 
 -- One eased displacement of this lane's steps (see "Motions" below). `only` nil
 -- = a pull: every step in `active` on each frame it runs, including steps spawned
--- after it started. `only` set = a slide-in of just those steps.
+-- after it started. `only` set = a slide-in of just those steps, or the
+-- Kitchen Chef's shove of one step (server/Chef.luau via GameServer).
 export type Motion = {
 	delta: Vector3,
 	duration: number,

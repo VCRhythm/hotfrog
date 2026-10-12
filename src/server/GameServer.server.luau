@@ -31,6 +31,7 @@ local Levels = require(ReplicatedStorage.Shared.Levels)
 local WorldConfig = require(ReplicatedStorage.Shared.WorldConfig)
 local Profiles = require(script.Parent.Profiles)
 local Lane = require(script.Parent.Lane)
+local Chef = require(script.Parent.Chef)
 
 -- The player's avatar is the frog model, not a Roblox character: the default
 -- character spawns at the origin, standing in front of lane 0's frog art plane
@@ -409,7 +410,8 @@ end
 -- workspace:BulkMoveTo. Everything that moves a step edits its Lane.StepState
 -- instead, and the write composes
 --     CFrame.new(base + offset + recoil - sag) * rotation(angle)
---   * base   -- the logical position. Lane.advanceMotions (pulls, slide-ins),
+--   * base   -- the logical position. Lane.advanceMotions (pulls, slide-ins,
+--               the Kitchen Chef's shove -- server/Chef.luau),
 --               Lane.drift, StepBehaviors.Falling and a drop-away move it; spawn
 --               spacing, the recycle bound and pull aim read it (Lane.restPosition).
 --   * offset -- a moving behaviour's sweep (StepBehaviors Patrol / RiseAndFall).
@@ -704,6 +706,7 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3,
 	step:SetAttribute("Gen", ((step:GetAttribute("Gen") :: number?) or 0) + 1)
 	step:SetAttribute("Unsteady", false)
 	step:SetAttribute("Shrugged", false)
+	step:SetAttribute("ChefTarget", nil) -- pooling: the Kitchen Chef's mark (server/Chef.luau) never outlives a life
 	step:SetAttribute("LaneUserId", lane.userId)
 	step.Anchored = true -- we move it ourselves (kinematic)
 	clearFling(step) -- pooling safety: a recycled step must not inherit a live Flingee
@@ -889,6 +892,26 @@ local function spawnIntoBatch(lane: Lane.Lane, request: Lane.SpawnRequest)
 	table.insert(spawnBatch, spawnStep(lane, request))
 end
 
+-- The Kitchen Chef's hooks (server/Chef.luau, owner's ruling
+-- b-20261012-141130-fhme): Knife and Food knock the step loose the way any
+-- behaviour does (ctx.dropAway -> the drop-away, then the bounds check pools
+-- it); Shove slides just that step sideways as a lane motion.
+local function chefIsHeld(lane: Lane.Lane, step: BasePart): boolean
+	return isHeldBy(frogs[lane.player], step)
+end
+
+local function chefStrike(lane: Lane.Lane, step: BasePart, st: StepState, action: Chef.Action, shoveDir: number)
+	if action == "Shove" then
+		lane:addMotion(
+			Vector3.new(shoveDir * Config.CHEF_SHOVE_DISTANCE, 0, 0),
+			Config.CHEF_SHOVE_TIME,
+			{ [step] = true }
+		)
+	else
+		ctxOf(lane, step, st).dropAway()
+	end
+end
+
 -- Per-lane motion/spawn tick + per-tick behavior hook (Falling's constant drift,
 -- a Patrol's sweep, doc 05) + each step's own dynamics (advanceStep) + recycle
 -- steps that leave the lane's bounds on any side (doc 13 item 4 -- Borders:
@@ -910,6 +933,7 @@ RunService.Heartbeat:Connect(function(frameDt: number)
 	for _, lane in Lane.iter() do
 		lane:advanceMotions(dt)
 		if runState[lane.player] ~= RunState.Playing then
+			Chef.reset(lane)
 			continue -- Menu/Dead: idle lane, no spawning (doc 15 item 1) -- and no steps to move
 		end
 		table.clear(spawnBatch)
@@ -976,6 +1000,9 @@ RunService.Heartbeat:Connect(function(frameDt: number)
 			end
 		end
 		ticking = false
+
+		-- The Kitchen Chef (server/Chef.luau): only once the frog is armed and alive.
+		Chef.tick(lane, dt, f ~= nil and f.canFall and not f.dead, chefIsHeld, chefStrike)
 	end
 
 	if #moveParts > 0 then

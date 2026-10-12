@@ -1300,3 +1300,24 @@ files: src/client/PotAtmosphere.client.luau
 test: none
 verified: see b-20261010-191757-89n1
 review: n/a
+
+## b-20261010-191719-3rn3  fixed  2026-10-12 14:37
+note: let's make the chef a real character in the background of the kitchen who moves around and does things to the level to mess with you. he can swing a knife to break steps (with a clear swing tell) (answered by b-20261012-141130-fhme: "DECISION: c, only on the kitchen")
+cause: Owner ruling "c, only on the kitchen": a Kitchen-only, server-driven Chef with a telegraphed knife swing that breaks an un-held step, plus other tricks (throwing food, shoving steps sideways). The Chef was only drifting scenery. The owner named no frequency, so the loop picked 6-10 s (Config.CHEF_*); the owner can change it.
+change: New server/Chef.luau, run per lane from GameServer's step Heartbeat on the Kitchen only, while Playing and alive and not in the arrival beat. Every 6-10 s the Chef picks an in-view, un-held step (never the rim or an arrow), walks to it, and does one of three actions after a ~1 s tell. Knife and Food knock the step loose via ctx.dropAway. Shove slides it 4 studs to a spot clear by clearSpot's spacing, via lane:addMotion; it is called off if the shown side is blocked at the blow. Knife and Food only happen while another un-held foothold is in view, so Normal mode can't be stranded. Grabbing the target, even in a 0.15 s grace after the blow shows, calls the action off. New WorldChef.client.luau draws the Chef, the red target ring, the knife, the potato, and the hand and arrow, for every lane, from the ChefAction/ChefPhase/ChefSeq/ChefShoveDir lane attributes and the ChefTarget step attribute. The old cosmetic Chef was removed from WorldScenery and Kitchen levelObjects. Doc 17 has a new row, plus the oversized-canvases row and motion-layer comments.
+files: src/server/Chef.luau, src/client/WorldChef.client.luau, src/server/GameServer.server.luau, src/shared/Config.luau, src/server/Lane.luau, src/client/WorldScenery.client.luau, src/shared/Levels.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, tools/luau_check.sh on every changed .luau file (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only.
+review: concern (blocking): in Normal mode the Chef could cut every un-held step in view, stranding a frog holding one step (steps only spawn on a pull). Minor concerns: the blow could land off-screen; shoves ignored neighbours; late grabs were ForceReleased because of latency; client gaps (potato origin for a late viewer, per-frame target scans, an uncleared ChefShoveDir); doc 17 was missing. checked: both new files in full, the GameServer/Config/Levels/WorldScenery diffs, GameServer isHeldBy/dropAway/pooling/Heartbeat/GrabStep/killFrog/PlayerRemoving, Lane StepState/addMotion/clearSpot/spawning/arrival, the camera, SkinAssets stems, stylua, luau_check, selene.
+re-review: concern (minor): a shove re-aimed at the blow could go against its telegraphed arrow (the orchestrator changed land() to call it off instead); the client can draw on a recycled step during Strike (filed b-20261012-143703-olbq); the shove test duplicates clearSpot (filed b-20261012-143704-8ian). checked: Chef.luau and WorldChef in full, foothold count vs camera view, grace vs GrabStep dropElapsed, pooling/pull during grace, shove maths vs Lane.clearSpot, Heartbeat cost, stylua, luau_check, selene. After the orchestrator's land() edit: stylua, luau_check Chef.luau, selene, rojo build pass.
+followups: b-20261012-143703-olbq, b-20261012-143704-8ian
+leftover: b-20261012-143704-0raj (Studio playtest once Studio runs)
+
+## b-20261012-141130-fhme  fixed  2026-10-12 14:37
+note: DECISION: c, only on the kitchen (reopens b-20261010-191719-3rn3)
+cause: owner ruling on b-20261010-191719-3rn3; applied there.
+change: see b-20261010-191719-3rn3
+files: src/server/Chef.luau
+test: none
+verified: see b-20261010-191719-3rn3
+review: n/a
