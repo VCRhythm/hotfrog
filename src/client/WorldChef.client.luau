@@ -59,6 +59,7 @@ type View = {
 	phase: string?,
 	seq: number,
 	target: BasePart?,
+	targetGen: any, -- the target's `Gen` (spawn generation) when resolved; a change means it was recycled
 	side: number, -- which side of the target the chef stands (-1 left, +1 right)
 	throwFrom: Vector3?, -- where the potato left his hand (nil: the WindUp wasn't seen)
 	scanIn: number, -- frames until the next Steps scan for an unresolved target
@@ -151,6 +152,7 @@ local function onLaneAdded(folder: Folder)
 		phase = nil,
 		seq = 0,
 		target = nil,
+		targetGen = nil,
 		side = 1,
 		throwFrom = nil,
 		scanIn = 0,
@@ -225,8 +227,14 @@ local function update(view: View, dt: number, now: number)
 	local lost = not target or target.Parent ~= stepsFolder or target:GetAttribute("ChefTarget") ~= true
 	if lost and target and phase == "Strike" then
 		lost = false
-		if target.Parent ~= stepsFolder then
-			target = nil -- recycled mid-follow-through: nothing left to draw on
+		-- recycled mid-follow-through (out of the folder, or already handed to
+		-- another spawn/lane via the pool): nothing left to draw on
+		if
+			target.Parent ~= stepsFolder
+			or target:GetAttribute("Gen") ~= view.targetGen
+			or target:GetAttribute("LaneUserId") ~= folder:GetAttribute("UserId")
+		then
+			target = nil
 		end
 	end
 	view.scanIn -= 1
@@ -234,6 +242,7 @@ local function update(view: View, dt: number, now: number)
 		view.scanIn = SCAN_FRAMES
 		target = findTarget(folder:GetAttribute("UserId"))
 		view.target = target
+		view.targetGen = if target then target:GetAttribute("Gen") else nil
 		if target then
 			local relX = target.Position.X - origin.X
 			view.side = if relX > 0 then -1 else 1 -- stand on the lane-centre side of it

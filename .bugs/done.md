@@ -1380,3 +1380,13 @@ review: concern (minor): the 4:3 window overlapped the face edge and the Shop to
 re-review: concern (minor): the five viewports' numbers follow from the code and there is always a gap above Gift/Shop; left over: 4:3 still covers ~60 px of the face edge (documented), the Spectate buttons can sit over the lower panel in portrait when other lanes exist (filed b-20261012-150254-k9vy; the orchestrator added it to the doc 17 row), and the panel may brush the HOTFROG title box at 4:3. checked: layoutMainPanel clamp maths against all five viewports, StoreUI lines 86-87, SpectateGui, the doc 17 row, stylua, luau_check.
 followups: b-20261012-150254-k9vy
 leftover: b-20261012-150254-352v (Studio playtest once Studio runs)
+
+## b-20261012-143703-olbq  fixed  2026-10-12 15:07
+note: WorldChef draws the knife/potato on a recycled step
+cause: During the Strike follow-through WorldChef kept its target as long as the Part was still in the Steps folder. A pooled step re-acquired by the server (GameServer acquireStep bumps Gen, clears ChefTarget and sets LaneUserId) stays in the folder, so the chef could keep drawing on a step that was now a new spawn, or another player's lane's step.
+change: WorldChef records the target's Gen (view.targetGen) when findTarget resolves it, and the Strike branch drops the target when it left the folder, its Gen changed, or its LaneUserId no longer matches the lane folder's UserId.
+files: src/client/WorldChef.client.luau
+test: stylua --check, tools/luau_check.sh, selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
+review: looks-right; minor: the dropped target is only cleared locally, so view.target stays stale and is re-dropped every frame of the Strike (harmless, and clearing it would allow a mid-Strike rescan, so it was left). checked: the WorldChef diff, update(), findTarget, every view.target/targetGen write, the View type and initialiser, acquireStep and the release path in GameServer (685-715), the ChefTarget sites in Chef.luau.
+leftover: b-20261012-150755-783q (Studio playtest once Studio runs)
