@@ -422,6 +422,15 @@ local ExtraSpawners: { [string]: { ExtraSpawner } } = {
 			cadence = { maxSpawnCount = 4, spawningSpeedMin = 3, spawningSpeedMax = 6, spawnAllOnAwake = false },
 			initialScatter = 2,
 		},
+		-- b-20261010-191757-89n1 (ruling b-20261012-141140-a1h3): denser bubbles so the
+		-- pot reads as boiling; the same poppable Bubble kind as the level's own spawner.
+		{
+			name = "ExtraBubbleSpawner",
+			direction = Vector2.new(0, 1),
+			pool = { "Bubble" },
+			cadence = { maxSpawnCount = 8, spawningSpeedMin = 1.5, spawningSpeedMax = 3, spawnAllOnAwake = false },
+			initialScatter = 4,
+		},
 	},
 }
 

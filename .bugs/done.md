@@ -1280,3 +1280,23 @@ files: src/client/GameClient.client.luau
 test: none
 verified: see b-20261010-192132-5986
 review: n/a
+
+## b-20261010-191757-89n1  fixed  2026-10-12 14:22
+note: what could we do to make the inside of the pot seem more like a pot? (the clouds in the background not being visible would help) (answered by b-20261012-141140-a1h3: "DECISION: all")
+cause: Owner ruling "all": hide the clouds in Pot, a darker inner-wall vignette, metal walls down both sides, and denser steam and bubbles with a stronger heat tint. The Pot had no vessel dressing, and while the lane was Pot the idle Menu still drew its clouds.
+change: New PotAtmosphere.client.luau, active only while LevelName is Pot and the camera is on the local lane (not while spectating). It adds CorrodedMetal walls just outside the lane edge (±LANE_HALF_WIDTH at the camera's projection, holding through the arrival zoom), a screen-edge vignette whose side width shrinks on narrow viewports, a steam ParticleEmitter at the lava line, and a warm ColorCorrection, both scaled by PotHeat. WorldScenery skips cloud spawners and extras while a lane's Level is Pot and fades clouds already on screen. SceneryKinds gains an extra Pot Bubble spawner. All procedural, no new art. There is a new doc 17 row.
+files: src/client/PotAtmosphere.client.luau, src/client/WorldScenery.client.luau, src/shared/SceneryKinds.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, tools/luau_check.sh on all three .luau files (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only.
+review: concern: the dressing stayed anchored to my lane while spectating a neighbour (walls filled their background), and the fixed 16% side vignette darkened live play on portrait viewports; checked: the new file in full, both diffs, GameClient camera/spectate/arrival zoom, LevelClient, Lane setLevel/resetRun, GameServer notifyLevelChanged, WorldLava PotHeat, Lanes.originOf, Config lane constants, Levels Pot spawners, wall projection maths at 1.0/1.35 zoom and chain-punch, Lighting conflicts (none), leaks on enter/leave, stylua, luau_check, selene.
+re-review: looks-right; checked: the repaired file, the on-lane gate through arrival zoom, chain-punch and the spectate snap (no lerp, no threshold flicker), show/hide only on transitions, one ViewportSize connection at a time, the vignette clamp at portrait and 16:9, stylua, luau_check, selene.
+leftover: b-20261012-142233-blru (Studio playtest once Studio runs)
+
+## b-20261012-141140-a1h3  fixed  2026-10-12 14:22
+note: DECISION: all (reopens b-20261010-191757-89n1)
+cause: owner ruling on b-20261010-191757-89n1; applied there.
+change: see b-20261010-191757-89n1
+files: src/client/PotAtmosphere.client.luau
+test: none
+verified: see b-20261010-191757-89n1
+review: n/a

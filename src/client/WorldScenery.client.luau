@@ -287,6 +287,7 @@ type LaneScenery = {
 	folder: Folder,
 	origin: Vector3,
 	levelName: string,
+	skyHidden: boolean,
 	spawners: { SpawnerRuntime },
 	active: { [BasePart]: PartState },
 	oneOffs: { [string]: { BasePart }? }, -- levelObjects (Chef/US), one-or-more parts per lane (US is two stacked decal layers, doc 14)
@@ -303,12 +304,27 @@ type LaneScenery = {
 local DEFAULT_CADENCE: SceneryKinds.SpawnerCadence =
 	{ maxSpawnCount = 10, spawningSpeedMin = 2, spawningSpeedMax = 4, spawnAllOnAwake = false }
 
-local function buildSpawners(levelName: string): { SpawnerRuntime }
+-- Cloud kinds (Cloud3 / CloudFar / CloudNear): hidden while the lane is in the Pot
+-- (b-20261010-191757-89n1, owner's ruling b-20261012-141140-a1h3), idle Menu included.
+local function isCloudPool(pool: { string }): boolean
+	for _, kindName in pool do
+		if kindName:sub(1, 5) == "Cloud" then
+			return true
+		end
+	end
+	return false
+end
+
+local function buildSpawners(levelName: string, skyHidden: boolean): { SpawnerRuntime }
 	local list: { SpawnerRuntime } = {}
 	local level = levelByName[levelName]
 	if level then
 		for _, def in level.scenerySpawners do
-			if def.kind == "Scenery" and not SceneryKinds.isDuplicateSpawner(def.name) then
+			if
+				def.kind == "Scenery"
+				and not SceneryKinds.isDuplicateSpawner(def.name)
+				and not (skyHidden and isCloudPool(def.pool))
+			then
 				table.insert(list, {
 					direction = def.direction,
 					pool = def.pool,
@@ -326,6 +342,9 @@ local function buildSpawners(levelName: string): { SpawnerRuntime }
 	local extras = SceneryKinds.extraSpawners[levelName]
 	if extras then
 		for _, extra in extras do
+			if skyHidden and isCloudPool(extra.pool) then
+				continue
+			end
 			table.insert(list, {
 				direction = extra.direction,
 				pool = extra.pool,
@@ -506,12 +525,16 @@ local function trackLane(folder: Folder)
 		return if typeof(levelAttr) == "string" then levelAttr else "Pot"
 	end
 	local levelName = effectiveLevel()
+	local function skyHidden(): boolean
+		return folder:GetAttribute("Level") == "Pot"
+	end
 
 	local lane: LaneScenery = {
 		folder = folder,
 		origin = Lanes.originOf(folder),
 		levelName = levelName,
-		spawners = buildSpawners(levelName),
+		skyHidden = skyHidden(),
+		spawners = buildSpawners(levelName, skyHidden()),
 		active = {},
 		oneOffs = {},
 		stageDensity = densityForStage(levelName, folder:GetAttribute("Stage")),
@@ -524,13 +547,19 @@ local function trackLane(folder: Folder)
 
 	local function refreshLevel()
 		local newName = effectiveLevel()
-		if newName == lane.levelName then
+		local hidden = skyHidden()
+		if newName == lane.levelName and hidden == lane.skyHidden then
 			return
 		end
+		local clouds = hidden and not lane.skyHidden
 		lane.levelName = newName
-		lane.spawners = buildSpawners(newName) -- soft transition: leaves `active` untouched
+		lane.skyHidden = hidden
+		lane.spawners = buildSpawners(newName, hidden) -- soft transition: leaves `active` untouched
 		lane.stageDensity = densityForStage(newName, folder:GetAttribute("Stage"))
 		updateLevelObjects(lane)
+		if clouds then
+			fadeOutLeftovers(lane) -- clouds already on screen when the Pot began
+		end
 	end
 	local conns = lane.connections
 	table.insert(conns, folder:GetAttributeChangedSignal("Level"):Connect(refreshLevel))
