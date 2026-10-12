@@ -1279,7 +1279,7 @@ change: see b-20261010-192132-5986
 files: src/client/GameClient.client.luau
 test: none
 verified: see b-20261010-192132-5986
-review: n/a
+review: see b-20261010-192132-5986 (reviewed and re-reviewed there)
 
 ## b-20261010-191757-89n1  fixed  2026-10-12 14:22
 note: what could we do to make the inside of the pot seem more like a pot? (the clouds in the background not being visible would help) (answered by b-20261012-141140-a1h3: "DECISION: all")
@@ -1299,7 +1299,7 @@ change: see b-20261010-191757-89n1
 files: src/client/PotAtmosphere.client.luau
 test: none
 verified: see b-20261010-191757-89n1
-review: n/a
+review: see b-20261010-191757-89n1 (reviewed and re-reviewed there)
 
 ## b-20261010-191719-3rn3  fixed  2026-10-12 14:37
 note: let's make the chef a real character in the background of the kitchen who moves around and does things to the level to mess with you. he can swing a knife to break steps (with a clear swing tell) (answered by b-20261012-141130-fhme: "DECISION: c, only on the kitchen")
@@ -1320,4 +1320,4 @@ change: see b-20261010-191719-3rn3
 files: src/server/Chef.luau
 test: none
 verified: see b-20261010-191719-3rn3
-review: n/a
+review: see b-20261010-191719-3rn3 (reviewed and re-reviewed there)
