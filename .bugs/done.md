@@ -1155,7 +1155,7 @@ verified: no — Studio MCP not attached and Studio not running, so no playtest 
 review: looks-right; checked: git diff of StoreUI swatch label code.
 leftover: b-20261012-134553-kdv4 (Studio playtest once Studio runs)
 
-## b-20261010-192255-ctop  fixed  2026-10-12 13:48
+## b-20261010-192255-ctop  fixed  2026-10-12 13:47
 note: go ahead and remove the circle on a successful grab, but keep the X for a missed grab
 cause: show() displayed the circle decal whenever the tap overlapped one of the player's own steps.
 change: A grab tap now shows nothing; a miss still shows the red X.
@@ -1166,7 +1166,7 @@ review: concern: the bug test raycast included Steps, so a step in front of a bu
 re-review: looks-right; checked: git diff after repair, GameClient lines 405-575, bugRayParams mirrors tryCatchBug, hitBug returned on all four paths, stylua exit 0, luau_check clean.
 leftover: b-20261012-134553-fwg9 (Studio playtest once Studio runs)
 
-## b-20261010-192422-4cof  fixed  2026-10-12 13:48
+## b-20261010-192422-4cof  fixed  2026-10-12 13:47
 note: eating a frog shouldn't resut in an X being shown
 cause: The indicator only treated steps as hits, so a tap that caught a bug (fly) with the tongue counted as a miss and showed the X.
 change: worldPointFor does a separate Bugs-only raycast (same filter as GameClient tryCatchBug) and flags own-lane bugs (Kind=="Bug", LaneUserId==local); show() hides both decals for that tap. Another lane's bug still shows the X (server rejects the catch).
@@ -1177,7 +1177,7 @@ review: concern: single raycast included Steps so a step in front of a bug hid t
 re-review: looks-right; checked: repaired diff, Bugs-only bugRayParams, Bugs folder waited on at line 57, nil guards intact, luau_check clean.
 leftover: b-20261012-134554-1830 (Studio playtest once Studio runs)
 
-## b-20261010-191946-75rw  fixed  2026-10-12 13:48
+## b-20261010-191946-75rw  fixed  2026-10-12 13:47
 note: hawt frog is missing his sunglasses sprites
 cause: The frog rig had no Decal with Suffix="Accessory", so SpriteSkin never applied the uploaded HawtFrogAccessory art.
 change: Added an Accessory Decal on the Head (Face Back, ZIndex 6, above the eyelids). SpriteSkin.apply blanks it for skins with no accessory art, so a re-skin never keeps the old accessory. Accessory added to SkinTints UNTINTED so colourways leave the gear its own colours. Doc 17's colourway row now lists the accessory as untinted.
@@ -1188,7 +1188,7 @@ review: concern: Accessory missing from SkinTints UNTINTED, so a Flys colourway 
 re-review: looks-right on the code (concern resolved: all three tint paths go through SkinTints.apply); it noted doc 17 line 185 still listed only scleras/eyes/pupils as untinted, which the orchestrator then updated (doc-only); checked: git diff of 3 files, grep of tint call sites, stylua, selene.
 leftover: b-20261012-134554-rnd5 (Studio playtest once Studio runs)
 
-## b-20261010-191959-j5e3  fixed  2026-10-12 13:48
+## b-20261010-191959-j5e3  fixed  2026-10-12 13:47
 note: space frog is missing his helmet sprite
 cause: Same as 75rw: no Accessory decal on the rig, so SpaceFrogAccessory (the helmet) was never applied.
 change: Same change as 75rw (Accessory Decal on Head, blank-when-missing in SpriteSkin, untinted in SkinTints, doc 17 row).
