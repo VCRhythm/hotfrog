@@ -30,7 +30,8 @@ SkinTints.list = {
 
 SkinTints.NONE = Color3.new(1, 1, 1)
 
--- Eye parts keep their own colours so a tinted frog still has white eyes.
+-- Eye parts keep their own colours so a tinted frog still has white eyes; the
+-- Accessory (sunglasses, helmet) is gear, not frog skin, so it keeps its own too.
 local UNTINTED: { [string]: boolean } = {
 	LeftSclera = true,
 	RightSclera = true,
@@ -38,6 +39,7 @@ local UNTINTED: { [string]: boolean } = {
 	RightEye = true,
 	LeftPupil = true,
 	RightPupil = true,
+	Accessory = true,
 }
 
 local byId: { [number]: Tint } = {}

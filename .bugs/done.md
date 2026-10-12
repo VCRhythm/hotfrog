@@ -1176,3 +1176,25 @@ verified: no — Studio MCP not attached and Studio not running, so no playtest 
 review: concern: single raycast included Steps so a step in front of a bug hid the catch; checked: git diff, GameClient tryCatchBug/rayParams, BugService attributes.
 re-review: looks-right; checked: repaired diff, Bugs-only bugRayParams, Bugs folder waited on at line 57, nil guards intact, luau_check clean.
 leftover: b-20261012-134554-1830 (Studio playtest once Studio runs)
+
+## b-20261010-191946-75rw  fixed  2026-10-12 13:48
+note: hawt frog is missing his sunglasses sprites
+cause: The frog rig had no Decal with Suffix="Accessory", so SpriteSkin never applied the uploaded HawtFrogAccessory art.
+change: Added an Accessory Decal on the Head (Face Back, ZIndex 6, above the eyelids). SpriteSkin.apply blanks it for skins with no accessory art, so a re-skin never keeps the old accessory. Accessory added to SkinTints UNTINTED so colourways leave the gear its own colours. Doc 17's colourway row now lists the accessory as untinted.
+files: src/assets/FrogModel.model.json, src/shared/SpriteSkin.luau, src/shared/SkinTints.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, luau_check on SpriteSkin/SkinTints (clean), selene src/ (0 errors), FrogModel JSON parses, rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: sunglasses over Hawt Frog's eyes in game and store preview, untinted under a colourway; other skins show no accessory; 1024 canvas aligned to the head.
+review: concern: Accessory missing from SkinTints UNTINTED, so a Flys colourway would tint the sunglasses/helmet; checked: git diff, SpriteSkin, SkinAssets.part fallback (no Universal/HotFrog accessory id), all SpriteSkin.apply call sites, JSON parse, stylua, luau_check, rojo build.
+re-review: looks-right on the code (concern resolved: all three tint paths go through SkinTints.apply); it noted doc 17 line 185 still listed only scleras/eyes/pupils as untinted, which the orchestrator then updated (doc-only); checked: git diff of 3 files, grep of tint call sites, stylua, selene.
+leftover: b-20261012-134554-rnd5 (Studio playtest once Studio runs)
+
+## b-20261010-191959-j5e3  fixed  2026-10-12 13:48
+note: space frog is missing his helmet sprite
+cause: Same as 75rw: no Accessory decal on the rig, so SpaceFrogAccessory (the helmet) was never applied.
+change: Same change as 75rw (Accessory Decal on Head, blank-when-missing in SpriteSkin, untinted in SkinTints, doc 17 row).
+files: src/assets/FrogModel.model.json, src/shared/SpriteSkin.luau, src/shared/SkinTints.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: same as 75rw
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: helmet over Space Frog's head in game and store preview, limbs still in front.
+review: concern: same tint concern as 75rw; checked: same as 75rw.
+re-review: looks-right; checked: same as 75rw.
+leftover: b-20261012-134554-9c8d (Studio playtest once Studio runs)

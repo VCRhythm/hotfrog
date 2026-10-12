@@ -38,7 +38,8 @@
         { "name": "LowerLeftEyelid", "className": "Decal", "properties": { "Face": "Back", "ZIndex": 5, "Transparency": 1.0 }, "attributes": { "Suffix": "LowerLeftEyelid" } },
         { "name": "LowerRightEyelid", "className": "Decal", "properties": { "Face": "Back", "ZIndex": 5, "Transparency": 1.0 }, "attributes": { "Suffix": "LowerRightEyelid" } },
         { "name": "ClosedLeftEyelid", "className": "Decal", "properties": { "Face": "Back", "ZIndex": 5, "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedLeftEyelid" } },
-        { "name": "ClosedRightEyelid", "className": "Decal", "properties": { "Face": "Back", "ZIndex": 5, "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedRightEyelid" } }
+        { "name": "ClosedRightEyelid", "className": "Decal", "properties": { "Face": "Back", "ZIndex": 5, "Transparency": 1.0 }, "attributes": { "Suffix": "ClosedRightEyelid" } },
+        { "name": "Accessory", "className": "Decal", "properties": { "Face": "Back", "ZIndex": 6 }, "attributes": { "Suffix": "Accessory" } }
       ]
     },
     {

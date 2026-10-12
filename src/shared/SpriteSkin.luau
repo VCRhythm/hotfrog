@@ -64,7 +64,13 @@ function SpriteSkin.apply(root: Instance, skinName: string?)
 		end
 		local suffix = obj:GetAttribute("Suffix")
 		if typeof(suffix) == "string" and skinName then
-			setTexture(obj, SkinAssets.part(skinName, suffix))
+			local image = SkinAssets.part(skinName, suffix)
+			if suffix == "Accessory" then
+				-- skin-specific (sunglasses, helmet): blank when the skin has none, so a
+				-- re-skinned rig never keeps the previous skin's accessory
+				image = image or ""
+			end
+			setTexture(obj, image)
 		end
 	end
 end
