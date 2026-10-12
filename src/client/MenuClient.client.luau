@@ -127,6 +127,7 @@ end
 local FACE_HALF_W, FACE_BOTTOM = 8.5, -5 -- studs from the frog origin, +y up (eyes top out ~9)
 local VIEW_STUDS = 31.43 -- GameClient: 100 Unity units of vertical view
 local PANEL_W, PANEL_H, PANEL_STACK_H = 280, 312, 434 -- panel, and panel + streak + mission lines
+local MIN_EFFECTIVE_SCALE = 0.65 -- smallest on-screen scale (UIScale * shrink) the stack may be shrunk to
 local function layoutMainPanel()
 	local camera = workspace.CurrentCamera
 	local guiScale = gui:FindFirstChildOfClass("UIScale")
@@ -142,6 +143,22 @@ local function layoutMainPanel()
 	local pxPerStud = view.Y / VIEW_STUDS
 	local faceRight = view.X / 2 + FACE_HALF_W * pxPerStud
 	local faceBottom = view.Y / 2 - FACE_BOTTOM * pxPerStud
+	-- StoreUI's Gift (left, 150 wide) and Shop (right, 120 wide) toggles sit in the
+	-- bottom 56 units; stay above them where the stack is over their columns, and
+	-- never run off the bottom (a squarish portrait window lets the stack overlap
+	-- the mouth rather than leave the screen). GameClient's Spectate strip
+	-- (bottom-centre, y -110..-70 units, x +-140 around the centre) is another
+	-- bottom obstacle while it is showing (b-20261012-150254-k9vy).
+	local spectating = player:GetAttribute("SpectateStripShown") == true
+	local function bottomLimit(left: number, w: number): number
+		local overToggles = left < (12 + 150) * s - 6 or left + w > view.X - 132 * s + 6
+		local limit = view.Y - (if overToggles then 60 else 24) * s
+		if spectating and left < view.X / 2 + 140 * s and left + w > view.X / 2 - 140 * s then
+			limit = math.min(limit, view.Y - 118 * s)
+		end
+		return limit
+	end
+	local k = 1
 	local panelW, panelH, stackH = PANEL_W * s, PANEL_H * s, PANEL_STACK_H * s
 	local left, top
 	if view.X >= view.Y then
@@ -150,27 +167,22 @@ local function layoutMainPanel()
 		left = math.max(0, math.min((faceRight + view.X - panelW) / 2, view.X - panelW - 8))
 		top = (view.Y - panelH) / 2
 	else
-		-- portrait: no room beside the face, so tuck the stack right under it
-		left = (view.X - panelW) / 2
+		-- portrait: no room beside the face, so tuck the stack right under it. If it
+		-- doesn't fit between the face and the bottom obstacles, shrink the whole stack
+		-- (b-20261012-152031-992y) down to a legible effective scale (s * k >= MIN_EFFECTIVE_SCALE;
+		-- phones already at that scale keep k = 1); only past that does it overlap the mouth.
 		top = faceBottom + 8
+		local room = bottomLimit((view.X - panelW) / 2, panelW) - top
+		if room < stackH then
+			k = math.clamp(room / stackH, math.min(1, MIN_EFFECTIVE_SCALE / s), 1)
+			panelW, panelH, stackH = panelW * k, panelH * k, stackH * k
+		end
+		left = (view.X - panelW) / 2
 	end
-	-- StoreUI's Gift (left, 150 wide) and Shop (right, 120 wide) toggles sit in the
-	-- bottom 56 units; stay above them where the stack is over their columns, and
-	-- never run off the bottom (a squarish portrait window lets the stack overlap
-	-- the mouth rather than leave the screen).
-	local overToggles = left < (12 + 150) * s - 6 or left + panelW > view.X - 132 * s + 6
-	local limit = view.Y - (if overToggles then 60 else 24) * s
-	-- GameClient's Spectate strip (bottom-centre, y -110..-70 units, x +-140 around
-	-- the centre) is another bottom obstacle while it is showing
-	-- (b-20261012-150254-k9vy).
-	if
-		player:GetAttribute("SpectateStripShown") == true
-		and left < view.X / 2 + 140 * s
-		and left + panelW > view.X / 2 - 140 * s
-	then
-		limit = math.min(limit, view.Y - 118 * s)
-	end
-	top = math.max(inset, math.min(top, limit - stackH))
+	top = math.max(inset, math.min(top, bottomLimit(left, panelW) - stackH))
+	-- UIKit.showPanel eases the frame's UIScale to this (default 1); setPanelScale
+	-- also retargets a pop-in in flight and applies it to a panel already up.
+	UIKit.setPanelScale(mainPanel, k)
 	mainPanel.Position = UDim2.fromScale(left / view.X, (top - inset) / (view.Y - inset))
 end
 task.defer(layoutMainPanel)

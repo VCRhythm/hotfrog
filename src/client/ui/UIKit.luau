@@ -329,7 +329,18 @@ end
 -- is created once and reused on repeat calls. Callers that used to write
 -- `panel.Visible = x` directly (mainPanel/endPanel/settingsPanel/topPanel,
 -- StoreUI's panel) call this instead.
+local popTweens: { [GuiObject]: Tween } = setmetatable({}, { __mode = "k" }) :: any
+
+local function cancelPop(frame: GuiObject)
+	local running = popTweens[frame]
+	if running then
+		running:Cancel()
+		popTweens[frame] = nil
+	end
+end
+
 function UIKit.showPanel(frame: GuiObject, visible: boolean)
+	cancelPop(frame)
 	if not visible then
 		frame.Visible = false
 		return
@@ -342,9 +353,25 @@ function UIKit.showPanel(frame: GuiObject, visible: boolean)
 		scale = Instance.new("UIScale")
 		scale.Parent = frame
 	end
-	scale.Scale = 0.9
+	local attr = frame:GetAttribute("PanelScale") -- optional per-panel resting scale (MenuClient shrinks its main stack)
+	local target = if type(attr) == "number" then attr else 1
+	scale.Scale = 0.9 * target
 	frame.Visible = true
-	TweenService:Create(scale, PANEL_POP, { Scale = 1 }):Play()
+	local tween = TweenService:Create(scale, PANEL_POP, { Scale = target })
+	popTweens[frame] = tween
+	tween:Play()
+end
+
+-- Sets a panel's resting scale (the "PanelScale" attribute showPanel eases to).
+-- A pop-in still running is cancelled and the scale applied at once, so a later
+-- layout change is never overwritten by a stale tween target.
+function UIKit.setPanelScale(frame: GuiObject, k: number)
+	frame:SetAttribute("PanelScale", k)
+	cancelPop(frame)
+	local scale = frame:FindFirstChildOfClass("UIScale")
+	if scale and frame.Visible then
+		scale.Scale = k
+	end
 end
 
 -- A coloured placeholder box for art that isn't uploaded yet (every asset id
