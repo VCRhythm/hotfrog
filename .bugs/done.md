@@ -1455,3 +1455,23 @@ test: see b-20261010-192608-4bs3
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
 review: see b-20261010-192608-4bs3
 leftover: none — this is the ruling only; the change and its Studio playtest check (b-20261012-162429-pg4k) are on b-20261010-192608-4bs3
+
+## b-20261012-162429-k6wc  fixed  2026-10-12 16:37
+note: Client-reported tapPos lets a modified client always grade Perfect, which now also maxes the Normal combo streak (+3) and its score bonus (up to +5/grab) that feeds the leaderboards
+cause: Grades come from a client-reported tap point the server cannot check, and since b99c6e5 the combo bonus went into sessionScore, which fed the saved best score, the global/daily/weekly boards and leaderstats. Owner's ruling b-20261012-162800-b426: "DECISION: b" (boards and best score count steps only; the combo bonus shows on the HUD and run summary but is not saved).
+change: GameServer keeps sessionSteps (+1 per grab in addScore, reset with sessionScore, cleared on leave) and sets RunSteps from it. commitHighScore (profile.highScore, recordGlobalBest, recordPeriodScore), isNewBest and leaderstats.Score use steps. ScoreChanged gains steps as a 5th argument and RunSummary as a trailing one. SfxEvents' high-score and every-10 chimes count steps. The end panel keeps "Score: N" and shows "Steps: M   Best: B" when steps differ from score. Doc 17 combo row updated. Spoofed Perfects can still raise the in-run HUD score and the streak speed, but nothing saved.
+files: src/server/GameServer.server.luau, src/client/SfxEvents.client.luau, src/client/MenuClient.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check and tools/luau_check.sh on the 3 changed .luau files (0 errors), selene src/ (0 errors), rojo build to the job tmp dir: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
+review: looks-right (orchestrator review). checked: every sessionScore reset/clear site has a sessionSteps twin, addScore's only caller is GrabStep, every ScoreChanged/RunSummary consumer (GameClient and WorldQualityPopup ignore the new trailing args), RunSteps still drives missions, badges and the race rail, isNewBest against the steps-based best, the end-panel line, the doc row.
+leftover: b-20261012-163727-v7rl (Studio playtest once Studio runs)
+
+## b-20261012-162800-b426  fixed  2026-10-12 16:37
+note: DECISION: b
+cause: The owner's ruling on b-20261012-162429-k6wc.
+change: see b-20261012-162429-k6wc
+files: see b-20261012-162429-k6wc
+test: see b-20261012-162429-k6wc
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
+review: see b-20261012-162429-k6wc
+leftover: none — this is the ruling only; the change and its Studio playtest check (b-20261012-163727-v7rl) are on b-20261012-162429-k6wc

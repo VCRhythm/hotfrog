@@ -420,6 +420,7 @@ local lastSummary: {
 	quality: { Perfect: number, Great: number, OK: number },
 	bugs: number,
 	flys: number,
+	steps: number,
 }? =
 	nil
 
@@ -492,7 +493,11 @@ local function showEndPanel()
 		return
 	end
 	scoreLine.Text = "Score: " .. tostring(s.score) .. (if s.isNewBest then "  NEW BEST!" else "")
-	bestLine.Text = "Best: " .. tostring(s.best)
+	-- score includes the Normal-mode combo bonus; best is steps (ruling b426), so
+	-- show the run's steps next to it whenever the two differ.
+	bestLine.Text = (if s.steps ~= s.score then "Steps: " .. tostring(s.steps) .. "   " else "")
+		.. "Best: "
+		.. tostring(s.best)
 	local total = s.quality.Perfect + s.quality.Great + s.quality.OK
 	perfectLabel.Text = "Perfect " .. pct(s.quality.Perfect, total)
 	greatLabel.Text = "Great " .. pct(s.quality.Great, total)
@@ -564,9 +569,19 @@ RunSummary.OnClientEvent:Connect(
 		isNewBest: boolean,
 		quality: { Perfect: number, Great: number, OK: number },
 		bugs: number,
-		flys: number
+		flys: number,
+		_cause: string?,
+		steps: number?
 	)
-		lastSummary = { score = score, best = best, isNewBest = isNewBest, quality = quality, bugs = bugs, flys = flys }
+		lastSummary = {
+			score = score,
+			best = best,
+			isNewBest = isNewBest,
+			quality = quality,
+			bugs = bugs,
+			flys = flys,
+			steps = steps or score,
+		}
 		if currentRunState == "Dead" then
 			showEndPanel()
 		end

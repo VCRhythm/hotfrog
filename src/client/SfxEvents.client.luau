@@ -71,37 +71,43 @@ do
 end
 
 -- ---------------------------------------------------------------------------
--- base10 / highScore (UI/HUD.cs's StepsClimbed setter). `best` on ScoreChanged
--- is the profile's high score as of the START of this run (GameServer only
+-- base10 / highScore (UI/HUD.cs's StepsClimbed setter). Both count real STEPS
+-- (ScoreChanged's 5th arg; falls back to `score` if absent): `score` carries the
+-- Normal-mode combo bonus and jumps by more than 1, while `best` is steps-based
+-- (owner ruling b426 on k6wc). `best` on ScoreChanged
+-- is the profile's best step count as of the START of this run (GameServer only
 -- bumps it in `commitHighScore`, on death) -- exactly Unity's
 -- `newHighScore = HighScore + 1` computed once per run in HUD.SetInitialStats
--- -- so "score == best + 1" is the same "just beat my previous best"
+-- -- so "steps == best + 1" is the same "just beat my previous best"
 -- condition, re-derivable fresh from every event with no extra state. Falls
 -- through to the every-10 case with an `elseif`, exactly like HUD.cs's
 -- if/else-if (a value that's simultaneously a new best AND a multiple of ten
 -- plays only the high-score cue, same as Unity).
 -- ---------------------------------------------------------------------------
-ScoreChanged.OnClientEvent:Connect(function(score: number, best: number, quality: string?)
-	if quality then
-		local stem = QUALITY_STEM[quality]
-		if quality == "Perfect" then
-			perfectChain += 1
-		else
-			perfectChain = 0
+ScoreChanged.OnClientEvent:Connect(
+	function(score: number, best: number, quality: string?, _grabQuality: any?, steps: number?)
+		if quality then
+			local stem = QUALITY_STEM[quality]
+			if quality == "Perfect" then
+				perfectChain += 1
+			else
+				perfectChain = 0
+			end
+			if stem then
+				local pitch =
+					math.min(1 + (perfectChain - 1) * Config.PERFECT_CHAIN_PITCH_STEP, Config.PERFECT_CHAIN_PITCH_MAX)
+				SoundFX.play(stem, if quality == "Perfect" then pitch else nil)
+			end
 		end
-		if stem then
-			local pitch =
-				math.min(1 + (perfectChain - 1) * Config.PERFECT_CHAIN_PITCH_STEP, Config.PERFECT_CHAIN_PITCH_MAX)
-			SoundFX.play(stem, if quality == "Perfect" then pitch else nil)
-		end
-	end
 
-	if best > 0 and score == best + 1 then
-		SoundFX.play("highScore")
-	elseif score > 0 and score % 10 == 0 then
-		SoundFX.play("base10")
+		local count = steps or score
+		if best > 0 and count == best + 1 then
+			SoundFX.play("highScore")
+		elseif count > 0 and count % 10 == 0 then
+			SoundFX.play("base10")
+		end
 	end
-end)
+)
 
 -- ---------------------------------------------------------------------------
 -- splash (task-directed mapping: "splash on death/GameOver"). Unity's own

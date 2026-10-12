@@ -91,7 +91,7 @@ end
 local GrabStep = ensureRemote("GrabStep") -- client -> server: tapped a step (step, tap world point, limb index 1=Right 2=Left)
 local ReleaseStep = ensureRemote("ReleaseStep") -- client -> server: released a limb (limb index, step)
 local ReachEmpty = ensureRemote("ReachEmpty") -- client -> server: tapped empty space (tap world point, limb index 1=Right 2=Left)
-local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score/best/quality/grabQuality
+local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score (incl. combo bonus)/best (steps)/quality/grabQuality/steps (real steps this run)
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart (score, cause)
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
 local LevelChanged = ensureRemote("LevelChanged") -- server -> client: this lane's level/transition changed
@@ -103,7 +103,7 @@ local ScreenObstruction = ensureRemote("ScreenObstruction") -- client -> server:
 -- LevelChanged's own contracts, only gates when they fire.
 local StartRun = ensureRemote("StartRun") -- client -> server: begin a run from Menu (rate-limited, Menu-only) (mode: "Normal" | "Classic" | "Tutorial", optional, default Classic; "Tutorial" forces the Tutorial level via the same reset ReplayTutorial uses, then the run itself is Classic; anything else/missing also falls back to Classic; the lane's Mode attribute mirrors the resulting Classic/Normal scroll mode)
 local RunStateChanged = ensureRemote("RunStateChanged") -- server -> client: this player's Menu/Playing/Dead state
-local RunSummary = ensureRemote("RunSummary") -- server -> client: end-of-run stats for the end-of-run panel (score, newBest, isNewBest, quality, bugs, flys, cause)
+local RunSummary = ensureRemote("RunSummary") -- server -> client: end-of-run stats for the end-of-run panel (score, newBest, isNewBest, quality, bugs, flys, cause, steps; newBest/isNewBest are steps-based)
 local SetMusicOn = ensureRemote("SetMusicOn") -- client -> server: settings toggle (writes profile.musicOn)
 local ReplayTutorial = ensureRemote("ReplayTutorial") -- client -> server: settings action (Menu-only)
 local GetTopScores = ensureRemoteFunction("GetTopScores") -- client -> server: (period: "all" | "daily" | "weekly", optional, default "all"; anything else = "all") -> cached global top-10 { userId, name, score } for that board
@@ -1061,8 +1061,12 @@ end)
 -- Scoring (Core/VariableManager.cs). The high score lives on the shared Profile
 -- (Profiles); sessionScore is the current run, banked into profile.highScore on
 -- death. No DataStore here -- Profiles owns persistence.
+-- sessionScore includes the Normal-mode combo bonus (HUD / run summary only);
+-- sessionSteps is the real step count and is what best score, the leaderboards
+-- and leaderstats use (owner ruling b426 on b-20261012-162429-k6wc).
 -- ---------------------------------------------------------------------------
 local sessionScore: { [Player]: number } = {}
+local sessionSteps: { [Player]: number } = {}
 
 -- Per-run grab-quality counts (Player/Player.cs grabStats Vector4i / TrackGrabQuality).
 -- Unity's score is a flat +1 per step climbed -- quality only feeds these separate
@@ -1079,7 +1083,7 @@ local function bestOf(player: Player): number
 	return if p then p.highScore else 0
 end
 
--- leaderstats: Score (current run) + Best in the built-in player list (doc 07)
+-- leaderstats: Score (current run, in steps -- no combo bonus) + Best (steps) in the built-in player list (doc 07)
 local function ensureLeaderstats(player: Player)
 	if player:FindFirstChild("leaderstats") then
 		return
@@ -1102,7 +1106,7 @@ local function updateLeaderstats(player: Player)
 	end
 	local score = stats:FindFirstChild("Score")
 	if score and score:IsA("IntValue") then
-		score.Value = sessionScore[player] or 0
+		score.Value = sessionSteps[player] or 0
 	end
 	local best = stats:FindFirstChild("Best")
 	if best and best:IsA("IntValue") then
@@ -1112,11 +1116,22 @@ end
 
 local function pushScore(player: Player, quality: string?)
 	updateLeaderstats(player)
-	ScoreChanged:FireClient(player, sessionScore[player] or 0, bestOf(player), quality, grabQuality[player])
+	ScoreChanged:FireClient(
+		player,
+		sessionScore[player] or 0,
+		bestOf(player),
+		quality,
+		grabQuality[player],
+		sessionSteps[player] or 0
+	)
 end
 
+-- Only called for a grab: `amount` is 1 step plus any combo bonus; the step
+-- count advances by exactly 1.
 local function addScore(player: Player, amount: number, quality: string?)
 	sessionScore[player] = (sessionScore[player] or 0) + amount
+	sessionSteps[player] = (sessionSteps[player] or 0) + 1
+	player:SetAttribute("RunSteps", sessionSteps[player]) -- real steps for missions/badges
 	local q = grabQuality[player]
 	if q then
 		if quality == "Perfect" then
@@ -1132,7 +1147,7 @@ end
 
 local function commitHighScore(player: Player)
 	local p = Profiles.get(player)
-	local score = sessionScore[player] or 0
+	local score = sessionSteps[player] or 0 -- steps, not the bonus-inclusive sessionScore
 	if p and score > p.highScore then
 		p.highScore = score
 		Profiles.save(player)
@@ -1145,6 +1160,7 @@ end
 
 local function resetScore(player: Player)
 	sessionScore[player] = 0
+	sessionSteps[player] = 0
 	player:SetAttribute("RunSteps", 0)
 	resetGrabQuality(player)
 	pushScore(player)
@@ -1440,6 +1456,7 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 	end
 
 	local score = sessionScore[player] or 0
+	local steps = sessionSteps[player] or 0
 	local q = grabQuality[player]
 	local qualitySnapshot = {
 		Perfect = if q then q.Perfect else 0,
@@ -1447,9 +1464,9 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 		OK = if q then q.OK else 0,
 	}
 	local oldBest = bestOf(player)
-	commitHighScore(player) -- reads sessionScore[player] itself; must run before resetScore clears it
+	commitHighScore(player) -- reads sessionSteps[player] itself; must run before resetScore clears it
 	local newBest = bestOf(player)
-	local isNewBest = score > oldBest
+	local isNewBest = steps > oldBest
 
 	local bugs = bugsThisRun[player] or 0
 	local flys = flysThisRun[player] or 0
@@ -1460,7 +1477,7 @@ local function killFrog(player: Player, f: FrogState, lane: Lane.Lane)
 	-- DEATH_CAUSE_LAVA on both: Effects.client.luau's fall-sound hook ignores the
 	-- extra argument (unchanged), SfxEvents.client.luau's new `hurt` cue reads it.
 	GameOver:FireClient(player, DEATH_CAUSE_LAVA)
-	RunSummary:FireClient(player, score, newBest, isNewBest, qualitySnapshot, bugs, flys, DEATH_CAUSE_LAVA)
+	RunSummary:FireClient(player, score, newBest, isNewBest, qualitySnapshot, bugs, flys, DEATH_CAUSE_LAVA, steps)
 
 	clearLaneSteps(lane) -- leave the lane empty/idle for the Menu, not littered with the just-ended run's steps
 	local profile = Profiles.get(player)
@@ -1863,7 +1880,6 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	local wasTutorial = lane.levelIndex == Levels.TUTORIAL
 	local wasPot = lane.levelIndex == Levels.POT
 	local kindName = step:GetAttribute("KindName") :: string?
-	player:SetAttribute("RunSteps", lane.runSteps + 1) -- real steps for missions/badges; score carries the combo bonus
 	lane:onStepClimbed(kindName) -- level-threshold / tutorial progress; fires LevelChanged("soft") itself (doc 13 item 5)
 	if wasTutorial and lane.levelIndex ~= Levels.TUTORIAL then
 		-- Tutorial -> Pot: the tree ladder never respawns and Pot's spawners start
@@ -2193,6 +2209,7 @@ end
 local function initPlayer(player: Player)
 	ensureLeaderstats(player)
 	sessionScore[player] = 0
+	sessionSteps[player] = 0
 	resetGrabQuality(player)
 	flysThisRun[player] = 0
 	bugsThisRun[player] = 0
@@ -2241,6 +2258,7 @@ Players.PlayerRemoving:Connect(function(player: Player)
 		lane:destroy() -- drops every StepState with the lane
 	end
 	sessionScore[player] = nil
+	sessionSteps[player] = nil
 	grabQuality[player] = nil
 	grabTimes[player] = nil
 	lastObstruction[player] = nil
