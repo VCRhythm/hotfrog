@@ -146,19 +146,7 @@ local function shoveClear(lane: Lane.Lane, step: BasePart, st: Lane.StepState, d
 	if not lane:drifts() and lane:obstructs(dest, hit, hitOffset) then
 		return false
 	end
-	for other, ost in lane.states do
-		if other ~= step then
-			local otherHit = hitOf(other)
-			local d = lane:restPosition(other, shared) - dest
-			if
-				math.abs(d.X) < (hit.X + otherHit.X) / 2 + st.sweep.X + ost.sweep.X + Config.SPAWN_GAP
-				and math.abs(d.Y) < (hit.Y + otherHit.Y) / 2 + st.sweep.Y + ost.sweep.Y + Config.SPAWN_GAP
-			then
-				return false
-			end
-		end
-	end
-	return true
+	return not lane:crowdsSpot(dest, hit, st.sweep, shared, step)
 end
 
 -- `preferred` if that way is clear, else the other way, else nil.

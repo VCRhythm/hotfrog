@@ -984,6 +984,34 @@ function Lane.entryShift(self: Lane, pos: Vector3, size: Vector3, travel: Vector
 	return 0
 end
 
+-- True when a step with grab box `hit` and sweep half-extent `reach`, resting
+-- at `p`, would come within Config.SPAWN_GAP of any live step (compared at REST
+-- positions; `shared` = self:sharedPending(), passed in so callers compute it
+-- once). `exclude` (optional) is skipped -- a step being moved. Shared by
+-- clearSpot and Chef's shove landing test so the spacing can't drift apart.
+function Lane.crowdsSpot(
+	self: Lane,
+	p: Vector3,
+	hit: Vector2,
+	reach: Vector2,
+	shared: Vector3,
+	exclude: BasePart?
+): boolean
+	for step, state in self.states do
+		if step ~= exclude then
+			local other = (step:GetAttribute("HitSize") :: Vector2?) or Vector2.new(step.Size.X, step.Size.Y)
+			local d = self:restPosition(step, shared) - p
+			if
+				math.abs(d.X) < (hit.X + other.X) / 2 + reach.X + state.sweep.X + Config.SPAWN_GAP
+				and math.abs(d.Y) < (hit.Y + other.Y) / 2 + reach.Y + state.sweep.Y + Config.SPAWN_GAP
+			then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 -- Where a new step of `kindName` can rest without its grab box (StepKinds hitSize)
 -- coming within Config.SPAWN_GAP of a live step's (compared at REST positions,
 -- Lane.restPosition, so a pull still playing doesn't matter): `pos` itself, or
@@ -1027,20 +1055,7 @@ function Lane.clearSpot(
 			return nil
 		end
 		local clear = not (avoidObstruction and self:obstructs(p, hit, hitOffset))
-		for step, state in self.states do
-			if not clear then
-				break
-			end
-			local other = (step:GetAttribute("HitSize") :: Vector2?) or Vector2.new(step.Size.X, step.Size.Y)
-			local d = self:restPosition(step, shared) - p
-			if
-				math.abs(d.X) < (hit.X + other.X) / 2 + reach.X + state.sweep.X + Config.SPAWN_GAP
-				and math.abs(d.Y) < (hit.Y + other.Y) / 2 + reach.Y + state.sweep.Y + Config.SPAWN_GAP
-			then
-				clear = false
-				break
-			end
-		end
+			and not self:crowdsSpot(p, hit, reach, shared)
 		if clear then
 			return p
 		end

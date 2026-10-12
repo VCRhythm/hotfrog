@@ -1400,3 +1400,12 @@ test: stylua --check and tools/luau_check.sh on the 3 .luau files (0 errors), se
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
 review: looks-right; nits: two over-long header comment lines (reflowed by the orchestrator); repeated clicks keep the demo paused (intended, own frog only). checked: the diff of all four files, Config.LIMB_REST limb indexing, isLimbIndex, endReach, the render loop's held/reach handling, refreshAttract and its StartRun/SetEndPanelOpen paths, ReachEmpty validation, the client ReachEmpty call, grep for ATTRACT_LIMB and "one hand" in src/ and docs/, strict typing of the new field and parameter.
 leftover: b-20261012-150835-jy21 (Studio playtest once Studio runs)
+
+## b-20261012-143704-8ian  fixed  2026-10-12 15:16
+note: Chef shove landing test duplicates Lane.clearSpot's overlap maths
+cause: Chef.shoveClear carried its own copy of clearSpot's step-vs-step grab-box + sweep + SPAWN_GAP overlap loop, so a later change to the spacing rule could make the two drift apart.
+change: New Lane.crowdsSpot(self, p, hit, reach, shared, exclude?) holds the one overlap loop (same terms, same order). Lane.clearSpot calls it with its sweep as reach; Chef.shoveClear calls it with the shoved step's sweep and the step itself as exclude. The obstruction check stays in each caller. Pure refactor; no behaviour change.
+files: src/server/Lane.luau, src/server/Chef.luau
+test: stylua --check and tools/luau_check.sh on both files (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.) A pure refactor, so no separate playtest check was filed; the Chef playtest check b-20261012-143704-0raj covers it.
+review: looks-right (orchestrator review). checked: the old and new loops term by term, Chef's hitOf against the HitSize fallback in crowdsSpot, sharedPending computed once per caller, the obstruction short-circuit order in clearSpot, the exclude of the shoved step.
