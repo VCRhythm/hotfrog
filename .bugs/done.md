@@ -1328,3 +1328,23 @@ finding: "Bugs caught" is how many bugs you ate this run, and a golden bug count
 evidence: src/client/MenuClient.client.luau:387 (end-panel line); src/server/BugService.server.luau:565-582 (25 for golden, else 5, one BugCaughtServer per rewarded catch; gift flies pay nothing and don't count); src/server/GameServer.server.luau:192-213 (flysThisRun sums every AwardFlys, bugsThisRun counts catches), 1408-1417 (RunSummary), 2008-2009 (reset at StartRun); src/server/MissionService.server.luau:116 (mission reward mid-run); src/shared/Config.luau:388, 416
 files: none
 review: holds; checked by the orchestrator: BugService CatchBug handler, Config BUG_FLYS/GOLDEN_BUG_FLYS, GameServer AwardFlys/BugCaughtServer counters, MenuClient end-panel line
+
+## b-20261012-140726-qy5i  fixed  2026-10-12 14:48
+note: Great grab threshold is twice Unity's: Config.GRAB_GREAT_SQR is 4.0 studs^2, but Unity Controller.TouchStep grades <= 20 u^2 Great
+cause: GRAB_GREAT_SQR was set to 4.0 at the initial port (77d4f08) instead of converting Unity's 20 u^2 with UNITY_TO_STUDS^2 (~0.0988 -> ~1.98 studs^2); GRAB_PERFECT_SQR (1.0 for 10 u^2) was converted correctly, and doc 03 already said 2.0. So Great reached ~2 studs from the grip instead of ~1.41. (The earlier a1x9 answer quoted "about 2 studs for Great"; it is now about 1.41 studs, as in Unity.)
+change: Config.GRAB_GREAT_SQR 4.0 -> 2.0, with a comment giving Unity's 10/20 u^2 and the conversion. PullMath.gradeGrab is the only consumer. Unity-faithful, so no doc 17 row.
+files: src/shared/Config.luau
+test: stylua --check, tools/luau_check.sh src/shared/Config.luau (0 errors): pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
+review: looks-right. checked: the u^2 -> studs^2 conversion, that gradeGrab's planar distance is in studs, that PullMath.gradeGrab is the only consumer, no other code or doc assumes 4.0.
+leftover: b-20261012-144900-elu0 (Studio playtest once Studio runs)
+
+## b-20261010-192237-7x8j  fixed  2026-10-12 14:48
+note: the bubble popping particles should be more obvious
+cause: The bubble pop burst was 8 tiny (0.2 stud) Neon balls living 0.25 s at speed 6, which is a few pixels for a quarter second at the 43-stud camera distance.
+change: WorldConfig POP_BURST_* raised to 14 balls of 0.65 studs, 0.45 s, speed 13; WorldScenery popPart holds full opacity for the first 30% of life before fading, and fires a second white burst (0.6 scale, half speed, 0.7x lifetime) from the same pooled popBursts helper, whose pool cap the orchestrator raised to 96 so back-to-back pops don't churn parts. The pop sound already has an asset id. Applies to every bubble spawner, including the Pot's ExtraBubbleSpawner. No doc 17 change (the burst was already an ADAPTED particle stand-in).
+files: src/shared/WorldConfig.luau, src/client/WorldScenery.client.luau
+test: stylua --check, tools/luau_check.sh on both files (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass; after the cap edit stylua and luau_check WorldScenery re-run: pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
+review: looks-right; optional: raise the popBursts pool cap above BURST_POOL_CAP 48 (applied by the orchestrator: cap = 96). checked: the WorldConfig and popPart diffs, world/Bursts pooling and fade, the pop sound id, stylua, luau_check.
+leftover: b-20261012-144900-mqlm (Studio playtest once Studio runs)

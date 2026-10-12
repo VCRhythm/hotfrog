@@ -830,6 +830,9 @@ local popBursts = Bursts.new({
 	size = WorldConfig.POP_BURST_SIZE,
 	material = Enum.Material.Neon,
 	shape = Enum.PartType.Ball,
+	-- A pop now fires a tinted and a white burst (~28 parts), so keep enough
+	-- parked for back-to-back pops without churning Instances.
+	cap = 96,
 })
 local flareSparks = Bursts.new({
 	name = "FlareSpark",
@@ -850,7 +853,16 @@ local function popPart(state: PartState)
 		radialSpeed = WorldConfig.POP_BURST_SPEED,
 		lifetime = WorldConfig.POP_BURST_LIFETIME,
 		color = part.Color,
-		fadeStart = 0,
+		fadeStart = 0.3,
+	})
+	-- white flash ring on top of the tinted droplets so the pop reads on any bubble colour
+	popBursts.emit(part.Position, {
+		count = WorldConfig.POP_BURST_COUNT,
+		radialSpeed = WorldConfig.POP_BURST_SPEED * 0.5,
+		lifetime = WorldConfig.POP_BURST_LIFETIME * 0.7,
+		color = Color3.new(1, 1, 1),
+		fadeStart = 0.2,
+		scale = 0.6,
 	})
 	recycleScenery(state.lane, part) -- MovingScenery.cs Grab: Destroy(0, 0, 1f)
 end

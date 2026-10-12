@@ -319,10 +319,10 @@ WorldConfig.FLARE_SPARK_SPEED = 7
 WorldConfig.FLARE_SPARK_LIFETIME = 0.5
 WorldConfig.FLARE_SPARK_SIZE = Vector3.new(0.5, 0.5, 0.2)
 WorldConfig.FLARE_SPARK_COLOR = Color3.fromRGB(255, 190, 70)
-WorldConfig.POP_BURST_COUNT = 8 -- MovingScenery.cs Grab: particles.Play() (Bubble.prefab's ParticleSystem, doc 12 §3)
-WorldConfig.POP_BURST_LIFETIME = 0.25
-WorldConfig.POP_BURST_SPEED = 6
-WorldConfig.POP_BURST_SIZE = Vector3.new(0.2, 0.2, 0.2)
+WorldConfig.POP_BURST_COUNT = 14 -- MovingScenery.cs Grab: particles.Play() (Bubble.prefab's ParticleSystem, doc 12 §3)
+WorldConfig.POP_BURST_LIFETIME = 0.45
+WorldConfig.POP_BURST_SPEED = 13
+WorldConfig.POP_BURST_SIZE = Vector3.new(0.65, 0.65, 0.65) -- obvious at the 43-stud camera (was 0.2, 0.25 s: b-20261010-192237-7x8j)
 WorldConfig.TAP_RAY_LENGTH = 300 -- same reach as GameClient's tap rays
 
 -- Backdrop (WorldBackdrop): the background sits further back than scenery, so
