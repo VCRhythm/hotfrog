@@ -15,8 +15,9 @@
 --   3            Audio/Music/Adenine.mp3          music4
 --   4            Audio/Music/Two Wrongs.wav       music5  (Multiplayer.unity override)
 --
--- (Per Levels.luau / doc 11 §1: Menu=1, Tutorial=1, Pot=0, Kitchen=1, so in
--- practice the base game only ever plays music2 and music1.)
+-- (Per doc 11 §1 Unity has Menu=1, Tutorial=1, Pot=0, Kitchen=1, so the base
+-- game only ever plays music2 and music1. The port gives Kitchen 3 (music4,
+-- Adenine) instead; see Levels.luau and doc 17 "Kitchen music".)
 --
 -- Country's musicIndex is 4: the base AudioManager prefab only has 4 clips, but
 -- Multiplayer.unity (the only scene that has the Country level) overrides

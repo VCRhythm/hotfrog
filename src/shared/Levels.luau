@@ -534,7 +534,10 @@ list[Levels.POT] = {
 -- ---------------------------------------------------------------------------
 list[Levels.KITCHEN] = {
 	name = "Kitchen",
-	musicIndex = 1,
+	-- PORT DEVIATION: Unity plays musicIndex 1 (FrogSounds, the menu track) here;
+	-- 3 = Adenine, a beat-driven track as groovy as Pot's BrusselSprouts and
+	-- unused by the base game (b-20261010-192146-ml2d, doc 17 "Kitchen music").
+	musicIndex = 3,
 	background = "KitchenTile",
 	overlay = nil,
 	initialSpawnDirection = Vector2.new(0, -1),

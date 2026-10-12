@@ -1348,3 +1348,13 @@ test: stylua --check, tools/luau_check.sh on both files (0 errors), selene src/ 
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
 review: looks-right; optional: raise the popBursts pool cap above BURST_POOL_CAP 48 (applied by the orchestrator: cap = 96). checked: the WorldConfig and popPart diffs, world/Bursts pooling and fade, the pop sound id, stylua, luau_check.
 leftover: b-20261012-144900-mqlm (Studio playtest once Studio runs)
+
+## b-20261010-192146-ml2d  fixed  2026-10-12 15:00
+note: kitchen needs equally groovy music as pot
+cause: Kitchen had Unity's musicIndex 1, FrogSounds.wav: the same track as the Menu and Tutorial, quiet (RMS 0.07) and almost beatless (beat-pulse strength 0.10 by a spectral-flux autocorrelation of the Unity files), while Pot plays BrusselSprouts.wav (pulse 0.61, RMS 0.16).
+change: Kitchen musicIndex 1 -> 3 (music4 = Adenine.mp3, already uploaded and unused by the base game; pulse 0.68, RMS 0.18, no silent intro, a short quiet break around 80-100 s). Comment in Levels.luau and Music.client.luau, plus a doc 17 "Kitchen music" deviation row. Opening.mp3 (music3, pulse 0.76) was passed over because it reads as a title/intro track; Two Wrongs is Country's. The owner can swap the index if Adenine isn't the right feel.
+files: src/shared/Levels.luau, src/client/Music.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check and tools/luau_check.sh on both .luau files (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
+review: looks-right. checked: the LevelChanged -> LevelClient -> Music.client path to music4 (non-zero id), every musicIndex consumer (WorldBackdrop ignores it), Pot->Kitchen crossfade and arrival-sting delay unaffected, the other tracks as alternatives, the comments and doc row.
+leftover: b-20261012-150058-oxtf (Studio playtest once Studio runs)
