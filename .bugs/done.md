@@ -1261,3 +1261,22 @@ verified: no — Studio MCP not attached and Studio not running, so no playtest 
 review: looks-right; checked: Unity Controller.cs TouchStep lines 239-251 (grades from step.position, the hand's snap pivot), git diff, rotation vs pull (~1769) and limb follow (~1598, step.CFrame built with the same angle), nil-safety (grip falls back to Vector2.zero, st guarded), tap point and grip both world space, gradeGrab has one caller, quality popup places from limbs, stylua + luau_check. It flagged doc 17 line 104 as stale, which the orchestrator updated (doc-only), and noted GRAB_GREAT_SQR is looser than Unity, filed as b-20261012-140726-qy5i.
 followups: b-20261012-140726-qy5i
 leftover: b-20261012-140726-nzco (Studio playtest once Studio runs)
+
+## b-20261010-192132-5986  fixed  2026-10-12 14:19
+note: the pause button doesn't seem to actually work? (answered by b-20261012-141202-0586: "DECISION: c")
+cause: Owner ruling "c: remove the button". The button opened a client-only status panel by design (a multiplayer server can't pause for one player), so it read as a pause that didn't work.
+change: Removed the whole Pause block from GameClient (PauseGui, the Pause button, PausePanel and its status text, Resume with its 3-2-1 countdown, isHoldingAnything, and its RunStateChanged hook). There was no keybind, remote or server handler. The stale UIKit comment, doc 15 item 4 and its open-question bullet, and doc 17's "Pause" row now say it was removed.
+files: src/client/GameClient.client.luau, src/client/ui/UIKit.luau, docs/roblox-port/15-menus-and-input.md, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, tools/luau_check.sh GameClient (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only.
+review: looks-right; checked: git diff, grep of src/ for every symbol the block declared (none referenced elsewhere), shared locals still used, remaining RunStateChanged listeners, HUD/race rail/MenuClient layout (nothing positioned relative to the button), luau_check, stylua. It flagged doc 15 as stale, which the orchestrator updated (doc-only).
+leftover: b-20261012-141929-q52r (Studio playtest once Studio runs)
+
+## b-20261012-141202-0586  fixed  2026-10-12 14:19
+note: DECISION: c (reopens b-20261010-192132-5986)
+cause: owner ruling on b-20261010-192132-5986; applied there.
+change: see b-20261010-192132-5986
+files: src/client/GameClient.client.luau
+test: none
+verified: see b-20261010-192132-5986
+review: n/a

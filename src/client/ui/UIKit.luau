@@ -328,7 +328,7 @@ end
 -- UIScale eases from 0.9 to 1; a hidden one just goes invisible. The UIScale
 -- is created once and reused on repeat calls. Callers that used to write
 -- `panel.Visible = x` directly (mainPanel/endPanel/settingsPanel/topPanel,
--- StoreUI's panel, GameClient's PausePanel) call this instead.
+-- StoreUI's panel) call this instead.
 function UIKit.showPanel(frame: GuiObject, visible: boolean)
 	if not visible then
 		frame.Visible = false

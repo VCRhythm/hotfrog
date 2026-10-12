@@ -94,17 +94,10 @@ counts are derived **additively**, never by editing those scripts:
 3. **Settings** — Music via the `MusicOn`/`SetMusicOn` contract above (real
    persistence, server-validated). SFX via `ClientSettings` (session-only, by
    design). "Replay tutorial" via the new `ReplayTutorial` remote.
-4. **Pause** — deliberately **client-only, no remote** (`GameClient`, since it
-   already owns the Playing-time HUD). A multiplayer server can't pause for
-   one player without affecting everyone else's fairness, and the frog
-   can only die while holding zero steps, so there's nothing
-   server-side *to* pause. The Pause button (visible only while `Playing`)
-   opens an honest status panel instead of a real pause: holding a step means
-   the frog can't die (it sinks, but stops on the lava surface -- doc 17
-   "Death condition"); holding nothing means the run keeps
-   falling behind the panel (says that too, matching the task's "if not
-   holding, the run continues"). Resume's 3-2-1 is a purely cosmetic beat
-   before hiding the panel.
+4. **Pause** — **removed** (owner's ruling b-20261012-141202-0586). It was a
+   client-only status panel, not a real pause (a multiplayer server can't
+   pause for one player), and it read as a broken pause button. There is no
+   pause button now; see doc 17 "Pause".
 5. **HUD** — score/best (existing) + Flys (`ProfileChanged`) + bugs-this-run
    (`BugCaught` count, exact). A fading level-name toast lived here too, but it
    fired on every run start, not once per level, so it was removed
@@ -208,10 +201,6 @@ in-progress work outside this phase's file ownership; left untouched.
   player's score into one 0..max range; with a wide score spread (a
   brand-new player next to a long-run veteran) most markers may cluster near
   the bottom. Untested beyond 1-2 simulated players.
-- **Pause panel wording/feel.** The "run keeps going" warning when not
-  holding a step is correct but has an odd edge case: a player could die
-  while reading the panel. That's intentional per the task's framing, but
-  hasn't been played to see if it feels fair or just surprising.
 - **The bugs-caught heuristic on `RunSummary`** (`amount == Config.BUG_FLYS`)
   is correct against the current `BugService`/`GiftService` amounts (5 vs.
   100) but would silently miscount if either amount is retuned later without
