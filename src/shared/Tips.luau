@@ -1,0 +1,51 @@
+--!strict
+-- ReplicatedStorage/Shared/Tips (ModuleScript)
+-- Short gameplay tips for the end-of-run panel (MenuClient). A port addition --
+-- Unity has no tips (b-20261010-192336-pgwh, doc 17). Every line states
+-- something the port's code really does; if a rule it cites changes (a Config
+-- number, a step behaviour, a level threshold), update the tip too. Keep each
+-- under ~90 characters so it fits the panel's Tips area on two or three lines.
+
+local Tips = {}
+
+Tips.list = {
+	-- Config.GRAB_PERFECT_SQR / GRAB_GREAT_SQR, PullMath.gradeGrab: tap-to-grip distance.
+	"Tap right on a step's grip point for a Perfect grab. The farther off, the lower the grade.",
+	-- GameServer frog sim: death needs the lava line reached with nothing held.
+	"The frog only dies when it sinks into the lava with nothing held. Keep a hand on a step.",
+	-- Config.CRUMBLE_FUSE = 1.5 (StepBehaviors.Crumble).
+	"Crumbling steps explode about 1.5 seconds after you grab them. Don't linger.",
+	-- StepBehaviors.CrumbleAfterRelease.
+	"Some steps crumble the moment you let go of them.",
+	-- Config.FALL_DELAY = 3 (StepBehaviors.Fall).
+	"Some steps drop away a few seconds after you grab them, whether you hold on or not.",
+	-- StepBehaviors.ChangeDirection*: grabbing sets the lane's scroll direction.
+	"Grabbing an arrow step changes the direction the world scrolls. Plan your next grab.",
+	-- Config.BUG_FLYS = 5.
+	"Tap a passing bug to catch it. Most are worth 5 Flys.",
+	-- Config.GOLDEN_BUG_FLYS = 25, shorter lifespan, faster Dart pattern.
+	"Golden bugs are rare and quick to leave, but they pay 25 Flys.",
+	-- BugService "Skittish" pattern, Config.BUG_SKITTISH_RADIUS.
+	"Skittish bugs drift away from your frog's hands. Tap them from a distance.",
+	-- SkinCatalog flyCost.
+	"Spend your Flys on new frog skins in the Shop.",
+	-- Config.LEVEL_THRESHOLDS = { Kitchen = 50, Country = 100 }; Pot -> Kitchen fires on the pot-rim grab.
+	"After 50 steps the pot rim appears: grab it to reach the Kitchen. Country starts at 100.",
+	-- Chef.luau: the tell, then a blow that fizzles if the target is grabbed first.
+	"In the Kitchen, the Chef shows his move first. Grab the step he targets to save it.",
+	-- Chef.luau actions: Knife / Food / Shove.
+	"The Chef can chop a step, throw a potato at it, or shove it sideways. Watch his wind-up.",
+}
+
+-- A random tip, never the one at `previous` (when there is more than one).
+-- Returns the text and its index so the caller can pass it back next time.
+function Tips.pick(previous: number?): (string, number)
+	local count = #Tips.list
+	local index = math.random(1, count)
+	if count > 1 and index == previous then
+		index = index % count + 1
+	end
+	return Tips.list[index], index
+end
+
+return Tips

@@ -26,6 +26,7 @@ local ClientSettings = require(script.Parent.ui.ClientSettings)
 local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
 local SoundFX = require(ReplicatedStorage.Shared.SoundFX)
 local JarTiers = require(ReplicatedStorage.Shared.JarTiers)
+local Tips = require(ReplicatedStorage.Shared.Tips)
 
 local player = Players.LocalPlayer
 local remotes = ReplicatedStorage:WaitForChild("Remotes")
@@ -119,7 +120,7 @@ end
 -- ---------------------------------------------------------------------------
 -- End-of-run panel (RunState.Dead)
 -- ---------------------------------------------------------------------------
-local endPanel = UIKit.panel("EndOfRun", UDim2.fromOffset(320, 404), UDim2.new(0.5, -160, 0.5, -202), gui)
+local endPanel = UIKit.panel("EndOfRun", UDim2.fromOffset(320, 496), UDim2.new(0.5, -160, 0.5, -248), gui)
 UIKit.showPanel(endPanel, false)
 
 UIKit.label("Title", "Run Over", UDim2.fromOffset(280, 36), UDim2.fromOffset(20, 16), endPanel)
@@ -172,6 +173,28 @@ giftPromptButton.BackgroundColor3 = UIKit.WARN
 -- panel on its Today tab.
 local endTopScoresButton =
 	UIKit.button("TopScores", "Top Scores", UDim2.fromOffset(280, 44), UDim2.fromOffset(20, 344), endPanel, "BugIcon")
+
+-- Tips area (b-20261010-192336-pgwh): one tip per run under a divider, below the
+-- buttons so it never overlaps them. Port addition (doc 17); the lines live in
+-- Shared/Tips.
+local tipsDivider = Instance.new("Frame")
+tipsDivider.Name = "TipsDivider"
+tipsDivider.Size = UDim2.fromOffset(280, 3)
+tipsDivider.Position = UDim2.fromOffset(20, 402)
+tipsDivider.BackgroundColor3 = UIKit.SUBTEXT
+tipsDivider.BackgroundTransparency = 0.6
+tipsDivider.BorderSizePixel = 0
+tipsDivider.Parent = endPanel
+local tipsHeader = UIKit.label("TipsHeader", "TIP", UDim2.fromOffset(280, 20), UDim2.fromOffset(20, 410), endPanel)
+tipsHeader.TextColor3 = UIKit.ACCENT_LIP
+local tipLine = UIKit.label("Tip", "", UDim2.fromOffset(280, 52), UDim2.fromOffset(20, 432), endPanel)
+tipLine.TextColor3 = UIKit.SUBTEXT
+tipLine.TextWrapped = true
+local tipSizeCap = Instance.new("UITextSizeConstraint")
+tipSizeCap.MaxTextSize = 18
+tipSizeCap.Parent = tipLine
+local lastTipIndex: number? = nil
+local lastTipSummary: unknown = nil -- the run summary the shown tip was picked for
 
 -- ---------------------------------------------------------------------------
 -- Settings panel
@@ -385,6 +408,11 @@ local function showEndPanel()
 	greatLabel.Text = "Great " .. pct(s.quality.Great, total)
 	okLabel.Text = "OK " .. pct(s.quality.OK, total)
 	statsLine.Text = string.format("Bugs caught: %d   Flys earned: %d", s.bugs, s.flys)
+	-- showEndPanel also reruns when a sub-panel closes; only roll a new tip for a new run.
+	if lastTipSummary ~= s then
+		lastTipSummary = s
+		tipLine.Text, lastTipIndex = Tips.pick(lastTipIndex)
+	end
 	if s.isNewBest then
 		pulseNewBest()
 	end

@@ -1358,3 +1358,13 @@ test: stylua --check and tools/luau_check.sh on both .luau files (0 errors), sel
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
 review: looks-right. checked: the LevelChanged -> LevelClient -> Music.client path to music4 (non-zero id), every musicIndex consumer (WorldBackdrop ignores it), Pot->Kitchen crossfade and arrival-sting delay unaffected, the other tracks as alternatives, the comments and doc row.
 leftover: b-20261012-150058-oxtf (Studio playtest once Studio runs)
+
+## b-20261010-192336-pgwh  fixed  2026-10-12 15:03
+note: make space for a "tips" section after a run is over
+cause: Feature request: the end-of-run panel had no room or content for tips (Unity has none either).
+change: New Shared/Tips.luau: 13 tips, each checked against the code it cites (grab grades, the death rule, Crumble/CrumbleAfterRelease/Fall steps, arrows, bug and golden-bug Flys, Skittish bugs, the Shop, the pot rim at 50 steps and Country at 100, the Chef's tells), and Tips.pick(previous), which never repeats the last tip. MenuClient's end-of-run panel grew 404 -> 496 high with a divider, a "TIP" header and a wrapped tip label (max 18 pt) under Top Scores. A new tip is rolled only for a new RunSummary, so opening and closing Top Scores/Settings keeps it. The orchestrator reworded the level tip to name the pot rim (Kitchen starts on the rim grab once past 50 steps). Doc 17 has a "Post-run Tips section" row.
+files: src/shared/Tips.luau, src/client/MenuClient.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check and tools/luau_check.sh on Tips.luau and MenuClient (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
+review: looks-right; minor: "after 50 steps" for the Kitchen is loose, since it starts on the pot-rim grab (the orchestrator reworded that tip). checked: every tip against Config, PullMath, StepBehaviors, StepKinds, Lane (onStepClimbed, atPotTop), GameServer frog sim and grading, BugService, Chef.luau and StoreUI; the end-panel layout, UIKit scale floor and text sizing; the showEndPanel/restoreMainPanels/RunSummary tip logic; Tips.pick; stylua and luau_check.
+leftover: b-20261012-150254-scgv (Studio playtest once Studio runs)
