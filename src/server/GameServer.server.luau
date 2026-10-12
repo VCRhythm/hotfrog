@@ -1241,12 +1241,13 @@ end
 -- ---------------------------------------------------------------------------
 -- Attract mode (Player/FrogAI.cs): while a lane sits in Menu, its REAL frog
 -- climbs a small decorative ladder on a loop -- every WorldConfig.
--- ATTRACT_DECISION_TIME seconds (FrogAI's fixed 1s nextDecisionTime) the demo
--- hand (WorldConfig.ATTRACT_LIMB) grabs the rung above and the ladder is pulled
--- down one rung gap -- the same "frog lifts, world scrolls" a real grab does
--- (pullLane) -- with the rung that leaves the bottom recycled to the top. The
--- other hand is left free: the player's menu clicks send it reaching to the
--- click (ReachEmpty). FrogAI raycasts a random on-screen step;
+-- ATTRACT_DECISION_TIME seconds (FrogAI's fixed 1s nextDecisionTime) the arm
+-- on the rung's side grabs the rung above (so the arms alternate) and the
+-- ladder is pulled down one rung gap -- the same "frog lifts, world scrolls" a
+-- real grab does (pullLane) -- with the rung that leaves the bottom recycled
+-- to the top. The other arm lets go of its older rung. A menu click/tap sends
+-- the arm on that side reaching to it (ReachEmpty) and pauses the climb for
+-- WorldConfig.ATTRACT_PAUSE_TIME. FrogAI raycasts a random on-screen step;
 -- a Menu lane spawns no steps (doc 15), so the rungs are a fixed ladder
 -- instead. Server-owned so there is exactly one frog per lane (this used to be
 -- a second, client-local clone beside the parked frog) and other players on
@@ -1262,6 +1263,7 @@ type AttractState = {
 	held: { [number]: BasePart }, -- keyed like FrogState.held (1=Right, 2=Left)
 	origin: Vector3, -- the lane origin the ladder is laid out around
 	lastDecision: number, -- os.clock()
+	pausedUntil: number, -- os.clock(); the player's menu click holds the demo until then
 }
 local attract: { [Player]: AttractState } = {}
 
@@ -1306,7 +1308,7 @@ local function buildAttract(origin: Vector3): AttractState
 		part.Parent = attractFolder
 		table.insert(rungs, part)
 	end
-	return { rungs = rungs, held = {}, origin = origin, lastDecision = os.clock() }
+	return { rungs = rungs, held = {}, origin = origin, lastDecision = os.clock(), pausedUntil = 0 }
 end
 
 local function teardownAttract(player: Player)
@@ -1336,7 +1338,7 @@ end
 -- one gap above the body with the demo hand, and pull the whole ladder down a
 -- gap so that rung lands level with the body. The held hand follows its rung
 -- down in the render loop, which reads as the frog lifting itself up.
-local function attractClimb(a: AttractState)
+local function attractClimb(a: AttractState, f: FrogState)
 	local gap = WorldConfig.ATTRACT_STEP_Y_GAP
 	local top: BasePart? = nil
 	for _, rung in a.rungs do
@@ -1358,7 +1360,14 @@ local function attractClimb(a: AttractState)
 			target = rung
 		end
 	end
-	a.held[WorldConfig.ATTRACT_LIMB] = target
+	-- Hand-over-hand: the arm on the rung's side takes it (limb 1 = Right, +X;
+	-- the ladder zig-zags, so the arms alternate) and the other arm lets go of
+	-- its older rung, which is about to scroll off, so no arm is left stretched
+	-- to a recycled rung and no rung is held twice.
+	local limb = if target.Position.X >= a.origin.X then 1 else 2
+	a.held[3 - limb] = nil
+	a.held[limb] = target
+	endReach(f, limb) -- drop any click-reach in flight on this arm
 	local info = TweenInfo.new(Config.PULL_TIME, Enum.EasingStyle.Sine)
 	for _, rung in a.rungs do
 		TweenService:Create(rung, info, { CFrame = rung.CFrame * CFrame.new(0, -gap, 0) }):Play()
@@ -1588,9 +1597,9 @@ RunService.Heartbeat:Connect(function(frameDt: number)
 
 		-- Attract mode decision (FrogAI.cs Update): the demo hand hops up the ladder
 		local a = attract[plr]
-		if a and os.clock() - a.lastDecision >= WorldConfig.ATTRACT_DECISION_TIME then
+		if a and os.clock() >= a.pausedUntil and os.clock() - a.lastDecision >= WorldConfig.ATTRACT_DECISION_TIME then
 			a.lastDecision = os.clock()
-			attractClimb(a)
+			attractClimb(a, f)
 		end
 
 		-- Frog.Bob's rock rotates the whole rig, rest limbs included, so
@@ -1917,7 +1926,7 @@ end)
 -- A tap that hit no step or bug (Controller.CheckTouch's miss branch): the free
 -- limb shoots out to the tap point (Limb.Move) and the Heartbeat eases it back.
 -- Purely visual, so validation only keeps it sane: a live frog mid-run (or on
--- the start screen, with the hand the attract demo isn't using), a free limb,
+-- the start screen, pausing the attract climb), a free limb,
 -- a finite point, and no further than a grab could reach.
 ReachEmpty.OnServerEvent:Connect(function(player, tapPos, limbIndex)
 	if typeof(tapPos) ~= "Vector3" or not isLimbIndex(limbIndex) then
@@ -1932,11 +1941,21 @@ ReachEmpty.OnServerEvent:Connect(function(player, tapPos, limbIndex)
 	end
 	local limb: number = limbIndex
 	local state = runState[player]
-	if not (state == RunState.Playing or (state == RunState.Menu and limb ~= WorldConfig.ATTRACT_LIMB)) then
+	if state ~= RunState.Playing and state ~= RunState.Menu then
 		return
 	end
 	if f.held[limb] then
 		return
+	end
+	if state == RunState.Menu then
+		-- The player's click pauses the attract climb: that arm lets go of its
+		-- demo rung to reach for the click (the other arm keeps its rung, the
+		-- ladder stands still), and the climb resumes after ATTRACT_PAUSE_TIME.
+		local a = attract[player]
+		if a then
+			a.held[limb] = nil
+			a.pausedUntil = os.clock() + WorldConfig.ATTRACT_PAUSE_TIME
+		end
 	end
 	local offset = Vector2.new(tapPos.X - f.pos.X, tapPos.Y - f.pos.Y)
 	if offset.Magnitude > Config.MAX_GRAB_DISTANCE then

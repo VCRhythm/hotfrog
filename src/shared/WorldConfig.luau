@@ -235,10 +235,10 @@ WorldConfig.ATTRACT_ANCHOR_OFFSET = Vector3.new(0, 0, -0.2)
 WorldConfig.ATTRACT_STEP_Y_GAP = 11.05
 WorldConfig.ATTRACT_STEP_X = 3.0 -- zig-zag half-width per rung -- same shape as Lane.luau's own Tutorial ladder (Config.TUTORIAL_STEP_X, alternating sign); rungs sit at x = +/-3 about the frog, inside its limb reach (Config.LIMB_REST.X = 6.2857)
 WorldConfig.ATTRACT_DECISION_TIME = 1.0 -- FrogAI.cs: nextDecisionTime is initialized to 1f and never reassigned -- despite the "next" name it's a literal fixed 1s cadence, not randomized
--- The demo climbs with ONE hand only (1 = the frog's RightLimb, GameServer's
--- limb indexing); the other hand is left free for the player, whose menu
--- clicks/taps send it reaching to the click point (GameServer's ReachEmpty).
-WorldConfig.ATTRACT_LIMB = 1
+-- The demo climbs hand over hand (arm on the rung's side, so they alternate).
+-- A menu click/tap sends that arm reaching to the click and pauses the climb
+-- for this many seconds (GameServer's ReachEmpty).
+WorldConfig.ATTRACT_PAUSE_TIME = 3
 
 -- ---------------------------------------------------------------------------
 -- Level-up arrival beat (journey 2/8, b-20260923-154343-3h60). Keyed off the

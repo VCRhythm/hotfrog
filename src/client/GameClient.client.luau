@@ -625,14 +625,14 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 	if runState == "Menu" then
 		-- Start screen: bugs still fly and can be eaten; otherwise the attract
-		-- demo climbs with one hand, and any click/tap sends the OTHER hand
-		-- reaching to it (nothing to grab on a Menu lane)
+		-- demo climbs hand over hand, and any click/tap sends the arm on that
+		-- side reaching to it and pauses the demo (nothing to grab on a Menu lane)
 		if frogIsDead() or tryCatchBug(input.Position.X, input.Position.Y) then
 			return
 		end
 		local worldPos = planePoint(input.Position.X, input.Position.Y)
 		if worldPos then
-			ReachEmpty:FireServer(worldPos, if WorldConfig.ATTRACT_LIMB == RIGHT_SLOT then LEFT_SLOT else RIGHT_SLOT)
+			ReachEmpty:FireServer(worldPos, if worldPos.X >= laneOrigin().X then RIGHT_SLOT else LEFT_SLOT)
 		end
 		return
 	end
