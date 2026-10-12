@@ -1749,7 +1749,12 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	end
 	-- grade quality server-side from the reported tap point (doc 07): garbage
 	-- input can at worst claim "Perfect", which only flashes the HUD
-	local quality = if typeof(tapPos) == "Vector3" then PullMath.gradeGrab(tapPos, step.Position) else "OK"
+	-- Unity measures from step.position, which for a carrot is its off-centre
+	-- sprite pivot -- the very point the limb grips -- so grade from the grip
+	-- point (canvas centre + GripOffset, rotated with the step), not the centre.
+	local grip = (step:GetAttribute("GripOffset") :: Vector2?) or Vector2.zero
+	local gripNow = step.Position + CFrame.Angles(0, 0, st.angle) * Vector3.new(grip.X, grip.Y, 0)
+	local quality = if typeof(tapPos) == "Vector3" then PullMath.gradeGrab(tapPos, gripNow) else "OK"
 
 	bob(f, lane, step) -- before the pull, so it reads the step's pre-pull X (Limb.CloseHand order)
 	-- Pull the grabbed point (the carrot's GripOffset when it has one) to near
@@ -1757,7 +1762,6 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- still playing finishes (owner's ruling, b-20260921-164409-nkkh;
 	-- PullMath.pullDistance). Unity reaches the same place with a per-frame force
 	-- scaled by the step's distance from the target line (SpawnManager.PullVector).
-	local grip = (step:GetAttribute("GripOffset") :: Vector2?) or Vector2.zero
 	-- rotated with the step, as the limb-follow loop does, so a step grabbed
 	-- mid-spin pulls its actual grip point to the target line. The rest point is
 	-- the step's BASE (Lane.restPosition): recoil, sag or a patrol's sweep must

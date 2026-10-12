@@ -1249,3 +1249,15 @@ test: stylua --check, tools/luau_check.sh WorldBackdrop (0 errors), selene src/ 
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; the OffsetStudsU sign (positive moves the art toward +U) is reasoned, not observed.
 review: looks-right; checked: git diff and the whole file, stylua --check, luau_check, every StudsPerTileU / TILE_WIDTH write site (refitWidth, setBackground, initial creation, scrollBackground wrap only moves Position, setOverlay only the image), both moduli, geometry of U on the Back face; reviewer ~70% sure of the OffsetStudsU direction, which the leftover check settles.
 leftover: b-20261012-140652-jfov (Studio playtest once Studio runs, including the sign)
+
+## b-20261010-191837-a1x9  fixed  2026-10-12 14:07
+note: where is the touch point to get a "perfect" on a carrot? it always seems "ok"
+finding: Before this fix a Perfect needed a tap within 1 stud of the centre of the carrot's whole image canvas, which is about 3.5 studs from the carrot itself, so it almost always graded OK. Now grading measures from where the frog's hand grips the carrot (the middle of the carrot's body, lower-left of its image): tap within 1 stud of that for Perfect, about 2 studs for Great.
+cause: GrabStep graded the tap against step.Position (the canvas centre), while Unity's Controller.TouchStep grades against step.position, the same pivot the hand snaps to; the carrot's grip point sits ~3.5 studs off the canvas centre, so Perfect was nearly unreachable.
+change: GameServer GrabStep now grades from the grip point (step.Position + GripOffset rotated by the step's spin angle, the same formula the pull and limb snap use); kinds without a GripOffset grade as before. PullMath.gradeGrab comment and doc 17 (reach/grading row, carrot grip row) updated.
+files: src/server/GameServer.server.luau, src/shared/PullMath.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, tools/luau_check.sh on both .luau files (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only.
+review: looks-right; checked: Unity Controller.cs TouchStep lines 239-251 (grades from step.position, the hand's snap pivot), git diff, rotation vs pull (~1769) and limb follow (~1598, step.CFrame built with the same angle), nil-safety (grip falls back to Vector2.zero, st guarded), tap point and grip both world space, gradeGrab has one caller, quality popup places from limbs, stylua + luau_check. It flagged doc 17 line 104 as stale, which the orchestrator updated (doc-only), and noted GRAB_GREAT_SQR is looser than Unity, filed as b-20261012-140726-qy5i.
+followups: b-20261012-140726-qy5i
+leftover: b-20261012-140726-nzco (Studio playtest once Studio runs)

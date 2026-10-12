@@ -18,7 +18,7 @@ function PullMath.planarDistSqr(a: Vector3, b: Vector3): number
 	return dx * dx + dy * dy
 end
 
--- Grade a grab by how close the tap landed to the step centre.
+-- Grade a grab by how close the tap landed to the step's grip point (its Unity pivot; the canvas centre for most kinds).
 -- Mirrors Player/Controller.cs TouchStep bucketing.
 function PullMath.gradeGrab(tapWorld: Vector3, stepWorld: Vector3): string
 	local d2 = PullMath.planarDistSqr(tapWorld, stepWorld)
