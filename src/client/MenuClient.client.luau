@@ -117,6 +117,68 @@ for i = 1, 3 do
 	missionLines[i] = line
 end
 
+-- b-20261010-192455-bshn: the frog rests at the lane origin, which GameClient's
+-- camera (FOV 40, a fixed ~31.4-stud vertical view) centres on screen, and its
+-- 40-stud head art puts the eyes ~9 studs above centre and the mouth ~4.5 below.
+-- A screen-centred panel therefore hides the face, so the panel (plus the streak
+-- and mission lines hanging off it) is placed clear of it: to the right of the
+-- face in landscape, just under it in portrait. Face half-width and top/bottom
+-- are measured from HotFrogHead/Eye/Mouth.png (Hot Frog; other skins match it).
+local FACE_HALF_W, FACE_BOTTOM = 8.5, -5 -- studs from the frog origin, +y up (eyes top out ~9)
+local VIEW_STUDS = 31.43 -- GameClient: 100 Unity units of vertical view
+local PANEL_W, PANEL_H, PANEL_STACK_H = 280, 312, 434 -- panel, and panel + streak + mission lines
+local function layoutMainPanel()
+	local camera = workspace.CurrentCamera
+	local guiScale = gui:FindFirstChildOfClass("UIScale")
+	if not camera or not guiScale then
+		return
+	end
+	local view = camera.ViewportSize
+	if view.X <= 0 or view.Y <= 0 then
+		return
+	end
+	local inset = GuiService:GetGuiInset().Y
+	local s = guiScale.Scale
+	local pxPerStud = view.Y / VIEW_STUDS
+	local faceRight = view.X / 2 + FACE_HALF_W * pxPerStud
+	local faceBottom = view.Y / 2 - FACE_BOTTOM * pxPerStud
+	local panelW, panelH, stackH = PANEL_W * s, PANEL_H * s, PANEL_STACK_H * s
+	local left, top
+	if view.X >= view.Y then
+		-- landscape: right of the face; if the window is too narrow the panel is
+		-- kept on screen and may overlap the face's outer edge instead
+		left = math.max(0, math.min((faceRight + view.X - panelW) / 2, view.X - panelW - 8))
+		top = (view.Y - panelH) / 2
+	else
+		-- portrait: no room beside the face, so tuck the stack right under it
+		left = (view.X - panelW) / 2
+		top = faceBottom + 8
+	end
+	-- StoreUI's Gift (left, 150 wide) and Shop (right, 120 wide) toggles sit in the
+	-- bottom 56 units; stay above them where the stack is over their columns, and
+	-- never run off the bottom (a squarish portrait window lets the stack overlap
+	-- the mouth rather than leave the screen).
+	local overToggles = left < (12 + 150) * s - 6 or left + panelW > view.X - 132 * s + 6
+	local limit = view.Y - (if overToggles then 60 else 24) * s
+	top = math.max(inset, math.min(top, limit - stackH))
+	mainPanel.Position = UDim2.fromScale(left / view.X, (top - inset) / (view.Y - inset))
+end
+task.defer(layoutMainPanel)
+do
+	local function hook(camera: Camera?)
+		if camera then
+			camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+				task.defer(layoutMainPanel) -- after UIKit's UIScale has followed the new size
+			end)
+		end
+	end
+	hook(workspace.CurrentCamera)
+	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+		hook(workspace.CurrentCamera)
+		layoutMainPanel()
+	end)
+end
+
 -- ---------------------------------------------------------------------------
 -- End-of-run panel (RunState.Dead)
 -- ---------------------------------------------------------------------------
