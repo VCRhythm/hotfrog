@@ -95,7 +95,14 @@ local BACKGROUND_COLORS: { [string]: Color3 } = {
 local DEFAULT_BACKGROUND_COLOR = Color3.fromRGB(155, 255, 255) -- Sky.mat's own _Color
 
 local TILE_HEIGHT = (Config.SPAWN_Y - Config.DESPAWN_Y) + WorldConfig.SCENERY_BOUNDS_MARGIN
-local TILE_WIDTH = Config.LANE_HALF_WIDTH * 2 + WorldConfig.BACKDROP_EXTRA_WIDTH
+-- Mutable: widened by refitWidth() below when the viewport is wider than the lane
+-- (b-20261010-191320-w7pp: ultrawide windows saw past a fixed-width backdrop).
+local BASE_WIDTH = Config.LANE_HALF_WIDTH * 2 + WorldConfig.BACKDROP_EXTRA_WIDTH -- original tile width: art repeat size
+local TILE_WIDTH = BASE_WIDTH
+local visibleWidth = Config.LANE_HALF_WIDTH * 2
+-- GameClient's CAMERA_DISTANCE and FieldOfView (camera is Scriptable, FOV 40).
+local BACKDROP_CAMERA_DISTANCE = 43.2
+local BACKDROP_CAMERA_FOV = 40
 
 -- StudsPerTileU/V for the Texture instance below, derived from each
 -- material's _MainTex tiling `scale` (dump_materials.py's tex_env dump):
@@ -103,11 +110,14 @@ local TILE_WIDTH = Config.LANE_HALF_WIDTH * 2 + WorldConfig.BACKDROP_EXTRA_WIDTH
 -- scale=(2,2) -> the pattern repeats twice across each axis. LavaGradient.mat's
 -- only tiling knob (`_MainTexTile`) is a custom shader float, not a portable
 -- Material tiling vector, so it renders untiled (fills once) like PotBack.
-local BACKGROUND_TILING: { [string]: { u: number, v: number } } = {
-	PotBack = { u = TILE_WIDTH, v = TILE_HEIGHT },
-	KitchenTile = { u = TILE_WIDTH / 2, v = TILE_HEIGHT / 2 },
-	LavaGradient = { u = TILE_WIDTH, v = TILE_HEIGHT },
-}
+local function tilingFor(key: string?): (number, number)
+	if key == "KitchenTile" then
+		return BASE_WIDTH / 2, TILE_HEIGHT / 2
+	end
+	-- Single-image art keeps its original 84 x TILE_HEIGHT stud size and simply
+	-- repeats horizontally across a wider tile (no stretching).
+	return BASE_WIDTH, TILE_HEIGHT
+end
 
 local function makeBackgroundTile(index: number): BasePart
 	local tile = Instance.new("Part")
@@ -125,7 +135,7 @@ local function makeBackgroundTile(index: number): BasePart
 	-- convention SpriteSkin.apply/id=0 use everywhere else in this port.
 	local texture = Instance.new("Texture")
 	texture.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
-	texture.StudsPerTileU = TILE_WIDTH
+	texture.StudsPerTileU = BASE_WIDTH
 	texture.StudsPerTileV = TILE_HEIGHT
 	texture.Parent = tile
 	tile.Parent = workspace
@@ -142,13 +152,11 @@ layoutBackgroundTiles()
 
 local function setBackground(key: string?)
 	local color = if key then (BACKGROUND_COLORS[key] or DEFAULT_BACKGROUND_COLOR) else DEFAULT_BACKGROUND_COLOR
-	local tiling = if key then BACKGROUND_TILING[key] else nil
 	local image = if key then SkinAssets.image(key) else nil -- nil until the id is uploaded (SkinAssets convention)
 	for _, tile in bgTiles do
 		TweenService:Create(tile, TweenInfo.new(WorldConfig.TRANSITION_SOFT_CROSSFADE_TIME), { Color = color }):Play()
 		local texture = tile:FindFirstChildOfClass("Texture") :: Texture
-		texture.StudsPerTileU = if tiling then tiling.u else TILE_WIDTH
-		texture.StudsPerTileV = if tiling then tiling.v else TILE_HEIGHT
+		texture.StudsPerTileU, texture.StudsPerTileV = tilingFor(key)
 		texture.Texture = image or "" -- "" leaves the tweened flat Color visible (fallback)
 	end
 end
@@ -160,7 +168,9 @@ end
 -- lane, see its definition above), well before a drifted edge could reach the
 -- camera. Matches Wall.cs's own snap-back-on-bound shape without needing a
 -- second axis of tiles.
-local X_DRIFT_LIMIT = (TILE_WIDTH - Config.LANE_HALF_WIDTH * 2) / 2
+local function xDriftLimit(): number
+	return (TILE_WIDTH - visibleWidth) / 2
+end
 
 local function scrollBackground(delta: Vector3)
 	if delta.X == 0 and delta.Y == 0 then
@@ -170,7 +180,7 @@ local function scrollBackground(delta: Vector3)
 	for _, tile in bgTiles do
 		tile.Position += delta
 	end
-	if math.abs(bgTiles[1].Position.X - origin.X) > X_DRIFT_LIMIT then
+	if math.abs(bgTiles[1].Position.X - origin.X) > xDriftLimit() then
 		for _, tile in bgTiles do
 			tile.Position = Vector3.new(origin.X, tile.Position.Y, tile.Position.Z)
 		end
@@ -220,7 +230,7 @@ overlay.Color = WorldConfig.OVERLAY_COLOR
 overlay.Transparency = 1
 local overlayTexture = Instance.new("Texture")
 overlayTexture.Face = Enum.NormalId.Back -- +Z face: the one the camera (at +Z) sees
-overlayTexture.StudsPerTileU = TILE_WIDTH
+overlayTexture.StudsPerTileU = BASE_WIDTH
 overlayTexture.StudsPerTileV = TILE_HEIGHT
 overlayTexture.Parent = overlay
 overlay.Parent = workspace
@@ -230,6 +240,51 @@ local function layoutOverlay()
 	overlay.CFrame = CFrame.new(origin.X, origin.Y, Config.PLANE_Z + WorldConfig.OVERLAY_DEPTH)
 end
 layoutOverlay()
+
+-- Widen tiles + overlay so the camera's visible width at the backdrop's depth
+-- (plus the arrival zoom-out and the drift spare) is always covered.
+local function refitWidth()
+	local camera = workspace.CurrentCamera
+	if not camera or camera.ViewportSize.Y <= 0 then
+		return
+	end
+	local viewport = camera.ViewportSize
+	local distance = BACKDROP_CAMERA_DISTANCE * WorldConfig.ARRIVAL_CAMERA_ZOOM + math.abs(WorldConfig.BACKDROP_DEPTH)
+	visibleWidth = math.max(
+		Config.LANE_HALF_WIDTH * 2,
+		2 * distance * math.tan(math.rad(BACKDROP_CAMERA_FOV / 2)) * (viewport.X / viewport.Y)
+	)
+	TILE_WIDTH = math.max(
+		Config.LANE_HALF_WIDTH * 2 + WorldConfig.BACKDROP_EXTRA_WIDTH,
+		visibleWidth + WorldConfig.BACKDROP_EXTRA_WIDTH
+	)
+	for _, tile in bgTiles do
+		tile.Size = Vector3.new(TILE_WIDTH, TILE_HEIGHT, WorldConfig.BACKDROP_TILE_THICKNESS)
+		local texture = tile:FindFirstChildOfClass("Texture") :: Texture
+		texture.StudsPerTileU, texture.StudsPerTileV = tilingFor(currentBackgroundKey)
+	end
+	overlay.Size = Vector3.new(TILE_WIDTH, TILE_HEIGHT, WorldConfig.BACKDROP_TILE_THICKNESS)
+	overlayTexture.StudsPerTileU = BASE_WIDTH
+end
+refitWidth()
+do
+	local viewportConn: RBXScriptConnection? = nil
+	local function watchCamera()
+		if viewportConn then
+			viewportConn:Disconnect()
+			viewportConn = nil
+		end
+		local camera = workspace.CurrentCamera
+		if camera then
+			viewportConn = camera:GetPropertyChangedSignal("ViewportSize"):Connect(refitWidth)
+		end
+	end
+	watchCamera()
+	workspace:GetPropertyChangedSignal("CurrentCamera"):Connect(function()
+		watchCamera()
+		refitWidth()
+	end)
+end
 
 local function setOverlay(key: string?)
 	local target = if key then WorldConfig.OVERLAY_TRANSPARENCY else 1

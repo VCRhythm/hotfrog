@@ -1218,3 +1218,14 @@ test: stylua --check, tools/luau_check.sh GameClient (0 errors), selene src/ (0 
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: the tongue leaving from the drawn mouth on several skins.
 review: looks-right; checked: git diff, expandTongue lines 490-545 (all uses of the origin), FrogModel.model.json Head size 40.229 and decal Face Back (+Y is image up), offset arithmetic (600-512)/1024*40.229 ≈ 3.46, BugService has no reach gate, gamepadTongue's Head.Position is a target pick not an origin, stylua --check.
 leftover: b-20261012-135650-hhny (Studio playtest once Studio runs)
+
+## b-20261010-191320-w7pp  fixed  2026-10-12 13:58
+note: if the screen is beyond a certain width, the dark edges show?
+cause: The backdrop tiles and overlay were a fixed 84 studs wide (lane width + 40), so a viewport wider than about 1.7:1, or the arrival zoom-out, let the camera see past their edges.
+change: WorldBackdrop.refitWidth sizes the tiles and overlay to the camera's visible width at the backdrop plane (FOV 40, distance 43.2 x ARRIVAL_CAMERA_ZOOM + backdrop depth, viewport aspect) plus BACKDROP_EXTRA_WIDTH, re-running on ViewportSize / CurrentCamera changes. Texture repeat sizes stay at the original BASE_WIDTH (Kitchen 42, others 84), so the art tiles more times instead of stretching; the X drift limit follows the width.
+files: src/client/WorldBackdrop.client.luau
+test: stylua --check, tools/luau_check.sh WorldBackdrop (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only.
+review: concern: tiling was tied to the new width, so Kitchen's repeat grew with the window and PotBack/LavaGradient stretched; checked: git diff, GameClient camera lines 108-200 (FOV 40 vertical, distance 43.2, arrival zoom dollies back, chainPunch only dollies in), WorldConfig/Config greps, visible-width math, tile height vs visible height, stylua + luau_check.
+re-review: concern: OffsetStudsU is never set, so widening the part around its centre shifts the lane-centre art by (W/2 - 42) mod the repeat and single-image art can show a seam in view (repeat sizes now fixed, drift limit, camera swap and width math all correct); checked: git diff of the repair, greps for OffsetStudsU/V, TILE_WIDTH, BACKDROP_*, camera constants vs GameClient 115/122, stylua exit 0, luau_check exit 0.
+leftover: b-20261012-135824-th24 (centre the texture offset, next tick), b-20261012-135824-ef71 (Studio playtest once Studio runs)
