@@ -1198,3 +1198,13 @@ verified: no — Studio MCP not attached and Studio not running, so no playtest 
 review: concern: same tint concern as 75rw; checked: same as 75rw.
 re-review: looks-right; checked: same as 75rw.
 leftover: b-20261012-134554-9c8d (Studio playtest once Studio runs)
+
+## b-20261010-191520-jsqs  fixed  2026-10-12 13:56
+note: the directional arrow steps shouldn't rotate when falling
+cause: GameServer.acquireStep rolled a random idle spinRate for every step except the pot rim, so ChangeDirection arrow steps tumbled as they fell and their direction became unreadable.
+change: acquireStep now skips the spin roll for kinds with isArrow (all five ChangeDirection kinds set it), as it already did for the pot rim, so arrows stay level like Unity's. Doc 17's "Idle step spin" row now says arrows never spin.
+files: src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, tools/luau_check.sh GameServer (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. Look for: arrow steps falling at rotation 0 while ordinary steps still tumble.
+review: looks-right; checked: git diff of GameServer and doc 17, isArrow set on all 5 ChangeDirection kinds in StepKinds (lines 177-245), spinRate assigned only in acquireStep and cleared on grab, Lane.trackStep resets angle 0 / spinRate nil on re-pooled parts, stylua --check.
+leftover: b-20261012-135637-pscf (Studio playtest once Studio runs)

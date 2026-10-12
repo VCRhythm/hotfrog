@@ -749,8 +749,8 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3,
 	if behavior.sweep then
 		st.sweep = behavior.sweep(params) -- reserved by Lane.clearSpot for every later spawn
 	end
-	if kindName ~= Lane.POT_RIM_KIND then
-		st.spinRate = rollSpin() -- the pot's rim stays level
+	if kindName ~= Lane.POT_RIM_KIND and not (kind and kind.isArrow) then
+		st.spinRate = rollSpin() -- the pot's rim and the direction arrows stay level (the arrow is the info)
 	end
 	if behavior.onSpawn then
 		behavior.onSpawn(ctxOf(lane, step, st)) -- after the attributes above: it may read HitSize
