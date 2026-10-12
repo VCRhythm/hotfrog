@@ -1239,3 +1239,13 @@ test: stylua --check BugService, tools/luau_check.sh BugService (0 errors), sele
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only.
 review: looks-right; checked: git diff of both files, json.load of the template, stylua --check, grep of every bug-related file in src/ (BugService wander/edge/swarm values from Config studs, catch handler has no size check, WorldBugs only cycles wing textures, GameClient tap raycast and tongue tip at the centre, WorldTouchIndicator, Bursts) for a 2-stud assumption: none.
 leftover: b-20261012-140635-e400 (Studio playtest once Studio runs)
+
+## b-20261012-135824-th24  fixed  2026-10-12 14:06
+note: Backdrop art shifts off-centre on wide windows (follow-up to w7pp's re-review concern)
+cause: refitWidth widened the backdrop tile parts and overlay around their centre, but a Texture tiles from the face's corner and OffsetStudsU was never set, so the lane-centre art shifted by (W/2 - 42) mod the repeat versus the old 84-stud layout.
+change: centreOffsetU(repeat) = ((TILE_WIDTH - BASE_WIDTH) / 2) % repeat is written to OffsetStudsU on both tile textures (refitWidth and setBackground, after StudsPerTileU changes, so Kitchen's 42 and the 84-stud art each use their own modulus) and on the overlay. Sign from geometry: the textures are on the Back (+Z) face seen from +Z, so U runs along +X from the -X edge.
+files: src/client/WorldBackdrop.client.luau
+test: stylua --check, tools/luau_check.sh WorldBackdrop (0 errors), selene src/ (0 errors), rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; the OffsetStudsU sign (positive moves the art toward +U) is reasoned, not observed.
+review: looks-right; checked: git diff and the whole file, stylua --check, luau_check, every StudsPerTileU / TILE_WIDTH write site (refitWidth, setBackground, initial creation, scrollBackground wrap only moves Position, setOverlay only the image), both moduli, geometry of U on the Back face; reviewer ~70% sure of the OffsetStudsU direction, which the leftover check settles.
+leftover: b-20261012-140652-jfov (Studio playtest once Studio runs, including the sign)

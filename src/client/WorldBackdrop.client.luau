@@ -119,6 +119,15 @@ local function tilingFor(key: string?): (number, number)
 	return BASE_WIDTH, TILE_HEIGHT
 end
 
+-- A Texture tiles from its face's corner, so widening a part about its centre moves
+-- the corner by (width - BASE_WIDTH) / 2. On the Back (+Z) face U runs along +X (seen
+-- from the camera at +Z) and the corner is the -X edge, so the art would shift by that
+-- amount relative to the old BASE_WIDTH layout. Shifting the texture by the same
+-- amount along +U (mod the repeat) keeps the lane-centre art where it always was.
+local function centreOffsetU(studsPerTileU: number): number
+	return ((TILE_WIDTH - BASE_WIDTH) / 2) % studsPerTileU
+end
+
 local function makeBackgroundTile(index: number): BasePart
 	local tile = Instance.new("Part")
 	tile.Name = "BackgroundTile" .. index
@@ -157,6 +166,7 @@ local function setBackground(key: string?)
 		TweenService:Create(tile, TweenInfo.new(WorldConfig.TRANSITION_SOFT_CROSSFADE_TIME), { Color = color }):Play()
 		local texture = tile:FindFirstChildOfClass("Texture") :: Texture
 		texture.StudsPerTileU, texture.StudsPerTileV = tilingFor(key)
+		texture.OffsetStudsU = centreOffsetU(texture.StudsPerTileU)
 		texture.Texture = image or "" -- "" leaves the tweened flat Color visible (fallback)
 	end
 end
@@ -262,9 +272,11 @@ local function refitWidth()
 		tile.Size = Vector3.new(TILE_WIDTH, TILE_HEIGHT, WorldConfig.BACKDROP_TILE_THICKNESS)
 		local texture = tile:FindFirstChildOfClass("Texture") :: Texture
 		texture.StudsPerTileU, texture.StudsPerTileV = tilingFor(currentBackgroundKey)
+		texture.OffsetStudsU = centreOffsetU(texture.StudsPerTileU)
 	end
 	overlay.Size = Vector3.new(TILE_WIDTH, TILE_HEIGHT, WorldConfig.BACKDROP_TILE_THICKNESS)
 	overlayTexture.StudsPerTileU = BASE_WIDTH
+	overlayTexture.OffsetStudsU = centreOffsetU(BASE_WIDTH)
 end
 refitWidth()
 do
