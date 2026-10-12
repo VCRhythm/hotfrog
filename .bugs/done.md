@@ -1229,3 +1229,13 @@ verified: no — Studio MCP not attached and Studio not running, so no playtest 
 review: concern: tiling was tied to the new width, so Kitchen's repeat grew with the window and PotBack/LavaGradient stretched; checked: git diff, GameClient camera lines 108-200 (FOV 40 vertical, distance 43.2, arrival zoom dollies back, chainPunch only dollies in), WorldConfig/Config greps, visible-width math, tile height vs visible height, stylua + luau_check.
 re-review: concern: OffsetStudsU is never set, so widening the part around its centre shifts the lane-centre art by (W/2 - 42) mod the repeat and single-image art can show a seam in view (repeat sizes now fixed, drift limit, camera swap and width math all correct); checked: git diff of the repair, greps for OffsetStudsU/V, TILE_WIDTH, BACKDROP_*, camera constants vs GameClient 115/122, stylua exit 0, luau_check exit 0.
 leftover: b-20261012-135824-th24 (centre the texture offset, next tick), b-20261012-135824-ef71 (Studio playtest once Studio runs)
+
+## b-20261010-192357-toml  fixed  2026-10-12 14:06
+note: flies should be about twice as big
+cause: The fly part was hard-coded at 2x2x0.4 studs in both the BugTemplate asset and BugService's fallback template (owner's request to enlarge it).
+change: Both are now 4x4x0.4 studs; the Art and Wings decals scale with the part. The client tap raycasts the Bug part and the server catch has no distance check, so the catch target grows with the drawn fly. Movement ranges and swarm spacing are unchanged.
+files: src/server/BugService.server.luau, src/assets/BugTemplate.model.json
+test: stylua --check BugService, tools/luau_check.sh BugService (0 errors), selene src/ (0 errors), BugTemplate JSON parses, rojo build to %TEMP%: all pass
+verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only.
+review: looks-right; checked: git diff of both files, json.load of the template, stylua --check, grep of every bug-related file in src/ (BugService wander/edge/swarm values from Config studs, catch handler has no size check, WorldBugs only cycles wing textures, GameClient tap raycast and tongue tip at the centre, WorldTouchIndicator, Bursts) for a 2-stud assumption: none.
+leftover: b-20261012-140635-e400 (Studio playtest once Studio runs)

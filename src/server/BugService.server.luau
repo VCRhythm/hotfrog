@@ -114,7 +114,7 @@ local template = assets:FindFirstChild("BugTemplate")
 if not template then
 	local part = Instance.new("Part")
 	part.Name = "BugTemplate"
-	part.Size = Vector3.new(2, 2, 0.4)
+	part.Size = Vector3.new(4, 4, 0.4) -- 2x the original 2-stud fly (owner request b-20261010-192357-toml); the tap raycast hits this part, so the catch target grows with it
 	part.CanCollide = false
 	part.Transparency = 1 -- host for the Decal only; a coloured part reads as an opaque sprite background
 	local decal = Instance.new("Decal")
