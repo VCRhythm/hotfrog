@@ -1,1 +1,6 @@
 # hotfrog — questions the bug loop needs answered
+
+## b-20261012-212643-ba72  2026-10-12 21:35
+note: Colour tints (Mint/Berry/Midnight/Gold) barely change Hot Frog: they only make its green slightly darker
+question: The tints multiply a colour over the frog's art, and Hot Frog's art is pure green (no red or blue), so Mint looks unchanged and Berry/Midnight/Gold just darken it; the same goes for every skin that borrows Hot Frog's body. A real fix needs new art, so which do you want? (A) recommended: I generate greyscale copies of the tintable frog parts (66 unique images across the 8 skins; eyes and accessories stay as they are) and upload them through tools/upload_to_roblox.py, and a tinted frog wears the greyscale set times the tint, so Mint is really mint and Gold really gold (on clothed skins like Business Frog the suit takes the tint too); (B) the same but Hot Frog's art only (15 images), other skins keep today's weak tint; (C) runtime recolour with EditableImage, no uploads, but it needs the experience's EditableImage permission and costs memory per frog; (D) leave the tints as they are.
+context: SkinTints.apply (src/shared/SkinTints.luau) multiplies Decal.Color3; option A/B add a greyscale art set chosen like Blue's art swap (SkinTints.artName), and the uploads go through tools/ (Open Cloud, 66 or 15 new image assets, moderation applies).
