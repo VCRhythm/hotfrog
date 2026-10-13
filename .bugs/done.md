@@ -1917,5 +1917,6 @@ change: STREAK_SPEED_MAX 2 -> 4 at the same STREAK_FULL of 30, so the ramp is tw
 files: src/shared/Config.luau, src/shared/StepBehaviors.luau, docs/roblox-port/17-status-and-known-gaps.md
 test: stylua --check, selene src/ (0 errors), bash tools/luau_check.sh, rojo build (all clean)
 verified: yes. Studio Easy run on 2131c262 with a bot making Perfect grabs: StreakSpeed went 1.30, 1.60 ... 3.70, 4.00 over the first 10 grabs and held 4.00 to grab 40 (COMBO x117), the HUD showed MAX SPEED!!, the run reached Kitchen, and the console was clean. The Patrol behaviour, driven on the server with a test ctx at 7 s and 60 Hz, kept a ±3.00 offset at tempo 1, 2 and 4, with 4, 7 and 16 sign changes. How 4x feels was not judged.
-review: concern. oscillate's fixed per-tick cap (2·A·rate·dt) would bind at 4x and shrink or lag the Patrol and RiseAndFall sweeps. The fixer scaled the cap by the tempo, and the re-review was looks-right.
-leftover: none. If the user meant a cap of 2x the original 1.5x (3x), it is one Config number.
+review: concern. oscillate's fixed per-tick cap (2·A·rate·dt) would bind at 4x and shrink or lag the Patrol and RiseAndFall sweeps. The fixer scaled the cap by the tempo.
+re-review: looks-right. The cap now scales with tempo, the pull clamp is applied before dividing by speed, nothing hard-codes 2, and dropping the 1.25 cue is safe.
+leftover: none — read as cap 2x -> 4x; if the user meant something else (e.g. 3x), it is one Config number (STREAK_SPEED_MAX).
