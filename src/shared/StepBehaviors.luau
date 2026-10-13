@@ -282,8 +282,8 @@ local function numberParam(params: Params?, key: string, default: number): numbe
 end
 
 -- The combo streak speed-up (b-20261010-192608-4bs3) takes the LARGER of the
--- height tempo (at most 1.5x) and the streak multiplier (at most 2x, 7jao) rather
--- than multiplying them: a product (3x) would make movers unreadable.
+-- height tempo (at most 1.5x) and the streak multiplier (at most 4x, ufca) rather
+-- than multiplying them: a product (6x) would make movers unreadable.
 local function tempo(ctx: Ctx): number
 	local height = 1 + math.min(ctx.getRunSteps() * Config.STEP_MOTION_RUN_SPEEDUP, Config.STEP_MOTION_MAX_SPEEDUP)
 	return math.max(height, ctx.getStreakSpeed())
@@ -292,17 +292,18 @@ end
 -- Advance a step's sinusoid by `dt` and return its new displacement (studs).
 -- `limit` (optional) clamps the result into [lo, hi]. The change per tick is
 -- capped at twice the sinusoid's own peak speed: never binding in normal motion
--- (tempo tops out below 2), but it turns a clamp that suddenly applies -- the
+-- (the cap scales with this tick's tempo, so even a 4x combo never binds), but it turns a clamp that suddenly applies -- the
 -- lane turning from sideways to vertical travel -- into a slide, not a snap.
 local function oscillate(ctx: Ctx, dt: number, lo: number?, hi: number?): number
 	local s = ctx.state
 	local rate = TAU / s.period
-	s.phase = (s.phase + dt * rate * tempo(ctx)) % TAU
+	local speed = tempo(ctx)
+	s.phase = (s.phase + dt * rate * speed) % TAU
 	local want = s.amplitude * math.sin(s.phase)
 	if lo and hi then
 		want = math.clamp(want, lo, hi)
 	end
-	local maxStep = 2 * math.abs(s.amplitude) * rate * dt
+	local maxStep = 2 * math.abs(s.amplitude) * rate * speed * dt
 	s.value += math.clamp(want - s.value, -maxStep, maxStep)
 	return s.value
 end

@@ -331,15 +331,17 @@ local Config = {
 	-- reaches STREAK_FULL (30 = fifteen Great or ten Perfect grabs). It divides pull
 	-- durations and scales moving steps', Classic's idle drift (b-20261012-205444-huc1)
 	-- and the Chef's clocks (never CHEF_STRIKE_GRACE). Raised from 1.5x at 20 to 2x at 30 so the combo still
-	-- outruns the height tempo late in a run (owner's request b-20261012-203745-7jao).
+	-- outruns the height tempo late in a run (owner's request b-20261012-203745-7jao), then doubled to 4x
+	-- at the same STREAK_FULL (owner's request b-20261013-095024-ufca). PULL_TIME's clamp is applied before
+	-- the division, so it does not cap the combo.
 	STREAK_FULL = 30,
-	STREAK_SPEED_MAX = 2,
+	STREAK_SPEED_MAX = 4,
 	-- Combo bonus score: +1 per STREAK_BONUS_EVERY streak points, at most
 	-- STREAK_BONUS_MAX extra per grab. Level progression counts steps, not score.
 	STREAK_BONUS_EVERY = 6,
 	STREAK_BONUS_MAX = 5,
 	-- Client "SPEED UP!" cue fires when the multiplier first passes each of these.
-	STREAK_SPEED_CUES = { 1.25, 1.5, 2 },
+	STREAK_SPEED_CUES = { 1.5, 2, 3, 4 }, -- the last equals STREAK_SPEED_MAX (the client's MAX SPEED!!)
 	-- StepBehaviors.Patrol: a horizontal sinusoid about the base. Defaults for
 	-- steps spawned without their own `amplitude` / `period` params.
 	PATROL_AMPLITUDE = 3, -- studs each side
