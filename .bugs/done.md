@@ -1889,3 +1889,13 @@ verified: no — the 3D viewport renders blank in Edit and Play, so the tinted f
 review: n/a
 owed: o-20261013-094512-yobn (restart Roblox Studio)
 leftover: re-run after the restart, filed as b-20261013-094524-ql74
+
+## b-20261013-094524-ql74  fixed  2026-10-13 09:59
+note: Playtest check after the Studio restart: see a colour-tinted frog render (Hot Frog Mint/Gold on the menu and in the store preview, Hot Lawyer suit-only tint, Space Frog helmet untinted) and judge whether Mystery Frog's borrowed grab hands should take the tint
+cause: Studio playtest check of the b-20261013-093943-gk5k / b-20261012-212643-ba72 tint work; no defect in the tinting itself.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio 2131c262, after the restart), 2026-10-13. The menu frog was re-skinned server-side with SpriteSkin.apply(SkinTints.artName(...)) plus the FrogTint attribute; the store preview was fed a profile copy with a tint owned and worn through a temporary echo remote; the real skin (Business Frog, tint 0) and profile were restored and the console stayed clean
+verified: yes — Hot Frog Mint: body, head, eye crescents, arms and hands mint, eye whites, pupils and mouth as drawn. Hawt Frog Mint: frog mint, sunglasses untinted. Hot Lawyer Gold: suit gold (client Color3 1,0.84,0.31 on Body and both limbs only), head and hands untinted. Space Frog Berry: hands berry, helmet stays its own cyan. Store: Business Frog with Mint owned and worn shows the WORN swatch on Mint and a mint preview with untinted eyes. Mystery Frog judged: its borrowed Hot Frog grab hands come out bright mint on the black silhouette, which looks wrong, so it is filed as b-20261013-095859-quga
+review: n/a
+leftover: none — the Mystery Frog grab-hand look is filed as b-20261013-095859-quga
