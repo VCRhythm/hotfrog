@@ -47,6 +47,20 @@ Each skin folder holds the full rig as separate PNGs, named by part — they lin
 | `…LeftLimb` / `…RightLimb` (+ `…Shadow`) | arms |
 | `…Thumbnail` | store/UI thumbnail |
 
+Port-made **tint-ready** copies sit beside them as `<Prefix>Tint<Suffix>` (e.g.
+`HotFrogTintBody`; b-20261013-055017-6y7s): the frog-green pixels are greyed so a
+`SkinTints` Color3 multiply shows the tint's own colour, and every other pixel
+(outlines, shadows, suits, ties) is kept as drawn. A frog wearing a colour tint
+is textured from these (`SkinAssets.part(skin, suffix, true)`, which tries the
+`Tint` copy at each step of the fallback chain) and only the sprites that got one
+take the tint (`Tinted` decal attribute). There are copies for the frog skin of
+Hot Frog (body, head, eye crescents, eyelids, hands, limbs) and Crossy Frog, Hawt
+Frog's grab hands, the clothing of Space Frog / Business Frog / Hot Lawyer /
+Invisible Man (suit, sleeves, gloves; Business Frog's green chest greyed too).
+No copies, so never tinted: sclera/pupils/tongue/mouths, accessories (Hawt Frog
+sunglasses, Space Frog helmet), Hot Lawyer's human head, hands and eyelids, and
+Mystery Frog (a black silhouette a multiply cannot show on).
+
 Non-frog art is also present: [`/Sprites/Rocks/`](../../Sprites/Rocks) (step
 variants + direction arrows + `Castle`/`Rocket`/`Lillipad`),
 [`/Sprites/Other/`](../../Sprites/Other) (`Bug`, `LavaSplash`, `Sun`, clouds,

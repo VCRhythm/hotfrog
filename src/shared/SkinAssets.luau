@@ -49,6 +49,29 @@ local Ids: { [string]: number } = {
 	HotFrogLeftLimb = 95380188138574,
 	HotFrogRightLimb = 78051231855006,
 
+	-- Blue Frog: the art Hot Frog's "Blue" colourway swaps in (SkinTints id 5). No
+	-- longer a SkinCatalog skin, so tools/build_manifest.py stops listing it; kept
+	-- above the auto sentinel so tools/write_asset_ids.py doesn't drop these ids.
+	BlueFrogBody = 124960144702031,
+	BlueFrogClosedLeftEyelid = 102390321224988,
+	BlueFrogClosedRightEyelid = 96749871384090,
+	BlueFrogHead = 105090763011009,
+	BlueFrogLeftEye = 72959705094232,
+	BlueFrogLeftEyelid = 84555178499533,
+	BlueFrogLeftHand = 118182958385713,
+	BlueFrogLeftHandGrab = 137010534031965,
+	BlueFrogLeftLimb = 133346209548827,
+	BlueFrogLowLeftEyelid = 115265546517868,
+	BlueFrogLowRightEyelid = 95766688335042,
+	BlueFrogLowerLeftEyelid = 138260914522549,
+	BlueFrogLowerRightEyelid = 71234280788019,
+	BlueFrogMouth = 106037417321579,
+	BlueFrogRightEye = 103085509166259,
+	BlueFrogRightEyelid = 108906450668566,
+	BlueFrogRightHand = 81522379998972,
+	BlueFrogRightHandGrab = 72052974634511,
+	BlueFrogRightLimb = 72027218197826,
+
 	-- Steps (Sprites/Rocks)
 	WhiteRock = 122112831042498,
 	SmallRock = 139421992156193,
@@ -142,31 +165,12 @@ local Ids: { [string]: number } = {
 	xboxControllerDPad = 89401895463506,
 	xboxControllerStart = 85169091650591,
 
-	-- Blue Frog (auto)
-	BlueFrogBody = 124960144702031,
-	BlueFrogClosedLeftEyelid = 102390321224988,
-	BlueFrogClosedRightEyelid = 96749871384090,
-	BlueFrogHead = 105090763011009,
-	BlueFrogLeftEye = 72959705094232,
-	BlueFrogLeftEyelid = 84555178499533,
-	BlueFrogLeftHand = 118182958385713,
-	BlueFrogLeftHandGrab = 137010534031965,
-	BlueFrogLeftLimb = 133346209548827,
-	BlueFrogLowLeftEyelid = 115265546517868,
-	BlueFrogLowRightEyelid = 95766688335042,
-	BlueFrogLowerLeftEyelid = 138260914522549,
-	BlueFrogLowerRightEyelid = 71234280788019,
-	BlueFrogMouth = 106037417321579,
-	BlueFrogRightEye = 103085509166259,
-	BlueFrogRightEyelid = 108906450668566,
-	BlueFrogRightHand = 81522379998972,
-	BlueFrogRightHandGrab = 72052974634511,
-	BlueFrogRightLimb = 72027218197826,
-
 	-- Business Frog (auto)
 	BusinessFrogArm = 137904174701279,
 	BusinessFrogBody = 77791361171864,
 	BusinessFrogThumbnail = 136308984050605,
+	BusinessFrogTintArm = 83249472871205,
+	BusinessFrogTintBody = 111380085607611,
 
 	-- Crossy Frog (auto)
 	CrossyFrogArm = 85108755866784,
@@ -188,6 +192,21 @@ local Ids: { [string]: number } = {
 	CrossyFrogRightHandGrab = 108408790077612,
 	CrossyFrogRightSclera = 89344955586120,
 	CrossyFrogThumbnail = 100054380994072,
+	CrossyFrogTintArm = 111422243501221,
+	CrossyFrogTintBody = 103542062084558,
+	CrossyFrogTintClosedLeftEyelid = 93503420333654,
+	CrossyFrogTintClosedRightEyelid = 95080941080968,
+	CrossyFrogTintHead = 72978092159019,
+	CrossyFrogTintLeftEye = 81881320317360,
+	CrossyFrogTintLeftHand = 79672088958029,
+	CrossyFrogTintLeftHandGrab = 83909691583874,
+	CrossyFrogTintLowLeftEyelid = 124571121514658,
+	CrossyFrogTintLowRightEyelid = 112497247245122,
+	CrossyFrogTintLowerLeftEyelid = 125020040048263,
+	CrossyFrogTintLowerRightEyelid = 106661590932787,
+	CrossyFrogTintRightEye = 73086547633490,
+	CrossyFrogTintRightHand = 92075459473793,
+	CrossyFrogTintRightHandGrab = 112505585561915,
 
 	-- Hawt Frog (auto)
 	HawtFrogAccessory = 92072401896151,
@@ -196,9 +215,27 @@ local Ids: { [string]: number } = {
 	HawtFrogRightHandGrab = 84973056236948,
 	HawtFrogRightHandGrabBack = 82291578173941,
 	HawtFrogThumbnail = 99565840579063,
+	HawtFrogTintLeftHandGrab = 115257872812012,
+	HawtFrogTintRightHandGrab = 108150337446749,
 
 	-- Hot Frog (auto)
 	HotFrogThumbnail = 136773965416772,
+	HotFrogTintBody = 76541581711411,
+	HotFrogTintClosedLeftEyelid = 83295198946991,
+	HotFrogTintClosedRightEyelid = 126446211319640,
+	HotFrogTintHead = 123304586788617,
+	HotFrogTintLeftEye = 130067699992471,
+	HotFrogTintLeftHand = 129831506474355,
+	HotFrogTintLeftHandGrab = 75557112563903,
+	HotFrogTintLeftLimb = 81428992303028,
+	HotFrogTintLowLeftEyelid = 79340837150653,
+	HotFrogTintLowRightEyelid = 83716775857370,
+	HotFrogTintLowerLeftEyelid = 140432068975883,
+	HotFrogTintLowerRightEyelid = 131841002808869,
+	HotFrogTintRightEye = 89945049651539,
+	HotFrogTintRightHand = 105995471932006,
+	HotFrogTintRightHandGrab = 86064600809622,
+	HotFrogTintRightLimb = 105140426254818,
 
 	-- Hot Lawyer (auto)
 	HotLawyerArm = 104014406121118,
@@ -218,11 +255,15 @@ local Ids: { [string]: number } = {
 	HotLawyerRightHand = 120506013836764,
 	HotLawyerRightHandGrab = 106727107401265,
 	HotLawyerThumbnail = 84459484873946,
+	HotLawyerTintArm = 100345510850608,
+	HotLawyerTintBody = 70520457189105,
 
 	-- Invisible Man (auto)
 	InvisibleManArm = 140228321446747,
 	InvisibleManBody = 108823295493826,
 	InvisibleManThumbnail = 110718601963675,
+	InvisibleManTintArm = 97504991896313,
+	InvisibleManTintBody = 73250790927455,
 
 	-- Mystery Frog (auto)
 	MysteryFrogArm = 108643786706477,
@@ -249,6 +290,12 @@ local Ids: { [string]: number } = {
 	SpaceFrogLeftHandGrab = 70458984446865,
 	SpaceFrogRightHand = 136899151708265,
 	SpaceFrogRightHandGrab = 107158885449955,
+	SpaceFrogTintArm = 105401107601348,
+	SpaceFrogTintBody = 110122943026116,
+	SpaceFrogTintLeftHand = 126312463201123,
+	SpaceFrogTintLeftHandGrab = 111565986732640,
+	SpaceFrogTintRightHand = 138942763124653,
+	SpaceFrogTintRightHandGrab = 74402135476943,
 }
 
 local SkinAssets = {}
@@ -271,21 +318,38 @@ end
 -- Fallback chain for a part the skin doesn't override, as in the Unity frog
 -- prefabs: the skin's own sprite → its single `Arm` sprite (for either limb) →
 -- the shared Universal art (pupils/sclera/tongue) → the starter Hot Frog's art.
+--
+-- `tint` (b-20261013-055017-6y7s; doc 08): a frog wearing a SkinTints colour
+-- wears the TINT-READY copies, `<Prefix>Tint<Suffix>` (e.g. HotFrogTintBody),
+-- where the frog green is greyed so the multiply shows the tint's own colour.
+-- Each step of the chain tries that copy first. The second result says whether
+-- the image found is one: only those sprites take the tint. Eyes, mouths,
+-- accessories and Hot Lawyer's human skin have no copies, so they never do.
 local FALLBACK_SKIN = "HotFrog"
 
-function SkinAssets.part(skinName: string, suffix: string): string?
-	local prefix = SkinAssets.prefix(skinName)
-	local own = SkinAssets.image(prefix .. suffix)
-	if own then
-		return own
-	end
-	if suffix == "LeftLimb" or suffix == "RightLimb" then
-		local arm = SkinAssets.image(prefix .. "Arm")
-		if arm then
-			return arm
+local function lookup(prefix: string, suffix: string, tint: boolean?): (string?, boolean)
+	if tint then
+		local image = SkinAssets.image(prefix .. "Tint" .. suffix)
+		if image then
+			return image, true
 		end
 	end
-	return SkinAssets.image("Universal" .. suffix) or SkinAssets.image(FALLBACK_SKIN .. suffix)
+	return SkinAssets.image(prefix .. suffix), false
+end
+
+function SkinAssets.part(skinName: string, suffix: string, tint: boolean?): (string?, boolean)
+	local prefix = SkinAssets.prefix(skinName)
+	local image, tinted = lookup(prefix, suffix, tint)
+	if not image and (suffix == "LeftLimb" or suffix == "RightLimb") then
+		image, tinted = lookup(prefix, "Arm", tint)
+	end
+	if not image then
+		image, tinted = lookup("Universal", suffix, tint)
+	end
+	if not image then
+		image, tinted = lookup(FALLBACK_SKIN, suffix, tint)
+	end
+	return image, tinted
 end
 
 return SkinAssets

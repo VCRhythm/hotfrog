@@ -124,8 +124,8 @@ local function refreshFrogTint(player: Player)
 end
 
 -- Retexture the live server-owned frog (GameServer names it Frog_<userId>) with
--- the selected skin's art, or the worn tint's art swap (Blue); the new look
--- replicates to every client.
+-- the selected skin's art, the worn tint's art swap (Blue), or its tint-ready
+-- art under a colour tint; the new look replicates to every client.
 local function reskinFrog(player: Player)
 	local p = Profiles.get(player)
 	local entry = p and Catalog[p.selected]
@@ -215,7 +215,7 @@ SelectTint.OnServerEvent:Connect(function(player, skinId, tintId)
 	p.selectedTints[tostring(skinId)] = tintId
 	refreshFrogTint(player)
 	push(player)
-	reskinFrog(player) -- Blue swaps the art, not just a colour
+	reskinFrog(player) -- Blue swaps the art; a colour tint wears the tint-ready art
 end)
 
 BuyWithFlys.OnServerInvoke = function(player, id)

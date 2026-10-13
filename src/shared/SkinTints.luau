@@ -3,8 +3,12 @@
 -- Skin colourways (b-20261008-142125-1ucz; not in Unity -- see doc 17): a Fly
 -- sink once every skin is bought. One shared list of tints, bought PER SKIN
 -- (owning Mint on Hawt Frog doesn't give it to Hot Frog). A tint is a Color3
--- multiplied over the frog's sprite decals, except an `art` tint (Blue), which
--- swaps in another art set instead (see the Tint type below).
+-- multiplied over the frog's TINT-READY art (b-20261013-055017-6y7s: copies of
+-- the parts with the frog green greyed, `<Prefix>Tint<Suffix>`, see
+-- SkinAssets.part), except an `art` tint (Blue), which swaps in another art set
+-- instead (see the Tint type below). Only sprites that wear a tint-ready image
+-- take the colour; eyes, mouths, accessories and Hot Lawyer's human skin have
+-- none, so they keep the art as drawn.
 --
 -- Kept out of SkinCatalog on purpose: that module is iterated with
 -- `pairs(Catalog)` as a numeric id -> skin map (Profiles, SkinService, StoreUI),
@@ -53,18 +57,6 @@ SkinTints.list = {
 
 SkinTints.NONE = Color3.new(1, 1, 1)
 
--- Eye parts keep their own colours so a tinted frog still has white eyes; the
--- Accessory (sunglasses, helmet) is gear, not frog skin, so it keeps its own too.
-local UNTINTED: { [string]: boolean } = {
-	LeftSclera = true,
-	RightSclera = true,
-	LeftEye = true,
-	RightEye = true,
-	LeftPupil = true,
-	RightPupil = true,
-	Accessory = true,
-}
-
 local byId: { [number]: Tint } = {}
 for _, tint in SkinTints.list do
 	byId[tint.id] = tint
@@ -84,14 +76,19 @@ function SkinTints.offeredOn(tint: Tint, skinId: number): boolean
 	return skins == nil or skins[skinId] == true
 end
 
--- The art name to texture a frog with: the worn tint's `art` when it has one and
--- is offered on that skin, else the skin's own name.
-function SkinTints.artName(skinId: number, tintId: any, skinName: string): string
+-- The art to texture a frog with, as SpriteSkin.apply's (skinName, tint) pair:
+-- the worn tint's `art` when it has one and is offered on that skin (Blue), else
+-- the skin's own name; `tint` is true for a worn colour tint, so the frog wears
+-- its tint-ready art (both values pass straight on: apply(model, artName(...))).
+function SkinTints.artName(skinId: number, tintId: any, skinName: string): (string, boolean)
 	local tint = SkinTints.get(tintId)
-	if tint and tint.art and SkinTints.offeredOn(tint, skinId) then
-		return tint.art
+	if tint and SkinTints.offeredOn(tint, skinId) then
+		if tint.art then
+			return tint.art, false
+		end
+		return skinName, true
 	end
-	return skinName
+	return skinName, false
 end
 
 -- The Color3 for a tint id (white for 0 / unknown).
@@ -100,23 +97,25 @@ function SkinTints.color(id: any): Color3
 	return if tint then tint.color else SkinTints.NONE
 end
 
--- Is this sprite instance part of the tinted skin (a frog `Suffix` sprite that
--- isn't an eye)?
+-- Does this sprite take the tint? Only a frog `Suffix` sprite that SpriteSkin
+-- dressed in a tint-ready image (it sets `Tinted`).
 function SkinTints.isTinted(obj: Instance): boolean
-	local suffix = obj:GetAttribute("Suffix")
-	return typeof(suffix) == "string" and not UNTINTED[suffix]
+	return obj:GetAttribute("Tinted") == true and typeof(obj:GetAttribute("Suffix")) == "string"
 end
 
 -- Multiply `color` over every tintable frog sprite under `root` (Decal/Texture
--- Color3, ImageLabel/ImageButton ImageColor3). Local visual property only.
+-- Color3, ImageLabel/ImageButton ImageColor3) and reset every other frog sprite
+-- to white, so a re-skin onto art with fewer tint-ready parts drops the colour.
+-- Local visual property only.
 function SkinTints.apply(root: Instance, color: Color3)
 	for _, obj in root:GetDescendants() do
-		if SkinTints.isTinted(obj) then
+		if typeof(obj:GetAttribute("Suffix")) == "string" then
+			local c = if SkinTints.isTinted(obj) then color else SkinTints.NONE
 			if obj:IsA("Decal") then
-				obj.Color3 = color -- Texture inherits from Decal
+				obj.Color3 = c -- Texture inherits from Decal
 			elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then
 				local ui = obj :: any
-				ui.ImageColor3 = color
+				ui.ImageColor3 = c
 			end
 		end
 	end

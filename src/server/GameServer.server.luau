@@ -1262,7 +1262,8 @@ local function createFrog(player: Player, lane: Lane.Lane)
 	local profile = Profiles.get(player)
 	local entry = profile and SkinCatalog[profile.selected]
 	if profile and entry then
-		-- the worn colourway may swap the art (Hot Frog's Blue)
+		-- the worn colourway may swap the art (Hot Frog's Blue) or, for a colour
+		-- tint, dress the frog in its tint-ready art (artName returns both values)
 		local wornTint = profile.selectedTints[tostring(profile.selected)] or 0
 		if wornTint ~= 0 and not profile.ownedTints[SkinTints.key(profile.selected, wornTint)] then
 			wornTint = 0

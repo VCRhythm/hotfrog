@@ -265,16 +265,47 @@ local function mulColor(a: Color3, b: Color3): Color3
 	return Color3.new(a.R * b.R, a.G * b.G, a.B * b.B)
 end
 
+-- The colourway on the Body decal: the tint when it wears tint-ready art.
+local function bodyTint(state: FrogState): Color3
+	local decal = state.bodyDecal
+	return if decal and SkinTints.isTinted(decal) then state.tint else SkinTints.NONE
+end
+
 -- Skin colourway (b-20261008-142125-1ucz; doc 17): multiply the owner's
--- FrogTint (a SkinTints id, set by SkinService) over the frog's sprites. The
--- Body decal also carries the heat tint, so it keeps that on top.
+-- FrogTint (a SkinTints id, set by SkinService) over the frog's tint-ready
+-- sprites (b-20261013-055017-6y7s). The Body decal also carries the heat tint,
+-- so it keeps that on top.
 local function applySkinTint(state: FrogState)
 	local owner = Players:GetPlayerByUserId(state.userId)
 	state.tint = SkinTints.color(owner and owner:GetAttribute("FrogTint"))
 	SkinTints.apply(state.model, state.tint)
 	local decal = state.bodyDecal
 	if decal and state.heatTinted then
-		decal.Color3 = mulColor(WorldConfig.FROG_HEAT_TINT_COLOR, state.tint)
+		decal.Color3 = mulColor(WorldConfig.FROG_HEAT_TINT_COLOR, bodyTint(state))
+	end
+end
+
+-- The server re-skins (tint-ready art or not) and sets FrogTint separately, and
+-- the two replicate independently, so re-tint once whenever a sprite's
+-- `Tinted` mark (SpriteSkin.apply) changes as well.
+local function watchTintedArt(state: FrogState)
+	local queued = false
+	local function requeue()
+		if queued then
+			return
+		end
+		queued = true
+		task.defer(function()
+			queued = false
+			if state.alive then
+				applySkinTint(state)
+			end
+		end)
+	end
+	for _, obj in state.model:GetDescendants() do
+		if obj:GetAttribute("Suffix") ~= nil then
+			obj:GetAttributeChangedSignal("Tinted"):Connect(requeue)
+		end
 	end
 end
 
@@ -284,7 +315,7 @@ local function setHeatTint(state: FrogState, hot: boolean)
 		return
 	end
 	state.heatTinted = hot
-	local color = if hot then mulColor(WorldConfig.FROG_HEAT_TINT_COLOR, state.tint) else state.tint
+	local color = if hot then mulColor(WorldConfig.FROG_HEAT_TINT_COLOR, bodyTint(state)) else bodyTint(state)
 	TweenService:Create(decal, TweenInfo.new(WorldConfig.FROG_HEAT_TINT_TIME), { Color3 = color }):Play()
 end
 
@@ -486,6 +517,7 @@ local function trackFrog(model: Model)
 	end)
 
 	applySkinTint(state)
+	watchTintedArt(state)
 	local owner = Players:GetPlayerByUserId(state.userId)
 	if owner then
 		local conn: RBXScriptConnection

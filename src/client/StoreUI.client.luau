@@ -229,8 +229,9 @@ local function skinIdByName(skinName: string): number?
 	return nil
 end
 
--- The art to texture skin `id` with: its own, or the worn colourway's art swap.
-local function artFor(id: number, skinName: string): string
+-- The art to texture skin `id` with: its own, the worn colourway's art swap, or
+-- its tint-ready art under a colour tint (SpriteSkin.apply's skinName, tint pair).
+local function artFor(id: number, skinName: string): (string, boolean)
 	return SkinTints.artName(id, wornTintId(id), skinName)
 end
 
@@ -246,7 +247,11 @@ local function makePreview(skinName: string, y: number): Preview
 		end
 	end
 	local skinId = skinIdByName(skinName)
-	SpriteSkin.apply(model, if skinId then artFor(skinId, skinName) else skinName)
+	if skinId then
+		SpriteSkin.apply(model, artFor(skinId, skinName))
+	else
+		SpriteSkin.apply(model, skinName)
+	end
 	SkinTints.apply(model, wornTint(skinId))
 	local value = Instance.new("NumberValue")
 	value.Value = y

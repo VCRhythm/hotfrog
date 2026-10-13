@@ -54,7 +54,11 @@ end
 
 -- Texture `root` and its descendants from SkinAssets. Pass a skinName to resolve
 -- per-skin `Suffix` parts (the frog rig); omit it for static art (`Sprite` only).
-function SpriteSkin.apply(root: Instance, skinName: string?)
+-- `tint` dresses the frog in its tint-ready art (SkinAssets.part) and marks each
+-- `Suffix` sprite that got a tint-ready image with `Tinted = true` (cleared
+-- otherwise), which is what SkinTints.apply colours. SkinTints.artName returns
+-- the (skinName, tint) pair, so `SpriteSkin.apply(model, SkinTints.artName(...))`.
+function SpriteSkin.apply(root: Instance, skinName: string?, tint: boolean?)
 	local targets = root:GetDescendants()
 	table.insert(targets, root)
 	for _, obj in targets do
@@ -64,7 +68,8 @@ function SpriteSkin.apply(root: Instance, skinName: string?)
 		end
 		local suffix = obj:GetAttribute("Suffix")
 		if typeof(suffix) == "string" and skinName then
-			local image = SkinAssets.part(skinName, suffix)
+			local image, tinted = SkinAssets.part(skinName, suffix, tint)
+			obj:SetAttribute("Tinted", if tinted then true else nil)
 			if suffix == "Accessory" then
 				-- skin-specific (sunglasses, helmet): blank when the skin has none, so a
 				-- re-skinned rig never keeps the previous skin's accessory
