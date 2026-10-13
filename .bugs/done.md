@@ -1920,3 +1920,13 @@ verified: yes. Studio Easy run on 2131c262 with a bot making Perfect grabs: Stre
 review: concern. oscillate's fixed per-tick cap (2·A·rate·dt) would bind at 4x and shrink or lag the Patrol and RiseAndFall sweeps. The fixer scaled the cap by the tempo.
 re-review: looks-right. The cap now scales with tempo, the pull clamp is applied before dividing by speed, nothing hard-codes 2, and dropping the 1.25 cue is safe.
 leftover: none — read as cap 2x -> 4x; if the user meant something else (e.g. 3x), it is one Config number (STREAK_SPEED_MAX).
+
+## b-20261013-095859-quga  fixed  2026-10-13 10:11
+note: Mystery Frog's grab hands show Hot Frog's hand art (green, or mint/gold under a colour tint) on the black silhouette; the grab hand should match the silhouette like its open hands
+cause: Mystery Frog has no grab-hand art, so SkinAssets.part fell back to Hot Frog's hand (its tint-ready copy when a tint is worn), which was drawn in colour on the black silhouette.
+change: SpriteSkin.apply flags a silhouette skin's borrowed *Grab sprites with a Silhouette attribute and asks for the untinted hand. SkinTints.apply paints flagged sprites black (Color3 0,0,0) whatever tint is worn. SkinTints lists the silhouette skins (only Mystery Frog). WorldFrogCosmetics re-applies the tint when the attribute changes. No new art was uploaded. Doc 17's "Mystery Frog entirely (black silhouette)" note already covers this.
+files: src/shared/SpriteSkin.luau, src/shared/SkinTints.luau, src/client/WorldFrogCosmetics.client.luau
+test: stylua --check (touched files), selene src/ (0 errors), bash tools/luau_check.sh, rojo build (all clean)
+verified: yes. Studio playtest on 2131c262. The menu frog was re-skinned server-side to Mystery Frog with Mint (FrogTint 1). On the client, RightHandGrab and LeftHandGrab had Color3 0,0,0 and Silhouette=true; the open hands and body were unchanged. The screenshot shows the black silhouette gripping the red rung with a black hand and no mint. With no tint (FrogTint 0) the grab hands were still black. Switching back to Business Frog cleared Silhouette and reset the grab hands to Color3 1,1,1. The console was clean ([BugReport] ready only), the frog was restored, and play is stopped. The store preview was not opened; the reviewer confirmed it calls SpriteSkin.apply then SkinTints.apply.
+review: looks-right. The reviewer checked that switching skins clears the attribute and resets the colour, that other tinted skins are unaffected, the server frog, store preview and store real-frog paths, that the Mystery name check holds and that MysteryFrog*HandGrab ids are absent, Color3 vs ImageColor3 per class, attribute-before-tint ordering, and that there is no require cycle.
+leftover: none
