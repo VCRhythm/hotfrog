@@ -27,6 +27,7 @@ local RunService = game:GetService("RunService")
 local HttpService = game:GetService("HttpService")
 
 local Catalog = require(ReplicatedStorage.Shared.SkinCatalog)
+local SkinTints = require(ReplicatedStorage.Shared.SkinTints)
 
 export type Profile = {
 	highScore: number,
@@ -130,6 +131,28 @@ local function grantDefaultSkins(p: Profile)
 	end
 end
 
+-- Blue Frog (skin id 2) became Hot Frog's "Blue" colourway (SkinTints id 5;
+-- b-20261012-212255-idh7). Owners of the old skin get the tint, a worn Blue Frog
+-- becomes Hot Frog wearing Blue, and id 2 is removed so it is never owned or
+-- selected. Idempotent; runs on every raw-data -> profile path, before any use.
+local OLD_BLUE_FROG = 2
+local BLUE_TINT_ID = 5
+local function migrateBlueFrog(p: Profile)
+	if p.owned[OLD_BLUE_FROG] then
+		p.ownedTints[SkinTints.key(1, BLUE_TINT_ID)] = true
+		p.owned[OLD_BLUE_FROG] = nil
+	end
+	if p.selected == OLD_BLUE_FROG then
+		p.selected = 1
+		p.selectedTints["1"] = BLUE_TINT_ID
+		p.ownedTints[SkinTints.key(1, BLUE_TINT_ID)] = true
+	end
+	p.selectedTints[tostring(OLD_BLUE_FROG)] = nil
+	if not Catalog[p.selected] then
+		p.selected = 1
+	end
+end
+
 -- Merge a loaded DataStore table onto a fresh default (forward-compatible; numeric
 -- keys come back from JSON as strings, so coerce them).
 local function reconcile(p: Profile, data: any)
@@ -187,6 +210,7 @@ local function reconcile(p: Profile, data: any)
 			end
 		end
 	end
+	migrateBlueFrog(p)
 end
 
 -- Pull the Profile-shaped table out of a raw DataStore value, whether it's the
@@ -323,6 +347,8 @@ local function mergeForSave(old: any, p: Profile, release: boolean): StoredRecor
 				end
 			end
 		end
+		-- a stale record may still hold the retired Blue Frog: carry it as the tint
+		migrateBlueFrog(merged)
 		if type(oldProfile.applied) == "table" then
 			for k, v in pairs(oldProfile.applied) do
 				if v then

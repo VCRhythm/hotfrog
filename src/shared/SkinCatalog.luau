@@ -16,11 +16,13 @@
 -- flyCost is a run ladder, not Unity's prices (b-20261008-142458-vo87 /
 -- b-20261008-143831-k4ys; doc 17): at ~50 Flys per typical run each price is
 -- the next gap of 2, 5, 10, 20, 30, 45, 60, 80 runs (cumulative 2, 7, 17, 37,
--- 67, 112, 172, 252 runs).
+-- 67, 112, 172, 252 runs). The first rung (100 Flys, 2 runs) is Hot Frog's Blue
+-- colour (SkinTints), so Hawt Frog is the first skin on the ladder.
 
 return {
 	[1] = { name = "Hot Frog", default = true }, -- the namesake / starter
-	[2] = { name = "Blue Frog", flyCost = 100 }, -- 2 runs
+	-- id 2 (Blue Frog) is gone: it is now Hot Frog's "Blue" art-swap colourway
+	-- (SkinTints id 5, 100 Flys, b-20261012-212255-idh7); Profiles migrates owners.
 	[3] = { name = "Hawt Frog", flyCost = 250 }, -- 5 more
 	[4] = { name = "Space Frog", flyCost = 500 }, -- 10 more
 	[5] = { name = "Mystery Frog", flyCost = 1000 }, -- 20 more

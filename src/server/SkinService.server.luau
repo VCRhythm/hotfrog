@@ -113,10 +113,29 @@ local function refreshFrogTint(player: Player)
 		return
 	end
 	local tint = p.selectedTints[tostring(p.selected)] or 0
-	if tint ~= 0 and not p.ownedTints[SkinTints.key(p.selected, tint)] then
+	local worn = SkinTints.get(tint)
+	if
+		tint ~= 0
+		and not (worn and SkinTints.offeredOn(worn, p.selected) and p.ownedTints[SkinTints.key(p.selected, tint)])
+	then
 		tint = 0
 	end
 	player:SetAttribute("FrogTint", tint)
+end
+
+-- Retexture the live server-owned frog (GameServer names it Frog_<userId>) with
+-- the selected skin's art, or the worn tint's art swap (Blue); the new look
+-- replicates to every client.
+local function reskinFrog(player: Player)
+	local p = Profiles.get(player)
+	local entry = p and Catalog[p.selected]
+	local playField = workspace:FindFirstChild("PlayField")
+	local frogsFolder = playField and playField:FindFirstChild("Frogs")
+	local frogModel = frogsFolder and frogsFolder:FindFirstChild("Frog_" .. player.UserId)
+	if p and entry and frogModel then
+		local tintId = player:GetAttribute("FrogTint")
+		SpriteSkin.apply(frogModel, SkinTints.artName(p.selected, tintId, entry.name))
+	end
 end
 
 -- ---------------------------------------------------------------------------
@@ -128,15 +147,7 @@ SelectSkin.OnServerEvent:Connect(function(player, id)
 		p.selected = id
 		refreshFrogTint(player)
 		push(player)
-		-- retexture the live server-owned frog (GameServer names it Frog_<userId>);
-		-- the new look replicates to every client
-		local entry = Catalog[id]
-		local playField = workspace:FindFirstChild("PlayField")
-		local frogsFolder = playField and playField:FindFirstChild("Frogs")
-		local frogModel = frogsFolder and frogsFolder:FindFirstChild("Frog_" .. player.UserId)
-		if entry and frogModel then
-			SpriteSkin.apply(frogModel, entry.name)
-		end
+		reskinFrog(player)
 	end
 end)
 
@@ -172,7 +183,7 @@ end
 -- tint's flyCost once per skin. Returns true when owned (already or now).
 BuyTint.OnServerInvoke = function(player, skinId, tintId)
 	local p, tint = Profiles.get(player), SkinTints.get(tintId)
-	if not (p and tint and type(skinId) == "number" and p.owned[skinId]) then
+	if not (p and tint and type(skinId) == "number" and p.owned[skinId] and SkinTints.offeredOn(tint, skinId)) then
 		return false
 	end
 	local key = SkinTints.key(skinId, tint.id)
@@ -195,12 +206,16 @@ SelectTint.OnServerEvent:Connect(function(player, skinId, tintId)
 	if not (p and type(skinId) == "number" and p.owned[skinId] and type(tintId) == "number") then
 		return
 	end
-	if tintId ~= 0 and not (SkinTints.get(tintId) and p.ownedTints[SkinTints.key(skinId, tintId)]) then
-		return
+	if tintId ~= 0 then
+		local tint = SkinTints.get(tintId)
+		if not (tint and SkinTints.offeredOn(tint, skinId) and p.ownedTints[SkinTints.key(skinId, tintId)]) then
+			return
+		end
 	end
 	p.selectedTints[tostring(skinId)] = tintId
 	refreshFrogTint(player)
 	push(player)
+	reskinFrog(player) -- Blue swaps the art, not just a colour
 end)
 
 BuyWithFlys.OnServerInvoke = function(player, id)

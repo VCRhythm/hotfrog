@@ -31,7 +31,7 @@ Flys** (the soft-currency path, fed by caught bugs and gifts).
 The original frog art lives in [`/Sprites/Frogs/`](../../Sprites/Frogs) — one
 folder per skin, named to match the `SkinCatalog` `name` field:
 
-`Hot Frog`, `Blue Frog`, `Hawt Frog`, `Space Frog`, `Mystery Frog`,
+`Hot Frog`, `Blue Frog` (art only: now Hot Frog's "Blue" colourway, no longer a catalog skin; see doc 17), `Hawt Frog`, `Space Frog`, `Mystery Frog`,
 `Business Frog`, `Hot Lawyer`, `Invisible Man`, `Crossy Frog`, plus a shared
 [`Universal/`](../../Sprites/Frogs/Universal) set (pupils, sclera, tongue).
 
@@ -93,7 +93,7 @@ The real catalog lives at
 -- default = true => owned free. The 4 premium frogs match Store/StoreAssets.cs.
 return {
 	[1] = { name = "Hot Frog", default = true }, -- namesake / starter
-	[2] = { name = "Blue Frog", flyCost = 500 },
+	-- [2] Blue Frog removed: it is Hot Frog's "Blue" colourway (SkinTints id 5)
 	[3] = { name = "Hawt Frog", flyCost = 1000 },
 	[4] = { name = "Space Frog", flyCost = 1500 },
 	[5] = { name = "Mystery Frog", flyCost = 2000 },

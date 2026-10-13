@@ -25,6 +25,7 @@ local Config = require(ReplicatedStorage.Shared.Config)
 local PullMath = require(ReplicatedStorage.Shared.PullMath)
 local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 local SkinCatalog = require(ReplicatedStorage.Shared.SkinCatalog)
+local SkinTints = require(ReplicatedStorage.Shared.SkinTints)
 local StepBehaviors = require(ReplicatedStorage.Shared.StepBehaviors)
 local StepKinds = require(ReplicatedStorage.Shared.StepKinds)
 local Levels = require(ReplicatedStorage.Shared.Levels)
@@ -1260,8 +1261,13 @@ local function createFrog(player: Player, lane: Lane.Lane)
 	-- skin from the profile (server-side: replicates to everyone -- doc 08)
 	local profile = Profiles.get(player)
 	local entry = profile and SkinCatalog[profile.selected]
-	if entry then
-		SpriteSkin.apply(model, entry.name)
+	if profile and entry then
+		-- the worn colourway may swap the art (Hot Frog's Blue)
+		local wornTint = profile.selectedTints[tostring(profile.selected)] or 0
+		if wornTint ~= 0 and not profile.ownedTints[SkinTints.key(profile.selected, wornTint)] then
+			wornTint = 0
+		end
+		SpriteSkin.apply(model, SkinTints.artName(profile.selected, wornTint, entry.name))
 	end
 
 	local state: FrogState = {

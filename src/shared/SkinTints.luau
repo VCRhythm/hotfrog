@@ -2,8 +2,9 @@
 -- ReplicatedStorage/Shared/SkinTints (ModuleScript)
 -- Skin colourways (b-20261008-142125-1ucz; not in Unity -- see doc 17): a Fly
 -- sink once every skin is bought. One shared list of tints, bought PER SKIN
--- (owning Mint on Blue Frog doesn't give it to Hot Frog), no new art: a tint is
--- a Color3 multiplied over the frog's sprite decals.
+-- (owning Mint on Hawt Frog doesn't give it to Hot Frog). A tint is a Color3
+-- multiplied over the frog's sprite decals, except an `art` tint (Blue), which
+-- swaps in another art set instead (see the Tint type below).
 --
 -- Kept out of SkinCatalog on purpose: that module is iterated with
 -- `pairs(Catalog)` as a numeric id -> skin map (Profiles, SkinService, StoreUI),
@@ -17,11 +18,33 @@
 --   id worn on the selected skin; WorldFrogCosmetics tints that frog for every
 --   viewer.
 
-export type Tint = { id: number, name: string, color: Color3, flyCost: number }
+-- Optional fields: `art` makes the tint an ART-SWAP colourway (the frog is
+-- textured with that skin's art instead of being multiplied by `color`; used
+-- for Blue, Unity's old "Blue Frog", whose pixels a multiply could never reach);
+-- `skins` limits where it is offered (nil = every skin); `swatch` is the store
+-- swatch colour when `color` is white.
+export type Tint = {
+	id: number,
+	name: string,
+	color: Color3,
+	flyCost: number,
+	art: string?,
+	skins: { [number]: boolean }?,
+	swatch: Color3?,
+}
 
 local SkinTints = {}
 
 SkinTints.list = {
+	{
+		id = 5,
+		name = "Blue",
+		color = Color3.new(1, 1, 1),
+		flyCost = 100,
+		art = "Blue Frog",
+		skins = { [1] = true },
+		swatch = Color3.fromRGB(0, 120, 125),
+	},
 	{ id = 1, name = "Mint", color = Color3.fromRGB(150, 255, 190), flyCost = 400 },
 	{ id = 2, name = "Berry", color = Color3.fromRGB(255, 150, 210), flyCost = 600 },
 	{ id = 3, name = "Midnight", color = Color3.fromRGB(130, 140, 255), flyCost = 800 },
@@ -53,6 +76,22 @@ end
 
 function SkinTints.key(skinId: number, tintId: number): string
 	return skinId .. ":" .. tintId
+end
+
+-- Is this tint offered (buyable / wearable) on skin `skinId`?
+function SkinTints.offeredOn(tint: Tint, skinId: number): boolean
+	local skins = tint.skins
+	return skins == nil or skins[skinId] == true
+end
+
+-- The art name to texture a frog with: the worn tint's `art` when it has one and
+-- is offered on that skin, else the skin's own name.
+function SkinTints.artName(skinId: number, tintId: any, skinName: string): string
+	local tint = SkinTints.get(tintId)
+	if tint and tint.art and SkinTints.offeredOn(tint, skinId) then
+		return tint.art
+	end
+	return skinName
 end
 
 -- The Color3 for a tint id (white for 0 / unknown).

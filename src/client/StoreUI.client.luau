@@ -137,8 +137,13 @@ local SWATCH_W, SWATCH_GAP = 72, 8
 local swatchRow = Instance.new("Frame")
 swatchRow.Name = "Tints"
 swatchRow.BackgroundTransparency = 1
-swatchRow.Size = UDim2.fromOffset((#SkinTints.list + 1) * (SWATCH_W + SWATCH_GAP) - SWATCH_GAP, 52)
-swatchRow.Position = UDim2.new(0.5, -swatchRow.Size.X.Offset / 2, 1, -192)
+-- Laid out from the swatches offered on the shown skin (Blue is Hot Frog only).
+local function setSwatchCount(count: number)
+	local width = count * (SWATCH_W + SWATCH_GAP) - SWATCH_GAP
+	swatchRow.Size = UDim2.fromOffset(width, 52)
+	swatchRow.Position = UDim2.new(0.5, -width / 2, 1, -192)
+end
+setSwatchCount(#SkinTints.list + 1)
 swatchRow.Visible = false
 swatchRow.Parent = store
 local swatchLayout = Instance.new("UIListLayout")
@@ -147,15 +152,15 @@ swatchLayout.Padding = UDim.new(0, SWATCH_GAP)
 swatchLayout.SortOrder = Enum.SortOrder.LayoutOrder
 swatchLayout.Parent = swatchRow
 local swatches: { [number]: TextButton } = {}
-local function makeSwatch(tintId: number, color: Color3)
+local function makeSwatch(tintId: number, color: Color3, order: number)
 	local b = button("Tint" .. tintId, "", UDim2.fromOffset(SWATCH_W, 52), UDim2.new(), swatchRow)
-	b.LayoutOrder = tintId
+	b.LayoutOrder = order -- SkinTints.list order (Blue first), not id order
 	b.BackgroundColor3 = color
 	swatches[tintId] = b
 end
-makeSwatch(0, SkinTints.NONE)
-for _, tint in SkinTints.list do
-	makeSwatch(tint.id, tint.color)
+makeSwatch(0, SkinTints.NONE, 0)
+for i, tint in SkinTints.list do
+	makeSwatch(tint.id, tint.swatch or tint.color, i)
 end
 
 -- ---------------------------------------------------------------------------
@@ -195,13 +200,24 @@ local function setRealHidden(hidden: boolean)
 end
 
 -- The tint worn on skin `id` per the latest profile (white when none/unowned).
-local function wornTint(id: number?): Color3
+local function wornTintId(id: number?): number
 	local tints = profile and profile.selectedTints
 	local tintId = if tints and id then tints[tostring(id)] else nil
-	if tintId and tintId ~= 0 and profile.ownedTints and profile.ownedTints[SkinTints.key(id :: number, tintId)] then
-		return SkinTints.color(tintId)
+	local tint = SkinTints.get(tintId)
+	if
+		tint
+		and id
+		and SkinTints.offeredOn(tint, id)
+		and profile.ownedTints
+		and profile.ownedTints[SkinTints.key(id, tint.id)]
+	then
+		return tint.id
 	end
-	return SkinTints.NONE
+	return 0
+end
+
+local function wornTint(id: number?): Color3
+	return SkinTints.color(wornTintId(id))
 end
 
 local function skinIdByName(skinName: string): number?
@@ -211,6 +227,11 @@ local function skinIdByName(skinName: string): number?
 		end
 	end
 	return nil
+end
+
+-- The art to texture skin `id` with: its own, or the worn colourway's art swap.
+local function artFor(id: number, skinName: string): string
+	return SkinTints.artName(id, wornTintId(id), skinName)
 end
 
 local function makePreview(skinName: string, y: number): Preview
@@ -224,8 +245,9 @@ local function makePreview(skinName: string, y: number): Preview
 			d.CanTouch = false
 		end
 	end
-	SpriteSkin.apply(model, skinName)
-	SkinTints.apply(model, wornTint(skinIdByName(skinName)))
+	local skinId = skinIdByName(skinName)
+	SpriteSkin.apply(model, if skinId then artFor(skinId, skinName) else skinName)
+	SkinTints.apply(model, wornTint(skinId))
 	local value = Instance.new("NumberValue")
 	value.Value = y
 	local preview: Preview = { model = model, y = value }
@@ -328,8 +350,14 @@ local function refreshStore()
 		local tints = profile.selectedTints
 		local worn = (tints and tints[tostring(id)]) or 0
 		local ownedTints = profile.ownedTints or {}
+		local offered = 0
 		for tintId, swatch in swatches do
 			local tint = SkinTints.get(tintId)
+			local show = tintId == 0 or (tint ~= nil and SkinTints.offeredOn(tint, id))
+			swatch.Visible = show
+			if show then
+				offered += 1
+			end
 			local has = tintId == 0 or ownedTints[SkinTints.key(id, tintId)] == true
 			if has and worn == tintId then
 				swatch.Text = "Worn"
@@ -339,8 +367,10 @@ local function refreshStore()
 				swatch.Text = tostring(tint and tint.flyCost or "")
 			end
 		end
+		setSwatchCount(offered)
 	end
 	if current then
+		SpriteSkin.apply(current.model, artFor(id, entry.name))
 		SkinTints.apply(current.model, wornTint(id))
 	end
 end
@@ -458,7 +488,7 @@ local function closeStore(animate: boolean)
 			local m = realFrog()
 			local entry = Catalog[id]
 			if m and entry then
-				SpriteSkin.apply(m, entry.name)
+				SpriteSkin.apply(m, artFor(id, entry.name))
 			end
 		end
 		clearPreviews()
