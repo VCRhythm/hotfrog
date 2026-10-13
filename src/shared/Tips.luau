@@ -13,12 +13,14 @@ Tips.list = {
 	"Tap right on a step's grip point for a Perfect grab. The farther off, the lower the grade.",
 	-- GameServer frog sim: death needs the lava line reached with nothing held.
 	"The frog only dies when it sinks into the lava with nothing held. Keep a hand on a step.",
-	-- Config.CRUMBLE_FUSE = 1.5 (StepBehaviors.Crumble).
-	"Crumbling steps explode about 1.5 seconds after you grab them. Don't linger.",
-	-- StepBehaviors.CrumbleAfterRelease.
-	"Some steps crumble the moment you let go of them.",
-	-- Config.FALL_DELAY = 3 (StepBehaviors.Fall).
-	"Some steps drop away a few seconds after you grab them, whether you hold on or not.",
+	-- Config.CRUMBLE_FUSE = 1.5 (StepBehaviors.Crumble): StepKinds.CrumbleRock, the
+	-- CrumblyRock pebble-cluster art, spawned in Kitchen and Country (Levels heightStages).
+	"Pebbly rock clusters in the Kitchen and Country burst 1.5 seconds after you grab them.",
+	-- StepBehaviors.CrumbleAfterRelease: StepKinds.Potato, Pot only.
+	"Potatoes in the Pot crumble the moment you let go of them.",
+	-- StepBehaviors.Vanish (StepKinds.BlinkRock, violet tint, Kitchen and Country):
+	-- shakes after 3 s in view, drops 1.5 s later. (No live level spawns the Fall kind.)
+	"Violet rocks start shaking after a few seconds on screen, then drop away.",
 	-- StepBehaviors.ChangeDirection*: grabbing sets the lane's scroll direction.
 	"Grabbing an arrow step changes the direction the world scrolls. Plan your next grab.",
 	-- Config.BUG_FLYS = 5.

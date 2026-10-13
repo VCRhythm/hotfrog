@@ -1798,3 +1798,13 @@ test: tools/luau_check.sh on the 8 .luau files (0 errors), selene src/ (0 errors
 verified: yes — Classic run (Mode: NORMAL): 24 Perfect grabs showed COMBO x2 -> x71 on the HUD with SPEED UP! from the first grab and MAX SPEED!! at streak 20 (speed 1.5); a missed tap at streak 16 reset it to 0 / speed 1 and showed COMBO LOST; the end panel read "Score: 12" with "Steps: 6   Best: 183" and leaderstats Score stayed 6 (steps). The Tutorial-level exclusion was not played (it needs Replay Tutorial on the test profile).
 review: orchestrator read the diff and added the Tutorial gate the fixer left out; a fixer briefly ran git stash/pop mid-run, and the tree was checked afterwards (the user's .bugs/.gitignore edit intact, stash list empty, only this fix's files changed).
 leftover: none — the Tutorial gate is one level check in the grab handler, and a Tutorial streak would be cosmetic only
+
+## b-20261012-203507-ew0q  fixed  2026-10-12 20:46
+note: "some steps crumble"-- be specific as to what steps
+cause: Three end-of-run tips in src/shared/Tips.luau described steps by behaviour only ("Crumbling steps", "Some steps crumble...", "Some steps drop away..."), and the last one described StepBehaviors.Fall, whose only kind (SlowFallRock) no live level spawns.
+change: The tips now name each step by its look and level: "Pebbly rock clusters in the Kitchen and Country burst 1.5 seconds after you grab them." (CrumbleRock), "Potatoes in the Pot crumble the moment you let go of them." (Potato, CrumbleAfterRelease), and the Fall tip is replaced by "Violet rocks start shaking after a few seconds on screen, then drop away." (BlinkRock, Vanish: 3 s in view, 1.5 s warning). Source comments name the kinds; doc 17's tips row notes it.
+files: src/shared/Tips.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check and tools/luau_check.sh on Tips.luau (pass), selene src/ (0 errors), rojo build to the job tmp dir ok; checked each claim against StepKinds (sprite, tint), Levels (pools and heightStages) and StepBehaviors.
+verified: partly — text-only change checked against the code; not seen on the end panel in Studio (the tip is random per run, and the panel's wrapping was already checked for longer tips in scgv)
+review: n/a (orchestrator change)
+leftover: none — the three lines are at most 87 characters, within the ~90 the Tips area was laid out for
