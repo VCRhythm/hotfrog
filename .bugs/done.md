@@ -1961,3 +1961,13 @@ test: stylua, selene, rojo build, luau_check clean; preview PNG of None/Mint/Gol
 verified: yes — Business Frog on the menu wearing Mint, then Gold: client decals show the tint on Body and both limbs only (Tinted=true), head, hands, grab hands, eyes and eyelids Tinted=nil at 1,1,1; screenshots show gold/mint sleeves under a green frog head and hands; console clean; frog restored to untinted Business Frog
 review: looks-right (sonnet) — prefix strips spaces so BusinessFrog matches, SpriteSkin clears a stale Tinted on re-skin, Hot Lawyer / Mystery silhouette / Blue art swap paths unchanged
 leftover: none — the green vest panel is inside the Body sprite, so it still darkens under Berry/Shadow; documented in docs 08 and 17, and splitting it out needs new art beyond the ask (suit coloured, frog not)
+
+## b-20261013-101813-o11q  fixed  2026-10-13 10:27
+note: HUD shows "Best: 0" on the menu after joining, although the profile's highScore is 183 (leaderstats Best=183); it only corrects on the next score push
+cause: the HUD Best label was set only from ScoreChanged, which the server pushes once on profile load, so a join where the client missed that push left the label at its initial "Best: 0".
+change: GameClient keeps a monotonic bestShown, the max of the profile's highScore (early ProfileChanged push and GetProfile pull, as in the b-20260921-112735-t2ly Flys fix) and any ScoreChanged best, and builds the label from it. Commit c021481
+files: src/client/GameClient.client.luau
+test: stylua, selene, rojo build, luau_check clean; Studio MCP playtests of Hot Frog
+verified: yes — three fresh Studio joins each read "Best: 183" from the first sample (t=3.5 to 5.4 s) with leaderstats Best 183; a 6-grab Classic run kept "Best: 183" at score 9; console clean. The original miss was intermittent (1 in 3), so the fix is shown by the profile path now feeding the label, not by catching a miss
+review: looks-right (sonnet) — ScoreChanged's best is bestOf = profile.highScore (steps), so max mixes one quantity; highScore never decreases at runtime and the save merge takes the max
+leftover: none
