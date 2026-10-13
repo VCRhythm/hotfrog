@@ -56,7 +56,22 @@
       },
       "attributes": { "Rojo_Id": "frogBody" },
       "children": [
-        { "name": "Body", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "Body" } }
+        {
+          "name": "BodyArt",
+          "className": "Part",
+          "properties": {
+            "Size": [40.229, 40.229, 0.2],
+            "CFrame": [0, 0, -0.25, 1, 0, 0, 0, 1, 0, 0, 0, 1],
+            "Anchored": true,
+            "CanCollide": false,
+            "CanQuery": false,
+            "Transparency": 1.0,
+            "Material": "SmoothPlastic"
+          },
+          "children": [
+            { "name": "Body", "className": "Decal", "properties": { "Face": "Back" }, "attributes": { "Suffix": "Body" } }
+          ]
+        }
       ]
     },
     {

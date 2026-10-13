@@ -1767,3 +1767,13 @@ test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-1
 verified: yes — Easy run: HUD score 1022 against 183 steps; end panel "Score: 1022  NEW BEST!" with "Steps: 183   Best: 183" (old best 124); leaderstats Best 183; Top Scores row "1. FrequencyGames — 183"; the Classic end panel shows no Steps text. The chimes could not be heard
 review: n/a
 leftover: none
+
+## b-20261012-194820-rwvq  fixed  2026-10-12 20:34
+note: hot lawyer's arms are behind his head in terms of sorting layer
+cause: Generic to every skin: the Body decal sat on the Body part at Z 0, in front of the arm parts (Z -0.2), so the arms and sleeves drew behind the body art (Hot Lawyer's suit makes it obvious); Unity draws the arms over the body.
+change: The Body decal moved onto a new transparent child part BodyArt at Z -0.25 (welded to Body at spawn like the limb children), giving Head -0.3 < body art -0.25 < arms -0.2 < steps 0 < hands +0.3; WorldFrogCosmetics finds the body decal (heat tint) under BodyArt; doc 17's arm/hand draw-order row notes it. Recall found no earlier fix of this cause; the arms-behind-steps rule from b-20260921-100824-3azi is kept.
+files: src/assets/FrogModel.model.json, src/client/WorldFrogCosmetics.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, tools/luau_check.sh (0 errors), selene src/ (0 errors), rojo build to %TEMP% ok; Studio MCP playtest (Studio ece276fd): BodyArt at Z -0.25, unanchored with a WeldConstraint; menu screenshot with Hot Lawyer applied client-side.
+verified: yes — on the menu the Hot Lawyer sleeves and hands draw over the suit (before, the lower sleeve was hidden under it) and the arms still sit over the head; in a Classic Pot run the body decal tinted to the heat colour (G 1.00 -> 0.59) as the frog sank within 8 studs of the lava, so the moved decal is still found
+review: orchestrator read the diff; StoreUI anchors every clone part and pivots the whole model, so the preview keeps the body art; no other code reads the Body decal by path
+leftover: none

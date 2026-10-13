@@ -394,6 +394,9 @@ local function trackFrog(model: Model)
 	if not body then
 		return
 	end
+	-- The Body sprite lives on a child part set behind the arms (Z -0.25), so the
+	-- arms draw in front of the body and head but still behind the steps.
+	local bodyArt = body:FindFirstChild("BodyArt")
 	local headInst = model:FindFirstChild("Head")
 	local head = if headInst and headInst:IsA("BasePart") then headInst else nil
 	local rightInst = model:FindFirstChild("RightLimb")
@@ -449,7 +452,7 @@ local function trackFrog(model: Model)
 		rightHandGrab = if rightGrabPart and rightGrabPart:IsA("BasePart")
 			then findDecal(rightGrabPart, "RightHandGrab")
 			else nil,
-		bodyDecal = findDecal(body, "Body"),
+		bodyDecal = if bodyArt then findDecal(bodyArt, "Body") else nil,
 		alive = true,
 		dead = model:GetAttribute("Dead") == true,
 		isLocal = (model:GetAttribute("UserId") :: number?) == player.UserId,
