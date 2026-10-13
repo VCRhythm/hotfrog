@@ -1875,6 +1875,6 @@ cause: the user's ruling on b-20261012-212643-ba72
 change: see b-20261012-212643-ba72
 files: see b-20261012-212643-ba72
 test: see b-20261012-212643-ba72
-verified: partly — see b-20261012-212643-ba72
+verified: yes — the ruling was applied in b-20261012-212643-ba72; its own partly-verified check is held by b-20261013-093943-gk5k
 review: looks-right; checked: see b-20261012-212643-ba72
-leftover: see b-20261012-212643-ba72
+leftover: none — the remaining Studio look is filed as b-20261013-093943-gk5k against b-20261012-212643-ba72
