@@ -1940,3 +1940,14 @@ test: stylua --check (touched files), selene src/ (0 errors), bash tools/luau_ch
 verified: yes. Studio playtest on 2131c262 opened the store with real clicks on FROGS and Next. Paging read Business Frog, Hot Lawyer, Invisible Man, Crossy Frog, Hot Frog, Hawt Frog, Space Frog, then wrapped to Business Frog: seven skins, no Mystery Frog. The console was clean and play is stopped. The server refusal and the load-time reset were checked by review only, because the test profile neither owns nor wears Mystery Frog, so a live call would be refused for not owning it anyway.
 review: looks-right. The reviewer checked store paging (the ids array, % #ids wrap, and the fallback when the worn skin is hidden), the game-pass, receipt, BuyTint and SelectTint paths, that the Profiles reset runs before SkinService or GameServer read selected, other Catalog iterations, and strict types (luau_check clean).
 leftover: none
+
+## b-20261013-101145-cvni  fixed  2026-10-13 10:19
+note: there should be a black or very dark tint available for frogs
+cause: feature request; the tint list had no dark colour (Midnight is a dark blue).
+change: tint id 6 "Shadow", Color3 (55,55,60), 1000 Flys, offered on every skin (not pure black so the drawn outlines still separate shapes); store swatch labels pick white or dark text by the swatch's luma so the price reads on the dark swatch; doc 08 lists the tint prices. Commit 8500e43
+files: src/shared/SkinTints.luau, src/client/StoreUI.client.luau, docs/roblox-port/08-frog-skins-and-store.md
+test: stylua, selene, rojo build, luau_check clean; Studio MCP playtest of Hot Frog
+verified: yes — Hot Frog's store row fits 7 swatches; Hot Frog wearing Shadow on the menu is a near-black frog with the eyes left untinted (screenshot); after the label fix the "1000" price on the Shadow swatch is white and readable (Hot Lawyer store page screenshot); console clean
+review: looks-right (sonnet)
+re-review: looks-right — the label-colour fix, added after the Studio check found dark text on the near-black swatch: Blue and Shadow get white text, the rest dark
+leftover: none — doc 17's Skin colourways row gets Shadow 1000 with the b-20261013-101101-qbb4 change
