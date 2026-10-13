@@ -1899,3 +1899,23 @@ test: Studio MCP playtest of Hot Frog (Studio 2131c262, after the restart), 2026
 verified: yes — Hot Frog Mint: body, head, eye crescents, arms and hands mint, eye whites, pupils and mouth as drawn. Hawt Frog Mint: frog mint, sunglasses untinted. Hot Lawyer Gold: suit gold (client Color3 1,0.84,0.31 on Body and both limbs only), head and hands untinted. Space Frog Berry: hands berry, helmet stays its own cyan. Store: Business Frog with Mint owned and worn shows the WORN swatch on Mint and a mint preview with untinted eyes. Mystery Frog judged: its borrowed Hot Frog grab hands come out bright mint on the black silhouette, which looks wrong, so it is filed as b-20261013-095859-quga
 review: n/a
 leftover: none — the Mystery Frog grab-hand look is filed as b-20261013-095859-quga
+
+## b-20261013-094916-s41t  fixed  2026-10-13 10:06
+note: arms are behind the frog's head and body
+cause: The frog render Heartbeat snapped a held limb to its step's full position, Z included. The menu ladder rungs sit at Z -0.2, which dragged the limb there and the welded arm to -0.4, behind BodyArt (-0.25) and Head (-0.3). The other limb was easing back, so it was caught mid-way at about -0.247.
+change: A held limb is now posed at CFrame.new(gripPos.X, gripPos.Y, f.pos.Z). It follows the step in X/Y and keeps the frog's own depth, which is the limb's rest Z of 0, so the arms stay at -0.2 (in front of the body and head) and the hands at +0.3. The reach branch already keeps the limb's own Z. This follows up b-20261012-194820-rwvq, whose model layering was right at rest.
+files: src/server/GameServer.server.luau
+test: stylua --check, selene src/ (0 errors), bash tools/luau_check.sh, rojo build (all clean)
+verified: yes. Studio playtest on 2131c262. On the menu, while the demo frog climbed the rungs, RightArm and LeftArm stayed at Z -0.20 over six samples (BodyArt -0.25, Head -0.30, hands +0.30, limbs 0), and the screenshot shows Business Frog's sleeves drawn over the body. In an Easy run sampled for 6 s at Kitchen, both arms stayed at -0.20. The store preview clone never poses limbs at a step (reviewer read StoreUI), so it keeps the template's rest depths.
+review: looks-right. The reviewer checked f.pos.Z = PLANE_Z = 0 = the limb rest Z, that the arm and hand are welded to the limb, the reach, return and attract branches, and that GrabTarget, grab validation and BugService don't rely on step Z.
+leftover: none
+
+## b-20261013-095024-ufca  fixed  2026-10-13 10:06
+note: increase max speed by 2x
+cause: The combo speed cap (Config.STREAK_SPEED_MAX) was 2, so a full streak could only double the pace. Read as "double the max": 2 -> 4. Filed from a menu-Normal end panel, and the HUD calls this cap MAX SPEED!!.
+change: STREAK_SPEED_MAX 2 -> 4 at the same STREAK_FULL of 30, so the ramp is twice as steep. STREAK_SPEED_CUES {1.25, 1.5, 2} -> {1.5, 2, 3, 4}, so MAX SPEED!! shows at 4x. The pull-time clamp is applied before dividing by the multiplier, so the shortest pull is 0.0625 s. After review, StepBehaviors' oscillate scales its per-tick cap by the tempo, so Patrol and RiseAndFall keep their full sweep at 4x. Doc 17's combo row was updated.
+files: src/shared/Config.luau, src/shared/StepBehaviors.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/ (0 errors), bash tools/luau_check.sh, rojo build (all clean)
+verified: yes. Studio Easy run on 2131c262 with a bot making Perfect grabs: StreakSpeed went 1.30, 1.60 ... 3.70, 4.00 over the first 10 grabs and held 4.00 to grab 40 (COMBO x117), the HUD showed MAX SPEED!!, the run reached Kitchen, and the console was clean. The Patrol behaviour, driven on the server with a test ctx at 7 s and 60 Hz, kept a ±3.00 offset at tempo 1, 2 and 4, with 4, 7 and 16 sign changes. How 4x feels was not judged.
+review: concern. oscillate's fixed per-tick cap (2·A·rate·dt) would bind at 4x and shrink or lag the Patrol and RiseAndFall sweeps. The fixer scaled the cap by the tempo, and the re-review was looks-right.
+leftover: none. If the user meant a cap of 2x the original 1.5x (3x), it is one Config number.
