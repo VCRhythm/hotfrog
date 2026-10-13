@@ -6,6 +6,7 @@
 --                  (and the built model under ReplicatedStorage/Assets/Skins/<name>)
 --   default = true  -> owned for free (Frog.cs isUnlocked == 1)
 --   flyCost         -> buyable with the soft currency (Flys)
+--   hidden = true   -> not shown in the store, not buyable/selectable; data kept
 --   gamePassId      -> premium, permanent unlock (real money). FILL IN real ids.
 --
 -- default / gamePassId are best-guess starting values; reconcile against the
@@ -25,7 +26,7 @@ return {
 	-- (SkinTints id 5, 100 Flys, b-20261012-212255-idh7); Profiles migrates owners.
 	[3] = { name = "Hawt Frog", flyCost = 250 }, -- 5 more
 	[4] = { name = "Space Frog", flyCost = 500 }, -- 10 more
-	[5] = { name = "Mystery Frog", flyCost = 1000 }, -- 20 more
+	[5] = { name = "Mystery Frog", flyCost = 1000, hidden = true }, -- 20 more; hidden for now (delete `hidden` to bring it back)
 	[6] = { name = "Business Frog", flyCost = 1500, gamePassId = 2019110445 }, -- 30 more; premium (set real Game Pass id)
 	[7] = { name = "Hot Lawyer", flyCost = 2250, gamePassId = 2019278450 }, -- 45 more
 	[8] = { name = "Invisible Man", flyCost = 3000, gamePassId = 2021282272 }, -- 60 more

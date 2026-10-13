@@ -143,7 +143,7 @@ end
 -- ---------------------------------------------------------------------------
 SelectSkin.OnServerEvent:Connect(function(player, id)
 	local p = Profiles.get(player)
-	if p and p.owned[id] then
+	if p and p.owned[id] and not (Catalog[id] and Catalog[id].hidden) then
 		p.selected = id
 		refreshFrogTint(player)
 		push(player)
@@ -220,7 +220,7 @@ end)
 
 BuyWithFlys.OnServerInvoke = function(player, id)
 	local p, entry = Profiles.get(player), Catalog[id]
-	if not (p and entry and entry.flyCost) then
+	if not (p and entry and entry.flyCost) or entry.hidden then
 		return false
 	end
 	if p.owned[id] then

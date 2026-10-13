@@ -53,8 +53,10 @@ menuBridge.Parent = player
 
 -- ordered skin ids (Catalog is keyed by numeric id; tolerate gaps)
 local ids: { number } = {}
-for id in pairs(Catalog) do
-	table.insert(ids, id)
+for id, entry in pairs(Catalog) do
+	if not entry.hidden then
+		table.insert(ids, id)
+	end
 end
 table.sort(ids)
 

@@ -148,7 +148,7 @@ local function migrateBlueFrog(p: Profile)
 		p.ownedTints[SkinTints.key(1, BLUE_TINT_ID)] = true
 	end
 	p.selectedTints[tostring(OLD_BLUE_FROG)] = nil
-	if not Catalog[p.selected] then
+	if not Catalog[p.selected] or Catalog[p.selected].hidden then
 		p.selected = 1
 	end
 end
