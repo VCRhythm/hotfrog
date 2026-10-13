@@ -169,8 +169,8 @@ local Ids: { [string]: number } = {
 	BusinessFrogArm = 137904174701279,
 	BusinessFrogBody = 77791361171864,
 	BusinessFrogThumbnail = 136308984050605,
-	BusinessFrogTintArm = 83249472871205,
-	BusinessFrogTintBody = 111380085607611,
+	BusinessFrogTintArm = 104979674458678,
+	BusinessFrogTintBody = 102630969057264,
 
 	-- Crossy Frog (auto)
 	CrossyFrogArm = 85108755866784,
@@ -327,6 +327,11 @@ end
 -- accessories and Hot Lawyer's human skin have no copies, so they never do.
 local FALLBACK_SKIN = "HotFrog"
 
+-- Skins whose tint colours only their own suit art (b-20261013-101101-qbb4): parts
+-- they borrow from Universal/Hot Frog stay as drawn, like Hot Lawyer's own
+-- untinted head and hands.
+local SUIT_ONLY_TINT: { [string]: boolean } = { BusinessFrog = true }
+
 local function lookup(prefix: string, suffix: string, tint: boolean?): (string?, boolean)
 	if tint then
 		local image = SkinAssets.image(prefix .. "Tint" .. suffix)
@@ -343,11 +348,14 @@ function SkinAssets.part(skinName: string, suffix: string, tint: boolean?): (str
 	if not image and (suffix == "LeftLimb" or suffix == "RightLimb") then
 		image, tinted = lookup(prefix, "Arm", tint)
 	end
+	-- A suit-only skin (Business Frog) borrows Hot Frog's green head/hands as
+	-- drawn: they never take the tint, which goes on the suit alone.
+	local borrowTint = if SUIT_ONLY_TINT[prefix] then false else tint
 	if not image then
-		image, tinted = lookup("Universal", suffix, tint)
+		image, tinted = lookup("Universal", suffix, borrowTint)
 	end
 	if not image then
-		image, tinted = lookup(FALLBACK_SKIN, suffix, tint)
+		image, tinted = lookup(FALLBACK_SKIN, suffix, borrowTint)
 	end
 	return image, tinted
 end

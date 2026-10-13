@@ -56,7 +56,11 @@ is textured from these (`SkinAssets.part(skin, suffix, true)`, which tries the
 take the tint (`Tinted` decal attribute). There are copies for the frog skin of
 Hot Frog (body, head, eye crescents, eyelids, hands, limbs) and Crossy Frog, Hawt
 Frog's grab hands, the clothing of Space Frog / Business Frog / Hot Lawyer /
-Invisible Man (suit, sleeves, gloves; Business Frog's green chest greyed too).
+Invisible Man (suit, sleeves, gloves). Business Frog's copies grey only the navy
+suit (brightened so the multiply shows; shirt/tie, green vest and outlines kept),
+and its borrowed Hot Frog head/hands/eyes take no tint (`SkinAssets.SUIT_ONLY_TINT`),
+so the colour lands on the suit alone (b-20261013-101101-qbb4); the green vest
+panel inside the Body sprite still multiplies, so it darkens under Berry/Shadow.
 No copies, so never tinted: sclera/pupils/tongue/mouths, accessories (Hawt Frog
 sunglasses, Space Frog helmet), Hot Lawyer's human head, hands and eyelids, and
 Mystery Frog (a black silhouette a multiply cannot show on).
