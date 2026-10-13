@@ -1806,7 +1806,7 @@ change: The tips now name each step by its look and level: "Pebbly rock clusters
 files: src/shared/Tips.luau, docs/roblox-port/17-status-and-known-gaps.md
 test: stylua --check and tools/luau_check.sh on Tips.luau (pass), selene src/ (0 errors), rojo build to the job tmp dir ok; checked each claim against StepKinds (sprite, tint), Levels (pools and heightStages) and StepBehaviors.
 verified: partly — text-only change checked against the code; not seen on the end panel in Studio (the tip is random per run, and the panel's wrapping was already checked for longer tips in scgv)
-review: n/a (orchestrator change)
+review: no concerns (sonnet reviewer: every tip's kind, level and timing match StepKinds/Levels/Config; no tip names an unspawned kind; CrumbleRock only appears from Kitchen stage 3 / Country stage 2, which the wording allows)
 leftover: none — the three lines are at most 87 characters, within the ~90 the Tips area was laid out for
 
 ## b-20261012-203745-7jao  fixed  2026-10-12 20:47
@@ -1816,5 +1816,5 @@ change: Config.STREAK_SPEED_MAX 1.5 -> 2 and STREAK_FULL 20 -> 30 (fifteen Great
 files: src/shared/Config.luau, src/shared/StepBehaviors.luau, docs/roblox-port/17-status-and-known-gaps.md
 test: tools/luau_check.sh on both files (0 errors), selene src/ (0 errors), rojo build to the job tmp dir ok (stylua's diff is CRLF-only); Studio MCP playtest (Studio ece276fd), Classic run with a Perfect-grab client bot.
 verified: yes — 13 Perfect grabs: StreakSpeed 1.10, 1.20 ... 1.90, then 2.00 at streak 30 and held there; SPEED UP! during the climb and MAX SPEED!! at 2.00; a short pull's PullTime went from 0.227 s at 1.1x to 0.125 s at 2x. Not judged: whether 2x movers and Chef tells still read well, a feel call for the owner.
-review: n/a (orchestrator change)
+review: no concerns (sonnet reviewer: every use of STREAK_FULL / STREAK_SPEED_MAX / STREAK_SPEED_CUES is generic, cues fire once each, MAX SPEED!! keys off the cue count; feel risks only: pull time floors near 0.125 s and Chef tells run up to 2x with the Strike grace unscaled)
 leftover: none — the remaining question is how 2x feels in play, which the owner judges in normal play; the knob is Config.STREAK_SPEED_MAX
