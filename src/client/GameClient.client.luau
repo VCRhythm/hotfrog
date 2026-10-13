@@ -963,6 +963,40 @@ comboLabel.Size = UDim2.fromOffset(260, 44)
 comboLabel.Visible = false
 local comboScale = Instance.new("UIScale")
 comboScale.Parent = comboLabel
+-- Combo timeout bar (b-20261012-205417-kzbm): drains over Config.STREAK_TIMEOUT
+-- from the last streak gain; the server breaks the streak when it empties.
+local COMBO_TIMER_WIDTH = 150
+local comboTimer = Instance.new("Frame")
+comboTimer.Name = "ComboTimer"
+comboTimer.Position = UDim2.new(0, 2, 1, 2)
+comboTimer.Size = UDim2.fromOffset(COMBO_TIMER_WIDTH, 6)
+comboTimer.BorderSizePixel = 0
+comboTimer.Visible = false
+comboTimer.Parent = comboLabel
+UIKit.corner(comboTimer, 3)
+local comboTimerTween: Tween? = nil
+
+local function stopComboTimer()
+	if comboTimerTween then
+		comboTimerTween:Cancel()
+		comboTimerTween = nil
+	end
+	comboTimer.Visible = false
+end
+
+local function restartComboTimer()
+	stopComboTimer()
+	comboTimer.BackgroundColor3 = comboLabel.TextColor3
+	comboTimer.Size = UDim2.fromOffset(COMBO_TIMER_WIDTH, 6)
+	comboTimer.Visible = true
+	local tween = TweenService:Create(
+		comboTimer,
+		TweenInfo.new(Config.STREAK_TIMEOUT, Enum.EasingStyle.Linear),
+		{ Size = UDim2.fromOffset(0, 6) }
+	)
+	comboTimerTween = tween
+	tween:Play()
+end
 local speedLabel = makeLabel("SpeedCueLabel", 244, "SPEED UP!")
 speedLabel.Size = UDim2.fromOffset(220, 30)
 speedLabel.TextColor3 = UIKit.GOOD
@@ -1007,6 +1041,7 @@ end
 local function comboLost(streak: number)
 	lostToken += 1
 	local token = lostToken
+	stopComboTimer()
 	comboLabel.Text = "COMBO LOST"
 	comboLabel.TextColor3 = Color3.fromRGB(255, 70, 60)
 	comboLabel.Visible = true
@@ -1035,6 +1070,7 @@ local function refreshCombo()
 		comboLabel.Text = "COMBO x" .. tostring(streak)
 		comboLabel.Visible = true
 		comboPunch(streak)
+		restartComboTimer()
 		if typeof(speed) == "number" then
 			local cue = PullMath.cueIndex(speed)
 			if cue > lastCue then
@@ -1047,6 +1083,7 @@ local function refreshCombo()
 		if streak == 0 and lastStreak >= 2 and runState == "Playing" then
 			comboLost(lastStreak)
 		elseif streak == 0 then
+			stopComboTimer()
 			comboLabel.Visible = false
 		end
 	end
@@ -1057,6 +1094,7 @@ RunStateChanged.OnClientEvent:Connect(function()
 	lostToken += 1
 	lastStreak = 0
 	lastCue = 0
+	stopComboTimer()
 	comboLabel.Visible = false
 end)
 

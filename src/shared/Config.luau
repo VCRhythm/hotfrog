@@ -322,13 +322,15 @@ local Config = {
 	STEP_MOTION_MAX_SPEEDUP = 0.5,
 	-- Combo streak, both run modes (b-20261010-192608-4bs3, owner's ruling
 	-- b-20261012-160551-8zmn; b-20261012-203452-bisk: 'on normal' meant the menu's
-	-- Normal = internal Classic, so it applies there as well as in Easy; Unity has no equivalent, doc 17). Every grab adds its
-	-- quality's weight; only a missed tap, a fall or the run ending resets it.
-	STREAK_WEIGHTS = { OK = 1, Great = 2, Perfect = 3 },
+	-- Normal = internal Classic, so it applies there as well as in Easy; Unity has no equivalent, doc 17). A Perfect or
+	-- Great grab adds its weight; an OK grab adds nothing (b-20261012-205417-kzbm). It resets on a missed tap, a fall,
+	-- the run ending, or STREAK_TIMEOUT seconds with no Perfect or Great grab.
+	STREAK_WEIGHTS = { OK = 0, Great = 2, Perfect = 3 },
+	STREAK_TIMEOUT = 3,
 	-- The speed multiplier rises linearly from 1 to STREAK_SPEED_MAX as the streak
 	-- reaches STREAK_FULL (30 = fifteen Great or ten Perfect grabs). It divides pull
-	-- durations and scales moving steps' and the Chef's clocks (never
-	-- CHEF_STRIKE_GRACE). Raised from 1.5x at 20 to 2x at 30 so the combo still
+	-- durations and scales moving steps', Classic's idle drift (b-20261012-205444-huc1)
+	-- and the Chef's clocks (never CHEF_STRIKE_GRACE). Raised from 1.5x at 20 to 2x at 30 so the combo still
 	-- outruns the height tempo late in a run (owner's request b-20261012-203745-7jao).
 	STREAK_FULL = 30,
 	STREAK_SPEED_MAX = 2,

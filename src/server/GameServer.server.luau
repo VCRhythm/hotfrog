@@ -191,6 +191,10 @@ local function laneSpeed(lane: Lane.Lane): number
 	return if typeof(v) == "number" then v else 1
 end
 
+-- os.clock() of each lane's last streak gain: the streak breaks once
+-- Config.STREAK_TIMEOUT passes without one (b-20261012-205417-kzbm).
+local streakGainAt: { [Lane.Lane]: number } = setmetatable({}, { __mode = "k" }) :: any
+
 local function streakWeight(quality: string): number
 	if quality == "Perfect" then
 		return Config.STREAK_WEIGHTS.Perfect
@@ -968,6 +972,12 @@ RunService.Heartbeat:Connect(function(frameDt: number)
 			Chef.reset(lane)
 			continue -- Menu/Dead: idle lane, no spawning (doc 15 item 1) -- and no steps to move
 		end
+		-- Combo timeout (b-20261012-205417-kzbm): no Perfect or Great grab for
+		-- Config.STREAK_TIMEOUT seconds breaks the streak (the HUD shows COMBO LOST).
+		if streakOf(lane) > 0 and os.clock() - (streakGainAt[lane] or 0) > Config.STREAK_TIMEOUT then
+			setStreak(lane, 0)
+		end
+
 		table.clear(spawnBatch)
 		lane:tickSpawners(dt, spawnIntoBatch)
 		lane:spawnRim(spawnIntoBatch) -- the pot's rim, once the Pot is climbed
@@ -980,7 +990,8 @@ RunService.Heartbeat:Connect(function(frameDt: number)
 		-- carries them in, like a grab's -- and is replicated for the cosmetics.
 		local f = frogs[lane.player]
 		if f and f.canFall and not f.dead then
-			local chunk, chunkTime = lane:drift(dt, lane:driftSpeed(dt))
+			-- The combo speeds the idle scroll too (b-20261012-205444-huc1).
+			local chunk, chunkTime = lane:drift(dt, lane:driftSpeed(dt) * laneSpeed(lane))
 			if chunk and chunkTime then
 				publishPull(lane, lane.travel * chunk, chunkTime, true) -- linear: the steps drifted at constant speed
 				lane:spawnForPull(chunk, spawnStep, chunk * Config.CLASSIC_SPAWN_PER_STUD)
@@ -1861,14 +1872,18 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- client's open Roblox PlayerList (owner's decision b-20260921-182502-qgbw,
 	-- Lane.obstructionExtra; never shorter, not while the lane drifts).
 	distance += lane:obstructionExtra(distance)
-	-- Combo (b-20261010-192608-4bs3, both modes per bisk): this grab grows the
-	-- streak, the NEW streak sets the speed (pull duration shrinks by it) and
-	-- the bonus score. The Tutorial level never builds one, as before.
+	-- Combo (b-20261010-192608-4bs3, both modes per bisk): a Perfect or Great
+	-- grab grows the streak and restarts its timeout; an OK grab neither grows
+	-- nor restarts it (kzbm). The streak sets the speed (pull duration shrinks by
+	-- it) and the bonus score. The Tutorial level never builds one, as before.
 	local bonus = 0
 	if lane.levelIndex ~= Levels.TUTORIAL then
-		local streak = streakOf(lane) + streakWeight(quality)
-		setStreak(lane, streak)
-		bonus = PullMath.streakBonus(streak)
+		local weight = streakWeight(quality)
+		if weight > 0 then
+			setStreak(lane, streakOf(lane) + weight)
+			streakGainAt[lane] = os.clock()
+		end
+		bonus = PullMath.streakBonus(streakOf(lane))
 	end
 	local speed = laneSpeed(lane)
 	pullLane(lane, distance, PullMath.pullTime(distance) / speed)
