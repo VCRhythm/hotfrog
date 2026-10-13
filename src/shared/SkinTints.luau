@@ -56,6 +56,15 @@ SkinTints.list = {
 } :: { Tint }
 
 SkinTints.NONE = Color3.new(1, 1, 1)
+SkinTints.BLACK = Color3.new(0, 0, 0)
+
+-- Black-silhouette skins: art a silhouette skin lacks (Mystery Frog's grab hands,
+-- borrowed from Hot Frog) is painted black and never tinted (b-20261013-095859-quga).
+local SILHOUETTE_SKINS: { [string]: boolean } = { ["Mystery Frog"] = true }
+
+function SkinTints.isSilhouetteSkin(skinName: string): boolean
+	return SILHOUETTE_SKINS[skinName] == true
+end
 
 local byId: { [number]: Tint } = {}
 for _, tint in SkinTints.list do
@@ -110,7 +119,10 @@ end
 function SkinTints.apply(root: Instance, color: Color3)
 	for _, obj in root:GetDescendants() do
 		if typeof(obj:GetAttribute("Suffix")) == "string" then
-			local c = if SkinTints.isTinted(obj) then color else SkinTints.NONE
+			local c = if SkinTints.isTinted(obj)
+				then color
+				elseif obj:GetAttribute("Silhouette") == true then SkinTints.BLACK
+				else SkinTints.NONE
 			if obj:IsA("Decal") then
 				obj.Color3 = c -- Texture inherits from Decal
 			elseif obj:IsA("ImageLabel") or obj:IsA("ImageButton") then

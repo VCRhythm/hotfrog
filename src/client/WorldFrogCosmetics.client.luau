@@ -305,6 +305,7 @@ local function watchTintedArt(state: FrogState)
 	for _, obj in state.model:GetDescendants() do
 		if obj:GetAttribute("Suffix") ~= nil then
 			obj:GetAttributeChangedSignal("Tinted"):Connect(requeue)
+			obj:GetAttributeChangedSignal("Silhouette"):Connect(requeue)
 		end
 	end
 end

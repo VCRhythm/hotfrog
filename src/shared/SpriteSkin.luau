@@ -22,6 +22,7 @@
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
+local SkinTints = require(ReplicatedStorage.Shared.SkinTints)
 
 local SpriteSkin = {}
 
@@ -68,8 +69,14 @@ function SpriteSkin.apply(root: Instance, skinName: string?, tint: boolean?)
 		end
 		local suffix = obj:GetAttribute("Suffix")
 		if typeof(suffix) == "string" and skinName then
-			local image, tinted = SkinAssets.part(skinName, suffix, tint)
+			-- a silhouette skin (Mystery Frog) lacks its own grab hands: the borrowed Hot
+			-- Frog hand is drawn untinted and painted black (SkinTints.apply)
+			local silhouette = SkinTints.isSilhouetteSkin(skinName)
+				and SkinAssets.image(SkinAssets.prefix(skinName) .. suffix) == nil
+				and string.sub(suffix, -4) == "Grab"
+			local image, tinted = SkinAssets.part(skinName, suffix, tint and not silhouette)
 			obj:SetAttribute("Tinted", if tinted then true else nil)
+			obj:SetAttribute("Silhouette", if silhouette then true else nil)
 			if suffix == "Accessory" then
 				-- skin-specific (sunglasses, helmet): blank when the skin has none, so a
 				-- re-skinned rig never keeps the previous skin's accessory
