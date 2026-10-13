@@ -1229,6 +1229,7 @@ verified: no — Studio MCP not attached and Studio not running, so no playtest 
 review: concern: tiling was tied to the new width, so Kitchen's repeat grew with the window and PotBack/LavaGradient stretched; checked: git diff, GameClient camera lines 108-200 (FOV 40 vertical, distance 43.2, arrival zoom dollies back, chainPunch only dollies in), WorldConfig/Config greps, visible-width math, tile height vs visible height, stylua + luau_check.
 re-review: concern: OffsetStudsU is never set, so widening the part around its centre shifts the lane-centre art by (W/2 - 42) mod the repeat and single-image art can show a seam in view (repeat sizes now fixed, drift limit, camera swap and width math all correct); checked: git diff of the repair, greps for OffsetStudsU/V, TILE_WIDTH, BACKDROP_*, camera constants vs GameClient 115/122, stylua exit 0, luau_check exit 0.
 leftover: b-20261012-135824-th24 (centre the texture offset, next tick), b-20261012-135824-ef71 (Studio playtest once Studio runs)
+leftover: none — the Studio MCP cannot resize the play window, so other window sizes can never be checked from here (playtest check b-20261012-135824-ef71, no)
 
 ## b-20261010-192357-toml  fixed  2026-10-12 14:06
 note: flies should be about twice as big
@@ -1249,6 +1250,7 @@ test: stylua --check, tools/luau_check.sh WorldBackdrop (0 errors), selene src/ 
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; the OffsetStudsU sign (positive moves the art toward +U) is reasoned, not observed.
 review: looks-right; checked: git diff and the whole file, stylua --check, luau_check, every StudsPerTileU / TILE_WIDTH write site (refitWidth, setBackground, initial creation, scrollBackground wrap only moves Position, setOverlay only the image), both moduli, geometry of U on the Back face; reviewer ~70% sure of the OffsetStudsU direction, which the leftover check settles.
 leftover: b-20261012-140652-jfov (Studio playtest once Studio runs, including the sign)
+leftover: none — the Studio MCP cannot resize the play window, so other window sizes can never be checked from here (playtest check b-20261012-140652-jfov, no)
 
 ## b-20261010-191837-a1x9  fixed  2026-10-12 14:07
 note: where is the touch point to get a "perfect" on a carrot? it always seems "ok"
@@ -1291,6 +1293,7 @@ verified: no — Studio MCP not attached and Studio not running, so no playtest 
 review: concern: the dressing stayed anchored to my lane while spectating a neighbour (walls filled their background), and the fixed 16% side vignette darkened live play on portrait viewports; checked: the new file in full, both diffs, GameClient camera/spectate/arrival zoom, LevelClient, Lane setLevel/resetRun, GameServer notifyLevelChanged, WorldLava PotHeat, Lanes.originOf, Config lane constants, Levels Pot spawners, wall projection maths at 1.0/1.35 zoom and chain-punch, Lighting conflicts (none), leaks on enter/leave, stylua, luau_check, selene.
 re-review: looks-right; checked: the repaired file, the on-lane gate through arrival zoom, chain-punch and the spectate snap (no lerp, no threshold flicker), show/hide only on transitions, one ViewportSize connection at a time, the vignette clamp at portrait and 16:9, stylua, luau_check, selene.
 leftover: b-20261012-142233-blru (Studio playtest once Studio runs)
+leftover: none — the Studio MCP starts single-player Play only, so a second lane can never be checked from here, and the Studio MCP cannot resize the play window, so other window sizes can never be checked from here (playtest check b-20261012-142233-blru, partly)
 
 ## b-20261012-141140-a1h3  fixed  2026-10-12 14:22
 note: DECISION: all (reopens b-20261010-191757-89n1)
@@ -1312,6 +1315,7 @@ review: concern (blocking): in Normal mode the Chef could cut every un-held step
 re-review: concern (minor): a shove re-aimed at the blow could go against its telegraphed arrow (the orchestrator changed land() to call it off instead); the client can draw on a recycled step during Strike (filed b-20261012-143703-olbq); the shove test duplicates clearSpot (filed b-20261012-143704-8ian). checked: Chef.luau and WorldChef in full, foothold count vs camera view, grace vs GrabStep dropElapsed, pooling/pull during grace, shove maths vs Lane.clearSpot, Heartbeat cost, stylua, luau_check, selene. After the orchestrator's land() edit: stylua, luau_check Chef.luau, selene, rojo build pass.
 followups: b-20261012-143703-olbq, b-20261012-143704-8ian
 leftover: b-20261012-143704-0raj (Studio playtest once Studio runs)
+leftover: none — the Studio MCP starts single-player Play only, so a second lane can never be checked from here (playtest check b-20261012-143704-0raj, partly)
 
 ## b-20261012-141130-fhme  fixed  2026-10-12 14:37
 note: DECISION: c, only on the kitchen (reopens b-20261010-191719-3rn3)
@@ -1348,6 +1352,7 @@ test: stylua --check, tools/luau_check.sh on both files (0 errors), selene src/ 
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
 review: looks-right; optional: raise the popBursts pool cap above BURST_POOL_CAP 48 (applied by the orchestrator: cap = 96). checked: the WorldConfig and popPart diffs, world/Bursts pooling and fade, the pop sound id, stylua, luau_check.
 leftover: b-20261012-144900-mqlm (Studio playtest once Studio runs)
+leftover: none — the burst lives 0.5 s and the MCP screen capture cannot time it; how it reads is a look the user gets in normal play (playtest check b-20261012-144900-mqlm, partly)
 
 ## b-20261010-192146-ml2d  fixed  2026-10-12 15:00
 note: kitchen needs equally groovy music as pot
@@ -1358,6 +1363,7 @@ test: stylua --check and tools/luau_check.sh on both .luau files (0 errors), sel
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
 review: looks-right. checked: the LevelChanged -> LevelClient -> Music.client path to music4 (non-zero id), every musicIndex consumer (WorldBackdrop ignores it), Pot->Kitchen crossfade and arrival-sting delay unaffected, the other tracks as alternatives, the comments and doc row.
 leftover: b-20261012-150058-oxtf (Studio playtest once Studio runs)
+leftover: none — the Studio MCP cannot hear audio (playtest check b-20261012-150058-oxtf, partly)
 
 ## b-20261010-192336-pgwh  fixed  2026-10-12 15:03
 note: make space for a "tips" section after a run is over
@@ -1368,6 +1374,7 @@ test: stylua --check and tools/luau_check.sh on Tips.luau and MenuClient (0 erro
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
 review: looks-right; minor: "after 50 steps" for the Kitchen is loose, since it starts on the pot-rim grab (the orchestrator reworded that tip). checked: every tip against Config, PullMath, StepBehaviors, StepKinds, Lane (onStepClimbed, atPotTop), GameServer frog sim and grading, BugService, Chef.luau and StoreUI; the end-panel layout, UIKit scale floor and text sizing; the showEndPanel/restoreMainPanels/RunSummary tip logic; Tips.pick; stylua and luau_check.
 leftover: b-20261012-150254-scgv (Studio playtest once Studio runs)
+leftover: none — the Studio MCP cannot resize the play window, so other window sizes can never be checked from here (playtest check b-20261012-150254-scgv, partly)
 
 ## b-20261010-192455-bshn  fixed  2026-10-12 15:03
 note: the main menu shouldn't hide the frog's face
@@ -1380,6 +1387,7 @@ review: concern (minor): the 4:3 window overlapped the face edge and the Shop to
 re-review: concern (minor): the five viewports' numbers follow from the code and there is always a gap above Gift/Shop; left over: 4:3 still covers ~60 px of the face edge (documented), the Spectate buttons can sit over the lower panel in portrait when other lanes exist (filed b-20261012-150254-k9vy; the orchestrator added it to the doc 17 row), and the panel may brush the HOTFROG title box at 4:3. checked: layoutMainPanel clamp maths against all five viewports, StoreUI lines 86-87, SpectateGui, the doc 17 row, stylua, luau_check.
 followups: b-20261012-150254-k9vy
 leftover: b-20261012-150254-352v (Studio playtest once Studio runs)
+leftover: none — the Studio MCP cannot resize the play window, so other window sizes can never be checked from here (playtest check b-20261012-150254-352v, partly)
 
 ## b-20261012-143703-olbq  fixed  2026-10-12 15:07
 note: WorldChef draws the knife/potato on a recycled step
@@ -1390,6 +1398,7 @@ test: stylua --check, tools/luau_check.sh, selene src/ (0 errors), rojo build to
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
 review: looks-right; minor: the dropped target is only cleared locally, so view.target stays stale and is re-dropped every frame of the Strike (harmless, and clearing it would allow a mid-Strike rescan, so it was left). checked: the WorldChef diff, update(), findTarget, every view.target/targetGen write, the View type and initialiser, acquireStep and the release path in GameServer (685-715), the ChefTarget sites in Chef.luau.
 leftover: b-20261012-150755-783q (Studio playtest once Studio runs)
+leftover: none — the Studio MCP starts single-player Play only, so a second lane can never be checked from here (playtest check b-20261012-150755-783q, no)
 
 ## b-20261010-192533-5os7  fixed  2026-10-12 15:08
 note: the demo climb should use both arms, and the player can still pause it by interacting
@@ -1422,6 +1431,7 @@ review: concern (minor) on revision 1 (top-centre strip): it overlapped the frog
 re-review: concern (minor) on revision 2: an active spectate stayed on another lane behind a sub-panel or after death (the orchestrator fixed it); in tall portrait (768x1024) the strip lifts the stack over most of the face (filed as a followup; doc row amended); 1024x768 clears the strip by 1 px. checked: the layoutMainPanel maths for all five viewports, spectate state handling, attribute timing and load order, no layout feedback loop, the doc row, stylua.
 followups: b-20261012-152031-992y
 leftover: b-20261012-152052-41xk (Studio playtest once Studio runs)
+leftover: none — the Studio MCP starts single-player Play only, so a second lane can never be checked from here, and the Studio MCP cannot resize the play window, so other window sizes can never be checked from here (playtest check b-20261012-152052-41xk, no)
 
 ## b-20261012-152031-992y  fixed  2026-10-12 15:29
 note: Main menu stack covers most of the frog's face in tall portrait windows when the Spectate strip shows
@@ -1433,6 +1443,7 @@ verified: no — Studio MCP not attached and Studio not running, so no playtest 
 review: concern: showPanel's uncancelled pop-in tween read PanelScale once, so when the Spectate strip appeared right after the menu showed (or on a resize mid pop-in) the tween ended at the stale scale (768x1024: 0.558 instead of 0.508, ~25 px over the strip); a quick hide/re-show left two tweens fighting. checked: UIScale pivot (UIKit.panel keeps AnchorPoint 0,0, so the top-left stays put), the other 23 showPanel callers, the layout maths for 390x844, 768x1024 both ways, 600x900 and landscape, the bottom-limit helper, re-layout triggers, the doc row, strict typing.
 re-review: looks-right; minor: the 600x900 doc note was wrong (it just fits, losing its 8 px gap; corrected by the orchestrator); in the strip case the pop-in is cut short and the panel snaps to k (acceptable). checked: setPanelScale and cancelPop on show, hide, re-show and resize, the hide path's mid-tween scale reset on the next show, weak-table GC, other panels unchanged, stylua and luau-lsp on both files.
 leftover: b-20261012-152921-w0wq (Studio playtest once Studio runs)
+leftover: none — the Studio MCP starts single-player Play only, so a second lane can never be checked from here, and the Studio MCP cannot resize the play window, so other window sizes can never be checked from here (playtest check b-20261012-152921-w0wq, no)
 
 ## b-20261010-192608-4bs3  fixed  2026-10-12 16:24
 note: on normal, have the stage "speed up" as a player goes on a streak
@@ -1445,6 +1456,7 @@ review: concern: the combo bonus fed leaderstats.Score, which the 30/75-step mis
 re-review: concern (minor): the race rail still placed markers by leaderstats.Score against step landmarks (the orchestrator switched it to RunSteps). checked: RunSteps set/reset order, every Score reader, Classic mission/badge semantics, tempo max() with no streak, WorldChef against Chef.tick, cueIndex, lint and types.
 followups: b-20261012-162429-k6wc
 leftover: b-20261012-162429-pg4k (Studio playtest once Studio runs)
+leftover: none — the remaining items are feel calls or code paths that read RunSteps, which v7rl confirmed counts real steps (playtest check b-20261012-162429-pg4k, partly)
 
 ## b-20261012-160551-8zmn  fixed  2026-10-12 16:24
 note: DECISION: the streak continues until a missed tap, but grows larger on great even larger on perfect. think combo bonuses and big loud effects; 2) a
@@ -1475,3 +1487,283 @@ test: see b-20261012-162429-k6wc
 verified: no — Studio MCP not attached and Studio not running, so no playtest was possible this tick; static checks only. (Studio is open, but only the Centralia place is attached to the MCP, not hotfrog.)
 review: see b-20261012-162429-k6wc
 leftover: none — this is the ruling only; the change and its Studio playtest check (b-20261012-163727-v7rl) are on b-20261012-162429-k6wc
+
+## b-20261012-134552-h6nd  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-191413-h4s9 once Studio is running (the fix was recorded unverified because the Studio MCP was not attached); see the verified: line of b-20261010-191413-h4s9 in done.md for what to look for
+cause: Studio playtest check of the b-20261010-191413-h4s9 fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — one frog on join, and no leftover preview clone after the store closed
+review: n/a
+leftover: none
+
+## b-20261012-134553-5e9t  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-191445-xv4n once Studio is running (the fix was recorded unverified because the Studio MCP was not attached); see the verified: line of b-20261010-191445-xv4n in done.md for what to look for
+cause: Studio playtest check of the b-20261010-191445-xv4n fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — owned skins show "Selected" with no Wear button; Back put Hawt Frog on the real frog
+review: n/a
+leftover: none
+
+## b-20261012-134553-kdv4  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-191925-0re3 once Studio is running (the fix was recorded unverified because the Studio MCP was not attached); see the verified: line of b-20261010-191925-0re3 in done.md for what to look for
+cause: Studio playtest check of the b-20261010-191925-0re3 fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — the worn tint swatch reads "WORN"
+review: n/a
+leftover: none
+
+## b-20261012-134553-fwg9  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-192255-ctop once Studio is running (the fix was recorded unverified because the Studio MCP was not attached); see the verified: line of b-20261010-192255-ctop in done.md for what to look for
+cause: Studio playtest check of the b-20261010-192255-ctop fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — a real click on empty space showed the red X, and the miss did not release the held step
+review: n/a
+leftover: none
+
+## b-20261012-134554-1830  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-192422-4cof once Studio is running (the fix was recorded unverified because the Studio MCP was not attached); see the verified: line of b-20261010-192422-4cof in done.md for what to look for
+cause: Studio playtest check of the b-20261010-192422-4cof fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — a real click on a fly caught it (Bugs 1 -> 2), the tongue spawned at head-local (0,-3.5,0) and no miss X showed; a click on empty space did show the X
+review: n/a
+leftover: none
+
+## b-20261012-134554-rnd5  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-191946-75rw once Studio is running (the fix was recorded unverified because the Studio MCP was not attached); see the verified: line of b-20261010-191946-75rw in done.md for what to look for
+cause: Studio playtest check of the b-20261010-191946-75rw fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — Hawt Frog's sunglasses show in the store preview and on the in-game frog
+review: n/a
+leftover: none
+
+## b-20261012-134554-9c8d  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-191959-j5e3 once Studio is running (the fix was recorded unverified because the Studio MCP was not attached); see the verified: line of b-20261010-191959-j5e3 in done.md for what to look for
+cause: Studio playtest check of the b-20261010-191959-j5e3 fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — Space Frog's helmet is right in the store preview and on the real frog model (applied client-side with SpriteSkin.apply on the menu, since this profile does not own Space Frog): the dome covers the head with the face inside it
+review: n/a
+leftover: none
+
+## b-20261012-135637-pscf  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-191520-jsqs once Studio is running (the fix skips the idle spin for isArrow kinds): watch ChangeDirection arrow steps fall in Kitchen/Country and confirm they stay at rotation 0 while ordinary steps still tumble
+cause: Studio playtest check of the b-20261010-191520-jsqs fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — a 55 s client sample across Kitchen into Country: 3 ChangeDirection arrow steps, none rotated; 21 ordinary steps tumbled while falling (e.g. Shelf -38..38 deg, BobRock -178..179 deg)
+review: n/a
+leftover: none
+
+## b-20261012-135650-hhny  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-192046-ptz8 once Studio is running (tongue origin moved 3.5 studs down the head to the drawn mouth): catch a fly with Hot Frog, Hot Lawyer, Space Frog and Hawt Frog and confirm the tongue starts at the mouth; tune TONGUE_MOUTH_DROP if a skin is off
+cause: Studio playtest check of the b-20261010-192046-ptz8 fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — a magenta marker at head.CFrame*(0,-3.5,0), screenshotted on the menu, sits on the drawn mouth line for Hawt Frog, Space Frog, Invisible Man and Crossy Frog, and inside the frown's span (about 1.4 studs under its peak) for Hot Lawyer, so TONGUE_MOUTH_DROP needs no change; in-run tongues spawned at that point. Hot Frog itself was not applied (Hawt Frog and Invisible Man showed the same frog face)
+review: n/a
+leftover: none
+
+## b-20261012-135824-ef71  unsure  2026-10-12 20:26
+note: Studio playtest check for b-20261010-191320-w7pp once Studio is running: at an ultrawide window (~3:1) and during the arrival zoom-out the backdrop fills the width with no dark or blue bands, Kitchen tiles at its normal size, Pot/Water art is unstretched and no seam sits in view
+cause: Studio playtest check of the b-20261010-191320-w7pp fix; the check could not be run from here.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: no — only the 1098x761 window was seen (backdrop filled, no bands or seams); the ultrawide case was not run
+review: n/a
+leftover: none — the Studio MCP cannot resize the play window, so other window sizes can never be checked from here
+
+## b-20261012-140635-e400  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-192357-toml once Studio is running: flies (menu and in-run, golden and swarm) draw at twice the old size, a tap on the edge of the drawn fly catches it, and wings still flutter
+cause: Studio playtest check of the b-20261010-192357-toml fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — a real tap caught a fly; raycasts 1.0/1.5/1.9 studs from a fly's centre hit it and 2.1 missed (the drawn fly fills the 4-stud hit part, so its edge catches); wings showed different poses across screenshots in run and on the menu; golden and swarm flies use the same BugTemplate (BugService only recolours a golden one), so their size and hit box match. Not compared side by side with the old size
+review: n/a
+leftover: none
+
+## b-20261012-140652-jfov  unsure  2026-10-12 20:26
+note: Studio playtest check for b-20261012-135824-th24 once Studio is running: the OffsetStudsU sign in WorldBackdrop.centreOffsetU is reasoned, not observed. Resize the window between 16:9 and ~3:1 in Pot and Kitchen: lane-centre art must stay put and no PotBack/LavaGradient/overlay seam may show in view; if the art slides as width grows, negate the term
+cause: Studio playtest check of the b-20261012-135824-th24 fix; the check could not be run from here.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: no — the resize between 16:9 and ~3:1 was not run; at 1098x761 the Pot and Kitchen art sat still with no seam in view
+review: n/a
+leftover: none — the Studio MCP cannot resize the play window, so other window sizes can never be checked from here
+
+## b-20261012-140726-nzco  fixed  2026-10-12 20:26
+note: Studio playtest check for b-20261010-191837-a1x9 once Studio is running: tap a carrot at the hand's grip spot (lower-left body of the carrot art) and confirm a Perfect popup; its visual centre should give Great/OK; other step kinds grade as before
+cause: Studio playtest check of the b-20261010-191837-a1x9 fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — a real right-click at a carrot's grip spot gave streak +3 (Perfect), one at its visual centre +1 (OK); other kinds graded in the elu0 mix as expected
+review: n/a
+leftover: none
+
+## b-20261012-141929-q52r  fixed  2026-10-12 20:26
+note: Studio playtest check: no pause button shows during a run (top right), and the HUD and race rail load with no errors
+cause: Studio playtest check of the b-20261010-192132-5986 fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — no pause button in any run; HUD and race rail loaded; console clean apart from the MCP's own AssistantCommand noise
+review: n/a
+leftover: none
+
+## b-20261012-142233-blru  fixed  2026-10-12 20:26
+note: Studio playtest check: Pot atmosphere (no clouds in Pot/Pot menu, metal walls only outside the lane, edge vignette, steam and warm tint rising with heat, extra poppable bubbles, all gone from Kitchen on and while spectating; portrait vignette narrows)
+cause: Studio playtest check of the b-20261010-191757-89n1 fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: partly — Pot run: metal walls, steam, edge vignette and heat tint on; Kitchen: all off; the Pot menu shows no clouds. Not seen: spectating and the portrait vignette
+review: n/a
+leftover: none — the Studio MCP starts single-player Play only, so a second lane can never be checked from here, and the Studio MCP cannot resize the play window, so other window sizes can never be checked from here
+
+## b-20261012-143704-0raj  fixed  2026-10-12 20:26
+note: Studio playtest check: Kitchen Chef hazard (knife/potato/shove tells read, ~6-10 s cadence after the arrival beat, never the held step, never strands Normal mode, grab during tell calls it off, nothing on Tutorial/Pot/Country/menu/death, per-lane in multiplayer, no old drifting Chef)
+cause: Studio playtest check of the b-20261010-191719-3rn3 fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: partly — Kitchen: Knife, Food and Shove every ~7 s (seq 5-9 at 0/6.9/14.1/21.8/28.7 s), the target was never the bot's held step, the tell reads (screenshot: the Chef reaching for the target), grabbing the target during WindUp called a Knife off within 0.06 s (no Strike, the step kept), and no action on the menu, on death or once the level reached Country; Easy runs at combo x169 / speed 1.5 were not stranded. Not seen: per-lane behaviour with 2 players (Pot and Tutorial were not sampled; Chef.tick resets outside Kitchen)
+review: n/a
+leftover: none — the Studio MCP starts single-player Play only, so a second lane can never be checked from here
+
+## b-20261012-144900-mqlm  fixed  2026-10-12 20:26
+note: Studio playtest check: tap a Pot bubble (and an ExtraBubbleSpawner bubble); the pop should throw a clearly visible tinted burst plus a smaller white one, obvious but not overbearing, with no hitch on rapid pops
+cause: Studio playtest check of the b-20261010-192237-7x8j fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: partly — a real tap on a Pot bubble spawned 28 PopBurst parts (tinted and white) at +0.05 s, 14 left at +0.37 s, 0 at +0.5 s, no errors. Too short-lived for a screenshot, so how visible it reads and any hitch on rapid pops were not judged; an ExtraBubbleSpawner bubble was not tapped separately
+review: n/a
+leftover: none — the burst lives 0.5 s and the MCP screen capture cannot time it; how it reads is a look the user gets in normal play
+
+## b-20261012-144900-elu0  fixed  2026-10-12 20:26
+note: Studio playtest check: grab grades - Great now needs the tap within ~1.41 studs of the grip (was 2); confirm Perfect/Great/OK popups appear in sensible proportions
+cause: Studio playtest check of the b-20261012-140726-qy5i fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — Classic end panel Perfect 32% / Great 35% / OK 33% with bot tap offsets {0,0.9 | 1.2,1.35 | 1.6,2.2}, matching Perfect <= 1, Great <= 1.414, OK beyond
+review: n/a
+leftover: none
+
+## b-20261012-150058-oxtf  fixed  2026-10-12 20:26
+note: Studio playtest check: reach the Kitchen (grab the pot rim after 50 steps); the music should crossfade from Pot's BrusselSprouts to Adenine (music4), loop cleanly, and feel as groovy as Pot
+cause: Studio playtest check of the b-20261010-192146-ml2d fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: partly — in Kitchen music4 plays looped at volume 0.7 with the room tone; the crossfade, loop seam and groove could not be heard
+review: n/a
+leftover: none — the Studio MCP cannot hear audio
+
+## b-20261012-150254-352v  fixed  2026-10-12 20:26
+note: Studio playtest check: main menu at 16:9, 4:3, phone portrait and a tall tablet window; the frog's eyes and mouth should be visible with the panel beside (landscape) or under (portrait) the face, nothing over Gift/Shop, layout follows a window resize
+cause: Studio playtest check of the b-20261010-192455-bshn fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: partly — landscape at 1098x761 and 1048x761: eyes and mouth visible, panel beside the face, nothing over Gift/Shop. 4:3, phone portrait and tablet were not run
+review: n/a
+leftover: none — the Studio MCP cannot resize the play window, so other window sizes can never be checked from here
+
+## b-20261012-150254-scgv  fixed  2026-10-12 20:26
+note: Studio playtest check: die and open the end-of-run panel; a TIP area under the buttons shows one wrapped tip, no overlap at phone/desktop sizes; it changes on the next death and stays put after opening/closing Top Scores or Settings
+cause: Studio playtest check of the b-20261010-192336-pgwh fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: partly — at 1098x761 the TIP area sits under the buttons with one wrapped tip and no overlap, and a new tip showed on the next death; the end panel came back after Top Scores closed. Phone size was not run
+review: n/a
+leftover: none — the Studio MCP cannot resize the play window, so other window sizes can never be checked from here
+
+## b-20261012-150755-783q  unsure  2026-10-12 20:26
+note: Studio playtest check: in Kitchen with 2+ lanes, the Chef's knife/potato never draws on a step that was recycled to a new spawn or another lane
+cause: Studio playtest check of the b-20261012-143703-olbq fix; the check could not be run from here.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: no — needs 2+ lanes in Kitchen
+review: n/a
+leftover: none — the Studio MCP starts single-player Play only, so a second lane can never be checked from here
+
+## b-20261012-150835-jy21  fixed  2026-10-12 20:26
+note: Studio playtest check: on the main menu the demo frog climbs hand over hand (Right/Left alternating, no double-grab, no arm stuck stretched); a click left/right of the frog sends that arm reaching and pauses the ladder ~3 s, then the climb resumes
+cause: Studio playtest check of the b-20261010-192533-5os7 fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — the menu demo frog climbs hand over hand, alternating Right/Left; a click beside it sends that arm reaching and pauses the climb
+review: n/a
+leftover: none
+
+## b-20261012-152052-41xk  unsure  2026-10-12 20:26
+note: Studio playtest check: 2 players, main menu at 1280x720, 1024x768 and 390x844; the Spectate strip sits bottom-centre above Gift/Shop and never under the menu panel; it hides when Frogs/Settings/Top Scores opens or on death (camera back on own lane) and returns on Home
+cause: Studio playtest check of the b-20261012-150254-k9vy fix; the check could not be run from here.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: no — needs 2 players and three window sizes
+review: n/a
+leftover: none — the Studio MCP starts single-player Play only, so a second lane can never be checked from here, and the Studio MCP cannot resize the play window, so other window sizes can never be checked from here
+
+## b-20261012-152359-xgne  fixed  2026-10-12 20:26
+note: Studio playtest check: in the Kitchen the Chef's shove still lands only on a clear spot (falls back to the other side when crowded) and step spawn spacing/nudging looks unchanged
+cause: Studio playtest check of the b-20261012-143704-8ian fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — 3 Kitchen shoves: each moved the way its ChefShoveDir tell pointed, 1.2 s after landing the nearest other step was 7.1-9.0 studs away centre to centre, and the post-shove screenshot shows no step over another; spawn spacing looked as before over three Kitchen visits. The crowded-side fallback was not triggered
+review: n/a
+leftover: none
+
+## b-20261012-152921-w0wq  unsure  2026-10-12 20:26
+note: Studio playtest check: main menu at 768x1024 (with a 2nd lane so the Spectate strip shows, and without) - the panel+streak+missions shrink and sit under the face (strip case only touching the mouth), the pop-in ends at the shrunk size, resizing mid pop-in settles, other panels pop as before
+cause: Studio playtest check of the b-20261012-152031-992y fix; the check could not be run from here.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: no — needs a 768x1024 window and a second lane
+review: n/a
+leftover: none — the Studio MCP starts single-player Play only, so a second lane can never be checked from here, and the Studio MCP cannot resize the play window, so other window sizes can never be checked from here
+
+## b-20261012-162429-pg4k  fixed  2026-10-12 20:26
+note: Studio playtest check: Normal combo streak - COMBO xN counter (left, under Bugs) jumps +1/+2/+3 for OK/Great/Perfect and heats up, SPEED UP!/MAX SPEED!! cues below it without overlap, pulls/sliders/arrows visibly faster (~1.5x max, not more at height), Vanish fuse unchanged, Kitchen Chef tells finish smoothly at speed with the strike grace unchanged; a free-limb tap on empty space shows COMBO LOST and resets speed; death/new run clears it; Classic shows none of it; score rises faster than steps while the race rail, the Kitchen at 50 / Country at 100, the 30/75-step missions and step badges still follow real steps
+cause: Studio playtest check of the b-20261010-192608-4bs3 fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: partly — Easy: COMBO xN under Bugs rose +1/+2/+3, SPEED UP! twice then MAX SPEED!! below it, a free-limb tap on empty space showed COMBO LOST and reset streak and speed; 12 Perfect grabs reached x34 at speed 1.5 (the cap); death set streak 0 / speed 1 / label hidden and the Replay run started at 0; Kitchen at 50 and Country at 100 followed steps; Chef tells ran normally at speed 1.5. Classic: 22 Perfect grabs left streak 0, speed 1, HUD score = steps, no combo or cue. Not judged: how much faster sliders and arrows look, the Vanish fuse, missions and badges
+review: n/a
+leftover: none — the remaining items are feel calls or code paths that read RunSteps, which v7rl confirmed counts real steps
+
+## b-20261012-163727-v7rl  fixed  2026-10-12 20:26
+note: Studio playtest check: Normal run with a Perfect chain - HUD score climbs faster than steps, but the player-list Score and Best are real steps; on death the end panel shows Score plus 'Steps: M   Best: B', NEW BEST! only when steps beat the old best, and the saved best / global, daily and weekly boards get steps; the high-score and every-10 chimes follow steps; a Classic run shows no Steps text
+cause: Studio playtest check of the b-20261012-162429-k6wc fix; no defect found.
+change: none (verification only)
+files: none
+test: Studio MCP playtest of Hot Frog (Studio ece276fd, 1098x761 window), 2026-10-12
+verified: yes — Easy run: HUD score 1022 against 183 steps; end panel "Score: 1022  NEW BEST!" with "Steps: 183   Best: 183" (old best 124); leaderstats Best 183; Top Scores row "1. FrequencyGames — 183"; the Classic end panel shows no Steps text. The chimes could not be heard
+review: n/a
+leftover: none
