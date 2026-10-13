@@ -61,6 +61,11 @@ No copies, so never tinted: sclera/pupils/tongue/mouths, accessories (Hawt Frog
 sunglasses, Space Frog helmet), Hot Lawyer's human head, hands and eyelids, and
 Mystery Frog (a black silhouette a multiply cannot show on).
 
+Colour tints (`SkinTints.list`): Mint 400, Berry 600, Midnight 800, Shadow 1000,
+Gold 1500 Flys, plus Blue 100 (Hot Frog only, an art swap). Shadow (id 6) is the
+near-black frog: a (55, 55, 60) multiply over the greyed art, deliberately not
+pure black so the dark outlines still separate the shapes.
+
 Non-frog art is also present: [`/Sprites/Rocks/`](../../Sprites/Rocks) (step
 variants + direction arrows + `Castle`/`Rocket`/`Lillipad`),
 [`/Sprites/Other/`](../../Sprites/Other) (`Bug`, `LavaSplash`, `Sun`, clouds,

@@ -53,6 +53,11 @@ SkinTints.list = {
 	{ id = 2, name = "Berry", color = Color3.fromRGB(255, 150, 210), flyCost = 600 },
 	{ id = 3, name = "Midnight", color = Color3.fromRGB(130, 140, 255), flyCost = 800 },
 	{ id = 4, name = "Gold", color = Color3.fromRGB(255, 215, 80), flyCost = 1500 },
+	-- Near-black (b-20261013-101145-cvni). Multiplied over the greyed (mid-grey)
+	-- frog art, ~(55, 55, 60) lands the body around RGB 30, still lighter than
+	-- the near-black outlines, which are kept as drawn, so shapes stay separable;
+	-- pure black would erase them. Priced above Midnight, below Gold.
+	{ id = 6, name = "Shadow", color = Color3.fromRGB(55, 55, 60), flyCost = 1000 },
 } :: { Tint }
 
 SkinTints.NONE = Color3.new(1, 1, 1)

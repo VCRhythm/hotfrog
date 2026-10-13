@@ -158,6 +158,10 @@ local function makeSwatch(tintId: number, color: Color3, order: number)
 	local b = button("Tint" .. tintId, "", UDim2.fromOffset(SWATCH_W, 52), UDim2.new(), swatchRow)
 	b.LayoutOrder = order -- SkinTints.list order (Blue first), not id order
 	b.BackgroundColor3 = color
+	-- Label colour from the swatch luminance so "Worn"/"Off"/prices read on every
+	-- swatch, near-black Shadow included (b-20261013-101145-cvni).
+	local luma = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B
+	b.TextColor3 = if luma < 0.45 then Color3.new(1, 1, 1) else Color3.fromRGB(20, 20, 20)
 	swatches[tintId] = b
 end
 makeSwatch(0, SkinTints.NONE, 0)
