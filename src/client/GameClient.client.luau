@@ -62,8 +62,22 @@ end)
 -- itself in case the event already fired before it existed.
 local latestProfile: any = nil
 local flysLabel: TextLabel? = nil
+-- Best score is monotonic, so the HUD keeps the max of the profile's highScore
+-- and any ScoreChanged best: a missed join-time ScoreChanged push can't leave
+-- "Best: 0" (b-20261013-101813-o11q), and neither source can regress the other.
+local bestLabel: TextLabel? = nil
+local bestShown = 0
+local function showBest(best: any)
+	if type(best) == "number" and best > bestShown then
+		bestShown = best
+	end
+	if bestLabel then
+		bestLabel.Text = "Best: " .. tostring(bestShown)
+	end
+end
 local function applyProfile(profile: any)
 	latestProfile = profile
+	showBest(profile and profile.highScore)
 	if flysLabel then
 		flysLabel.Text = "Flys: " .. tostring((profile and profile.flys) or 0)
 	end
@@ -873,7 +887,7 @@ local function makeLabel(name: string, posY: number, text: string): TextLabel
 end
 
 local scoreLabel = makeLabel("ScoreLabel", 12, "0")
-local bestLabel = makeLabel("HighScoreLabel", 48, "Best: 0")
+bestLabel = makeLabel("HighScoreLabel", 48, "Best: " .. tostring(bestShown))
 local newFlysLabel = makeLabel("FlysLabel", 84, "Flys: " .. tostring((latestProfile and latestProfile.flys) or 0))
 flysLabel = newFlysLabel
 local bugsLabel = makeLabel("BugsLabel", 120, "Bugs: 0")
@@ -941,7 +955,7 @@ ScoreChanged.OnClientEvent:Connect(function(score, best, quality)
 		perfectChain = 0
 	end
 	scoreLabel.Text = tostring(score)
-	bestLabel.Text = "Best: " .. tostring(best or 0)
+	showBest(best)
 	if quality == "Perfect" then
 		-- cheap feedback hook (flash/sound). See ../03 scoring section.
 		scoreLabel.TextColor3 = UIKit.GOOD
