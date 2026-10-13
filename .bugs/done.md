@@ -1951,3 +1951,13 @@ verified: yes — Hot Frog's store row fits 7 swatches; Hot Frog wearing Shadow 
 review: looks-right (sonnet)
 re-review: looks-right — the label-colour fix, added after the Studio check found dark text on the near-black swatch: Blue and Shadow get white text, the rest dark
 leftover: none — doc 17's Skin colourways row gets Shadow 1000 with the b-20261013-101101-qbb4 change
+
+## b-20261013-101101-qbb4  fixed  2026-10-13 10:21
+note: business frog's tint should color his suit and not the frog itself or at least tint the frog a different color than the suit (maybe complementary colors?)
+cause: Business Frog's tint-ready copies greyed the frog green and left the navy suit as drawn, and its borrowed Hot Frog head and hands used Hot Frog's tint-ready art, so a tint coloured the frog and not the suit.
+change: regenerated BusinessFrogTintBody/Arm.png with only the navy suit greyed (brightened so a multiply shows; vest, shirt, tie, outlines kept), uploaded (Arm 104979674458678, Body 102630969057264, both Green) and written by write_asset_ids.py; SkinAssets.part looks up Universal/Hot Frog parts untinted for skins in SUIT_ONLY_TINT (Business Frog), so the head, hands and eyes never carry Tinted; docs 08 and 17 updated (doc 17 also lists Shadow 1000). Commit 0f145e0
+files: Sprites/Frogs/Business Frog/BusinessFrogTintBody.png, Sprites/Frogs/Business Frog/BusinessFrogTintArm.png, src/shared/SkinAssets.luau, docs/roblox-port/08-frog-skins-and-store.md, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua, selene, rojo build, luau_check clean; preview PNG of None/Mint/Gold/Berry/Shadow; Studio MCP playtest of Hot Frog
+verified: yes — Business Frog on the menu wearing Mint, then Gold: client decals show the tint on Body and both limbs only (Tinted=true), head, hands, grab hands, eyes and eyelids Tinted=nil at 1,1,1; screenshots show gold/mint sleeves under a green frog head and hands; console clean; frog restored to untinted Business Frog
+review: looks-right (sonnet) — prefix strips spaces so BusinessFrog matches, SpriteSkin clears a stale Tinted on re-skin, Hot Lawyer / Mystery silhouette / Blue art swap paths unchanged
+leftover: none — the green vest panel is inside the Body sprite, so it still darkens under Berry/Shadow; documented in docs 08 and 17, and splitting it out needs new art beyond the ask (suit coloured, frog not)
