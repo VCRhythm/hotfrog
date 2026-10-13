@@ -50,10 +50,13 @@ local PRESS_DOWN = TweenInfo.new(0.06, Enum.EasingStyle.Quad, Enum.EasingDirecti
 local PRESS_UP = TweenInfo.new(0.12, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
 
 -- Lily Pad Pop's motion rule (echoes Unity's DOTween Ease.OutBack panel slides
--- in UI/MenuManager.cs): a panel being shown pops from 0.9x to 1x scale
--- instead of just snapping Visible on. Hiding stays instant -- there's nothing
--- to see a panel ease out of once it's gone.
-local PANEL_POP = TweenInfo.new(0.35, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+-- in UI/MenuManager.cs): a panel being shown bounces in from nothing --
+-- scale 0 -> overshoot -> 1x -- instead of just snapping Visible on, the same
+-- pop as the Daily Streak popup (b-20261012-203957-zjix; it was a barely
+-- visible 0.9x -> 1x over 0.35 s). Hiding stays instant -- there's nothing to
+-- see a panel ease out of once it's gone.
+local PANEL_POP = TweenInfo.new(0.5, Enum.EasingStyle.Back, Enum.EasingDirection.Out)
+local PANEL_POP_FROM = 0
 
 function UIKit.corner(parent: Instance, radius: number?): UICorner
 	local c = Instance.new("UICorner")
@@ -325,11 +328,16 @@ function UIKit.panel(name: string, size: UDim2, pos: UDim2, parent: Instance): F
 end
 
 -- Shows or hides a panel with the pop-in motion rule above: a shown panel's
--- UIScale eases from 0.9 to 1; a hidden one just goes invisible. The UIScale
--- is created once and reused on repeat calls. Callers that used to write
+-- UIScale bounces from 0 to 1; a hidden one just goes invisible. Showing a
+-- panel showPanel already has up leaves it alone, so a repeat call (e.g.
+-- showEndPanel rerunning when the run summary lands) never re-pops it. The
+-- UIScale is created once and reused on repeat calls. Callers that used to write
 -- `panel.Visible = x` directly (mainPanel/endPanel/settingsPanel/topPanel,
 -- StoreUI's panel) call this instead.
 local popTweens: { [GuiObject]: Tween } = setmetatable({}, { __mode = "k" }) :: any
+-- Panels showPanel has shown and not hidden since. A panel built Visible (the
+-- main menu) isn't in here until its first showPanel, so that call still pops.
+local shownPanels: { [GuiObject]: boolean } = setmetatable({}, { __mode = "k" }) :: any
 
 local function cancelPop(frame: GuiObject)
 	local running = popTweens[frame]
@@ -340,11 +348,16 @@ local function cancelPop(frame: GuiObject)
 end
 
 function UIKit.showPanel(frame: GuiObject, visible: boolean)
+	if visible and frame.Visible and shownPanels[frame] then
+		return
+	end
 	cancelPop(frame)
 	if not visible then
+		shownPanels[frame] = nil
 		frame.Visible = false
 		return
 	end
+	shownPanels[frame] = true
 	local existing = frame:FindFirstChildOfClass("UIScale") :: UIScale?
 	local scale: UIScale
 	if existing then
@@ -355,7 +368,7 @@ function UIKit.showPanel(frame: GuiObject, visible: boolean)
 	end
 	local attr = frame:GetAttribute("PanelScale") -- optional per-panel resting scale (MenuClient shrinks its main stack)
 	local target = if type(attr) == "number" then attr else 1
-	scale.Scale = 0.9 * target
+	scale.Scale = PANEL_POP_FROM * target
 	frame.Visible = true
 	local tween = TweenService:Create(scale, PANEL_POP, { Scale = target })
 	popTweens[frame] = tween
@@ -363,12 +376,22 @@ function UIKit.showPanel(frame: GuiObject, visible: boolean)
 end
 
 -- Sets a panel's resting scale (the "PanelScale" attribute showPanel eases to).
--- A pop-in still running is cancelled and the scale applied at once, so a later
--- layout change is never overwritten by a stale tween target.
+-- A pop-in still running is retargeted to the new scale from where it is, so a
+-- layout pass during the bounce (MenuClient relays out the main panel when the
+-- Spectate strip appears, which showing the menu triggers) neither snaps the
+-- bounce away nor lets a stale tween target win (b-20261012-203957-zjix).
 function UIKit.setPanelScale(frame: GuiObject, k: number)
 	frame:SetAttribute("PanelScale", k)
-	cancelPop(frame)
 	local scale = frame:FindFirstChildOfClass("UIScale")
+	local running = popTweens[frame]
+	if running and running.PlaybackState == Enum.PlaybackState.Playing and scale then
+		cancelPop(frame)
+		local tween = TweenService:Create(scale, PANEL_POP, { Scale = k })
+		popTweens[frame] = tween
+		tween:Play()
+		return
+	end
+	cancelPop(frame)
 	if scale and frame.Visible then
 		scale.Scale = k
 	end
