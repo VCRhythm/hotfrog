@@ -320,8 +320,9 @@ local Config = {
 	-- 1 + min(runSteps * RUN_SPEEDUP, MAX_SPEEDUP), i.e. 1.4x at 100 steps, 1.5x at most.
 	STEP_MOTION_RUN_SPEEDUP = 0.004,
 	STEP_MOTION_MAX_SPEEDUP = 0.5,
-	-- Normal-mode combo streak (b-20261010-192608-4bs3, owner's ruling
-	-- b-20261012-160551-8zmn; Unity has no equivalent, doc 17). Every grab adds its
+	-- Combo streak, both run modes (b-20261010-192608-4bs3, owner's ruling
+	-- b-20261012-160551-8zmn; b-20261012-203452-bisk: 'on normal' meant the menu's
+	-- Normal = internal Classic, so it applies there as well as in Easy; Unity has no equivalent, doc 17). Every grab adds its
 	-- quality's weight; only a missed tap, a fall or the run ending resets it.
 	STREAK_WEIGHTS = { OK = 1, Great = 2, Perfect = 3 },
 	-- The speed multiplier rises linearly from 1 to STREAK_SPEED_MAX as the streak

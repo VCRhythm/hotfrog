@@ -952,7 +952,7 @@ ScoreChanged.OnClientEvent:Connect(function(score, best, quality)
 end)
 
 -- Combo streak HUD (b-20261010-192608-4bs3, owner's ruling b-20261012-160551-8zmn;
--- Normal mode only -- Classic lanes never publish a Streak). Purely cosmetic: it
+-- both run modes, b-20261012-203452-bisk). Purely cosmetic: it
 -- reads the replicated `Streak` / `StreakSpeed` attributes on my lane folder.
 -- Sits under the Bugs label at the left, clear of the world-space "Perfect xN"
 -- popup, which floats at the grab point.
@@ -1095,7 +1095,7 @@ end)
 -- at 0, Kitchen at 50, Country at 100), so the player can see how far the
 -- next level is from the very first grab, not just a raw score number.
 -- Markers read the player's `RunSteps` attribute (GameServer, real steps
--- climbed this run), not leaderstats.Score: Normal's combo bonus
+-- climbed this run), not leaderstats.Score: the combo bonus
 -- (b-20261010-192608-4bs3) makes Score run ahead of the steps the level
 -- landmarks count. The rail now shows (and the landmarks stay meaningful) as
 -- soon as a run starts, not just when another player is around to compare

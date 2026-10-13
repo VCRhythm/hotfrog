@@ -51,7 +51,7 @@ export type Ctx = {
 	forceRelease: () -> (), -- make the holder's limb let go (Step.cs ForceRelease)
 	getSpawnBias: () -> Vector2, -- the lane's spawn direction: the way the WORLD scrolls
 	setSpawnBias: (bias: Vector2) -> (), -- SpawnManager.SpawnDirection analog
-	getStreakSpeed: () -> number, -- Normal-mode combo speed multiplier (1 in Classic / no streak)
+	getStreakSpeed: () -> number, -- combo speed multiplier (1 with no streak)
 	getRunSteps: () -> number, -- steps the lane's frog has climbed this run (its height / difficulty)
 	getBase: () -> Vector3, -- the step's logical world position, without any visual offset
 	moveBase: (delta: Vector3) -> (), -- shift the logical position (world space); spawn spacing and pull aim follow

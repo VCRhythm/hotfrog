@@ -1788,3 +1788,13 @@ test: code read; the earlier Studio check pg4k saw StreakSpeed reach 1.5 in Easy
 verified: n/a
 review: n/a
 leftover: none
+
+## b-20261012-203452-bisk  fixed  2026-10-12 20:39
+note: I only saw the "COMBO" wording in easy mode and not normal
+cause: The menu shows internal modes one notch down (Classic reads "Normal", Normal reads "Easy"); the owner's b-20261010-192608-4bs3 "on normal" meant the menu's Normal (internal Classic), but that fix gated the whole streak to internal Normal, so only "Easy" had it.
+change: GameServer drops the three mode gates (laneSpeed, the grab's streak/bonus, the ReachEmpty reset), so the combo, its speed-up, bonus, HUD cues and SFX run in both modes; the Tutorial level still never builds a streak (it ran as Classic before, so this keeps its old behaviour). The end panel's "Steps: N" line already shows whenever steps differ from score. Comments in Config, StepBehaviors, PullMath, Chef, GameClient, SfxEvents and WorldChef and the doc 17 combo row now say both modes.
+files: src/server/GameServer.server.luau, src/shared/Config.luau, src/shared/StepBehaviors.luau, src/shared/PullMath.luau, src/server/Chef.luau, src/client/GameClient.client.luau, src/client/SfxEvents.client.luau, src/client/WorldChef.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: tools/luau_check.sh on the 8 .luau files (0 errors), selene src/ (0 errors), rojo build to the job tmp dir ok (stylua's diffs are the known CRLF-only ones); Studio MCP playtest (Studio ece276fd) of a Classic run with a client grab bot.
+verified: yes — Classic run (Mode: NORMAL): 24 Perfect grabs showed COMBO x2 -> x71 on the HUD with SPEED UP! from the first grab and MAX SPEED!! at streak 20 (speed 1.5); a missed tap at streak 16 reset it to 0 / speed 1 and showed COMBO LOST; the end panel read "Score: 12" with "Steps: 6   Best: 183" and leaderstats Score stayed 6 (steps). The Tutorial-level exclusion was not played (it needs Replay Tutorial on the test profile).
+review: orchestrator read the diff and added the Tutorial gate the fixer left out; a fixer briefly ran git stash/pop mid-run, and the tree was checked afterwards (the user's .bugs/.gitignore edit intact, stash list empty, only this fix's files changed).
+leftover: none — the Tutorial gate is one level check in the grab handler, and a Tutorial streak would be cosmetic only

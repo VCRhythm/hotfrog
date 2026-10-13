@@ -42,7 +42,7 @@ local QUALITY_STEM: { [string]: string } = {
 	Perfect = "perfectVoice",
 }
 
--- Combo streak (b-20261010-192608-4bs3, ruling 8zmn; Normal mode): a "pop" that
+-- Combo streak (b-20261010-192608-4bs3, ruling 8zmn; both modes): a "pop" that
 -- climbs in pitch with the streak on every grab once it is worth hearing, and a
 -- brighter "base10" chime when the speed multiplier passes a cue threshold.
 -- Reads the local lane's replicated Streak / StreakSpeed attributes.
@@ -73,7 +73,7 @@ end
 -- ---------------------------------------------------------------------------
 -- base10 / highScore (UI/HUD.cs's StepsClimbed setter). Both count real STEPS
 -- (ScoreChanged's 5th arg; falls back to `score` if absent): `score` carries the
--- Normal-mode combo bonus and jumps by more than 1, while `best` is steps-based
+-- combo bonus and jumps by more than 1, while `best` is steps-based
 -- (owner ruling b426 on k6wc). `best` on ScoreChanged
 -- is the profile's best step count as of the START of this run (GameServer only
 -- bumps it in `commitHighScore`, on death) -- exactly Unity's

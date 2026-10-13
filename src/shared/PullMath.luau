@@ -56,7 +56,7 @@ function PullMath.pullTime(distance: number): number
 	return math.clamp(math.abs(distance) / Config.PULL_SPEED, Config.PULL_TIME, Config.PULL_TIME_MAX)
 end
 
--- Normal-mode combo speed multiplier for a streak value (Config.STREAK_*;
+-- Combo speed multiplier for a streak value (Config.STREAK_*;
 -- b-20261010-192608-4bs3): 1 at no streak, STREAK_SPEED_MAX at STREAK_FULL.
 function PullMath.streakSpeed(streak: number): number
 	local t = math.clamp(streak / Config.STREAK_FULL, 0, 1)

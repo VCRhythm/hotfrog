@@ -172,9 +172,9 @@ local endPanelOpen: { [Player]: boolean } = {}
 -- decorative ladder. Forward-declared so setRunState can drive it.
 local refreshAttract: (player: Player) -> ()
 
--- Normal-mode combo streak (b-20261010-192608-4bs3, ruling 8zmn): lives on the
--- lane folder as `Streak` (points) and `StreakSpeed` (the multiplier) so the HUD
--- and cosmetics can read it. Classic lanes never build one.
+-- Combo streak (b-20261010-192608-4bs3, ruling 8zmn; both run modes since
+-- b-20261012-203452-bisk): lives on the lane folder as `Streak` (points) and
+-- `StreakSpeed` (the multiplier) so the HUD and cosmetics can read it.
 local function setStreak(lane: Lane.Lane, streak: number)
 	lane.folder:SetAttribute("Streak", streak)
 	lane.folder:SetAttribute("StreakSpeed", PullMath.streakSpeed(streak))
@@ -185,11 +185,8 @@ local function streakOf(lane: Lane.Lane): number
 	return if typeof(v) == "number" then v else 0
 end
 
--- The lane's current speed multiplier: 1 outside a Normal run.
+-- The lane's current combo speed multiplier (1 with no streak).
 local function laneSpeed(lane: Lane.Lane): number
-	if lane.mode ~= Config.RUN_MODES.Normal then
-		return 1
-	end
 	local v = lane.folder:GetAttribute("StreakSpeed")
 	return if typeof(v) == "number" then v else 1
 end
@@ -1008,7 +1005,7 @@ RunService.Heartbeat:Connect(function(frameDt: number)
 		-- What the lane's pulls still owe every step: once per lane, not once per
 		-- step inside the bounds check.
 		local pending = lane:sharedPending()
-		local speed = laneSpeed(lane) -- combo streak speed-up (1 in Classic / no streak)
+		local speed = laneSpeed(lane) -- combo streak speed-up (1 with no streak)
 		ticking = true
 		for step, st in lane.states do
 			local onTick = st.behavior.onTick
@@ -1864,16 +1861,16 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- client's open Roblox PlayerList (owner's decision b-20260921-182502-qgbw,
 	-- Lane.obstructionExtra; never shorter, not while the lane drifts).
 	distance += lane:obstructionExtra(distance)
-	-- Normal-mode combo (b-20261010-192608-4bs3): this grab grows the streak, the
-	-- NEW streak sets the speed (pull duration shrinks by it) and the bonus score.
+	-- Combo (b-20261010-192608-4bs3, both modes per bisk): this grab grows the
+	-- streak, the NEW streak sets the speed (pull duration shrinks by it) and
+	-- the bonus score. The Tutorial level never builds one, as before.
 	local bonus = 0
-	local speed = 1
-	if lane.mode == Config.RUN_MODES.Normal then
+	if lane.levelIndex ~= Levels.TUTORIAL then
 		local streak = streakOf(lane) + streakWeight(quality)
 		setStreak(lane, streak)
 		bonus = PullMath.streakBonus(streak)
-		speed = laneSpeed(lane)
 	end
+	local speed = laneSpeed(lane)
 	pullLane(lane, distance, PullMath.pullTime(distance) / speed)
 	addScore(player, 1 + bonus, quality)
 
@@ -2014,9 +2011,9 @@ ReachEmpty.OnServerEvent:Connect(function(player, tapPos, limbIndex)
 	end
 	if state == RunState.Playing then
 		-- a tap that grabbed nothing (the client only sends this for a free limb
-		-- and an empty tap point) breaks the Normal-mode combo (ruling 8zmn)
+		-- and an empty tap point) breaks the combo (ruling 8zmn)
 		local lane = Lane.get(player)
-		if lane and lane.mode == Config.RUN_MODES.Normal and streakOf(lane) > 0 then
+		if lane and streakOf(lane) > 0 then
 			setStreak(lane, 0)
 		end
 	end
