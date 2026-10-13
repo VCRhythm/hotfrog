@@ -44,3 +44,9 @@ command: python tools/create_gamepasses.py
 done-check: ! grep -q 'gamePassId = 0' src/shared/SkinCatalog.luau
 ran: 2026-10-08 15:09 exit 0: created 'Invisible Man' -> 2021282272 / created 'Crossy Frog' -> 2021648260 / 4/4 passes have ids
 cleared: 2026-10-08 15:09 Run it: exit 0, done-check passed
+
+## o-20261013-094512-yobn  open  2026-10-13 09:45
+for: b-20261013-093943-gk5k
+kind: restart
+step: Restart Roblox Studio with the Hot Frog place (close and reopen it): its 3D viewport draws blank white in both Edit and Play, so the loop's screen captures show no frog, backdrop or steps
+no-check: whether Studio's 3D viewport draws again can only be seen in the Studio window; the shell cannot read it

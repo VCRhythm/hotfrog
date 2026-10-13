@@ -1878,3 +1878,14 @@ test: see b-20261012-212643-ba72
 verified: yes — the ruling was applied in b-20261012-212643-ba72; its own partly-verified check is held by b-20261013-093943-gk5k
 review: looks-right; checked: see b-20261012-212643-ba72
 leftover: none — the remaining Studio look is filed as b-20261013-093943-gk5k against b-20261012-212643-ba72
+
+## b-20261013-093943-gk5k  blocked  2026-10-13 09:45
+note: Playtest check: see a colour-tinted frog render in Studio (Hot Frog Mint/Gold on the menu and in the store preview, Hot Lawyer suit-only tint, Space Frog helmet untinted); also judge Mystery Frog's borrowed grab hands
+cause: Studio playtest check of the b-20261012-212643-ba72 fix; Studio's 3D viewport draws blank white (an Edit-mode capture from (0,0,40) toward the origin showed only the axis labels), so no rendered look can be captured.
+change: none (verification only)
+files: none
+test: Studio MCP screen_capture of Hot Frog (Studio ece276fd) in Edit mode, 2026-10-13
+verified: no — the 3D viewport renders blank in Edit and Play, so the tinted frog cannot be seen from here until Studio is restarted
+review: n/a
+owed: o-20261013-094512-yobn (restart Roblox Studio)
+leftover: re-run after the restart, filed as b-20261013-094524-ql74
