@@ -1703,7 +1703,11 @@ RunService.Heartbeat:Connect(function(frameDt: number)
 				-- is measured in the sprite's frame, not the world's.
 				local grip = step:GetAttribute("GripOffset") :: Vector2?
 				local gripPos = if grip then step.CFrame * Vector3.new(grip.X, grip.Y, 0) else step.Position
-				limbPart.CFrame = CFrame.new(gripPos) -- follow the (scrolling) step
+				-- X/Y follow the (scrolling) step; Z stays at the frog's own depth.
+				-- A step's Z (the menu ladder rungs sit at -0.2) would otherwise drag
+				-- the limb, and the arm part welded to it, behind the body art
+				-- (-0.25) and head (-0.3).
+				limbPart.CFrame = CFrame.new(gripPos.X, gripPos.Y, f.pos.Z)
 			elseif reach and os.clock() - reach.started < Config.LIMB_REACH_TIME then
 				-- DOTween's default ease (OutQuad), as Limb.Move uses
 				local t = (os.clock() - reach.started) / Config.LIMB_REACH_TIME
