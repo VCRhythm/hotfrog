@@ -1808,3 +1808,13 @@ test: stylua --check and tools/luau_check.sh on Tips.luau (pass), selene src/ (0
 verified: partly — text-only change checked against the code; not seen on the end panel in Studio (the tip is random per run, and the panel's wrapping was already checked for longer tips in scgv)
 review: n/a (orchestrator change)
 leftover: none — the three lines are at most 87 characters, within the ~90 the Tips area was laid out for
+
+## b-20261012-203745-7jao  fixed  2026-10-12 20:47
+note: raise streak speed max (reopens b-20261012-203422-vzh9)
+cause: The owner's answer to vzh9's finding: the combo capped at 1.5x, the same as the height tempo, so late in a run it no longer sped moving steps up.
+change: Config.STREAK_SPEED_MAX 1.5 -> 2 and STREAK_FULL 20 -> 30 (fifteen Great or ten Perfect grabs, a similar ramp per grab), cues STREAK_SPEED_CUES {1.15, 1.3, 1.5} -> {1.25, 1.5, 2}. Movers keep max(height tempo, streak), so a full combo now takes them to 2x at any height; pulls run up to twice as fast and the Chef's tells up to 2x (CHEF_STRIKE_GRACE still unscaled). Comments in Config/StepBehaviors and the doc 17 combo row updated. The value 2x is the loop's pick; the owner named no number.
+files: src/shared/Config.luau, src/shared/StepBehaviors.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: tools/luau_check.sh on both files (0 errors), selene src/ (0 errors), rojo build to the job tmp dir ok (stylua's diff is CRLF-only); Studio MCP playtest (Studio ece276fd), Classic run with a Perfect-grab client bot.
+verified: yes — 13 Perfect grabs: StreakSpeed 1.10, 1.20 ... 1.90, then 2.00 at streak 30 and held there; SPEED UP! during the climb and MAX SPEED!! at 2.00; a short pull's PullTime went from 0.227 s at 1.1x to 0.125 s at 2x. Not judged: whether 2x movers and Chef tells still read well, a feel call for the owner.
+review: n/a (orchestrator change)
+leftover: none — the remaining question is how 2x feels in play, which the owner judges in normal play; the knob is Config.STREAK_SPEED_MAX

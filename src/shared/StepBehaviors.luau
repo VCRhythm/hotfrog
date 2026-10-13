@@ -282,8 +282,8 @@ local function numberParam(params: Params?, key: string, default: number): numbe
 end
 
 -- The combo streak speed-up (b-20261010-192608-4bs3) takes the LARGER of the
--- height tempo and the streak multiplier rather than multiplying them: both top
--- out at 1.5x, and a product (2.25x) would make movers unreadable.
+-- height tempo (at most 1.5x) and the streak multiplier (at most 2x, 7jao) rather
+-- than multiplying them: a product (3x) would make movers unreadable.
 local function tempo(ctx: Ctx): number
 	local height = 1 + math.min(ctx.getRunSteps() * Config.STEP_MOTION_RUN_SPEEDUP, Config.STEP_MOTION_MAX_SPEEDUP)
 	return math.max(height, ctx.getStreakSpeed())
