@@ -1777,3 +1777,14 @@ test: stylua --check, tools/luau_check.sh (0 errors), selene src/ (0 errors), ro
 verified: yes — on the menu the Hot Lawyer sleeves and hands draw over the suit (before, the lower sleeve was hidden under it) and the arms still sit over the head; in a Classic Pot run the body decal tinted to the heat colour (G 1.00 -> 0.59) as the frog sank within 8 studs of the lava, so the moved decal is still found
 review: orchestrator read the diff; StoreUI anchors every clone part and pivots the whole model, so the preview keeps the body art; no other code reads the Body decal by path
 leftover: none
+
+## b-20261012-203422-vzh9  answered  2026-10-12 20:35
+note: do the steps actually speed up when the combo gets higher?
+finding: Yes, in Normal mode only, and most visibly early in a run. The combo multiplier (StreakSpeed, 1x rising linearly to 1.5x at streak 20, about ten Great grabs) shortens each grab's pull/scroll (pull time / speed), makes falling steps drift down faster (FALLING_DRIFT_SPEED x speed) and speeds the Chef's tells. Sliding, swinging and bobbing steps use the larger of the combo speed and the run's own height speed-up (1 + 0.004 per step, 1.4x at 100 steps, 1.5x from 125), not the product, so after about 100 steps the combo adds little to them and nothing past 125. Classic never speeds up from the combo; spawn rate and step spacing do not change with it. If you want the combo to stay felt late in a run, the choice is to multiply the two (up to 2.25x) or raise STREAK_SPEED_MAX.
+cause: question; read src/server/GameServer.server.luau (laneSpeed, the grab's pullLane call), src/shared/StepBehaviors.luau (tempo, Falling onTick), src/shared/PullMath.luau (streakSpeed) and Config STREAK_* / STEP_MOTION_*.
+change: none (question answered)
+files: none
+test: code read; the earlier Studio check pg4k saw StreakSpeed reach 1.5 in Easy runs
+verified: n/a
+review: n/a
+leftover: none
