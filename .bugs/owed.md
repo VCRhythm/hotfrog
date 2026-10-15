@@ -52,3 +52,11 @@ step: Restart Roblox Studio with the Hot Frog place (close and reopen it): its 3
 no-check: whether Studio's 3D viewport draws again can only be seen in the Studio window; the shell cannot read it
 evidence: marked done by the user, no check
 cleared: 2026-10-13 09:50 marked done on the dashboard
+
+## o-20261015-100456-yqw2  done  2026-10-15 10:04
+for: b-20261013-163505-y6c5
+kind: restart
+step: Open Hot Frog in Roblox Studio
+done-check: powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -ErrorAction SilentlyContinue).MainWindowTitle -match 'Hot Frog'" | grep -q True
+evidence: none: done-check failed (the check found nothing (it exited non-zero with no output): `powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -ErrorAction S...`), marked done by the user
+cleared: 2026-10-15 10:05 marked done on the fleet dashboard although the done-check failed

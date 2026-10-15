@@ -1885,8 +1885,9 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	distance += lane:obstructionExtra(distance)
 	-- Combo (b-20261010-192608-4bs3, both modes per bisk): a Perfect or Great
 	-- grab grows the streak and restarts its timeout; an OK grab neither grows
-	-- nor restarts it (kzbm). The streak sets the speed (pull duration shrinks by
-	-- it) and the bonus score. The Tutorial level never builds one, as before.
+	-- nor restarts it (kzbm). The streak speeds the moving field and grants the
+	-- bonus score, but the grab pull keeps its normal duration. The Tutorial
+	-- level never builds one, as before.
 	local bonus = 0
 	if lane.levelIndex ~= Levels.TUTORIAL then
 		local weight = streakWeight(quality)
@@ -1896,8 +1897,7 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 		end
 		bonus = PullMath.streakBonus(streakOf(lane))
 	end
-	local speed = laneSpeed(lane)
-	pullLane(lane, distance, PullMath.pullTime(distance) / speed)
+	pullLane(lane, distance, PullMath.pullTime(distance))
 	addScore(player, 1 + bonus, quality)
 
 	local wasTutorial = lane.levelIndex == Levels.TUTORIAL

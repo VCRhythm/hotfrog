@@ -1971,3 +1971,14 @@ test: stylua, selene, rojo build, luau_check clean; Studio MCP playtests of Hot 
 verified: yes — three fresh Studio joins each read "Best: 183" from the first sample (t=3.5 to 5.4 s) with leaderstats Best 183; a 6-grab Classic run kept "Best: 183" at score 9; console clean. The original miss was intermittent (1 in 3), so the fix is shown by the profile path now feeding the label, not by catching a miss
 review: looks-right (sonnet) — ScoreChanged's best is bestOf = profile.highScore (steps), so max mixes one quantity; highScore never decreases at runtime and the save merge takes the max
 leftover: none
+
+## b-20261013-163505-y6c5  fixed  2026-10-15 10:05
+note: don't speed up the "grab pull" speed when combos increase, just the speed that steps move on screen
+cause: GrabStep divided PullMath.pullTime by the combo multiplier, shortening each grab pull while the streak grew.
+change: GrabStep now uses the normal distance-based pull time at every combo; moving step behaviors and Classic idle scroll still use StreakSpeed. Updated the tuning comment and port design record.
+files: src/server/GameServer.server.luau, src/shared/Config.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check on touched Luau files, selene src/ (0 errors), Windows luau-lsp analyze on touched Luau files, rojo build (all pass); bash tools/luau_check.sh could not find the analyzer in WSL, so the installed Windows analyzer was run directly
+verified: no — no HotFrog Studio is attached; Roblox_Studio lists Centralia (Staging) only, so a live high-streak grab was not run
+review: none
+owed: o-20261015-100456-yqw2 (open Hot Frog in Roblox Studio)
+leftover: playtest high-streak grab timing and moving-step/Classic drift speed, filed as b-20261015-100504-gauh after HotFrog Studio opens

@@ -328,12 +328,12 @@ local Config = {
 	STREAK_WEIGHTS = { OK = 0, Great = 2, Perfect = 3 },
 	STREAK_TIMEOUT = 3,
 	-- The speed multiplier rises linearly from 1 to STREAK_SPEED_MAX as the streak
-	-- reaches STREAK_FULL (30 = fifteen Great or ten Perfect grabs). It divides pull
-	-- durations and scales moving steps', Classic's idle drift (b-20261012-205444-huc1)
+	-- reaches STREAK_FULL (30 = fifteen Great or ten Perfect grabs). It scales moving
+	-- steps', Classic's idle drift (b-20261012-205444-huc1)
 	-- and the Chef's clocks (never CHEF_STRIKE_GRACE). Raised from 1.5x at 20 to 2x at 30 so the combo still
 	-- outruns the height tempo late in a run (owner's request b-20261012-203745-7jao), then doubled to 4x
-	-- at the same STREAK_FULL (owner's request b-20261013-095024-ufca). PULL_TIME's clamp is applied before
-	-- the division, so it does not cap the combo.
+	-- at the same STREAK_FULL (owner's request b-20261013-095024-ufca). Grab pulls
+	-- keep their normal PULL_TIME duration as requested in b-20261013-163505-y6c5.
 	STREAK_FULL = 30,
 	STREAK_SPEED_MAX = 4,
 	-- Combo bonus score: +1 per STREAK_BONUS_EVERY streak points, at most
