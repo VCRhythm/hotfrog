@@ -1980,5 +1980,5 @@ files: src/server/GameServer.server.luau, src/shared/Config.luau, docs/roblox-po
 test: stylua --check on touched Luau files, selene src/ (0 errors), Windows luau-lsp analyze on touched Luau files, rojo build (all pass); bash tools/luau_check.sh could not find the analyzer in WSL, so the installed Windows analyzer was run directly
 verified: no — no HotFrog Studio is attached; Roblox_Studio lists Centralia (Staging) only, so a live high-streak grab was not run
 review: none
-owed: o-20261015-100456-yqw2 (open Hot Frog in Roblox Studio)
+owed: o-20261015-100656-nw90 (open Hot Frog in Roblox Studio; re-owed after the earlier step was marked done while its check still failed)
 leftover: playtest high-streak grab timing and moving-step/Classic drift speed, filed as b-20261015-100504-gauh after HotFrog Studio opens

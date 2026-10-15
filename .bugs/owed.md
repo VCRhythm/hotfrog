@@ -60,3 +60,9 @@ step: Open Hot Frog in Roblox Studio
 done-check: powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -ErrorAction SilentlyContinue).MainWindowTitle -match 'Hot Frog'" | grep -q True
 evidence: none: done-check failed (the check found nothing (it exited non-zero with no output): `powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -ErrorAction S...`), marked done by the user
 cleared: 2026-10-15 10:05 marked done on the fleet dashboard although the done-check failed
+
+## o-20261015-100656-nw90  open  2026-10-15 10:06
+for: b-20261013-163505-y6c5
+kind: restart
+step: Open Hot Frog in Roblox Studio
+done-check: powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -ErrorAction SilentlyContinue).MainWindowTitle -match 'Hot Frog'" | grep -q True
