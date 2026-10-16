@@ -223,7 +223,7 @@ local Ids: { [string]: number } = {
 	HawtFrogTintRightHandGrab = 108150337446749,
 
 	-- Hot Frog (auto)
-	HotFrogHalloweenHat = 87049410219713,
+	HotFrogHalloweenHat = 79328124668745,
 	HotFrogThumbnail = 136773965416772,
 	HotFrogTintBody = 76541581711411,
 	HotFrogTintClosedLeftEyelid = 83295198946991,

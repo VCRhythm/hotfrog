@@ -32,6 +32,10 @@ local SpriteSkin = {}
 -- its otherwise empty Accessory slot while the Config window is open.
 local HALLOWEEN_HAT = "HotFrogHalloweenHat"
 local HALLOWEEN_SKINS: { [string]: boolean } = { ["Hot Frog"] = true, ["Blue Frog"] = true }
+-- Head decal layers (FrogModel): Head 0, Mouth 1, Sclera 2, Eyes 3, Pupils 4,
+-- eyelids 5, Accessory 6. The hat draws at 1: over the head art, under the eyes
+-- (it shares the layer with the Mouth, which it never overlaps).
+local HALLOWEEN_HAT_ZINDEX = 1
 
 -- Is today (UTC) inside Config.HALLOWEEN_START..END, or is the test override
 -- workspace attribute `ForceHalloween` set?
@@ -100,10 +104,21 @@ function SpriteSkin.apply(root: Instance, skinName: string?, tint: boolean?)
 			if suffix == "Accessory" then
 				-- skin-specific (sunglasses, helmet): blank when the skin has none, so a
 				-- re-skinned rig never keeps the previous skin's accessory
-				if not image and HALLOWEEN_SKINS[skinName] and SpriteSkin.halloweenLive() then
+				local hat = not image and HALLOWEEN_SKINS[skinName] and SpriteSkin.halloweenLive()
+				if hat then
 					image = SkinAssets.image(HALLOWEEN_HAT)
 				end
 				image = image or ""
+				if obj:IsA("Decal") then
+					-- the hat sits behind the eyes, over the head art (b-20261016-140445-tnpd);
+					-- other skins' gear (sunglasses, helmet) keeps the template's top layer
+					local base = obj:GetAttribute("BaseZIndex")
+					if typeof(base) ~= "number" then
+						base = obj.ZIndex
+						obj:SetAttribute("BaseZIndex", base)
+					end
+					obj.ZIndex = if hat then HALLOWEEN_HAT_ZINDEX else base
+				end
 			end
 			setTexture(obj, image)
 		end

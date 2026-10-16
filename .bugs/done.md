@@ -2262,3 +2262,25 @@ verified: no — the Hot Frog Studio is closed (not in list_roblox_studios), so 
 review: n/a
 leftover: b-20261016-173812-0e40 (Studio Play check of releasing a potato in the Pot, then a fix or a question for the owner; waits on tools/studio_ready.sh)
 owed: o-20261016-173728-jewl (open the Hot Frog place in Studio)
+
+## b-20261016-140445-tnpd  fixed  2026-10-16 17:44
+note: the hat accessory is too high and should be behind the frog's eyes (but in front of its head)
+cause: The rig's Accessory decal is on the Head at ZIndex 6, above every eye layer (Sclera 2, Eyes 3, Pupils 4, eyelids 5). The hat art's brim ran across the tops of the eye bumps, so the hat sat high and drew over the eyes.
+change: src/shared/SpriteSkin.luau apply drops the Accessory decal to ZIndex 1 only while it holds the Halloween hat, so the hat draws over the head art (0) and under the eyes. Every other skin gets back the template ZIndex, kept once in a BaseZIndex attribute, so Hawt Frog's and Space Frog's accessories are unchanged. The hat art (Sprites/Frogs/Hot Frog/HotFrogHalloweenHat.png) moved 50 px down, so the brim sits on top of the head between the eyes. It was re-uploaded through the pipeline (Approved, new id 79328124668745), and write_asset_ids.py wrote the id into src/shared/SkinAssets.luau. The doc 17 Halloween row is updated.
+files: src/shared/SpriteSkin.luau, Sprites/Frogs/Hot Frog/HotFrogHalloweenHat.png, src/shared/SkinAssets.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check src/shared/SpriteSkin.luau (ok), selene src/ (0 warnings), bash tools/luau_check.sh src/shared/SpriteSkin.luau (rc 0), rojo build (ok), upload_to_roblox.py --status (HotFrogHalloweenHat Approved/Green). An offline PIL composite of the real Hot Frog parts in the new layer order showed the brim behind the eyes and over the head.
+verified: no — the Hot Frog Studio was closed for the whole run (list_roblox_studios showed only Tactics and Centralia), so no Play run was made. The PIL composite is not a real-environment run.
+review: looks-right (sonnet); checked: git diff of SpriteSkin, SkinAssets and doc 17, SpriteSkin.apply in full, the FrogModel decal list (Head, Mouth, Sclera, Eyes, Pupils, eyelids and Accessory are all on the Head part, Face Back, ZIndex 0-6), a grep of ZIndex/BaseZIndex/Accessory across src/, the restore path for ForceHalloween off and for switches to Hawt/Space or to no-accessory skins, BaseZIndex captured before any change, StoreUI previews go through the same apply, the SkinAssets diff is the one hat id line, luau_check and stylua rc 0, old vs new PNG by eye (brim about 50 px lower, darker burnt-orange band, olive-gold buckle, upper-left light)
+leftover: b-20261016-174405-kgdg (Studio Play check of the hat layering, and that Hawt/Space accessories are unchanged; waits on tools/studio_ready.sh)
+owed: o-20261016-174406-ubok (taste: the reworked hat), o-20261016-173728-jewl (open the Hot Frog place in Studio)
+
+## b-20261016-140637-tqc4  fixed  2026-10-16 17:44
+note: the shading of the witch hat looks a *little* off compared to teh shadong of the base frog. more darkness on the buckle and strap would help
+cause: The hat art was flat-shaded, with a saturated orange band and a bright yellow buckle. The frog's art uses a soft gradient lit from the upper left that darkens toward the lower right, so the band and buckle read too bright next to it.
+change: Sprites/Frogs/Hot Frog/HotFrogHalloweenHat.png now has a soft radial falloff lit from the upper left, up to about 22% darker. The band and buckle get extra shadow toward both ends and toward the brim, at about x0.92 and x0.85. Size and alpha are unchanged. It was re-uploaded with the same change as b-20261016-140445-tnpd (one commit, one new id 79328124668745).
+files: Sprites/Frogs/Hot Frog/HotFrogHalloweenHat.png, src/shared/SkinAssets.luau
+test: see b-20261016-140445-tnpd
+verified: no — the Hot Frog Studio was closed, so the art was not seen in game. The reviewer compared the old and new PNGs by eye.
+review: looks-right (sonnet); checked: git diff of SpriteSkin, SkinAssets and doc 17, SpriteSkin.apply in full, the FrogModel decal list (Head, Mouth, Sclera, Eyes, Pupils, eyelids and Accessory are all on the Head part, Face Back, ZIndex 0-6), a grep of ZIndex/BaseZIndex/Accessory across src/, the restore path for ForceHalloween off and for switches to Hawt/Space or to no-accessory skins, BaseZIndex captured before any change, StoreUI previews go through the same apply, the SkinAssets diff is the one hat id line, luau_check and stylua rc 0, old vs new PNG by eye (brim about 50 px lower, darker burnt-orange band, olive-gold buckle, upper-left light)
+leftover: b-20261016-174405-kgdg (the same Studio check also captures the shading)
+owed: o-20261016-174406-ubok (taste: the reworked hat)

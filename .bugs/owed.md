@@ -153,8 +153,22 @@ no-check: whether new art looks right is the owner's call
 evidence: the user approved the Vampire Frog art ("looks great") when sending it back as b-20261016-131805-8d2q
 cleared: 2026-10-16 13:18 sent back to loop as b-20261016-131805-8d2q: looks great
 
-## o-20261016-132035-06e5  open  2026-10-16 13:20
+## o-20261016-132035-06e5  done  2026-10-16 13:20
 for: b-20261016-125004-mog8
 kind: taste
 step: Look at the Halloween scenery (jack-o'-lanterns, ghosts, cobwebs) and bats in game, live Oct 24 to Nov 1 UTC or any time in Studio Play after running workspace:SetAttribute("ForceHalloween", true) in the server command bar, and say if any art or the bat size (3.2 studs on a 44-stud lane) should change
 no-check: whether new art looks right in game is the owner's call
+evidence: marked done by the user, no check
+cleared: 2026-10-16 14:05 marked done on the fleet dashboard
+
+## o-20261016-173728-jewl  open  2026-10-16 17:37
+for: b-20261016-140523-i34z
+kind: restart
+step: Open the Hot Frog place in Roblox Studio (it is closed; only Tactics and Centralia are open), so the loop can run its held game checks
+done-check: bash tools/studio_ready.sh
+
+## o-20261016-174406-ubok  open  2026-10-16 17:44
+for: b-20261016-140445-tnpd
+kind: taste
+step: Look at the reworked witch hat on Hot Frog with ForceHalloween on (sits lower, behind the eyes, darker band and buckle) and say if it looks right
+no-check: whether the hat looks right is the owner's call
