@@ -2119,3 +2119,12 @@ test: stylua --check src/client/MenuClient.client.luau, selene src/ (0 warnings)
 verified: yes — In a Studio Play run of Hot Frog, ClaimDailyReward was stubbed on the Server in the Play session only, and the popup was reopened via Settings -> Close. MenuGui DisplayOrder read 10 against StoreGui's 5. A screen capture showed Gift/Shop dimmed under the overlay. A click on the Gift button collected the popup, restored DisplayOrder 5 and did not open the gift panel. A card click kept the popup open. Collect closed it, and Play then started a run. Shop was not clicked separately.
 review: looks-right; checked: the diff; every DisplayOrder and ScreenGui in src, bugloop and default.project.json (MenuGui 5 set once at MenuClient:72, StoreUI 5, PotAtmosphere -5, WorldBackdrop flash 100, F8 reporter 1000); the close paths (one guarded close(), ResetOnSpawn false, no start while popupOpen); bash tools/luau_check.sh on MenuClient (exit 0)
 studio: Hot Frog (placeId 114911935371092)
+
+## b-20261016-124422-fbuz  answered  2026-10-16 12:46
+note: brainstorm ways to "theme" this game for Halloween
+finding: There are 12 Halloween ideas in .bugs/reports/b-20261016-124422-fbuz.md, each costed S/M/L and marked as a client-only cosmetic or a change that needs your call. The recommended first 3 for the days before Oct 31: (1) a mood pass of spooky lava, a night/moon palette and a colour grade, config and tints only (S, no art); (2) pumpkin, ghost and bat scenery through SceneryKinds (M), the biggest visual payoff and the longest art lead time, so start it early; (3) a Halloween music track and one stinger (M). A limited skin or tint, a Fly bonus window and catchable bats change the economy and wait on your ruling. All the ideas can share the costume's date window (b-20261016-123058-9thf) through one helper.
+evidence: .bugs/README.md, CLAUDE.md, src/shared/WorldConfig.luau, SceneryKinds.luau, StepKinds.luau, Config.luau, SkinCatalog.luau, SkinTints.luau, Levels.luau, SoundAssets.luau, src/server/BugService.server.luau, src/server/DailyService.server.luau, src/client/Music.client.luau, WorldLava, WorldBugs, PotAtmosphere, tools/README.md, docs/roblox-port/17-status-and-known-gaps.md
+report: .bugs/reports/b-20261016-124422-fbuz.md
+files: none
+review: n/a (analysis)
+followups: none — you pick what to build; file a pick on the dashboard
