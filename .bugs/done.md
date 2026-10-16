@@ -2240,3 +2240,25 @@ test: none
 verified: yes — the scenery and bats were already seen in a Studio Play run for b-20261016-125004-mog8; only the owner's taste call is left
 review: n/a
 owed: o-20261016-132035-06e5 (taste: the Halloween scenery and bat size in game)
+
+## b-20261016-140421-iqp6  fixed  2026-10-16 17:38
+note: Off doesn't make any sense. it should say "EQUIP" or even better, these buttons should have icons for people that don't speak english
+cause: The store's tint swatches under a skin (screenshot: OFF, WORN, then prices) used the English words "Off" for the no-tint swatch and "Worn" for the worn one, so they didn't read without English.
+change: In src/client/StoreUI.client.luau refreshStore, the worn swatch now shows a check mark "✓" and the no-tint swatch a "✕". Owned tints stay blank colour chips, unowned ones keep their Fly price, and the label colour still follows the swatch luminance.
+files: src/client/StoreUI.client.luau
+test: stylua --check (rc 0), selene src/ (0 warnings), bash tools/luau_check.sh src/client/StoreUI.client.luau (rc 0), rojo build (ok)
+verified: no — the Hot Frog Studio was closed (list_roblox_studios showed only Tactics and Centralia), so nobody saw whether ✓ and ✕ render. FredokaOne probably lacks them, so they rely on Roblox's font fallback.
+review: looks-right (sonnet; caveat: the glyphs depend on font fallback, about 75% sure they render); checked: git diff of StoreUI, the refreshStore swatch loop and makeSwatch, UIKit.FONT (FredokaOne), every swatch state (worn/unworn no-tint, worn/unworn owned tint, unowned priced), luminance colouring untouched, UTF-8 literals, luau_check and stylua rc 0. Noted that the "Wear"/"Buy"/"Selected"/"Locked" labels are still English, and the comment near line 143 still says "Off"
+leftover: b-20261016-173812-ko2r (Studio check that the glyphs render, plus the stale comment; waits on tools/studio_ready.sh)
+owed: o-20261016-173728-jewl (open the Hot Frog place in Studio)
+
+## b-20261016-140523-i34z  blocked  2026-10-16 17:38
+note: the potatos don't actually break on grabbing like the tips say
+cause: Not found yet. By the code, the mechanic matches Unity and the tip. Potato uses StepBehaviors.CrumbleAfterRelease, which fires on ReleaseStep; Unity's Step.cs has releaseAction += Explode. Potatoes only spawn in the Pot, and the Halloween tint only colours Art.Color3. So either the release crumble fails at runtime or the owner expected a crumble on grab. Only a Play run can tell which.
+change: none
+files: none
+test: code reading (Tips.luau, StepKinds, StepBehaviors, GameServer release path, Unity Entities/Step.cs), plus bugloop recall (no earlier potato fix)
+verified: no — the Hot Frog Studio is closed (not in list_roblox_studios), so no Play run was possible
+review: n/a
+leftover: b-20261016-173812-0e40 (Studio Play check of releasing a potato in the Pot, then a fix or a question for the owner; waits on tools/studio_ready.sh)
+owed: o-20261016-173728-jewl (open the Hot Frog place in Studio)

@@ -166,7 +166,7 @@ local function makeSwatch(tintId: number, color: Color3, order: number)
 	local b = button("Tint" .. tintId, "", UDim2.fromOffset(SWATCH_W, 52), UDim2.new(), swatchRow)
 	b.LayoutOrder = order -- SkinTints.list order (Blue first), not id order
 	b.BackgroundColor3 = color
-	-- Label colour from the swatch luminance so "Worn"/"Off"/prices read on every
+	-- Label colour from the swatch luminance so the ✓/✕ marks and prices read on every
 	-- swatch, near-black Shadow included (b-20261013-101145-cvni).
 	local luma = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B
 	b.TextColor3 = if luma < 0.45 then Color3.new(1, 1, 1) else Color3.fromRGB(20, 20, 20)
@@ -379,9 +379,9 @@ local function refreshStore()
 			end
 			local has = tintId == 0 or ownedTints[SkinTints.key(id, tintId)] == true
 			if has and worn == tintId then
-				swatch.Text = "Worn"
+				swatch.Text = "✓"
 			elseif has then
-				swatch.Text = if tintId == 0 then "Off" else ""
+				swatch.Text = if tintId == 0 then "✕" else ""
 			else
 				swatch.Text = tostring(tint and tint.flyCost or "")
 			end
