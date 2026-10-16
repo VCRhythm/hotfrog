@@ -218,10 +218,12 @@ WorldConfig.ATTRACT_STEP_SIZE = Vector3.new(7.314, 7.314, 0.6) -- StepKinds' Whi
 -- to a second, client-side clone that did the climbing). The visible rungs sit
 -- at -GAP/0/+GAP about this Y (the 4th at +2*GAP, off-screen) so 3 rungs at
 -- STEP_Y_GAP fit the camera's fixed +/-15.7-stud vertical view (31.43 studs
--- total, GameClient.client.luau CAMERA_DISTANCE). z is nudged slightly behind
--- the gameplay plane (Config.PLANE_Z = 0) so the frog draws in front, same
--- direction as WorldScenery's own z=-1 dressing.
-WorldConfig.ATTRACT_ANCHOR_OFFSET = Vector3.new(0, 0, -0.2)
+-- total, GameClient.client.luau CAMERA_DISTANCE). z is the gameplay plane
+-- (Config.PLANE_Z = 0), same as real steps: the arm parts sit at -0.2, so the
+-- arm draws behind the rung it holds and the hand (+0.3) in front of it. At
+-- -0.2 the rung shared the arm's depth and the arm drew over it
+-- (b-20261013-163534-ogsq, ruling b-20261015-100802-a17l).
+WorldConfig.ATTRACT_ANCHOR_OFFSET = Vector3.new(0, 0, 0)
 -- Vertical rise between adjacent rungs (the ladder is centred on
 -- the anchor, so the +/-15.7 budget only has to fit half the stack each way):
 -- old 3.2 * (new/old LIMB_REST.Y ~= 13.808/4.0 ~= 3.452), same proportionate

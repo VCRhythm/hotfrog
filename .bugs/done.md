@@ -1982,3 +1982,23 @@ verified: no — no HotFrog Studio is attached; Roblox_Studio lists Centralia (S
 review: none
 owed: o-20261015-100656-nw90 (open Hot Frog in Roblox Studio; re-owed after the earlier step was marked done while its check still failed)
 leftover: playtest high-streak grab timing and moving-step/Classic drift speed, filed as b-20261015-100504-gauh after HotFrog Studio opens
+
+## b-20261013-163534-ogsq  fixed  2026-10-16 12:05
+note: arm shouldn't appear in front of the steps
+cause: Ruling b-20261015-100802-a17l: "the gripping hand should stay in front while the arm is behind". The menu attract ladder rungs sat at Z -0.2 (WorldConfig.ATTRACT_ANCHOR_OFFSET), the same depth as the frog's arm parts (-0.2), so the arm tied with the rung and drew over it (the screenshot is the menu). Gameplay steps were already at Z 0, behind which the arm sits.
+change: ATTRACT_ANCHOR_OFFSET is now (0, 0, 0), so attract rungs sit on the gameplay plane like real steps: arm -0.2 < rung 0 < hand +0.3. Doc 17's arm/hand draw-order row states the ruling. Hand order, FrogModel and posing unchanged.
+files: src/shared/WorldConfig.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check src/shared/WorldConfig.luau, selene src/ (0 errors, 0 warnings), bash tools/luau_check.sh src/shared/WorldConfig.luau, rojo build default.project.json (all pass)
+verified: no — Rojo is serving Scare and Studio is not open on Hot Frog, so no menu Play check could run; depth order is from the model JSON and GameServer posing code only
+review: looks-right; checked: git diff of both files, grep of ATTRACT_ANCHOR_OFFSET (one use, GameServer buildAttract; rungs CanQuery=false, attractClimb keeps rung Z), FrogModel.model.json part Z offsets (head -0.3, body art -0.25, arms -0.2, hands +0.3), GameServer held-limb pose keeps f.pos.Z = Config.PLANE_Z, the screenshot. Minor: the comment near GameServer.server.luau:1707 still says the menu rungs sit at -0.2 (stale, harmless)
+owed: o-20261016-120238-gmyn (switch rojo serve to hotfrog and open Hot Frog in Studio)
+leftover: Studio check of the menu ladder and a held step, filed as b-20261016-120513-ye6k (waits on the owed Rojo/Studio check)
+
+## b-20261015-100802-a17l  answered  2026-10-16 12:05
+note: DECISION: the gripping hand should stay in front while the arm is behind
+cause: The user's ruling on question b-20261013-163534-ogsq.
+change: see b-20261013-163534-ogsq
+files: none
+test: none
+verified: see b-20261013-163534-ogsq
+review: n/a
