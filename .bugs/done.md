@@ -2078,3 +2078,21 @@ files: none
 test: none
 verified: see b-20261016-121351-8v9c
 review: n/a
+
+## b-20261016-121810-4vvi  ignored  2026-10-16 12:28
+note: AUTO warning (server): ContentId: rbxassetid://203785492 failed due to: Asset type does not match requested type
+cause: Not a game asset. No file in the repo mentions 203785492, and a scan of every instance in the Hot Frog Edit DataModel (1957 instances, all texture/image/sound/mesh/animation/sky properties and attributes) found no reference to it. The warning came from the engine or an avatar load during the Studio Play run, not from game code.
+change: Added "rbxassetid://203785492" to autoReport.ignore in bugloop/Config.luau so it is not filed again.
+files: bugloop/Config.luau
+test: grep of the repo; Studio MCP scan of the Edit DataModel; stylua, selene and luau_check on bugloop/Config.luau pass
+verified: n/a (ignored)
+review: n/a
+
+## b-20261016-121810-5kpu  ignored  2026-10-16 12:28
+note: AUTO warning (client:FrequencyGames): [UIBlox - Warning] - FoundationProvider not found
+cause: Roblox's own UI warning. The stack is entirely CorePackages (UIBlox AppStyleProvider under ReactReconciler); no game script is involved.
+change: Added "FoundationProvider not found" to autoReport.ignore in bugloop/Config.luau.
+files: bugloop/Config.luau
+test: stylua, selene and luau_check on bugloop/Config.luau pass
+verified: n/a (ignored)
+review: n/a
