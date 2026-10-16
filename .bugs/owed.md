@@ -121,8 +121,10 @@ done-check: powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -E
 evidence: done-check passed: exit 0, no output
 cleared: 2026-10-16 12:12 done-check passed
 
-## o-20261016-122443-w0p4  open  2026-10-16 12:24
+## o-20261016-122443-w0p4  done  2026-10-16 12:24
 for: b-20261016-121550-awo6
 kind: restart
 step: Restart the open Roblox Studios (Hot Frog, Tactics, Centralia) so they load the 7.7.1 Rojo plugin, then reconnect Rojo in each
 no-check: Studio does not expose which plugin version a running window loaded; only a person can see the Rojo widget's version after restarting
+evidence: marked done by the user, no check
+cleared: 2026-10-16 12:28 marked done on the fleet dashboard

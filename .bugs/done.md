@@ -2039,9 +2039,10 @@ cause: The repo already pins rojo-rbx/rojo@7.7.1 in rokit.toml, and the rojo CLI
 change: Ran rojo plugin install with the pinned 7.7.1 CLI, and the plugin's Version value now reads 7.7.1. The old plugin is backed up outside the Plugins folder as %LOCALAPPDATA%/Roblox/RojoManagedPlugin-7.7.0.rbxm.bak. No repo file changed.
 files: none (machine-local Studio plugin)
 test: rojo --version prints Rojo 7.7.1. /api/rojo on 34871–34875 reports serverVersion 7.7.1. The installed plugin's Version value is 7.7.1.
-verified: partly — The plugin file is now 7.7.1, and the Hot Frog Studio stayed synced (its Edit DataModel matched the source afterwards). Studios that were already open may keep the 7.7.0 plugin loaded until they restart; that step is owed.
+verified: yes — The plugin file is now 7.7.1, and the Hot Frog Studio stayed synced (its Edit DataModel matched the source afterwards). After the user restarted the Studios (o-20261016-122443-w0p4, done 12:28), the Hot Frog Studio's PluginGuiService holds the dock widget "Rojo 7.7.1" (read through the Studio MCP at 12:40).
 review: n/a
 owed: o-20261016-122443-w0p4 (restart the open Studios so they load the 7.7.1 Rojo plugin)
+leftover: none — the owed restart is done and the loaded plugin was read as 7.7.1
 
 ## b-20261015-100504-gauh  duplicate  2026-10-16 12:25
 note: Playtest combo at high streak: grab pulls keep the same duration while moving steps and Classic idle scroll speed up
