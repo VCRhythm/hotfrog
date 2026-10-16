@@ -2149,3 +2149,22 @@ verified: yes — In a Studio Play run of Hot Frog (orchestrator), with ForceHal
 review: looks-right; checked: the date logic (month*100+day, 1024..1101 inclusive, UTC, no year term), every SpriteSkin.apply caller (StoreUI preview, GameServer frog creation, reskinFrog) and that the world scripts never touch the Accessory decal, the Accessory fallback chain per skin, the single 60 s loop, the generated SkinAssets line, the doc 17 row; luau_check, selene and stylua on the files
 studio: Hot Frog (placeId 114911935371092)
 owed: o-20261016-125533-0z6s (a taste check of the hat art)
+
+## b-20261016-125104-47tv  ignored  2026-10-16 12:59
+note: AUTO error (server): MenuGui is not a valid member of PlayerGui "Players.FrequencyGames.PlayerGui"
+cause: Not a game bug. The only stack frame is "AssistantCommand, line 9", a Studio MCP execute_luau probe from a fixer in the earlier tick that indexed PlayerGui.MenuGui from the Server datamodel, where the client PlayerGui is not visible. No game script was involved. bugloop/Config.luau already ignores "AssistantCommand", but the reporter matches ignore patterns against the message only, never the trace, so this probe got through. That limitation is filed on the bugloop list as b-20261016-125903-7q4h.
+change: none
+files: none
+test: none
+verified: n/a — no game code involved
+review: n/a
+
+## b-20261016-125437-ik3j  ignored  2026-10-16 12:59
+note: AUTO warning (server): ContentId: rbxassetid://87049410219713 failed due to: Asset content representation is being generated
+cause: Not a game bug. 87049410219713 is the witch hat (HotFrogHalloweenHat, b-20261016-123058-9thf), uploaded minutes before that Play session, and Roblox was still processing it. In a later Play run of the same session the hat loaded and rendered on Hot Frog's head (screen capture). Every new upload will show this once.
+change: Added "Asset content representation is being generated" to autoReport.ignore in bugloop/Config.luau, so a freshly uploaded asset still processing is not filed.
+files: bugloop/Config.luau
+test: bash tools/luau_check.sh bugloop/Config.luau (rc 0)
+verified: yes — the same asset rendered in the later Studio Play run recorded on b-20261016-123058-9thf
+review: none
+studio: Hot Frog (placeId 114911935371092)

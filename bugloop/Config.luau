@@ -18,8 +18,15 @@ return {
     -- AssistantCommand: probes the fixers run through the Studio MCP. GameDefs: unrelated user plugins.
     -- 203785492: an asset no source file or place instance references (engine/avatar load).
     -- FoundationProvider: a UIBlox warning from Roblox's own CorePackages UI.
+    -- "representation is being generated": a just-uploaded asset still processing; it loads later.
     autoReport = {
-        ignore = { "AssistantCommand", "GameDefs", "rbxassetid://203785492", "FoundationProvider not found" },
+        ignore = {
+            "AssistantCommand",
+            "GameDefs",
+            "rbxassetid://203785492",
+            "FoundationProvider not found",
+            "Asset content representation is being generated",
+        },
     },
 
     -- When the project declares every remote in one place: say where, and let it create the event.
