@@ -2107,3 +2107,5 @@ test: stylua --check, selene src/, bash tools/luau_check.sh src/client/MenuClien
 verified: yes — the Studio Play run above, with a screenshot of the popup over the menu
 review: concern — a granted popup was dropped if the claim returned while the state was still Dead after Home; fixed by skipping only during Playing. Studio then showed the reviewer's assumption that panel.Active sinks clicks was wrong; replaced with the Backstop button and re-tested.
 studio: Hot Frog (placeId 114911935371092)
+re-review: concern — a start queued while Dead (pendingStart) is neither fired nor cleared when Menu arrives under the popup, so it auto-starts a run at the next Dead->Menu; narrow race, filed as b-20261016-124204-f68f; the rest of the repair holds (the Playing-only guard, both start paths blocked, the Backstop under Collect at Z0, popupOpen always cleared); checked: git show 527d847, MenuClient lines 395-610 and 1000-1215, UIKit.panel and ZIndexBehavior.Sibling, a grep of src/ for StartRun/ReplayTutorial and client KeyCode/Activated bindings
+followups: b-20261016-124204-f68f
