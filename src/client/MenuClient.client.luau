@@ -1008,6 +1008,8 @@ local function showDailyPopup(r: DailyResult)
 		return
 	end
 	popupOpen = true
+	-- b-20261016-124204-f68f: the popup cancels a start queued while Dead; Play again after collecting.
+	pendingStart = false
 	-- b-20261016-123559-s03q: StoreGui (Gift/Shop) shares DisplayOrder 5, so lift
 	-- this gui above it while the popup is up; close() restores it.
 	gui.DisplayOrder = 10

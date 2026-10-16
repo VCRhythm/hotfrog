@@ -2128,3 +2128,13 @@ report: .bugs/reports/b-20261016-124422-fbuz.md
 files: none
 review: n/a (analysis)
 followups: none — you pick what to build; file a pick on the dashboard
+
+## b-20261016-124204-f68f  fixed  2026-10-16 12:52
+note: A start queued while Dead (pendingStart) survives the Daily Streak popup and auto-starts a run at the next Dead->Menu
+cause: showDailyPopup left pendingStart set, so a Play/Replay queued while the lane was Dead survived the popup (the Menu handler only skips it with "pendingStart and not popupOpen") and fired StartRun at the next Dead->Menu. This was the re-review concern on b-20261016-122217-31q0.
+change: showDailyPopup in src/client/MenuClient.client.luau clears pendingStart right after setting popupOpen, so the popup cancels a queued start and the player presses Play again after collecting. requestStart already returns while the popup is open, so the flag cannot be set again under it.
+files: src/client/MenuClient.client.luau
+test: stylua --check src/client/MenuClient.client.luau, selene src/ (0 warnings), bash tools/luau_check.sh src/client/MenuClient.client.luau and rojo build all pass
+verified: yes — In a Studio Play run of Hot Frog (orchestrator), the edit was in the Edit DataModel and ClaimDailyReward was stubbed on the Server in the Play session only (granted, 8 s delay). The run: Home on the end panel (claim in flight), a client-only RunStateChanged "Dead" from the server, then a real Replay click, which queued pendingStart. The popup then opened over EndOfRun (MenuGui DisplayOrder 10), a "Menu" fired under it, an overlay click collected it, and a fake Dead->Menu followed. StartRun fired 0 times, where the old code would have started a run there (the lane's real state was Menu, so a start would have gone through). Replay then started a run (1 StartRun, state Playing). The fixer's own run was inconclusive and is not counted.
+review: looks-right; checked: every pendingStart read and write (lines 399, 554-555, 603, 610, 1012), the Menu branch under the popup in both cases, close() cleanup (overlay+Backstop destroyed, popupOpen cleared, DisplayOrder 5), bash tools/luau_check.sh on MenuClient (clean)
+studio: Hot Frog (placeId 114911935371092)
