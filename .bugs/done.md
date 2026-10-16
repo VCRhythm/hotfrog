@@ -2250,7 +2250,8 @@ test: stylua --check (rc 0), selene src/ (0 warnings), bash tools/luau_check.sh 
 verified: no — the Hot Frog Studio was closed (list_roblox_studios showed only Tactics and Centralia), so nobody saw whether ✓ and ✕ render. FredokaOne probably lacks them, so they rely on Roblox's font fallback.
 review: looks-right (sonnet; caveat: the glyphs depend on font fallback, about 75% sure they render); checked: git diff of StoreUI, the refreshStore swatch loop and makeSwatch, UIKit.FONT (FredokaOne), every swatch state (worn/unworn no-tint, worn/unworn owned tint, unowned priced), luminance colouring untouched, UTF-8 literals, luau_check and stylua rc 0. Noted that the "Wear"/"Buy"/"Selected"/"Locked" labels are still English, and the comment near line 143 still says "Off"
 leftover: b-20261016-173812-ko2r (Studio check that the glyphs render, plus the stale comment; waits on tools/studio_ready.sh)
-owed: o-20261016-173728-jewl (open the Hot Frog place in Studio)
+owed: none
+note: the held check waits on o-20261016-173728-jewl (owed for b-20261016-140523-i34z: open the Hot Frog place in Studio)
 
 ## b-20261016-140523-i34z  blocked  2026-10-16 17:38
 note: the potatos don't actually break on grabbing like the tips say
@@ -2283,4 +2284,4 @@ test: see b-20261016-140445-tnpd
 verified: no — the Hot Frog Studio was closed, so the art was not seen in game. The reviewer compared the old and new PNGs by eye.
 review: looks-right (sonnet); checked: git diff of SpriteSkin, SkinAssets and doc 17, SpriteSkin.apply in full, the FrogModel decal list (Head, Mouth, Sclera, Eyes, Pupils, eyelids and Accessory are all on the Head part, Face Back, ZIndex 0-6), a grep of ZIndex/BaseZIndex/Accessory across src/, the restore path for ForceHalloween off and for switches to Hawt/Space or to no-accessory skins, BaseZIndex captured before any change, StoreUI previews go through the same apply, the SkinAssets diff is the one hat id line, luau_check and stylua rc 0, old vs new PNG by eye (brim about 50 px lower, darker burnt-orange band, olive-gold buckle, upper-left light)
 leftover: b-20261016-174405-kgdg (the same Studio check also captures the shading)
-owed: o-20261016-174406-ubok (taste: the reworked hat)
+owed: o-20261016-174456-mgfb (taste: the band and buckle shading)

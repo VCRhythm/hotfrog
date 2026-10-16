@@ -172,3 +172,9 @@ for: b-20261016-140445-tnpd
 kind: taste
 step: Look at the reworked witch hat on Hot Frog with ForceHalloween on (sits lower, behind the eyes, darker band and buckle) and say if it looks right
 no-check: whether the hat looks right is the owner's call
+
+## o-20261016-174456-mgfb  open  2026-10-16 17:44
+for: b-20261016-140637-tqc4
+kind: taste
+step: Look at the reshaded witch hat's band and buckle next to the frog's own shading (Hot Frog, ForceHalloween on) and say if the darkness is right
+no-check: whether the shading matches is the owner's call
