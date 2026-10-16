@@ -2002,3 +2002,79 @@ files: none
 test: none
 verified: see b-20261013-163534-ogsq
 review: n/a
+
+## b-20261016-121230-7m2r  fixed  2026-10-16 12:25
+note: Rojo/Studio checks failed with several Studios and Rojo servers open: rojo-check read port 34872 (Scare) since default.project.json had no servePort, and the Studio title check's -match printed the matching title instead of True when two Studios were open
+cause: The owed done-checks used bugloop's rojo-check. It probes only servePort or 34872, so with no servePort set it read Scare's server on 34872 while hotfrog's ran on 34873. Rojo's port changes from day to day, so pinning servePort is no fix. The Studio title check ran PowerShell's -match on an array of window titles. That returns the matching titles, not True, so its grep for True never passed with two or more Studios open.
+change: New tools/studio_ready.sh. It lists every port a rojo process listens on (Get-NetTCPConnection filtered by process name) and asks each one's /api/rojo which project it serves. The match against this project's name from default.project.json is anchored by the MessagePack fixstr length byte, so "hotfrog-roblox-2" and "hotfrog-roblo" do not match. It then greps all Studio window titles for "Hot Frog" and prints the Rojo port; --rojo-only skips the Studio part. It exits 1 with a reason when no project name is found, no rojo serves it, or no Studio window matches. The waiting checks x9l1 and 8v9c and owed steps t6n4 and 4rse use it. The shared rojo-check fix is filed on the bugloop list as b-20261016-121400-gm51.
+files: tools/studio_ready.sh
+test: Live run against Rojo on 34871/34872 (Scare), 34873 (hotfrog-roblox) and 34875 (Tactics), with the Hot Frog, Tactics and Centralia Studios open: exit 0, printing 34873, in both modes. The negative patterns "hotfrog-roblo" and "hotfrog-roblox-2" do not match 34873's response.
+verified: yes — the live run above against the running Rojo servers and Studio windows
+review: concern — the unanchored substring match accepted a project whose name contains ours; checked: tools/studio_ready.sh, a live run
+re-review: looks-right; checked: a bash -x trace (PAT is the 0xae byte then hotfrog-roblox), the bytes of 34873's response (ae before the name), behaviour with no rojo running or no PowerShell, set -u. Minor: an empty NAME would match any empty string, so a guard was added and the script re-run (exit 0, 34873)
+
+## b-20261016-121351-x9l1  fixed  2026-10-16 12:25
+note: Playtest combo at high streak: grab pulls keep the same duration while moving steps and Classic idle scroll speed up (re-filed from b-20261015-100504-gauh; check now finds Rojo on any port and Hot Frog among several Studios)
+cause: Studio playtest check of the b-20261013-163505-y6c5 fix. No defect found.
+change: none (verification only)
+files: none
+test: Studio MCP Play test of Hot Frog (placeId 114911935371092), 2026-10-16 12:25. The Edit DataModel held the current source (WorldConfig ATTRACT_ANCHOR_OFFSET (0,0,0)). A client bot fired StartRun("Classic") and GrabStep with centred taps. It logged each published pull (PullTime, PullDelta, PullLinear, StreakSpeed) against PullMath.pullTime(|delta|). A second bot climbed to Kitchen at 4x, then switched to off-centre (OK) taps so the streak ran out while the frog lived. Two AUTO warnings filed during Play (b-20261016-121810-4vvi, b-20261016-121810-5kpu) are queued separately.
+verified: yes — In the Studio Play run, all 67 grab pulls took exactly the unscaled PullMath.pullTime at every streak speed from 1.0 to 4.0x. That includes pulls above the clamp: 16.45 studs took 0.411 s at 4x, where the old divide would give 0.103 s. Classic drift chunks went from 4.1 studs/s at 1.3x to 14.8 studs/s at 4x. BobRock moved 10.9–13.4 studs/s relative to the field at 4x against 0.67 at 1x; a bobbing step's speed varies with its phase, so that comparison is indicative.
+review: n/a
+studio: Hot Frog (placeId 114911935371092)
+
+## b-20261016-121351-8v9c  fixed  2026-10-16 12:25
+note: Studio check on the Menu attract ladder: frog arm draws behind the rung, gripping hand in front (ATTRACT_ANCHOR_OFFSET z 0); also glance at a held step in Playing (re-filed from b-20261016-120513-ye6k; check now finds Rojo on any port and Hot Frog among several Studios)
+cause: Studio Play check of the b-20261013-163534-ogsq fix. No defect found.
+change: none (verification only)
+files: none
+test: Studio MCP Play test of Hot Frog (placeId 114911935371092), 2026-10-16 12:25. The camera sits at (0,0,43.2) looking along -Z, so a larger Z draws nearer. Server part Z on the Menu: Left/RightArm -0.20, Left/RightHand(+Grab) 0.30, AttractStep 0.00. For the screenshots the client ScreenGuis were hidden briefly and then restored; the Daily Streak popup was left uncollected. A Normal run then grabbed one Carrot (Z 0.00) for the held-step view.
+verified: yes — In the Studio Play run, both menu rungs show the green fingers over the red rung, with the navy arm passing behind it. In Playing, the hand closes over the held carrot and the arm runs behind both carrots.
+review: n/a
+studio: Hot Frog (placeId 114911935371092)
+
+## b-20261016-121550-awo6  fixed  2026-10-16 12:25
+note: update rojo version to 7.7.1
+cause: The repo already pins rojo-rbx/rojo@7.7.1 in rokit.toml, and the rojo CLI and all four running servers report 7.7.1. Only the Studio Rojo plugin (%LOCALAPPDATA%/Roblox/Plugins/RojoManagedPlugin.rbxm, read from its Version StringValue) was still on 7.7.0, installed Jul 6.
+change: Ran rojo plugin install with the pinned 7.7.1 CLI, and the plugin's Version value now reads 7.7.1. The old plugin is backed up outside the Plugins folder as %LOCALAPPDATA%/Roblox/RojoManagedPlugin-7.7.0.rbxm.bak. No repo file changed.
+files: none (machine-local Studio plugin)
+test: rojo --version prints Rojo 7.7.1. /api/rojo on 34871–34875 reports serverVersion 7.7.1. The installed plugin's Version value is 7.7.1.
+verified: partly — The plugin file is now 7.7.1, and the Hot Frog Studio stayed synced (its Edit DataModel matched the source afterwards). Studios that were already open may keep the 7.7.0 plugin loaded until they restart; that step is owed.
+review: n/a
+owed: o-20261016-122443-w0p4 (restart the open Studios so they load the 7.7.1 Rojo plugin)
+
+## b-20261015-100504-gauh  duplicate  2026-10-16 12:25
+note: Playtest combo at high streak: grab pulls keep the same duration while moving steps and Classic idle scroll speed up
+cause: Superseded by b-20261016-121351-x9l1. That item was re-filed because this one's check could never pass with several Studios open or with Rojo on another port.
+change: see b-20261016-121351-x9l1
+files: none
+test: none
+verified: see b-20261016-121351-x9l1
+review: n/a
+
+## b-20261016-120513-ye6k  duplicate  2026-10-16 12:25
+note: Studio check on the Menu attract ladder: frog arm draws behind the rung, gripping hand in front (ATTRACT_ANCHOR_OFFSET z 0); also glance at a held step in Playing
+cause: Superseded by b-20261016-121351-8v9c. That item was re-filed because this one's check could never pass with several Studios open or with Rojo on another port.
+change: see b-20261016-121351-8v9c
+files: none
+test: none
+verified: see b-20261016-121351-8v9c
+review: n/a
+
+## b-20261016-121230-8dsf  duplicate  2026-10-16 12:25
+note: Playtest combo at high streak: grab pulls keep the same duration while moving steps and Classic idle scroll speed up (re-filed from b-20261015-100504-gauh with a check that works with several Studios open)
+cause: Superseded by b-20261016-121351-x9l1. That item was re-filed because this one's check (bugloop rojo-check) could never pass with Rojo on another port.
+change: see b-20261016-121351-x9l1
+files: none
+test: none
+verified: see b-20261016-121351-x9l1
+review: n/a
+
+## b-20261016-121231-erz7  duplicate  2026-10-16 12:25
+note: Studio check on the Menu attract ladder: frog arm draws behind the rung, gripping hand in front (ATTRACT_ANCHOR_OFFSET z 0); also glance at a held step in Playing (re-filed from b-20261016-120513-ye6k with a check that works with several Studios open)
+cause: Superseded by b-20261016-121351-8v9c. That item was re-filed because this one's check (bugloop rojo-check) could never pass with Rojo on another port.
+change: see b-20261016-121351-8v9c
+files: none
+test: none
+verified: see b-20261016-121351-8v9c
+review: n/a
