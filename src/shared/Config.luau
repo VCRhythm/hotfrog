@@ -478,6 +478,15 @@ local Config = {
 	CHEF_SHOVE_DISTANCE = 4, -- studs the shoved step slides
 	CHEF_SHOVE_TIME = 0.35,
 	CHEF_TARGET_MARGIN = 3, -- studs a target's base must sit inside the view band (vertically)
+
+	-- Halloween costume (b-20261016-123058-9thf; port-only, doc 17): the default
+	-- Hot Frog wears a witch hat in its Accessory slot on these UTC calendar days,
+	-- inclusive (SpriteSkin.halloweenLive; the server's clock decides, since the
+	-- server dresses the frogs). Ends on Nov 1 UTC so Halloween evening is covered
+	-- in American time zones too (Nov 1 00:00 UTC is Oct 31, 5 pm Pacific).
+	-- Playtest: workspace:SetAttribute("ForceHalloween", true) on the server.
+	HALLOWEEN_START = { month = 10, day = 24 },
+	HALLOWEEN_END = { month = 11, day = 1 },
 }
 
 return Config

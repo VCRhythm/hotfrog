@@ -128,3 +128,9 @@ step: Restart the open Roblox Studios (Hot Frog, Tactics, Centralia) so they loa
 no-check: Studio does not expose which plugin version a running window loaded; only a person can see the Rojo widget's version after restarting
 evidence: marked done by the user, no check
 cleared: 2026-10-16 12:28 marked done on the fleet dashboard
+
+## o-20261016-125533-0z6s  open  2026-10-16 12:55
+for: b-20261016-123058-9thf
+kind: taste
+step: Look at the Halloween witch hat (Sprites/Frogs/Hot Frog/HotFrogHalloweenHat.png) on Hot Frog and say if the art is right, or ask for changes
+no-check: whether the hat art looks right is the user's call

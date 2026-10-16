@@ -292,3 +292,22 @@ for _, player in Players:GetPlayers() do
 		initPlayer(player) -- profile already loaded before this connect
 	end
 end
+
+-- Halloween costume (doc 17): re-dress every live frog when the window opens or
+-- closes on a long-running server, or the ForceHalloween test attribute flips.
+local function reskinAll()
+	for _, player in Players:GetPlayers() do
+		reskinFrog(player)
+	end
+end
+workspace:GetAttributeChangedSignal("ForceHalloween"):Connect(reskinAll)
+task.spawn(function()
+	local live = SpriteSkin.halloweenLive()
+	while true do
+		task.wait(60)
+		if SpriteSkin.halloweenLive() ~= live then
+			live = not live
+			reskinAll()
+		end
+	end
+end)

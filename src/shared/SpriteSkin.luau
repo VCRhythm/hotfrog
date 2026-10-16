@@ -23,8 +23,28 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local SkinAssets = require(ReplicatedStorage.Shared.SkinAssets)
 local SkinTints = require(ReplicatedStorage.Shared.SkinTints)
+local Config = require(ReplicatedStorage.Shared.Config)
 
 local SpriteSkin = {}
+
+-- Halloween costume (b-20261016-123058-9thf; port-only, doc 17): the default
+-- skin, in any colourway (Blue swaps its art to "Blue Frog"), wears this hat in
+-- its otherwise empty Accessory slot while the Config window is open.
+local HALLOWEEN_HAT = "HotFrogHalloweenHat"
+local HALLOWEEN_SKINS: { [string]: boolean } = { ["Hot Frog"] = true, ["Blue Frog"] = true }
+
+-- Is today (UTC) inside Config.HALLOWEEN_START..END, or is the test override
+-- workspace attribute `ForceHalloween` set?
+function SpriteSkin.halloweenLive(): boolean
+	if workspace:GetAttribute("ForceHalloween") == true then
+		return true
+	end
+	local now = DateTime.now():ToUniversalTime()
+	local today = now.Month * 100 + now.Day
+	local first = Config.HALLOWEEN_START.month * 100 + Config.HALLOWEEN_START.day
+	local last = Config.HALLOWEEN_END.month * 100 + Config.HALLOWEEN_END.day
+	return today >= first and today <= last
+end
 
 -- Paint one image-bearing instance (Decal/Texture use .Texture; ImageLabel/
 -- ImageButton use .Image). Cast to any for the assignment (a property set on the
@@ -80,6 +100,9 @@ function SpriteSkin.apply(root: Instance, skinName: string?, tint: boolean?)
 			if suffix == "Accessory" then
 				-- skin-specific (sunglasses, helmet): blank when the skin has none, so a
 				-- re-skinned rig never keeps the previous skin's accessory
+				if not image and HALLOWEEN_SKINS[skinName] and SpriteSkin.halloweenLive() then
+					image = SkinAssets.image(HALLOWEEN_HAT)
+				end
 				image = image or ""
 			end
 			setTexture(obj, image)
