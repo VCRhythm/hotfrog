@@ -2096,3 +2096,13 @@ files: bugloop/Config.luau
 test: stylua, selene and luau_check on bugloop/Config.luau pass
 verified: n/a (ignored)
 review: n/a
+
+## b-20261016-122217-31q0  fixed  2026-10-16 12:35
+note: players shouldn't be able to play when the daily streak modal is open. clicking behind the modal should just "collect" on the modal
+cause: The Daily Streak overlay in src/client/MenuClient.client.luau was a full-screen TextButton with no handler, so a click behind the card did nothing. Nothing stopped requestStart() or the queued pendingStart from firing StartRun while the popup was up (popupOpen was declared after them), so a gamepad-selected Play could still start a run under it.
+change: Collect's body is now close(), wired to both the Collect button and the overlay, so a click anywhere behind the card collects. The card gets an invisible Backstop TextButton under its contents, because an Active Frame does not stop the overlay button beneath it from firing (seen in Studio). popupOpen moved up; requestStart() and the pendingStart consumer return while it is set. checkDaily shows the popup unless the state is Playing (not only Menu, since Home can show the menu while the server still says Dead), so a claim that lands after a run started never covers the run.
+files: src/client/MenuClient.client.luau
+test: stylua --check, selene src/, bash tools/luau_check.sh src/client/MenuClient.client.luau and rojo build all pass. Studio MCP Play test of Hot Frog (placeId 114911935371092): the server's ClaimDailyReward was stubbed in the Play session only (granted, streak 3, nothing paid or saved), and the popup was reopened via Settings -> Close. Clicks on the card's empty areas left it open. A click on the part of Play showing behind the dim layer collected it and the lane stayed Menu. Collect closed it, and Play afterwards started a run (Playing).
+verified: yes — the Studio Play run above, with a screenshot of the popup over the menu
+review: concern — a granted popup was dropped if the claim returned while the state was still Dead after Home; fixed by skipping only during Playing. Studio then showed the reviewer's assumption that panel.Active sinks clicks was wrong; replaced with the Backstop button and re-tested.
+studio: Hot Frog (placeId 114911935371092)

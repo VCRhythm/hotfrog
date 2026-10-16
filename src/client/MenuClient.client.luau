@@ -397,6 +397,7 @@ jarNote.TextColor3 = UIKit.SUBTEXT
 -- ---------------------------------------------------------------------------
 local currentRunState = "Menu"
 local pendingStart = false -- Replay/Play pressed before the server confirmed Menu yet
+local popupOpen = false -- the daily streak popup is up (b-20261016-122217-31q0)
 -- doc 15 item 1 / b-20260921-164343: the server flips Dead -> Menu on its own
 -- timer (Config.RESPAWN_DELAY) purely to reset the frog/lane for the next
 -- run; Unity only swaps to the main menu screen on an explicit player action
@@ -550,7 +551,7 @@ RunStateChanged.OnClientEvent:Connect(function(state: string)
 		setEndPanelDismissed(false)
 		showEndPanel()
 	elseif state == "Menu" then
-		if pendingStart then
+		if pendingStart and not popupOpen then
 			pendingStart = false
 			StartRun:FireServer(selectedMode)
 		elseif not (previousState == "Dead" and not endPanelDismissed) then
@@ -592,6 +593,10 @@ RunSummary.OnClientEvent:Connect(
 -- already there, fire immediately; otherwise queue it so the click feels
 -- instant even though the server is still finishing the death beat.
 local function requestStart()
+	-- b-20261016-122217-31q0: no run may start under the daily streak popup.
+	if popupOpen then
+		return
+	end
 	if currentRunState == "Menu" then
 		StartRun:FireServer(selectedMode)
 	else
@@ -948,7 +953,6 @@ type DailyResult = { granted: boolean, streak: number, reward: number, rewards: 
 
 local DAILY_RETRIES, DAILY_RETRY_WAIT = 15, 2 -- the profile may still be loading at join
 local dailyBusy = false
-local popupOpen = false
 
 local function cycleReward(rewards: { number }, streak: number): number
 	return rewards[(math.max(streak, 1) - 1) % #rewards + 1]
@@ -1048,6 +1052,18 @@ local function showDailyPopup(r: DailyResult)
 
 	local panel = UIKit.panel("Panel", UDim2.fromOffset(360, 330), UDim2.new(0.5, -180, 0.5, -165), overlay)
 	panel.ZIndex = 2 -- over the sunburst
+	-- Only the dim area behind the card collects. An Active Frame doesn't stop
+	-- the overlay button under it from firing, but a button does: an invisible
+	-- one under the card's contents swallows clicks on the card itself.
+	local backstop = Instance.new("TextButton")
+	backstop.Name = "Backstop"
+	backstop.Text = ""
+	backstop.AutoButtonColor = false
+	backstop.Selectable = false
+	backstop.BackgroundTransparency = 1
+	backstop.Size = UDim2.fromScale(1, 1)
+	backstop.ZIndex = 0
+	backstop.Parent = panel
 	local pop = Instance.new("UIScale")
 	pop.Scale = 0
 	pop.Parent = panel
@@ -1154,8 +1170,10 @@ local function showDailyPopup(r: DailyResult)
 	focusFirst(collect)
 	confetti(overlay, 30)
 
+	-- Collect and a click anywhere on the dim overlay do the same thing
+	-- (b-20261016-122217-31q0); `closing` makes a double trigger harmless.
 	local closing = false
-	collect.Activated:Connect(function()
+	local function close()
 		if closing then
 			return
 		end
@@ -1170,7 +1188,9 @@ local function showDailyPopup(r: DailyResult)
 		if mainPanel.Visible then
 			focusFirst(playButton)
 		end
-	end)
+	end
+	collect.Activated:Connect(close)
+	overlay.Activated:Connect(close)
 end
 
 checkDaily = function()
@@ -1186,7 +1206,9 @@ checkDaily = function()
 			if ok and typeof(result) == "table" and typeof(result.streak) == "number" then
 				local r = result :: DailyResult
 				refreshStreakLine(r)
-				if r.granted then
+				-- Already paid server-side; never cover a live run with the popup.
+				-- (Home can show the menu while the server still says Dead.)
+				if r.granted and currentRunState ~= "Playing" then
 					showDailyPopup(r)
 				end
 				break
