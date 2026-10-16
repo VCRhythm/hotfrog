@@ -2168,3 +2168,12 @@ test: bash tools/luau_check.sh bugloop/Config.luau (rc 0)
 verified: yes — the same asset rendered in the later Studio Play run recorded on b-20261016-123058-9thf
 review: none
 studio: Hot Frog (placeId 114911935371092)
+
+## b-20261016-130320-ce9u  answered  2026-10-16 13:05
+note: looks good. make sure its layer is in front of the frog's head (sent back from owed step o-20261016-125533-0z6s, reopens b-20261016-123058-9thf)
+finding: The hat already draws in front of the whole head, so nothing changed. Its Accessory decal sits on the Head part with ZIndex 6, the highest of the head's decals: Head art 0, Mouth 1, Sclera 2, Eyes 3, Pupils 4, every eyelid including blinks 5 (src/assets/FrogModel.model.json:18-42). The store preview builds from the same FrogModel template (src/client/StoreUI.client.luau:183), so it layers the same. The Studio Play screen capture from b-20261016-123058-9thf shows the brim over the head and the tops of the eyes. The only things drawn over the hat are parts that sit nearer the camera than the head (Head z -0.3): a step the frog holds (z 0) and the hands (z 0.3). That is the same depth order as the rest of the frog and the attract ladder (b-20261016-121351-8v9c).
+evidence: src/assets/FrogModel.model.json, src/client/StoreUI.client.luau, Studio screen capture recorded on b-20261016-123058-9thf
+report: none
+files: none
+review: n/a
+followups: none
