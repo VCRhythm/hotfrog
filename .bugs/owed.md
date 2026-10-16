@@ -61,7 +61,31 @@ done-check: powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -E
 evidence: none: done-check failed (the check found nothing (it exited non-zero with no output): `powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -ErrorAction S...`), marked done by the user
 cleared: 2026-10-15 10:05 marked done on the fleet dashboard although the done-check failed
 
-## o-20261015-100656-nw90  open  2026-10-15 10:06
+## o-20261015-100656-nw90  done  2026-10-15 10:06
+for: b-20261013-163505-y6c5
+kind: restart
+step: Open Hot Frog in Roblox Studio
+done-check: powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -ErrorAction SilentlyContinue).MainWindowTitle -match 'Hot Frog'" | grep -q True
+evidence: none: done-check failed (the check found nothing (it exited non-zero with no output): `powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -ErrorAction S...`), marked done by the user
+cleared: 2026-10-15 10:08 marked done on the dashboard although the done-check failed
+
+## o-20261016-120238-gmyn  done  2026-10-16 12:02
+for: b-20261013-163505-y6c5
+kind: restart
+step: Switch rojo serve to this project (stop the Scare server, then run rojo serve in H:\Roblox Projects\hotfrog) and open Hot Frog in Roblox Studio with the Rojo plugin connected
+command: cd '/h/Roblox Projects/hotfrog' && rojo serve
+done-check: python ~/.claude/skills/bugloop/scripts/bugloop.py rojo-check >/dev/null 2>&1 && powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -ErrorAction SilentlyContinue).MainWindowTitle -match 'Hot Frog'" | grep -q True
+evidence: none: done-check failed (the check found nothing (it exited non-zero with no output): `python ~/.claude/skills/bugloop/scripts/bugloop.py rojo-check >/dev/null 2>&1 &&...`), marked done by the user
+cleared: 2026-10-16 12:05 marked done on the fleet dashboard although the done-check failed
+
+## o-20261016-120554-lf1c  open  2026-10-16 12:05
+for: b-20261013-163534-ogsq
+kind: restart
+step: Switch rojo serve to this project (stop the Scare server, then run rojo serve in H:\Roblox Projects\hotfrog) and open Hot Frog in Roblox Studio with the Rojo plugin connected
+command: cd '/h/Roblox Projects/hotfrog' && rojo serve
+done-check: python ~/.claude/skills/bugloop/scripts/bugloop.py rojo-check >/dev/null 2>&1 && powershell.exe -NoProfile -Command "(Get-Process RobloxStudioBeta -ErrorAction SilentlyContinue).MainWindowTitle -match 'Hot Frog'" | grep -q True
+
+## o-20261016-120554-5vc2  open  2026-10-16 12:05
 for: b-20261013-163505-y6c5
 kind: restart
 step: Open Hot Frog in Roblox Studio

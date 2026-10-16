@@ -1991,7 +1991,7 @@ files: src/shared/WorldConfig.luau, docs/roblox-port/17-status-and-known-gaps.md
 test: stylua --check src/shared/WorldConfig.luau, selene src/ (0 errors, 0 warnings), bash tools/luau_check.sh src/shared/WorldConfig.luau, rojo build default.project.json (all pass)
 verified: no — Rojo is serving Scare and Studio is not open on Hot Frog, so no menu Play check could run; depth order is from the model JSON and GameServer posing code only
 review: looks-right; checked: git diff of both files, grep of ATTRACT_ANCHOR_OFFSET (one use, GameServer buildAttract; rungs CanQuery=false, attractClimb keeps rung Z), FrogModel.model.json part Z offsets (head -0.3, body art -0.25, arms -0.2, hands +0.3), GameServer held-limb pose keeps f.pos.Z = Config.PLANE_Z, the screenshot. Minor: the comment near GameServer.server.luau:1707 still says the menu rungs sit at -0.2 (stale, harmless)
-owed: o-20261016-120238-gmyn (switch rojo serve to hotfrog and open Hot Frog in Studio)
+owed: o-20261016-120554-lf1c (switch rojo serve to hotfrog and open Hot Frog in Studio)
 leftover: Studio check of the menu ladder and a held step, filed as b-20261016-120513-ye6k (waits on the owed Rojo/Studio check)
 
 ## b-20261015-100802-a17l  answered  2026-10-16 12:05
