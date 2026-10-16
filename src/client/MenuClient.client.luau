@@ -1008,6 +1008,9 @@ local function showDailyPopup(r: DailyResult)
 		return
 	end
 	popupOpen = true
+	-- b-20261016-123559-s03q: StoreGui (Gift/Shop) shares DisplayOrder 5, so lift
+	-- this gui above it while the popup is up; close() restores it.
+	gui.DisplayOrder = 10
 	SoundFX.play("highScore")
 
 	-- Full-screen dim layer that also swallows clicks meant for the menu below.
@@ -1185,6 +1188,7 @@ local function showDailyPopup(r: DailyResult)
 		task.wait(0.25)
 		overlay:Destroy()
 		popupOpen = false
+		gui.DisplayOrder = 5
 		if mainPanel.Visible then
 			focusFirst(playButton)
 		end

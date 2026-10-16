@@ -2109,3 +2109,13 @@ review: concern — a granted popup was dropped if the claim returned while the 
 studio: Hot Frog (placeId 114911935371092)
 re-review: concern — a start queued while Dead (pendingStart) is neither fired nor cleared when Menu arrives under the popup, so it auto-starts a run at the next Dead->Menu; narrow race, filed as b-20261016-124204-f68f; the rest of the repair holds (the Playing-only guard, both start paths blocked, the Backstop under Collect at Z0, popupOpen always cleared); checked: git show 527d847, MenuClient lines 395-610 and 1000-1215, UIKit.panel and ZIndexBehavior.Sibling, a grep of src/ for StartRun/ReplayTutorial and client KeyCode/Activated bindings
 followups: b-20261016-124204-f68f
+
+## b-20261016-123559-s03q  fixed  2026-10-16 12:44
+note: Gift and Shop buttons (StoreUI, DisplayOrder 5 like MenuGui) draw undimmed over the Daily Streak popup's dim overlay and may take clicks while it is up
+cause: StoreGui (Gift/Shop, src/client/StoreUI.client.luau:79) and MenuGui both had DisplayOrder 5, so the Daily Streak popup, a child of MenuGui, did not reliably sit above Gift/Shop, and they drew bright over its dim overlay.
+change: showDailyPopup in src/client/MenuClient.client.luau sets MenuGui's DisplayOrder to 10 while the popup is open, and close() restores it to 5. StoreGui stays at 5, so the Shop/Gift panels still draw over the menu when no popup is up. The b-20261016-122217-31q0 mechanics (overlay collect, Backstop, popupOpen guard) are unchanged.
+files: src/client/MenuClient.client.luau
+test: stylua --check src/client/MenuClient.client.luau, selene src/ (0 warnings), bash tools/luau_check.sh src/client/MenuClient.client.luau and rojo build all pass
+verified: yes — In a Studio Play run of Hot Frog, ClaimDailyReward was stubbed on the Server in the Play session only, and the popup was reopened via Settings -> Close. MenuGui DisplayOrder read 10 against StoreGui's 5. A screen capture showed Gift/Shop dimmed under the overlay. A click on the Gift button collected the popup, restored DisplayOrder 5 and did not open the gift panel. A card click kept the popup open. Collect closed it, and Play then started a run. Shop was not clicked separately.
+review: looks-right; checked: the diff; every DisplayOrder and ScreenGui in src, bugloop and default.project.json (MenuGui 5 set once at MenuClient:72, StoreUI 5, PotAtmosphere -5, WorldBackdrop flash 100, F8 reporter 1000); the close paths (one guarded close(), ResetOnSpawn false, no start while popupOpen); bash tools/luau_check.sh on MenuClient (exit 0)
+studio: Hot Frog (placeId 114911935371092)
