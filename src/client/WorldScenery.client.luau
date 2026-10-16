@@ -288,6 +288,7 @@ type LaneScenery = {
 	origin: Vector3,
 	levelName: string,
 	skyHidden: boolean,
+	halloween: boolean, -- the Halloween spawners are in `spawners`
 	spawners: { SpawnerRuntime },
 	active: { [BasePart]: PartState },
 	oneOffs: { [string]: { BasePart }? }, -- levelObjects (US), one-or-more parts per lane (US is two stacked decal layers, doc 14)
@@ -315,7 +316,30 @@ local function isCloudPool(pool: { string }): boolean
 	return false
 end
 
-local function buildSpawners(levelName: string, skyHidden: boolean): { SpawnerRuntime }
+local function addExtras(list: { SpawnerRuntime }, extras: { SceneryKinds.ExtraSpawner }, skyHidden: boolean)
+	for _, extra in extras do
+		if skyHidden and isCloudPool(extra.pool) then
+			continue
+		end
+		table.insert(list, {
+			direction = extra.direction,
+			pool = extra.pool,
+			cadence = extra.cadence,
+			timer = extra.cadence.spawningSpeedMin,
+			spawnCount = 0,
+			awoken = false,
+			lastDensity = nil,
+			concurrent = true,
+			pendingScatter = extra.initialScatter,
+		})
+	end
+end
+
+-- Halloween scenery (b-20261016-125004-mog8, idea 3): on while SpriteSkin.halloweenLive;
+-- rechecked on the ForceHalloween attribute and once a minute (bottom of the lane section).
+local halloweenOn = SpriteSkin.halloweenLive()
+
+local function buildSpawners(levelName: string, skyHidden: boolean, halloween: boolean): { SpawnerRuntime }
 	local list: { SpawnerRuntime } = {}
 	local level = levelByName[levelName]
 	if level then
@@ -341,22 +365,10 @@ local function buildSpawners(levelName: string, skyHidden: boolean): { SpawnerRu
 	end
 	local extras = SceneryKinds.extraSpawners[levelName]
 	if extras then
-		for _, extra in extras do
-			if skyHidden and isCloudPool(extra.pool) then
-				continue
-			end
-			table.insert(list, {
-				direction = extra.direction,
-				pool = extra.pool,
-				cadence = extra.cadence,
-				timer = extra.cadence.spawningSpeedMin,
-				spawnCount = 0,
-				awoken = false,
-				lastDensity = nil,
-				concurrent = true,
-				pendingScatter = extra.initialScatter,
-			})
-		end
+		addExtras(list, extras, skyHidden)
+	end
+	if halloween then
+		addExtras(list, SceneryKinds.halloweenSpawners, skyHidden)
 	end
 	return list
 end
@@ -395,6 +407,7 @@ local function updateLevelObjects(lane: LaneScenery)
 end
 
 local lanes: { [Folder]: LaneScenery } = {}
+local refreshers: { [Folder]: () -> () } = {} -- each lane's refreshLevel (Halloween flips)
 
 -- Every currently-live part whose kind has a `reaction`, across every lane -- the
 -- tap input at the bottom Include-filters its raycast to exactly this set (see
@@ -522,7 +535,8 @@ local function trackLane(folder: Folder)
 		origin = Lanes.originOf(folder),
 		levelName = levelName,
 		skyHidden = skyHidden(),
-		spawners = buildSpawners(levelName, skyHidden()),
+		halloween = halloweenOn,
+		spawners = buildSpawners(levelName, skyHidden(), halloweenOn),
 		active = {},
 		oneOffs = {},
 		stageDensity = densityForStage(levelName, folder:GetAttribute("Stage")),
@@ -536,19 +550,23 @@ local function trackLane(folder: Folder)
 	local function refreshLevel()
 		local newName = effectiveLevel()
 		local hidden = skyHidden()
-		if newName == lane.levelName and hidden == lane.skyHidden then
+		if newName == lane.levelName and hidden == lane.skyHidden and halloweenOn == lane.halloween then
 			return
 		end
 		local clouds = hidden and not lane.skyHidden
+		local halloweenOver = lane.halloween and not halloweenOn
 		lane.levelName = newName
 		lane.skyHidden = hidden
-		lane.spawners = buildSpawners(newName, hidden) -- soft transition: leaves `active` untouched
+		lane.halloween = halloweenOn
+		lane.spawners = buildSpawners(newName, hidden, halloweenOn) -- soft transition: leaves `active` untouched
 		lane.stageDensity = densityForStage(newName, folder:GetAttribute("Stage"))
 		updateLevelObjects(lane)
-		if clouds then
-			fadeOutLeftovers(lane) -- clouds already on screen when the Pot began
+		if clouds or halloweenOver then
+			-- clouds already on screen when the Pot began; Halloween pieces when the window shut
+			fadeOutLeftovers(lane)
 		end
 	end
+	refreshers[folder] = refreshLevel
 	local conns = lane.connections
 	table.insert(conns, folder:GetAttributeChangedSignal("Level"):Connect(refreshLevel))
 	table.insert(conns, folder:GetAttributeChangedSignal("RunState"):Connect(refreshLevel))
@@ -580,6 +598,7 @@ local function untrackLane(folder: Folder)
 		return
 	end
 	lanes[folder] = nil
+	refreshers[folder] = nil
 	for _, conn in lane.connections do
 		conn:Disconnect()
 	end
@@ -596,6 +615,28 @@ local function untrackLane(folder: Folder)
 			end
 		end
 	end
+end
+
+-- Halloween window flips (the ForceHalloween test attribute, or the date rolling
+-- over): add or drop the Halloween spawners on every lane live.
+do
+	local function recheck()
+		local live = SpriteSkin.halloweenLive()
+		if live == halloweenOn then
+			return
+		end
+		halloweenOn = live
+		for _, refresh in refreshers do
+			refresh()
+		end
+	end
+	workspace:GetAttributeChangedSignal("ForceHalloween"):Connect(recheck)
+	task.spawn(function()
+		while true do
+			task.wait(60)
+			recheck()
+		end
+	end)
 end
 
 Lanes.observe(trackLane, untrackLane)

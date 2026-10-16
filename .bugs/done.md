@@ -2177,3 +2177,27 @@ report: none
 files: none
 review: n/a
 followups: none
+
+## b-20261016-125004-mog8  fixed  2026-10-16 13:17
+note: let's do 2, 3, 4, 8 (vampire frog but sold forever), 10 (reopens b-20261016-124422-fbuz)
+cause: Feature request: the owner picked five ideas from the Halloween brainstorm b-20261016-124422-fbuz. They were 2 (night sky), 3 (Halloween scenery), 4 (pumpkin steps), 8 (a Vampire Frog skin, sold forever) and 10 (bats, built as the cosmetic version).
+change: Three fixers worked on disjoint files, and the art uploads were serialized.
+(2+4) src/client/WorldBackdrop.client.luau forces a violet-black sky on every level while SpriteSkin.halloweenLive() and tints the Sun pale blue-white as a moon. It re-applies on ForceHalloween and on a 60 s recheck. src/server/GameServer.server.luau acquireStep tints step kinds that have no colour of their own (Potato and WrappedRock pumpkin, CrumblyRock candy-corn yellow, WhiteRock cream). Kinds with their own tint keep it.
+(3+10) There is new art, Sprites/Scenery/{JackOLantern,Ghost,Cobweb,Bat}.png. src/shared/SceneryKinds.luau adds the four kinds and halloweenSpawners. src/client/WorldScenery.client.luau appends them to every level's spawners, Menu included, while live, and fades them out when the window shuts. A tap flares a lantern or wobbles a ghost. The new src/client/WorldBatSwarm.client.luau flies a flock of 7 to 11 client-only bats across the local lane every 25 to 45 s.
+(8) There are 35 new PNGs in Sprites/Frogs/Vampire Frog/: a pale grey-green recolour of Hot Frog's parts plus tint copies, with a cape, collar, medallion, widow's-peak hair, fangs and red pupils. src/shared/SkinCatalog.luau adds [10] Vampire Frog at 1000 Flys, with no Game Pass and no date window. src/client/StoreUI.client.luau pages skins by Fly price, then id, so Vampire sits between Space Frog (500) and Business Frog (1500).
+All 39 images went through the pipeline (Approved), and src/shared/SkinAssets.luau carries their generated ids. Doc 17 has three new deviation rows.
+files: src/client/WorldBackdrop.client.luau, src/server/GameServer.server.luau, src/shared/SceneryKinds.luau, src/client/WorldScenery.client.luau, src/client/WorldBatSwarm.client.luau, src/shared/SkinCatalog.luau, src/client/StoreUI.client.luau, src/shared/SkinAssets.luau, Sprites/Scenery/JackOLantern.png, Sprites/Scenery/Ghost.png, Sprites/Scenery/Cobweb.png, Sprites/Scenery/Bat.png, Sprites/Frogs/Vampire Frog/ (35 PNGs), docs/roblox-port/17-status-and-known-gaps.md
+test: Orchestrator checks: stylua --check on the 8 touched .luau files (rc 0), selene src/ (0 warnings), bash tools/luau_check.sh on the 8 files (rc 0), and rojo build (ok). Each fixer also ran the same checks on its own files.
+verified: yes — Studio Play run of Hot Frog (orchestrator), with ForceHalloween set on the server.
+- Menu: per lane, Scenery_JackOLantern ×2, Ghost ×3 and Cobweb ×2 appeared with Decal textures. workspace.HalloweenBats filled with 10 Bat parts (texture rbxassetid://135982258968890) sweeping the lane. A screen capture showed the dark violet sky, the pale moon, ghosts, a cobweb, lanterns and bats.
+- Vampire Frog: SpriteSkin.apply(Frog_4272203669, "Vampire Frog") set Body, Head, Mouth, Pupil and Eyelid decals to the VampireFrog* ids, and the Accessory was blank. A capture showed the pale frog with red pupils, black hair, a fang, the red-lined cape and the medallion.
+- Shop > Frogs, paged with real mouse clicks: Business Frog, then Prev to Vampire Frog ("Locked — 1000 Flys", "Buy (1000)", no Robux button), then Prev to Space Frog ("Locked — 500 Flys").
+- A Normal run (client grab bot, 49 grabs, Pot): new Potato steps wore Art Color3 (1, 0.55, 0.12), while Carrot, the arrows and Lillipad stayed white.
+- ForceHalloween false: within 5 s no Halloween scenery was visible, HalloweenBats was empty, and the frog went back to its profile skin. A Potato acquired while live kept its orange until reacquired, as doc 17 says.
+- The Output showed no game-script errors, only "Asset content representation is being generated" for the freshly uploaded art (already ignored by autoReport).
+studio: Hot Frog (placeId 114911935371092)
+review: Three sonnet reviews, all looks-right.
+- Sky and steps: checked the git diff of both files, SpriteSkin.halloweenLive, the backdrop restore path when off (palette colour, white Texture, original Sun colour and decal), Pot heat layered on the tinted base, the flip handler on ForceHalloween plus the 60 s recheck, StepKinds' own-colour kinds, and luau_check on both files (rc 0).
+- Scenery and bats: checked the SceneryKinds and WorldScenery diffs, WorldBatSwarm in full, the flip on/off path (no duplicates, fade-out releases to the pool), the local-lane-only bats, the Include-filtered tap raycast that does not swallow step taps, and luau_check on the 3 files.
+- Vampire Frog: checked the SkinCatalog, StoreUI and SkinAssets diffs, every SkinCatalog consumer (pairs/keyed only, BuyWithFlys Fly-only, game-pass loops guarded), the StoreUI comparator (total order, existing order kept, hidden Mystery filtered), and the 35 SkinAssets keys (all non-zero) against Hot Frog's part list. Ran stylua, selene and luau_check.
+owed: o-20261016-131548-yk5p (taste: the Halloween scenery art and bat size), o-20261016-131549-vd5d (taste: the Vampire Frog art)

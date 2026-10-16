@@ -31,4 +31,10 @@ return {
 	[7] = { name = "Hot Lawyer", flyCost = 2250, gamePassId = 2019278450 }, -- 45 more
 	[8] = { name = "Invisible Man", flyCost = 3000, gamePassId = 2021282272 }, -- 60 more
 	[9] = { name = "Crossy Frog", flyCost = 4000, gamePassId = 2021648260 }, -- 80 more
+	-- Port-only (b-20261016-125004-mog8; doc 17): a full art set made for Halloween
+	-- 2026 and sold forever, not only in the Halloween window. Fills the 1000-Fly
+	-- rung that hidden Mystery Frog leaves empty (10 runs after Space Frog, 10
+	-- before Business Frog). New skins take the next free id, never 2 (Profiles
+	-- migrates owned[2] to Hot Frog's Blue colourway); StoreUI pages by price.
+	[10] = { name = "Vampire Frog", flyCost = 1000 },
 }

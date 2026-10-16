@@ -51,14 +51,22 @@ storeOpenedEvent.Name = "StoreOpened"
 storeOpenedEvent.Parent = menuBridge
 menuBridge.Parent = player
 
--- ordered skin ids (Catalog is keyed by numeric id; tolerate gaps)
+-- skin ids in paging order (Catalog is keyed by numeric id; tolerate gaps):
+-- by Fly price, then id, so a skin added later under a new id (Vampire Frog,
+-- id 10, 1000 Flys) pages in at its rung of the price ladder, not at the end
 local ids: { number } = {}
 for id, entry in pairs(Catalog) do
 	if not entry.hidden then
 		table.insert(ids, id)
 	end
 end
-table.sort(ids)
+table.sort(ids, function(a: number, b: number): boolean
+	local ca, cb = Catalog[a].flyCost or 0, Catalog[b].flyCost or 0
+	if ca ~= cb then
+		return ca < cb
+	end
+	return a < b
+end)
 
 -- latest authoritative profile snapshot + the skin currently shown in the store
 local profile: any = nil

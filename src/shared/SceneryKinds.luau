@@ -342,6 +342,54 @@ local SceneryKinds: { [string]: SceneryKind } = {
 		colors = { Color3.fromRGB(0, 0, 255), Color3.fromRGB(255, 0, 0) }, -- [blue, red], UnitedStates.cs `colors`
 		speedModifier = 0.1,
 	}),
+
+	-- Halloween (b-20261016-125004-mog8, ideas 3 + 10; port-only, doc 17): mixed into
+	-- every level's scenery by `halloweenSpawners` below while SpriteSkin.halloweenLive.
+	-- Port-made 512px art (Sprites/Scenery), sized in studs directly. Each drifts on its
+	-- own (autoMove) with a low parallax speedModifier, so it crosses the lane whichever
+	-- way the level scrolls. Flat colours are only the un-uploaded fallback.
+	-- A floating jack-o'-lantern bobbing in from the right; a tap flares it like a flame.
+	JackOLantern = kind({
+		sprite = "JackOLantern",
+		size = Vector3.new(5, 5, 0.2),
+		colors = { Color3.fromRGB(240, 120, 24) },
+		speedModifier = 0.35,
+		autoMove = Vector2.new(-1.2, 0),
+		z = -1.6,
+		motion = motion({ swayY = 0.5, swayPeriod = 3.2, roll = 6, rollPeriod = 3.6, pulse = 0.03, pulsePeriod = 0.6 }),
+		reaction = "flare",
+	}),
+	-- A sheet ghost rising from the bottom edge, weaving side to side; wobbles on tap.
+	Ghost = kind({
+		sprite = "Ghost",
+		size = Vector3.new(6, 6, 0.2),
+		colors = { Color3.fromRGB(240, 242, 255) },
+		speedModifier = 0.25,
+		autoMove = Vector2.new(0, 1.3),
+		z = -2,
+		opacity = 0.8,
+		motion = motion({ swayX = 1.4, swayPeriod = 4, swayY = 0.3, roll = 5, rollPeriod = 4 }),
+		reaction = "wobble",
+	}),
+	-- A cobweb (with its spider) sinking slowly from the top edge, far back and faint.
+	Cobweb = kind({
+		sprite = "Cobweb",
+		size = Vector3.new(8, 8, 0.2),
+		colors = { Color3.fromRGB(230, 232, 240) },
+		speedModifier = 0.5,
+		autoMove = Vector2.new(0, -0.6),
+		z = -2.6,
+		opacity = 0.7,
+		motion = motion({ swayX = 0.3, swayPeriod = 5, roll = 4, rollPeriod = 5 }),
+	}),
+	-- Idea 10's bat: never spawned by a spawner; WorldBatSwarm.client.luau reads its
+	-- sprite/size/z and flies whole flocks of it across the local lane.
+	Bat = kind({
+		sprite = "Bat",
+		size = Vector3.new(3.2, 1.6, 0.05), -- 512x256 canvas
+		colors = { Color3.fromRGB(52, 34, 72) },
+		z = -0.8,
+	}),
 }
 
 -- ---------------------------------------------------------------------------
@@ -434,10 +482,39 @@ local ExtraSpawners: { [string]: { ExtraSpawner } } = {
 	},
 }
 
+-- Halloween (b-20261016-125004-mog8, idea 3): appended to EVERY level's spawners
+-- (Menu included) by WorldScenery while SpriteSkin.halloweenLive. Concurrent caps,
+-- same as the other extra spawners. Each direction matches its kind's own drift:
+-- lanterns enter from the right, ghosts from the bottom, cobwebs from the top.
+local HalloweenSpawners: { ExtraSpawner } = {
+	{
+		name = "HalloweenLanternSpawner",
+		direction = Vector2.new(-1, 0),
+		pool = { "JackOLantern" },
+		cadence = { maxSpawnCount = 2, spawningSpeedMin = 8, spawningSpeedMax = 14, spawnAllOnAwake = false },
+		initialScatter = 1,
+	},
+	{
+		name = "HalloweenGhostSpawner",
+		direction = Vector2.new(0, 1),
+		pool = { "Ghost" },
+		cadence = { maxSpawnCount = 3, spawningSpeedMin = 5, spawningSpeedMax = 10, spawnAllOnAwake = false },
+		initialScatter = 2,
+	},
+	{
+		name = "HalloweenCobwebSpawner",
+		direction = Vector2.new(0, -1),
+		pool = { "Cobweb" },
+		cadence = { maxSpawnCount = 2, spawningSpeedMin = 9, spawningSpeedMax = 16, spawnAllOnAwake = false },
+		initialScatter = 1,
+	},
+}
+
 local Kinds = {
 	defs = SceneryKinds,
 	cadence = SpawnerCadence,
 	extraSpawners = ExtraSpawners,
+	halloweenSpawners = HalloweenSpawners,
 }
 
 -- P2 duplicate spawners are intentionally never ticked (see BackGrassP2/GrassP2

@@ -729,6 +729,26 @@ releaseStep = function(lane: Lane.Lane, step: BasePart)
 	table.insert(pool, step)
 end
 
+-- Halloween pumpkin steps (b-20261016-125004-mog8, idea 4; port-only, doc 17):
+-- while SpriteSkin.halloweenLive, kinds with no tint of their own (the moving /
+-- timed kinds keep theirs as a gameplay signal) wear a pumpkin or candy-corn
+-- colour on the step Decal. Colour only: no gameplay change. Keyed by sprite stem.
+local HALLOWEEN_TINTS: { [string]: Color3 } = {
+	Potato = Color3.new(1, 0.55, 0.12), -- pumpkin
+	WrappedRock = Color3.new(1, 0.62, 0.18), -- pumpkin
+	CrumblyRock = Color3.new(1, 0.9, 0.5), -- candy-corn yellow
+	WhiteRock = Color3.new(1, 0.97, 0.88), -- candy-corn white tip
+}
+
+-- The tint a kind wears this Halloween, or nil (not live, kind already tinted, or
+-- no entry for its sprite).
+local function halloweenTint(kind: StepKinds.Kind?, live: boolean): Color3?
+	if not live or not kind or kind.color then
+		return nil
+	end
+	return HALLOWEEN_TINTS[kind.sprite]
+end
+
 -- Take a step out of the pool for `lane`, dressed as `kindName`, at `worldPos`
 -- (its base). `opts.params` are this spawn's own parameters for the kind's
 -- behaviour (e.g. a Patrol's amplitude/period -- see each StepBehaviors entry),
@@ -767,7 +787,9 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3,
 	-- (b-20260921-164509-uork).
 	local art = step:FindFirstChild("Art")
 	if art and art:IsA("Decal") then
-		art.Color3 = if kind and kind.color then kind.color else Color3.new(1, 1, 1)
+		art.Color3 = if kind and kind.color
+			then kind.color
+			else (halloweenTint(kind, SpriteSkin.halloweenLive()) or Color3.new(1, 1, 1))
 	end
 
 	-- A fresh StepState: no spin angle, offset, recoil, sag or drop-away from

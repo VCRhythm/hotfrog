@@ -134,5 +134,17 @@ for: b-20261016-123058-9thf
 kind: taste
 step: Look at the Halloween witch hat (Sprites/Frogs/Hot Frog/HotFrogHalloweenHat.png) on Hot Frog and say if the art is right, or ask for changes
 no-check: whether the hat art looks right is the user's call
-evidence: none, the user sent it back to the loop as b-20261016-130320-ce9u
+evidence: the user judged the art "looks good" when sending it back as b-20261016-130320-ce9u
 cleared: 2026-10-16 13:03 sent back to loop as b-20261016-130320-ce9u: looks good. make sure its layer is in front of the frog's head
+
+## o-20261016-131548-yk5p  open  2026-10-16 13:15
+for: b-20261016-125004-mog8
+kind: taste
+step: Look at the Halloween scenery art (Sprites/Scenery/JackOLantern, Ghost, Cobweb, Bat .png) in game with ForceHalloween on, and say if the bats (3.2 studs on a 44-stud lane) read too small
+no-check: whether new art looks right is the owner's call
+
+## o-20261016-131549-vd5d  open  2026-10-16 13:15
+for: b-20261016-125004-mog8
+kind: taste
+step: Look at the Vampire Frog art (Sprites/Frogs/Vampire Frog/, mainly VampireFrogBody, Head, Mouth, LeftPupil, LeftHand) on the frog and in Shop > Frogs
+no-check: whether new art looks right is the owner's call

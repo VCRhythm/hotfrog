@@ -94,6 +94,22 @@ local BACKGROUND_COLORS: { [string]: Color3 } = {
 }
 local DEFAULT_BACKGROUND_COLOR = Color3.fromRGB(155, 255, 255) -- Sky.mat's own _Color
 
+-- Halloween night (b-20261016-125004-mog8, idea 2; port-only, doc 17): while
+-- SpriteSkin.halloweenLive the sky goes violet-black on every level and the sun
+-- is tinted into a pale moon. Tint only, no new art.
+local NIGHT_TILE_MIX = Color3.fromRGB(18, 12, 38) -- flat colour / Lerp target for the tile Part
+local NIGHT_TILE_MIX_AMOUNT = 0.78
+local NIGHT_TEXTURE_TINT = Color3.fromRGB(120, 95, 175) -- violet wash over textured backdrops
+local MOON_COLOR = Color3.fromRGB(214, 224, 255)
+
+local function backgroundColor(key: string?): Color3
+	local base = if key then (BACKGROUND_COLORS[key] or DEFAULT_BACKGROUND_COLOR) else DEFAULT_BACKGROUND_COLOR
+	if SpriteSkin.halloweenLive() then
+		return base:Lerp(NIGHT_TILE_MIX, NIGHT_TILE_MIX_AMOUNT)
+	end
+	return base
+end
+
 local TILE_HEIGHT = (Config.SPAWN_Y - Config.DESPAWN_Y) + WorldConfig.SCENERY_BOUNDS_MARGIN
 -- Mutable: widened by refitWidth() below when the viewport is wider than the lane
 -- (b-20261010-191320-w7pp: ultrawide windows saw past a fixed-width backdrop).
@@ -160,13 +176,14 @@ end
 layoutBackgroundTiles()
 
 local function setBackground(key: string?)
-	local color = if key then (BACKGROUND_COLORS[key] or DEFAULT_BACKGROUND_COLOR) else DEFAULT_BACKGROUND_COLOR
+	local color = backgroundColor(key)
 	local image = if key then SkinAssets.image(key) else nil -- nil until the id is uploaded (SkinAssets convention)
 	for _, tile in bgTiles do
 		TweenService:Create(tile, TweenInfo.new(WorldConfig.TRANSITION_SOFT_CROSSFADE_TIME), { Color = color }):Play()
 		local texture = tile:FindFirstChildOfClass("Texture") :: Texture
 		texture.StudsPerTileU, texture.StudsPerTileV = tilingFor(key)
 		texture.OffsetStudsU = centreOffsetU(texture.StudsPerTileU)
+		texture.Color3 = if SpriteSkin.halloweenLive() then NIGHT_TEXTURE_TINT else Color3.new(1, 1, 1)
 		texture.Texture = image or "" -- "" leaves the tweened flat Color visible (fallback)
 	end
 end
@@ -337,8 +354,13 @@ layoutSun()
 
 local currentSunColor = WorldConfig.SUN_DAY_COLOR
 local function setSun(levelName: string)
-	currentSunColor = if levelName == "Tutorial" then WorldConfig.SUN_NIGHT_COLOR else WorldConfig.SUN_DAY_COLOR
+	local halloween = SpriteSkin.halloweenLive()
+	currentSunColor = if halloween
+		then MOON_COLOR
+		elseif levelName == "Tutorial" then WorldConfig.SUN_NIGHT_COLOR
+		else WorldConfig.SUN_DAY_COLOR
 	TweenService:Create(sun, TweenInfo.new(WorldConfig.SUN_TRANSITION_TIME), { Color = currentSunColor }):Play()
+	sunDecal.Color3 = if halloween then MOON_COLOR else Color3.new(1, 1, 1)
 end
 
 local function pulseSunBlack()
@@ -459,9 +481,7 @@ RunService.PreRender:Connect(function()
 			+ (WorldConfig.LAVA_HEAT_OVERLAY_TRANSPARENCY_MIN - baseTransparency) * heat
 	end
 
-	local baseColor = if currentBackgroundKey
-		then (BACKGROUND_COLORS[currentBackgroundKey] or DEFAULT_BACKGROUND_COLOR)
-		else DEFAULT_BACKGROUND_COLOR
+	local baseColor = backgroundColor(currentBackgroundKey)
 	local warmColor =
 		baseColor:Lerp(WorldConfig.LAVA_HEAT_BACKDROP_COLOR, heat * WorldConfig.LAVA_HEAT_BACKDROP_MAX_MIX)
 	for _, tile in bgTiles do
@@ -490,4 +510,26 @@ do
 		setOverlay(currentOverlayKey)
 		setSun(levelName)
 	end
+end
+
+-- Halloween window flips (test override attribute, or the date rolling over):
+-- re-apply the current level's backdrop and sun so the sky changes live.
+do
+	local wasLive = SpriteSkin.halloweenLive()
+	local function recheck()
+		local live = SpriteSkin.halloweenLive()
+		if live == wasLive or not currentLevelName then
+			return
+		end
+		wasLive = live
+		setBackground(currentBackgroundKey)
+		setSun(currentLevelName)
+	end
+	workspace:GetAttributeChangedSignal("ForceHalloween"):Connect(recheck)
+	task.spawn(function()
+		while true do
+			task.wait(60)
+			recheck()
+		end
+	end)
 end
