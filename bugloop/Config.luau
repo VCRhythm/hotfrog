@@ -15,13 +15,15 @@ return {
 
     -- Automatic error/warning reports. false turns them off; ignore holds Lua patterns.
     -- autoReport = { errors = true, warnings = true, maxPerSession = 25, ignore = { "^%[NoisySystem%]" } },
-    -- AssistantCommand: probes the fixers run through the Studio MCP. GameDefs: unrelated user plugins.
+    -- AssistantCommand: probes the fixers run through the Studio MCP; sabuiltin_Assistant: that MCP
+    -- plugin's own warnings (e.g. resetting the camera type after a probe). GameDefs: unrelated user plugins.
     -- 203785492: an asset no source file or place instance references (engine/avatar load).
     -- FoundationProvider: a UIBlox warning from Roblox's own CorePackages UI.
     -- "representation is being generated": a just-uploaded asset still processing; it loads later.
     autoReport = {
         ignore = {
             "AssistantCommand",
+            "sabuiltin_Assistant",
             "GameDefs",
             "rbxassetid://203785492",
             "FoundationProvider not found",

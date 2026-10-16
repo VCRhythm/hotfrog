@@ -2201,3 +2201,23 @@ review: Three sonnet reviews, all looks-right.
 - Scenery and bats: checked the SceneryKinds and WorldScenery diffs, WorldBatSwarm in full, the flip on/off path (no duplicates, fade-out releases to the pool), the local-lane-only bats, the Include-filtered tap raycast that does not swallow step taps, and luau_check on the 3 files.
 - Vampire Frog: checked the SkinCatalog, StoreUI and SkinAssets diffs, every SkinCatalog consumer (pairs/keyed only, BuyWithFlys Fly-only, game-pass loops guarded), the StoreUI comparator (total order, existing order kept, hidden Mystery filtered), and the 35 SkinAssets keys (all non-zero) against Hot Frog's part list. Ran stylua, selene and luau_check.
 owed: o-20261016-131548-yk5p (taste: the Halloween scenery art and bat size), o-20261016-131549-vd5d (taste: the Vampire Frog art)
+
+## b-20261016-130741-9ms3  fixed  2026-10-16 13:21
+note: Studio MCP probe errors (AssistantCommand) are still auto-filed (like b-20261016-125104-47tv) because the vendored BugReportService.luau matches autoReport.ignore only against the message. The bugloop template now also matches the stack trace (bugloop c4dabcc): run python ~/.claude/skills/bugloop/scripts/bugloop.py upgrade, run the luau check, and confirm in Studio that an execute_luau probe error is no longer filed (bugloop b-20261016-125903-7q4h)
+cause: The vendored bugloop/server/BugReportService.luau predated bugloop c4dabcc. Its isIgnored matched the autoReport.ignore patterns only against the message. A probe error's message names the indexed member, and "AssistantCommand" appears only in its trace.
+change: Ran bugloop.py upgrade, which replaced the unedited bugloop/server/BugReportService.luau with the current template. isIgnored now also matches each pattern (DEFAULT_IGNORE and Config's ignore list) against the trace. .bugs/installed.json records the new install. The other vendored files already matched the template.
+files: bugloop/server/BugReportService.luau, .bugs/installed.json
+test: bash tools/luau_check.sh bugloop/Config.luau bugloop/server/BugReportService.luau (rc 0)
+verified: yes — In a Studio Play run of Hot Frog, a server execute_luau probe spawned a thread that indexed a missing PlayerGui child. LogService shows the MessageError "ProbeThatDoesNotExist2 is not a valid member of PlayerGui", whose trace is "Script 'AssistantCommand', Line 3". No "[BugReport] sent" line followed, and the inbox got no entry. Before the upgrade, the same kind of probe error was filed as b-20261016-125104-47tv.
+review: n/a (vendored template upgrade, no project code)
+studio: Hot Frog (placeId 114911935371092)
+
+## b-20261016-131144-fgag  ignored  2026-10-16 13:21
+note: AUTO warning (client:FrequencyGames): [Roblox][sabuiltin_Assistant.rbxm.Assistant.Packages._Index.AssistantUI.AssistantUI.Actions.ExecuteLuauActions] The execute_luau changed camera type. Resetting from Enum.CameraType.Custom back to Enum.CameraType.Scriptable
+cause: Not a game bug. The Studio MCP Assistant plugin printed this itself while the loop checked b-20261016-125004-mog8 in Studio: a client execute_luau probe had set the camera back to Custom after a screenshot, and the plugin reverts camera changes made by its probes. Neither its message nor its trace says "AssistantCommand", so the existing ignore pattern did not catch it.
+change: bugloop/Config.luau ignores "sabuiltin_Assistant", the Assistant plugin's own path, so its warnings are no longer filed. Its comment says why.
+files: bugloop/Config.luau
+test: bash tools/luau_check.sh bugloop/Config.luau (rc 0)
+verified: yes — In a Studio Play run of Hot Frog, client probes set CameraType to Scriptable and then Custom. The plugin printed the same "The execute_luau changed camera type. Resetting ..." warning, no "[BugReport] sent" line followed, and the inbox got no new entry.
+review: n/a (ignore pattern only)
+studio: Hot Frog (placeId 114911935371092)

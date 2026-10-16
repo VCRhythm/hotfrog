@@ -195,15 +195,15 @@ local function autoOptions(): AutoReportOptions?
     return {}
 end
 
-local function isIgnored(message: string, auto: AutoReportOptions): boolean
+local function isIgnored(message: string, trace: string?, auto: AutoReportOptions): boolean
     for _, pat in DEFAULT_IGNORE do
-        if string.find(message, pat) then
+        if string.find(message, pat) or (trace and string.find(trace, pat)) then
             return true
         end
     end
     local ignore: { string } = auto.ignore or {}
     for _, pat in ignore do
-        if string.find(message, pat) then
+        if string.find(message, pat) or (trace and string.find(trace, pat)) then
             return true
         end
     end
@@ -223,7 +223,7 @@ function BugReportService.autoReport(kind: string, message: string, trace: strin
     if kind == "warning" and auto.warnings == false then
         return
     end
-    if isIgnored(message, auto) then
+    if isIgnored(message, trace, auto) then
         return
     end
     local fp = BugReportService.fingerprint(kind, message)
