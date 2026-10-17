@@ -582,19 +582,22 @@ local function tryCatchBug(screenX: number, screenY: number): boolean
 	return false
 end
 
--- Returns the limb slot the grab consumed, or nil (bug catch, miss, or that
+-- Returns the limb slot the grab consumed, or nil (bug-only catch, miss, or that
 -- limb is already holding something). `slotIndex` is the limb the input owns.
 local function tryGrab(screenX: number, screenY: number, slotIndex: number?): number?
 	if frogIsDead() then
 		return nil
 	end
-	if tryCatchBug(screenX, screenY) then
-		return nil -- bugs are caught with the tongue: no limb is consumed
-	end
+	-- bugs are caught with the tongue (no limb consumed); a tap over a bug AND a
+	-- step does both, so carry on to the grab below
+	local caught = tryCatchBug(screenX, screenY)
 
 	local worldPos = planePoint(screenX, screenY)
 	local step = if worldPos then stepAt(worldPos) else nil
 	if not (worldPos and step) then
+		if caught then
+			return nil -- a pure bug catch is not a miss: no X, no limb reach
+		end
 		ClientSettings.playIfEnabled(SoundFX, "miss") -- Controller.CheckTouch miss feedback
 		-- ...and the free limb still reaches out to the tapped spot (Limb.Move)
 		if worldPos and slotIndex and not slots[slotIndex].heldStep then

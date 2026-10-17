@@ -2429,3 +2429,15 @@ re-review: looks-right (sonnet); checked: PotAtmosphere line 190 now gates steam
 studio: Hot Frog (placeId: 114911935371092)
 leftover: none
 owed: none
+
+## b-20261017-133312-vqnu  fixed  2026-10-17 13:52
+note: if a player clicks at a spot with a fly *and* a step, the frog should both eat the fly *and* grab the step
+cause: GameClient tryGrab returned as soon as tryCatchBug hit a fly, so a tap over a fly and a step only ate the fly and never grabbed.
+change: tryGrab catches the fly and carries on to the step hit-test; with a step it grabs as usual, and with no step a catch alone returns nil without the miss sound or empty reach (as before). The Menu-screen path is unchanged.
+files: src/client/GameClient.client.luau
+test: stylua --check (ok), selene src/ (0 warnings), bash tools/luau_check.sh (rc 0), rojo build (ok)
+verified: yes — Studio Play run (Normal run, a fly pinned server-side 1 stud in front of an UpLeftRock): one real left click (user_mouse_input) on the rock put CatchBug and GrabStep(limb 2) on the server in the same frame, BugCaught came back to the client (count 1), the left limb sat 0.0 studs from the rock and the fly respawned (Gen bumped). The fly-only no-miss-X branch was not clicked; it is the pre-existing behaviour, kept by the `caught` check (review).
+review: looks-right (sonnet); checked: the diff, tryCatchBug raycast include list (Bugs only), stepAt HitSize test, InputBegan/heldByInput flow, Menu path, gamepadTongue, server CatchBug/GrabStep handlers
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: none
