@@ -490,6 +490,10 @@ local Config = {
 	-- Playtest: workspace:SetAttribute("ForceHalloween", true) on the server.
 	HALLOWEEN_START = { month = 10, day = 24 },
 	HALLOWEEN_END = { month = 11, day = 1 },
+	-- Halloween pumpkin steps (b-20261016-192144-g2e2; port-only, doc 17): in that
+	-- window, this share of a lane's weighted step picks that land on an ordinary
+	-- kind (not an arrow, not a hazard) spawn as StepKinds.Pumpkin instead (Lane.pickKind).
+	HALLOWEEN_PUMPKIN_CHANCE = 0.25,
 }
 
 return Config

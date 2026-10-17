@@ -737,13 +737,13 @@ releaseStep = function(lane: Lane.Lane, step: BasePart)
 	table.insert(pool, step)
 end
 
--- Halloween pumpkin steps (b-20261016-125004-mog8, idea 4; port-only, doc 17):
+-- Halloween step tints (b-20261016-125004-mog8, idea 4; port-only, doc 17):
 -- while SpriteSkin.halloweenLive, kinds with no tint of their own (the moving /
--- timed kinds keep theirs as a gameplay signal) wear a pumpkin or candy-corn
--- colour on the step Decal. Colour only: no gameplay change. Keyed by sprite stem.
+-- timed kinds keep theirs as a gameplay signal) wear a candy-corn colour on the
+-- step Decal. Colour only: no gameplay change. Keyed by sprite stem. The orange
+-- "pumpkin" tint on Potato and WrappedRock is gone: the real pumpkin is now its
+-- own step, StepKinds.Pumpkin (b-20261016-192144-g2e2, Lane.pickKind).
 local HALLOWEEN_TINTS: { [string]: Color3 } = {
-	Potato = Color3.new(1, 0.55, 0.12), -- pumpkin
-	WrappedRock = Color3.new(1, 0.62, 0.18), -- pumpkin
 	CrumblyRock = Color3.new(1, 0.9, 0.5), -- candy-corn yellow
 	WhiteRock = Color3.new(1, 0.97, 0.88), -- candy-corn white tip
 }

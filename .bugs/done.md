@@ -2351,3 +2351,16 @@ review: see b-20261016-192312-l1g5
 studio: Hot Frog (placeId: 114911935371092)
 leftover: none
 owed: none
+
+## b-20261016-192144-g2e2  fixed  2026-10-17 09:52
+note: Let's get rid of the jack o' lanterns and instead throw pumpkins into the mix as "steps"
+cause: The jack-o'-lantern art existed only as floating Halloween scenery (SceneryKinds JackOLantern + HalloweenLanternSpawner); there was no pumpkin step kind, and the Halloween "pumpkin steps" were only an orange tint on Potato and WrappedRock.
+change: New StepKinds.Pumpkin, a plain solid step (behavior "None") drawn with the existing JackOLantern sprite on Potato's canvas and grab box, in no spawner pool; while SpriteSkin.halloweenLive(), Lane.pickKind swaps Config.HALLOWEEN_PUMPKIN_CHANCE (0.25) of its weighted picks for a Pumpkin when the pick is not an arrow or a hazard, on Pot, Kitchen and Country (never in the Tutorial, whose tree grabs drive its no-death grace; intro sequences untouched). The JackOLantern scenery kind and its spawner are gone (ghosts, cobwebs, bats stay), and the orange Halloween tint on Potato/WrappedRock is dropped from GameServer HALLOWEEN_TINTS so there is one pumpkin look; candy-corn tints stay. Doc 17 Halloween rows updated.
+files: src/shared/StepKinds.luau, src/server/Lane.luau, src/shared/Config.luau, src/server/GameServer.server.luau, src/shared/SceneryKinds.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check on the 5 .luau files (ok), selene src/ (0 warnings), bash tools/luau_check.sh (rc 0), rojo build (ok)
+verified: yes — Studio Play run with ForceHalloween: a client grab bot climbed Pot into Kitchen (pull ~160 studs, score 35) grabbing 11 Pumpkins without shake, explode or death; pumpkins spawned in Pot and Kitchen with the JackOLantern decal (rbxassetid://100352976265966) at white colour, Behavior None, Unsteady false; no JackOLantern instances in the client workspace while ghosts were present; with ForceHalloween turned off, a fresh run of 46 grabs and 73 new step spawns had no Pumpkin; console showed only Roblox core UIBlox warnings. Not observed: the Tutorial guard at runtime (the test profile has the Tutorial done; the guard is one condition, checked by reading); screen_capture shows no 3D in Play, so the pumpkin art was checked by decal id, not seen.
+review: concern (sonnet): the swap also caught Tutorial tree picks (no isArrow/hazard flag), which would drop the tree art and end the Tutorial grace on a pumpkin grab; checked: git diff of all 6 files, SpriteSkin.halloweenLive server-safe and live per pick, StepKinds consumers keyed on KindName (GameClient, WorldTouchIndicator, Chef), Behavior None valid, no leftover JackOLantern scenery or spawner references in src/, JackOLantern id non-zero, hazard ring unaffected, stylua/selene/luau_check clean
+re-review: looks-right (orchestrator): the repair adds `self.levelIndex ~= Levels.TUTORIAL` to the swap condition and its comment; stylua, selene, luau_check rc 0 on Lane.luau
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: none

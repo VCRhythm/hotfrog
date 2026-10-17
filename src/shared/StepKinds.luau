@@ -396,6 +396,19 @@ local StepKinds: { [string]: Kind } = {
 		hazard = true,
 	},
 
+	-- PORT ADDITION (b-20261016-192144-g2e2, doc 17): the Halloween pumpkin, a
+	-- plain solid step. In no spawner pool -- while SpriteSkin.halloweenLive,
+	-- Lane.pickKind swaps Config.HALLOWEEN_PUMPKIN_CHANCE of its ordinary picks
+	-- for it. Art: the 512 px Sprites/Scenery/JackOLantern.png on Potato's canvas
+	-- and grab box (the pumpkin fills about the same share of its canvas).
+	Pumpkin = {
+		behavior = "None",
+		sprite = "JackOLantern",
+		spawnProbability = 0,
+		size = ART_POTATO,
+		hitSize = HIT_POTATO,
+	},
+
 	-- Tutorial (Level1) tree steps (doc 11/12): the "Acorn" child Step component
 	-- on every FirstTree/SecondTree/LastTree prefab ships actionType=22 (Helper),
 	-- which has no case in Step.AssignInteractionAction() (dead code in Unity

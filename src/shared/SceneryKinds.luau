@@ -347,18 +347,9 @@ local SceneryKinds: { [string]: SceneryKind } = {
 	-- every level's scenery by `halloweenSpawners` below while SpriteSkin.halloweenLive.
 	-- Port-made 512px art (Sprites/Scenery), sized in studs directly. Each drifts on its
 	-- own (autoMove) with a low parallax speedModifier, so it crosses the lane whichever
-	-- way the level scrolls. Flat colours are only the un-uploaded fallback.
-	-- A floating jack-o'-lantern bobbing in from the right; a tap flares it like a flame.
-	JackOLantern = kind({
-		sprite = "JackOLantern",
-		size = Vector3.new(5, 5, 0.2),
-		colors = { Color3.fromRGB(240, 120, 24) },
-		speedModifier = 0.35,
-		autoMove = Vector2.new(-1.2, 0),
-		z = -1.6,
-		motion = motion({ swayY = 0.5, swayPeriod = 3.2, roll = 6, rollPeriod = 3.6, pulse = 0.03, pulsePeriod = 0.6 }),
-		reaction = "flare",
-	}),
+	-- way the level scrolls. Flat colours are only the un-uploaded fallback. The
+	-- floating jack-o'-lantern is gone: its art is now a step, StepKinds.Pumpkin
+	-- (b-20261016-192144-g2e2).
 	-- A sheet ghost rising from the bottom edge, weaving side to side; wobbles on tap.
 	Ghost = kind({
 		sprite = "Ghost",
@@ -485,15 +476,8 @@ local ExtraSpawners: { [string]: { ExtraSpawner } } = {
 -- Halloween (b-20261016-125004-mog8, idea 3): appended to EVERY level's spawners
 -- (Menu included) by WorldScenery while SpriteSkin.halloweenLive. Concurrent caps,
 -- same as the other extra spawners. Each direction matches its kind's own drift:
--- lanterns enter from the right, ghosts from the bottom, cobwebs from the top.
+-- ghosts enter from the bottom, cobwebs from the top.
 local HalloweenSpawners: { ExtraSpawner } = {
-	{
-		name = "HalloweenLanternSpawner",
-		direction = Vector2.new(-1, 0),
-		pool = { "JackOLantern" },
-		cadence = { maxSpawnCount = 2, spawningSpeedMin = 8, spawningSpeedMax = 14, spawnAllOnAwake = false },
-		initialScatter = 1,
-	},
 	{
 		name = "HalloweenGhostSpawner",
 		direction = Vector2.new(0, 1),

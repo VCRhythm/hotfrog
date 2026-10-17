@@ -17,6 +17,7 @@ local PullMath = require(ReplicatedStorage.Shared.PullMath)
 local Levels = require(ReplicatedStorage.Shared.Levels)
 local StepKinds = require(ReplicatedStorage.Shared.StepKinds)
 local StepBehaviors = require(ReplicatedStorage.Shared.StepBehaviors)
+local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 local Profiles = require(script.Parent.Profiles)
 
 export type SpawnerState = {
@@ -515,6 +516,8 @@ local function introPending(self: Lane): boolean
 	return false
 end
 
+local PUMPKIN_KIND = "Pumpkin" -- StepKinds.Pumpkin, the Halloween step
+
 -- `plain` = an ordinary foothold: never an arrow, never a hazard.
 function Lane.pickKind(self: Lane, state: SpawnerState, plain: boolean?): string?
 	local pool = state.def.pool
@@ -547,6 +550,21 @@ function Lane.pickKind(self: Lane, state: SpawnerState, plain: boolean?): string
 
 	local chosen = pickWeighted(pool, kindWeight, admits, q)
 	if chosen then
+		-- Halloween pumpkins (b-20261016-192144-g2e2; port-only, doc 17): while
+		-- the window is live, a share of the ordinary picks (never an arrow, whose
+		-- direction is the information, nor a hazard) become the plain Pumpkin --
+		-- never in the Tutorial, whose tree grabs drive its no-death grace.
+		local kind = StepKinds[chosen]
+		if
+			kind
+			and self.levelIndex ~= Levels.TUTORIAL
+			and not kind.isArrow
+			and not kind.hazard
+			and math.random() < Config.HALLOWEEN_PUMPKIN_CHANCE
+			and SpriteSkin.halloweenLive()
+		then
+			return PUMPKIN_KIND
+		end
 		return chosen
 	end
 	-- Nothing admitted carries weight. First anything admitted at all (a pool
