@@ -2365,3 +2365,28 @@ re-review: looks-right (orchestrator): the repair adds `self.levelIndex ~= Level
 studio: Hot Frog (placeId: 114911935371092)
 leftover: none
 owed: none
+
+## b-20261017-123801-td2q  fixed  2026-10-17 12:52
+note: respawn should reload back to the main men[u]
+cause: The avatar is the frog and GameServer loads no Roblox character, so Roblox's Esc -> Reset Character did nothing and left the player in the run. Read as the Reset button from the note ("respawn"); the screenshot does not show which control was pressed.
+change: MenuClient sets StarterGui ResetButtonCallback (pcall retry) to a BindableEvent: while Playing it fires the new ReturnToMenu remote, otherwise it acts like Home (dismisses the end panel, shows the main menu). GameServer's Playing-only ReturnToMenu handler releases held steps, banks the score like a death, clears the lane, resets the run and frog, and sets RunState Menu, skipping the death beat and end panel.
+files: src/server/GameServer.server.luau, src/client/MenuClient.client.luau
+test: stylua --check, selene src/ (0 warnings), bash tools/luau_check.sh on both (rc 0), rojo build (ok)
+verified: yes — Studio Play run: ReturnToMenu fired mid-run took RunState Playing -> Menu with MenuGui/MainMenu visible; the real Esc -> R -> Enter (Reset Character) mid-run did the same; after a death with the EndOfRun panel up, Esc -> Reset showed Title + MainMenu and hid EndOfRun; console showed only Roblox core UIBlox warnings.
+review: looks-right (sonnet); checked: git diff of both files, setRunState, commitHighScore/resetScore, killFrog, forceTutorial and StartRun, clearLaneSteps/releaseStep, ctxOf stillValid, MenuClient 405-630, Profiles.recordPeriodScore, GameOver/RunStateChanged listeners; notes (non-blocking): Reset in Menu with Settings open shows MainMenu over it like Home does; Play within 1 s of an abort hits the existing StartRun cooldown like Replay
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: none
+
+## b-20261017-123916-esfu  fixed  2026-10-17 12:52
+note: when a player in the tutorial has grabbed the first acorn the sparkles are supposed to move to the next acorn to show players how to play
+cause: WorldTutorialSpecks aimed at the step nearest the frog's body; right after a grab that is the held acorn, so the sparkles stayed on it.
+change: Each lane's specks keep a `grabbed` set of steps an extended limb has held (cleared on RunState change, pruned when a pooled step leaves the lane), and GrabTarget.nearestStep takes an optional `exclude` set, so the sparkles go to the next ungrabbed acorn and never back; once every step is grabbed they fly off (Unity's send-away), before any grab they still sit on the frog fallback. WorldFrogCosmetics' nearestStep call is unchanged.
+files: src/client/WorldTutorialSpecks.client.luau, src/client/world/GrabTarget.luau
+test: stylua --check on both (ok), selene src/ (0 warnings), bash tools/luau_check.sh on both plus WorldFrogCosmetics (rc 0), rojo build (ok)
+verified: yes — Studio Play run (StartRun "Tutorial"): sparkle centroid 1.2 studs from acorn 1 before any grab; 0.5 from acorn 2 after grabbing acorn 1; 0.5 from acorn 3 after grabbing acorn 2 and releasing acorn 1 (no flip back); after grabbing acorn 3 the level went to Pot and the specks were torn down; console showed only Roblox core UIBlox warnings. screen_capture shows no 3D in Play, so positions were measured, not seen.
+review: concern (sonnet): after releasing acorn 1 and holding acorn 2, the nearest-to-body pick could flip back to the released acorn; checked: GrabTarget.luau, the diff, WorldTutorialSpecks 90-160, Entities/SpeckManager.cs, Core/LevelManager.cs MoveGuidanceOnTouch, Levels Tutorial block, stylua/selene/luau_check rc 0
+re-review: concern (sonnet): the `grabbed` set keyed by pooled step parts was never pruned, so a recycled part could stay excluded; checked: the diff, GrabTarget, WorldConfig, GameServer pool and RunState code, stylua/selene/luau_check rc 0 — repaired by the orchestrator (prune entries whose Parent or LaneUserId changed each poll), stylua/selene/luau_check rc 0, then the Studio run above
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: none

@@ -115,6 +115,7 @@ ensureRemote("MissionCompleted") -- server -> client: a daily mission just finis
 ensureRemoteFunction("FeedJar") -- client -> server: (amount: positive whole Flys <= balance) move Flys into the Fly Jar for good; returns true when fed, new totals arrive via ProfileChanged, the tier title on the player's JarTitle attribute (SkinService owns it)
 ensureRemoteFunction("BuyTint") -- client -> server: (skinId, tintId) buy a SkinTints colourway for an owned skin with Flys; returns true when owned, new totals via ProfileChanged (SkinService owns it)
 ensureRemote("SelectTint") -- client -> server: (skinId, tintId; 0 = none) wear an owned tint on an owned skin; the worn tint of the selected skin replicates as the player's FrogTint attribute (SkinService owns it)
+local ReturnToMenu = ensureRemote("ReturnToMenu") -- client -> server: Roblox's Reset Character button (MenuClient hooks ResetButtonCallback; there is no Roblox character to reset) -- abandon the current run, banking its score, and go straight back to the main menu (Playing-only)
 local SetEndPanelOpen = ensureRemote("SetEndPanelOpen") -- client -> server: true while MenuClient's end-of-run/gift panel is still up (b-20260922-162231): the server flips Dead -> Menu on its own RESPAWN_DELAY timer, well before the player dismisses that panel (Home/Replay), so attract mode must wait on this rather than on RunState alone
 
 local function ensureBindable(name: string): BindableEvent
@@ -2155,6 +2156,42 @@ StartRun.OnServerEvent:Connect(function(player, mode)
 	lane:setMode(modeStr)
 	prefillLane(lane)
 	setRunState(player, RunState.Playing)
+end)
+
+-- Reset Character / "respawn" (b-20261017-123801-td2q): the avatar is the frog,
+-- so Roblox's Reset button has no character to act on. MenuClient routes it
+-- here while Playing: bank the run like a death does, but skip the death beat
+-- and end-of-run panel and return the lane/frog to the Menu state directly.
+ReturnToMenu.OnServerEvent:Connect(function(player)
+	if runState[player] ~= RunState.Playing then
+		return
+	end
+	local lane = Lane.get(player)
+	local f = frogs[player]
+	if not lane or not f or f.dead then
+		return
+	end
+	for i = 1, Config.MAX_HELD_STEPS do
+		local step = f.held[i]
+		if step then
+			forceReleaseStep(lane, step)
+		end
+	end
+	commitHighScore(player)
+	flysThisRun[player] = 0
+	bugsThisRun[player] = 0
+	resetScore(player)
+	clearLaneSteps(lane)
+	local profile = Profiles.get(player)
+	lane:resetRun(profile ~= nil and profile.tutorialDone == true)
+	f.pos = lane.origin
+	f.gravityMult = Config.GRAVITY_MULT_START
+	cancelBob(f)
+	f.fallTween = nil
+	f.dead = false
+	f.canFall = false
+	f.model:SetAttribute("Dead", false)
+	setRunState(player, RunState.Menu)
 end)
 
 -- Settings (doc 15 item 3): music on/off is the whole MusicOn attribute

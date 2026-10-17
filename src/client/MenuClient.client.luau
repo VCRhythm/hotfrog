@@ -19,6 +19,7 @@
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local Players = game:GetService("Players")
 local GuiService = game:GetService("GuiService")
+local StarterGui = game:GetService("StarterGui")
 local TweenService = game:GetService("TweenService")
 
 local UIKit = require(script.Parent.ui.UIKit)
@@ -33,6 +34,7 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local StartRun = remotes:WaitForChild("StartRun") :: RemoteEvent
 local RunStateChanged = remotes:WaitForChild("RunStateChanged") :: RemoteEvent
 local RunSummary = remotes:WaitForChild("RunSummary") :: RemoteEvent
+local ReturnToMenu = remotes:WaitForChild("ReturnToMenu") :: RemoteEvent
 local SetMusicOn = remotes:WaitForChild("SetMusicOn") :: RemoteEvent
 local ReplayTutorial = remotes:WaitForChild("ReplayTutorial") :: RemoteEvent
 local GetTopScores = remotes:WaitForChild("GetTopScores") :: RemoteFunction
@@ -610,6 +612,29 @@ homeButton.Activated:Connect(function()
 	pendingStart = false
 	setEndPanelDismissed(true)
 	showMainMenu()
+end)
+
+-- b-20261017-123801-td2q: Roblox's "Reset Character" (the frog is the avatar, so
+-- there is no character to reset) lands the player on the main menu: while
+-- Playing the server abandons the run (ReturnToMenu); from the end panel it acts
+-- like Home.
+local resetRequest = Instance.new("BindableEvent")
+resetRequest.Event:Connect(function()
+	pendingStart = false
+	if currentRunState == "Playing" then
+		ReturnToMenu:FireServer()
+	elseif not popupOpen then
+		setEndPanelDismissed(true)
+		showMainMenu()
+	end
+end)
+task.spawn(function()
+	for _ = 1, 20 do
+		if pcall(StarterGui.SetCore, StarterGui, "ResetButtonCallback", resetRequest) then
+			return
+		end
+		task.wait(0.5)
+	end
 end)
 
 -- ---------------------------------------------------------------------------
