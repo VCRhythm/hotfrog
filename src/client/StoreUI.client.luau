@@ -140,9 +140,10 @@ local backButton = button("Back", "Back", UDim2.fromOffset(120, 48), UDim2.new(0
 backButton.BackgroundColor3 = DARK
 
 -- Colourway swatches for the shown skin (b-20261008-142125-1ucz; doc 17):
--- only for an owned skin, so they sit where the Robux button would be. "Off"
--- clears the tint; an unowned swatch shows its Flys price and buys (then
--- wears) it; an owned one wears it. The server validates all of it.
+-- only for an owned skin, so they sit where the Robux button would be. The
+-- plain swatch (marked with a cross when another tint is worn) clears the
+-- tint; the worn one shows a tick; an unowned swatch shows its Flys price and buys (then wears) it;
+-- an owned one wears it. The server validates all of it.
 local SWATCH_W, SWATCH_GAP = 72, 8
 local swatchRow = Instance.new("Frame")
 swatchRow.Name = "Tints"
@@ -162,14 +163,58 @@ swatchLayout.Padding = UDim.new(0, SWATCH_GAP)
 swatchLayout.SortOrder = Enum.SortOrder.LayoutOrder
 swatchLayout.Parent = swatchRow
 local swatches: { [number]: TextButton } = {}
+
+-- The worn tick and the "no tint" cross are drawn from Frames, not text
+-- (b-20261016-173812-ko2r): FredokaOne has neither glyph. Studio's fallback
+-- draws "✕" as nothing and "✓" as a hairline, and the heavy "✔"/"✖" come from
+-- the emoji font in a baked dark grey that ignores TextColor3, so they vanish
+-- on the near-black Shadow swatch. Two rounded bars each, in the label colour.
+local MARK_THICKNESS = 4
+local function markBar(parent: Instance, length: number, x: number, y: number, rotation: number, color: Color3)
+	local bar = Instance.new("Frame")
+	bar.Name = "Bar"
+	bar.AnchorPoint = Vector2.new(0.5, 0.5)
+	bar.Size = UDim2.fromOffset(length, MARK_THICKNESS)
+	bar.Position = UDim2.new(0.5, x, 0.5, y)
+	bar.Rotation = rotation
+	bar.BackgroundColor3 = color
+	bar.BorderSizePixel = 0
+	bar.Parent = parent
+	UIKit.corner(bar, MARK_THICKNESS // 2)
+end
+local function makeMark(face: Instance, name: string): Frame
+	local mark = Instance.new("Frame")
+	mark.Name = name
+	mark.Size = UDim2.fromScale(1, 1)
+	mark.BackgroundTransparency = 1
+	mark.ZIndex = 4 -- over the face's Label (3)
+	mark.Visible = false
+	mark.Parent = face
+	return mark
+end
+local tickMarks: { [number]: Frame } = {}
+local crossMarks: { [number]: Frame } = {}
+
 local function makeSwatch(tintId: number, color: Color3, order: number)
 	local b = button("Tint" .. tintId, "", UDim2.fromOffset(SWATCH_W, 52), UDim2.new(), swatchRow)
 	b.LayoutOrder = order -- SkinTints.list order (Blue first), not id order
 	b.BackgroundColor3 = color
-	-- Label colour from the swatch luminance so the ✓/✕ marks and prices read on every
+	-- Label colour from the swatch luminance so the marks and prices read on every
 	-- swatch, near-black Shadow included (b-20261013-101145-cvni).
 	local luma = 0.299 * color.R + 0.587 * color.G + 0.114 * color.B
-	b.TextColor3 = if luma < 0.45 then Color3.new(1, 1, 1) else Color3.fromRGB(20, 20, 20)
+	local ink = if luma < 0.45 then Color3.new(1, 1, 1) else Color3.fromRGB(20, 20, 20)
+	b.TextColor3 = ink
+	local face = b:FindFirstChild("Face") or b
+	-- tick: a short stroke down-right into the corner, a long one up-right out of it
+	local tickMark = makeMark(face, "Tick")
+	markBar(tickMark, 12, -7, 3, 45, ink)
+	markBar(tickMark, 22, 4, -2, -45, ink)
+	tickMarks[tintId] = tickMark
+	-- cross: two equal strokes through the centre
+	local crossMark = makeMark(face, "Cross")
+	markBar(crossMark, 22, 0, 0, 45, ink)
+	markBar(crossMark, 22, 0, 0, -45, ink)
+	crossMarks[tintId] = crossMark
 	swatches[tintId] = b
 end
 makeSwatch(0, SkinTints.NONE, 0)
@@ -378,13 +423,11 @@ local function refreshStore()
 				offered += 1
 			end
 			local has = tintId == 0 or ownedTints[SkinTints.key(id, tintId)] == true
-			if has and worn == tintId then
-				swatch.Text = "✓"
-			elseif has then
-				swatch.Text = if tintId == 0 then "✕" else ""
-			else
-				swatch.Text = tostring(tint and tint.flyCost or "")
-			end
+			-- drawn marks, not glyphs (makeSwatch above)
+			local wearing = has and worn == tintId
+			tickMarks[tintId].Visible = wearing
+			crossMarks[tintId].Visible = has and not wearing and tintId == 0
+			swatch.Text = if has then "" else tostring(tint and tint.flyCost or "")
 		end
 		setSwatchCount(offered)
 	end

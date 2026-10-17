@@ -2310,3 +2310,15 @@ review: n/a
 studio: Hot Frog (placeId: 114911935371092)
 leftover: none
 owed: o-20261017-091030-a91m (taste: the hat height, which also covers seeing it in the real 3D view)
+
+## b-20261016-173812-ko2r  fixed  2026-10-17 09:13
+note: Studio check for the store tint swatches: the worn swatch shows ✓ and the no-tint swatch ✕ (StoreUI refreshStore); if either glyph draws as a box or tofu in FredokaOne, replace it with a drawn shape or a glyph that renders; also fix the stale "Off" comment at StoreUI ~line 143
+cause: FredokaOne has no tick or cross glyph, so Studio fell back to other fonts: "✓" drew as a tiny hairline and "✕" drew nothing; the heavy "✔"/"✖" are emoji glyphs in a fixed dark grey that ignores TextColor3 and would vanish on the near-black Shadow swatch (as in b-20261013-101145-cvni).
+change: src/client/StoreUI.client.luau makeSwatch gives each swatch a drawn Tick and Cross (two rounded 4 px Frame bars each, under its Face at ZIndex 4, in the swatch's luminance-based label colour); refreshStore shows the Tick on the worn swatch and the Cross on the no-tint swatch when another tint is worn, with no text on owned swatches. The stale "Off" comment and the swatch-label comment now describe the marks.
+files: src/client/StoreUI.client.luau
+test: stylua --check (ok), selene src/ (0 warnings), bash tools/luau_check.sh src/client/StoreUI.client.luau (rc 0), rojo build (ok)
+verified: yes — Studio Play run: Shop > Frogs on an owned skin showed a bold dark tick on the plain swatch with prices 400/600/800/1500/1000 intact; after wearing Teal, a bold dark cross on the plain swatch and a white tick on teal; worn tint set back to none afterwards.
+review: looks-right (sonnet); checked: git diff of StoreUI, makeSwatch and refreshStore in full, UIKit.button, every swatch state sets both Visible flags each refresh (no stale marks), marks created once per swatch (no leak), ink colour from the same luminance test (white on Shadow), layering Face 2 / Label 3 / marks 4, geometry fits the 72x47 face, luau_check and stylua rc 0
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: none
