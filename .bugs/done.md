@@ -2300,6 +2300,7 @@ review: looks-right (sonnet); checked: git diff of SkinAssets is the one id line
 studio: Hot Frog (placeId: 114911935371092)
 leftover: none
 owed: o-20261017-091030-a91m (taste: the hat height)
+verified: yes — the owner looked at the hat height and marked o-20261017-091030-a91m done on the fleet dashboard (2026-10-17 12:39)
 
 ## b-20261016-174405-kgdg  fixed  2026-10-17 09:10
 note: Studio Play check of the witch hat (SpriteSkin Accessory ZIndex 1 while the hat is worn, art moved 50 px down and reshaded): Hot Frog hat under the eyes and over the head, Hawt Frog and Space Frog accessories still on top (ZIndex 6); reset ForceHalloween afterwards
