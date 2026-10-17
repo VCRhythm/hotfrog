@@ -2352,7 +2352,7 @@ studio: Hot Frog (placeId: 114911935371092)
 leftover: none
 owed: none
 
-## b-20261016-192144-g2e2  fixed  2026-10-17 09:52
+## b-20261016-192144-g2e2  fixed  2026-10-17 09:30
 note: Let's get rid of the jack o' lanterns and instead throw pumpkins into the mix as "steps"
 cause: The jack-o'-lantern art existed only as floating Halloween scenery (SceneryKinds JackOLantern + HalloweenLanternSpawner); there was no pumpkin step kind, and the Halloween "pumpkin steps" were only an orange tint on Potato and WrappedRock.
 change: New StepKinds.Pumpkin, a plain solid step (behavior "None") drawn with the existing JackOLantern sprite on Potato's canvas and grab box, in no spawner pool; while SpriteSkin.halloweenLive(), Lane.pickKind swaps Config.HALLOWEEN_PUMPKIN_CHANCE (0.25) of its weighted picks for a Pumpkin when the pick is not an arrow or a hazard, on Pot, Kitchen and Country (never in the Tutorial, whose tree grabs drive its no-death grace; intro sequences untouched). The JackOLantern scenery kind and its spawner are gone (ghosts, cobwebs, bats stay), and the orange Halloween tint on Potato/WrappedRock is dropped from GameServer HALLOWEEN_TINTS so there is one pumpkin look; candy-corn tints stay. Doc 17 Halloween rows updated.
