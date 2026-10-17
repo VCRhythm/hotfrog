@@ -53,11 +53,21 @@ end
 -- Nearest active step belonging to `laneUserId`, scanning `steps`'s children.
 -- Callers throttle this (WorldConfig.NEAREST_STEP_POLL_INTERVAL) -- it's an
 -- O(n) scan over one lane's live steps, not a per-frame hot-loop op.
-function GrabTarget.nearestStep(steps: Instance, laneUserId: number, from: Vector3): BasePart?
+-- `exclude` is a set of steps to skip (e.g. steps the frog already grabbed).
+function GrabTarget.nearestStep(
+	steps: Instance,
+	laneUserId: number,
+	from: Vector3,
+	exclude: { [BasePart]: boolean }?
+): BasePart?
 	local best: BasePart? = nil
 	local bestDist = math.huge
 	for _, child in steps:GetChildren() do
-		if child:IsA("BasePart") and child:GetAttribute("LaneUserId") == laneUserId then
+		if
+			child:IsA("BasePart")
+			and child:GetAttribute("LaneUserId") == laneUserId
+			and not (exclude and exclude[child])
+		then
 			local d = (child.Position - from).Magnitude
 			if d < bestDist then
 				bestDist = d

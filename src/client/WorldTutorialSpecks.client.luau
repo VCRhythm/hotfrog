@@ -31,6 +31,7 @@ type LaneSpecks = {
 	specks: { SpeckInst },
 	target: Vector3?,
 	nextPoll: number,
+	grabbed: { [BasePart]: boolean }, -- steps ever held this run; never targeted again
 }
 
 local lanes: { [Folder]: LaneSpecks } = {}
@@ -72,7 +73,7 @@ local function ensureSpecks(folder: Folder): LaneSpecks
 		})
 	end
 
-	local laneSpecks: LaneSpecks = { userId = userId, specks = specks, target = nil, nextPoll = 0 }
+	local laneSpecks: LaneSpecks = { userId = userId, specks = specks, target = nil, nextPoll = 0, grabbed = {} }
 	lanes[folder] = laneSpecks
 	return laneSpecks
 end
@@ -102,6 +103,12 @@ local function trackLane(folder: Folder)
 	folder:GetAttributeChangedSignal("Level"):Connect(function()
 		onLevelChanged(folder)
 	end)
+	folder:GetAttributeChangedSignal("RunState"):Connect(function()
+		local laneSpecks = lanes[folder]
+		if laneSpecks then
+			table.clear(laneSpecks.grabbed)
+		end
+	end)
 end
 
 for _, child in lanesFolder:GetChildren() do
@@ -130,9 +137,40 @@ RunService.Heartbeat:Connect(function(dt: number)
 			if frogModel and frogModel:IsA("Model") and frogModel.PrimaryPart then
 				from = frogModel.PrimaryPart.Position
 			end
-			if from then
-				local nearest = GrabTarget.nearestStep(stepsFolder, laneSpecks.userId, from)
-				laneSpecks.target = if nearest then nearest.Position else from
+			if from and frogModel and frogModel:IsA("Model") and frogModel.PrimaryPart then
+				-- Remember every step the frog holds and never target it again: right after a
+				-- grab the held acorn is nearest, and a released one can be nearer than the next.
+				local body = frogModel.PrimaryPart
+				-- Steps are pooled: drop entries whose part went back to the pool.
+				for step in laneSpecks.grabbed do
+					if step.Parent ~= stepsFolder or step:GetAttribute("LaneUserId") ~= laneSpecks.userId then
+						laneSpecks.grabbed[step] = nil
+					end
+				end
+				for i, name in { "RightLimb", "LeftLimb" } do
+					local limb = frogModel:FindFirstChild(name)
+					local p = if limb and limb:IsA("BasePart") then GrabTarget.limbHeldPosition(body, limb, i) else nil
+					if p then
+						for _, step in stepsFolder:GetChildren() do
+							if
+								step:IsA("BasePart")
+								and step:GetAttribute("LaneUserId") == laneSpecks.userId
+								and (step.Position - p).Magnitude <= WorldConfig.GRAB_EXTEND_THRESHOLD
+							then
+								laneSpecks.grabbed[step] = true
+							end
+						end
+					end
+				end
+				local nearest = GrabTarget.nearestStep(stepsFolder, laneSpecks.userId, from, laneSpecks.grabbed)
+				if nearest then
+					laneSpecks.target = nearest.Position
+				elseif next(laneSpecks.grabbed) then
+					-- Every step has been climbed: send the specks away (Unity: Vector2.right * 100).
+					laneSpecks.target = from + Vector3.new(0, 500, 0)
+				else
+					laneSpecks.target = from
+				end
 			end
 		end
 
