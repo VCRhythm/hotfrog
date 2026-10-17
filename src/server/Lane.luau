@@ -1943,6 +1943,7 @@ function Lane.onStepClimbed(self: Lane, kindName: string?)
 
 	if self.tutorialGraceActive and not (kindName and TUTORIAL_TREE_KINDS[kindName]) then
 		self.tutorialGraceActive = false
+		self.folder:SetAttribute("TutorialGrace", false) -- Pot fire/steam can show now
 	end
 
 	if self.levelIndex == Levels.TUTORIAL then
@@ -1999,6 +2000,7 @@ function Lane.resetRun(self: Lane, tutorialDone: boolean)
 	self.runSteps = 0
 	self.tutorialStepsClimbed = 0
 	self.tutorialGraceActive = not tutorialDone
+	self.folder:SetAttribute("TutorialGrace", not tutorialDone)
 	resetRecent(self)
 	table.clear(self.motions) -- the lane was just emptied (GameServer.clearLaneSteps)
 	-- ...so the replicated pull total (GameServer.publishPull) starts over too.
@@ -2078,6 +2080,7 @@ function Lane.new(player: Player, tutorialDone: boolean, notify: ((Lane, string)
 	}, Lane) :: Lane
 
 	registry[player] = self
+	folder:SetAttribute("TutorialGrace", not tutorialDone) -- clients hold Pot fire/steam until it clears
 	self:setLevel(if tutorialDone then Levels.POT else Levels.TUTORIAL)
 	if self.notify then
 		self.notify(self, "start")

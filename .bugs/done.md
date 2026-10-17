@@ -2416,3 +2416,16 @@ review: looks-right (sonnet); checked: both diffs, tutorialRetry and its pullLan
 studio: Hot Frog (placeId: 114911935371092)
 leftover: none
 owed: none
+
+## b-20261017-133220-hfup  fixed  2026-10-17 13:52
+note: the fire and steam shouldn't appear until the player has fully finished the tutorial
+cause: The Level flips to Pot when the 3rd tree is climbed, and WorldLava/PotAtmosphere keyed the hot lava and steam off Level alone, but the player is still in Tutorial grace (falls retry) until the first real Pot step is grabbed. No exact recall match; related earlier fix b-20261010-191757-89n1.
+change: Lane replicates `TutorialGrace` (= tutorialGraceActive) on the lane folder, set in Lane.new and resetRun and cleared in onStepClimbed. WorldLava's new isHot() needs Pot and no grace for the heat colour, PotHeat, surge and embers, and re-runs setHeat when grace clears; PotAtmosphere enables the steam emitter only without grace. Cosmetic only; the lava death line is unchanged. Doc 17 got a deviation row.
+files: src/server/Lane.luau, src/client/WorldLava.client.luau, src/client/PotAtmosphere.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check (ok), selene src/ (0 warnings), bash tools/luau_check.sh on the three scripts (rc 0), rojo build (ok)
+verified: yes — Studio Play run (StartRun "Tutorial", climbed the 3 trees): with Level=Pot and TutorialGrace=true, PotSteam Enabled=false, lava colour (0.549, 0.157, 0.078) cool, LavaSwell transparency 1, unchanged 3 s later; after grabbing a Pumpkin, TutorialGrace=false, steam Enabled=true, lava (0.733, 0.235, 0.094) then (1, 0.353, 0.118), swell transparency 0.72 then 0.30.
+review: concern (sonnet): PotAtmosphere was unchanged, so the steam still showed during grace (the fixer's edit had silently missed); checked: the diff, Lane grace code, WorldLava heat/surge/embers, PotAtmosphere, LevelClient attributes
+re-review: looks-right (sonnet); checked: PotAtmosphere line 190 now gates steam.Enabled on TutorialGrace each PreRender, the rest of the diff unchanged, stylua/selene/luau_check rc 0
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: none

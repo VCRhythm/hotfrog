@@ -60,8 +60,15 @@ local changed = levelState:WaitForChild("Changed", WorldConfig.LANE_WAIT_TIMEOUT
 -- Pot is this game's "boiling pot" hazard level -- heat is lifted (hot) there,
 -- lowered everywhere else.
 -- ---------------------------------------------------------------------------
+-- Hot only in Pot AND once the tutorial is fully finished: the level flips to Pot on
+-- the 3rd tree, but the lane's TutorialGrace stays true until the first real step
+-- is grabbed (b-20261017-133220-hfup).
+local function isHot(levelName: string): boolean
+	return levelName == "Pot" and lane:GetAttribute("TutorialGrace") ~= true
+end
+
 local function setHeat(levelName: string)
-	local hot = levelName == "Pot"
+	local hot = isHot(levelName)
 	local color = if hot then WorldConfig.LAVA_HOT_COLOR else WorldConfig.LAVA_COOL_COLOR
 	local time = if hot then WorldConfig.LAVA_HEAT_LIFT_TIME else WorldConfig.LAVA_HEAT_LOWER_TIME
 	TweenService:Create(lava, TweenInfo.new(time), { Color = color }):Play()
@@ -78,6 +85,9 @@ local function onLevel(levelName: unknown)
 end
 changed.Event:Connect(onLevel)
 onLevel(levelState:GetAttribute("LevelName"))
+lane:GetAttributeChangedSignal("TutorialGrace"):Connect(function()
+	setHeat(currentLevel)
+end)
 
 -- ---------------------------------------------------------------------------
 -- Continuous heat build-up (journey 4/8, b-20260923-154344-xac3). No Unity
@@ -121,7 +131,7 @@ end
 
 local function updateHeat(dt: number)
 	local target = 0
-	if currentLevel == "Pot" then
+	if isHot(currentLevel) then
 		local proximity = 1 - math.clamp((body.Position.Y - Config.LAVA_Y) / WorldConfig.LAVA_PROXIMITY_STUDS, 0, 1)
 		local idle = math.clamp((os.clock() - lastGrabTime) / WorldConfig.LAVA_HEAT_IDLE_TIME, 0, 1)
 		target = math.clamp(proximity + idle, 0, 1)

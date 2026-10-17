@@ -187,6 +187,7 @@ RunService.PreRender:Connect(function()
 	steamPart.CFrame = CFrame.new(origin.X, origin.Y + Config.LAVA_Y, Config.PLANE_Z - 1)
 	local heat = levelState:GetAttribute("PotHeat")
 	heat = if typeof(heat) == "number" then math.clamp(heat, 0, 1) else 0
+	steam.Enabled = myLane:GetAttribute("TutorialGrace") ~= true -- not until the tutorial is fully done
 	steam.Rate = STEAM_BASE_RATE + STEAM_HEAT_RATE * heat
 	grade.TintColor = GRADE_TINT:Lerp(GRADE_HEAT_TINT, heat)
 end)
