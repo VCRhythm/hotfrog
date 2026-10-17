@@ -2275,6 +2275,7 @@ review: looks-right (sonnet); checked: git diff of SpriteSkin, SkinAssets and do
 leftover: b-20261016-174405-kgdg (Studio Play check of the hat layering, and that Hawt/Space accessories are unchanged; waits on tools/studio_ready.sh)
 owed: o-20261016-174406-ubok (taste: the reworked hat), o-20261016-173728-jewl (open the Hot Frog place in Studio)
 verified: yes — b-20261016-174405-kgdg's Studio Play run (2026-10-17) confirmed Accessory ZIndex 1 under the eye layers while the hat is worn and ZIndex 6 restored for Hawt/Space Frog, and the owner looked at the hat in game (o-20261016-174406-ubok) and asked only for it to sit lower (b-20261016-192055-4s1f). (Repair 2026-10-17 09:20.)
+studio: Hot Frog (placeId: 114911935371092)
 
 ## b-20261016-140637-tqc4  fixed  2026-10-16 17:44
 note: the shading of the witch hat looks a *little* off compared to teh shadong of the base frog. more darkness on the buckle and strap would help
@@ -2311,7 +2312,8 @@ verified: yes — with the owner's own look in game: after b-20261016-140445-tnp
 review: n/a
 studio: Hot Frog (placeId: 114911935371092)
 leftover: none
-owed: none (the new height is owed on b-20261016-192055-4s1f as o-20261017-091030-a91m)
+owed: none
+note: the new hat height is owed on b-20261016-192055-4s1f (o-20261017-091030-a91m)
 
 ## b-20261016-173812-ko2r  fixed  2026-10-17 09:13
 note: Studio check for the store tint swatches: the worn swatch shows ✓ and the no-tint swatch ✕ (StoreUI refreshStore); if either glyph draws as a box or tofu in FredokaOne, replace it with a drawn shape or a glyph that renders; also fix the stale "Off" comment at StoreUI ~line 143
