@@ -2285,3 +2285,28 @@ verified: no — the Hot Frog Studio was closed, so the art was not seen in game
 review: looks-right (sonnet); checked: git diff of SpriteSkin, SkinAssets and doc 17, SpriteSkin.apply in full, the FrogModel decal list (Head, Mouth, Sclera, Eyes, Pupils, eyelids and Accessory are all on the Head part, Face Back, ZIndex 0-6), a grep of ZIndex/BaseZIndex/Accessory across src/, the restore path for ForceHalloween off and for switches to Hawt/Space or to no-accessory skins, BaseZIndex captured before any change, StoreUI previews go through the same apply, the SkinAssets diff is the one hat id line, luau_check and stylua rc 0, old vs new PNG by eye (brim about 50 px lower, darker burnt-orange band, olive-gold buckle, upper-left light)
 leftover: b-20261016-174405-kgdg (the same Studio check also captures the shading)
 owed: o-20261016-174456-mgfb (taste: the band and buckle shading)
+verified: yes — the owner looked at the reshaded hat in Studio and marked the shading step o-20261016-174456-mgfb done on the fleet dashboard (2026-10-16 19:20); asking only for the hat to sit lower (b-20261016-192055-4s1f). Added 2026-10-17 09:10 as a record repair.
+
+## b-20261016-192055-4s1f  fixed  2026-10-17 09:10
+note: lower on the head (sent back from owed step o-20261016-174406-ubok: look at the reworked witch hat on Hot Frog)
+cause: The hat art's brim bottom sat at y=353 on the 1024 canvas, just touching the top of the head art at y=347, so the hat still floated on top of the head.
+change: Sprites/Frogs/Hot Frog/HotFrogHalloweenHat.png moved another 50 px down (opaque bounds y 73-353 to 123-403; same size, shading and alpha), re-uploaded through the pipeline (Approved/Green), and write_asset_ids.py changed HotFrogHalloweenHat in src/shared/SkinAssets.luau from 79328124668745 to 134244929117907.
+files: Sprites/Frogs/Hot Frog/HotFrogHalloweenHat.png, src/shared/SkinAssets.luau
+test: stylua --check and bash tools/luau_check.sh src/shared/SkinAssets.luau rc 0, rojo build ok, upload 1 uploaded 0 failed; PIL composite before/after
+verified: partly — Studio Play run (b-20261016-174405-kgdg's pass): with ForceHalloween on, Hot Frog's Accessory decal is ZIndex 1 with texture rbxassetid://134244929117907, which loaded (PreloadAsync Success, 1024x1024); a GUI rebuild of the head decals in their ZIndex order shows the brim at eye level with the eyes, sclera and lids over it. screen_capture showed no 3D in Play (white viewport), so the real 3D render was not seen.
+review: looks-right (sonnet); checked: git diff of SkinAssets is the one id line with LF endings, tools/asset_ids.json has 134244929117907 Approved/Green, no src reference to the old id, PIL compare of HEAD vs working PNG (same 1024x1024, bbox shifted exactly 50 px down, pixel-identical after shift), stylua and luau_check rc 0
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: o-20261017-091030-a91m (taste: the hat height)
+
+## b-20261016-174405-kgdg  fixed  2026-10-17 09:10
+note: Studio Play check of the witch hat (SpriteSkin Accessory ZIndex 1 while the hat is worn, art moved 50 px down and reshaded): Hot Frog hat under the eyes and over the head, Hawt Frog and Space Frog accessories still on top (ZIndex 6); reset ForceHalloween afterwards
+cause: Check of b-20261016-140445-tnpd; no fault found.
+change: none (the art moved again under b-20261016-192055-4s1f before this check ran)
+files: none
+test: Studio Play run
+verified: partly — Studio Play run: Hot Frog Head decals were Head 0, Mouth 1, Accessory 1 (hat 134244929117907, loaded), Sclera 2, Eyes 3, Pupils 4, eyelids 5, BaseZIndex 6; switching on the server to Hawt Frog gave Accessory ZIndex 6 (texture 92072401896151, sunglasses on top), Space Frog ZIndex 6 (97689558432795, helmet on top), and back to Hot Frog ZIndex 1 with the hat restored. Layering judged from a GUI rebuild of the decals because screen_capture showed no 3D in Play. ForceHalloween was already true and was left true.
+review: n/a
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: o-20261017-091030-a91m (taste: the hat height, which also covers seeing it in the real 3D view)

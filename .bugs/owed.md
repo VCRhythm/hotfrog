@@ -161,20 +161,32 @@ no-check: whether new art looks right in game is the owner's call
 evidence: marked done by the user, no check
 cleared: 2026-10-16 14:05 marked done on the fleet dashboard
 
-## o-20261016-173728-jewl  open  2026-10-16 17:37
+## o-20261016-173728-jewl  done  2026-10-16 17:37
 for: b-20261016-140523-i34z
 kind: restart
 step: Open the Hot Frog place in Roblox Studio (it is closed; only Tactics and Centralia are open), so the loop can run its held game checks
 done-check: bash tools/studio_ready.sh
+evidence: done-check passed: 34873
+cleared: 2026-10-16 19:20 marked done on the fleet dashboard
 
-## o-20261016-174406-ubok  open  2026-10-16 17:44
+## o-20261016-174406-ubok  done  2026-10-16 17:44
 for: b-20261016-140445-tnpd
 kind: taste
 step: Look at the reworked witch hat on Hot Frog with ForceHalloween on (sits lower, behind the eyes, darker band and buckle) and say if it looks right
 no-check: whether the hat looks right is the owner's call
+evidence: none, the user sent it back to the loop as b-20261016-192055-4s1f
+cleared: 2026-10-16 19:20 sent back to loop as b-20261016-192055-4s1f: lower on the head
 
-## o-20261016-174456-mgfb  open  2026-10-16 17:44
+## o-20261016-174456-mgfb  done  2026-10-16 17:44
 for: b-20261016-140637-tqc4
 kind: taste
 step: Look at the reshaded witch hat's band and buckle next to the frog's own shading (Hot Frog, ForceHalloween on) and say if the darkness is right
 no-check: whether the shading matches is the owner's call
+evidence: marked done by the user, no check
+cleared: 2026-10-16 19:20 marked done on the fleet dashboard
+
+## o-20261017-091030-a91m  open  2026-10-17 09:10
+for: b-20261016-192055-4s1f
+kind: taste
+step: Look at the witch hat on Hot Frog in Studio (workspace attribute ForceHalloween on), now another 50 px lower so the brim sits at eye level behind the eyes, and say if the height looks right
+no-check: whether the hat height looks right is the owner's call
