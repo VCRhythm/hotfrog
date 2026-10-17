@@ -151,6 +151,14 @@ WorldConfig.PEBBLE_MAX_X_FORCE = 5
 WorldConfig.PEBBLE_MIN_Y_FORCE = 1
 WorldConfig.PEBBLE_MAX_Y_FORCE = 5
 WorldConfig.PEBBLE_ROT_FORCE = 2 -- Pebble.cs rotForce = 2f * Mathf.Sign(xForce)
+-- Potato blast (StepBehaviors.ExplodeAfterGrab, b-20261016-192312-l1g5; port-only):
+-- chunks plus a hot flash ring, sized to read at the 43-stud camera.
+WorldConfig.EXPLODE_BURST_COUNT = 28
+WorldConfig.EXPLODE_BURST_SPEED = 30
+WorldConfig.EXPLODE_BURST_LIFETIME = 0.8
+WorldConfig.EXPLODE_BURST_SIZE = Vector3.new(1.2, 1.2, 1.2)
+WorldConfig.EXPLODE_CHUNK_COLOR = Color3.fromRGB(205, 160, 95) -- potato flesh
+WorldConfig.EXPLODE_FLASH_COLOR = Color3.fromRGB(255, 200, 80)
 
 -- ---------------------------------------------------------------------------
 -- Tutorial specks (Entities/Speck.cs + SpeckManager.cs)

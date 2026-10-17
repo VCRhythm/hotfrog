@@ -16,8 +16,8 @@ Tips.list = {
 	-- Config.CRUMBLE_FUSE = 1.5 (StepBehaviors.Crumble): StepKinds.CrumbleRock, the
 	-- CrumblyRock pebble-cluster art, spawned in Kitchen and Country (Levels heightStages).
 	"Pebbly rock clusters in the Kitchen and Country burst 1.5 seconds after you grab them.",
-	-- StepBehaviors.CrumbleAfterRelease: StepKinds.Potato, Pot only.
-	"Potatoes in the Pot crumble the moment you let go of them.",
+	-- Config.EXPLODE_FUSE = 1 (StepBehaviors.ExplodeAfterGrab): StepKinds.Potato, Pot only.
+	"Potatoes in the Pot shake when you grab them and explode 1 second later.",
 	-- StepBehaviors.Vanish (StepKinds.BlinkRock, violet tint, Kitchen and Country):
 	-- shakes after 3 s in view, drops 1.5 s later. (No live level spawns the Fall kind.)
 	"Violet rocks start shaking after a few seconds on screen, then drop away.",

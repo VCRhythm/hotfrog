@@ -281,6 +281,9 @@ local Config = {
 	-- more global weight table; a step's behavior is entirely a function of
 	-- which level/spawner/kind produced it.
 	CRUMBLE_FUSE = 1.5, -- grab -> explode (Step.cs Invoke("Explode", 1.5))
+	-- StepBehaviors.ExplodeAfterGrab (Potato; port change b-20261016-192312-l1g5, doc 17)
+	EXPLODE_FUSE = 1.0, -- grab -> explode, held or not
+	EXPLODE_SHAKE = 0.25, -- studs; max jitter per axis while the fuse burns
 	FALL_DELAY = 3.0, -- unsteady -> drop away (Step.cs Fall coroutine)
 	DROP_DISTANCE = 100, -- studs a falling step drops (DOLocalMoveY(-100))
 	DROP_TIME = 1.0,

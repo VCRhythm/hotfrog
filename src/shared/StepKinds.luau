@@ -151,8 +151,10 @@ local TINT_VIOLET = Color3.new(0.78, 0.55, 1) -- BlinkRock
 
 local StepKinds: { [string]: Kind } = {
 	-- Pot (Level2) pools (doc 11 §2a)
+	-- Unity: CrumbleAfterRelease; the port explodes 1 s after the grab (owner's
+	-- request b-20261016-192312-l1g5, doc 17).
 	Potato = {
-		behavior = "CrumbleAfterRelease",
+		behavior = "ExplodeAfterGrab",
 		sprite = "Potato",
 		spawnProbability = 0.5,
 		size = ART_POTATO,

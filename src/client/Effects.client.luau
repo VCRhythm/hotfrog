@@ -4,6 +4,8 @@
 --   * one-shot sounds on the existing remotes (squish / fall / crumble)
 --   * pebble debris off Unsteady steps (Entities/Pebble.cs Explode + Step.cs
 --     ShowCrumbles: emit crumbles every second while a step is unsteady)
+--   * the Potato blast on the StepExploded remote (StepBehaviors.ExplodeAfterGrab's
+--     fuse; b-20261016-192312-l1g5, doc 17)
 -- Pebbles are client-local parts, so they never fight the server-owned step
 -- CFrames that the scroll/drop tweens are writing.
 --
@@ -30,6 +32,7 @@ local remotes = ReplicatedStorage:WaitForChild("Remotes")
 local BugCaught = remotes:WaitForChild("BugCaught") :: RemoteEvent
 local GameOver = remotes:WaitForChild("GameOver") :: RemoteEvent
 local ForceRelease = remotes:WaitForChild("ForceRelease") :: RemoteEvent
+local StepExploded = remotes:WaitForChild("StepExploded") :: RemoteEvent
 
 -- ---------------------------------------------------------------------------
 -- Sounds (clip stems from SoundAssets; silent until ids are pasted in)
@@ -76,6 +79,42 @@ local function emitPebbles(origin: Vector3, color: Color3)
 		fadeStart = 1, -- Pebble.cs never fades them: they just vanish
 	})
 end
+
+-- The Potato blast (port-only): a big pooled burst of potato chunks plus a hot
+-- flash ring, the same two-layer shape as WorldScenery's bubble pop.
+local blasts = Bursts.new({
+	name = "PotatoBlast",
+	size = WorldConfig.EXPLODE_BURST_SIZE,
+	material = Enum.Material.Neon,
+	shape = Enum.PartType.Ball,
+	cap = 96,
+})
+
+local function emitBlast(origin: Vector3)
+	blasts.emit(origin, {
+		count = WorldConfig.EXPLODE_BURST_COUNT,
+		radialSpeed = WorldConfig.EXPLODE_BURST_SPEED,
+		lifetime = WorldConfig.EXPLODE_BURST_LIFETIME,
+		color = WorldConfig.EXPLODE_CHUNK_COLOR,
+		jitterX = 1,
+		jitterY = 1,
+		fadeStart = 0.4,
+	})
+	blasts.emit(origin, {
+		count = WorldConfig.EXPLODE_BURST_COUNT,
+		radialSpeed = WorldConfig.EXPLODE_BURST_SPEED * 0.55,
+		lifetime = WorldConfig.EXPLODE_BURST_LIFETIME * 0.6,
+		color = WorldConfig.EXPLODE_FLASH_COLOR,
+		fadeStart = 0.2,
+		scale = 0.8,
+	})
+end
+
+StepExploded.OnClientEvent:Connect(function(position: unknown)
+	if typeof(position) == "Vector3" then
+		emitBlast(position)
+	end
+end)
 
 -- step -> os.clock() of its next burst, for steps that are Unsteady right now.
 local unsteady: { [BasePart]: number } = {}

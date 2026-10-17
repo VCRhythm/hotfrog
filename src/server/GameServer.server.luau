@@ -95,6 +95,7 @@ local ReachEmpty = ensureRemote("ReachEmpty") -- client -> server: tapped empty 
 local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score (incl. combo bonus)/best (steps)/quality/grabQuality/steps (real steps this run)
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart (score, cause)
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
+local StepExploded = ensureRemote("StepExploded") -- server -> all clients: a Potato's fuse blew it up (world position Vector3); Effects.client.luau draws the blast (StepBehaviors.ExplodeAfterGrab, doc 17)
 local LevelChanged = ensureRemote("LevelChanged") -- server -> client: this lane's level/transition changed
 local ScreenObstruction = ensureRemote("ScreenObstruction") -- client -> server: rough lane-relative world rectangle of the open Roblox PlayerList (minX, minY, maxX, maxY studs), or no args when closed; rate-limited and validated, grab pulls are lengthened to keep steps out of it (doc 17)
 
@@ -640,6 +641,13 @@ local function ctxOf(lane: Lane.Lane, step: BasePart, st: StepState): StepBehavi
 		explode = function()
 			if stillValid() then
 				releaseStep(lane, step) -- knocks the holder off too; effects (pebbles/sound) are client polish, doc 05
+			end
+		end,
+		blast = function()
+			if stillValid() then
+				-- a remote, not an attribute: the step leaves the replicated tree
+				-- this same frame, so an attribute change on it never arrives
+				StepExploded:FireAllClients(step.Position)
 			end
 		end,
 		dropAway = function()

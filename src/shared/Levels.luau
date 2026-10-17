@@ -500,7 +500,7 @@ list[Levels.POT] = {
 	-- Three height stages across Pot's 0-50 runSteps span (Config.LEVEL_THRESHOLDS.Kitchen),
 	-- so the climb reads as progress through a place rather than one flat pool the whole
 	-- level (b-20260923-154344-dr8a): mostly Carrot with heavy bubbles/steam low down,
-	-- Potato (crumbles on release) mixed in through the middle, then the Up*Rock
+	-- Potato (explodes 1 s after the grab) mixed in through the middle, then the Up*Rock
 	-- diagonals dominating and the steam thinning near the top. Every pool kind above
 	-- gets an entry so no stage silently falls back to a flat StepKinds weight.
 	-- PORT ADDITION: the last stage also floats the odd Lillipad (a patrolling step,

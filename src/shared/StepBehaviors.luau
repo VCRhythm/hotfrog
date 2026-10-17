@@ -47,6 +47,7 @@ export type Ctx = {
 	isHeld: () -> boolean, -- is a limb of the lane's frog on this step right now?
 	makeUnsteady: () -> (), -- sets the Unsteady attribute (clients may shake/emit)
 	explode: () -> (), -- knock the holder off + recycle (Step.cs Explode)
+	blast: () -> (), -- tell every client to draw the Potato blast here (StepExploded remote; cosmetic only)
 	dropAway: () -> (), -- knock the holder off, then accelerate down until the lava line recycles it (Step.cs Fall)
 	forceRelease: () -> (), -- make the holder's limb let go (Step.cs ForceRelease)
 	getSpawnBias: () -> Vector2, -- the lane's spawn direction: the way the WORLD scrolls
@@ -99,6 +100,36 @@ Behaviors.Crumble = {
 Behaviors.CrumbleAfterRelease = {
 	onRelease = function(ctx)
 		ctx.explode()
+	end,
+}
+
+-- PORT CHANGE (owner's request b-20261016-192312-l1g5, doc 17): the Potato.
+-- Unity's Potato is CrumbleAfterRelease (above); here it shakes from the grab
+-- and explodes Config.EXPLODE_FUSE seconds later whether or not it is still
+-- held (ctx.explode knocks the holder off). Letting go early does not stop the
+-- fuse and a re-grab does not restart it. The shake is a jittering visual
+-- offset (a held limb rides it, as it rides the grab recoil). The fuse fires
+-- ctx.blast (the StepExploded remote; Effects.client.luau draws the blast) and
+-- then recycles the step, so a run end or lane cleanup mid-fuse makes no blast.
+Behaviors.ExplodeAfterGrab = {
+	onGrab = function(ctx)
+		if ctx.state.lit then
+			return
+		end
+		ctx.state.lit = true
+		ctx.makeUnsteady()
+		task.delay(Config.EXPLODE_FUSE, function()
+			if ctx.stillValid() then
+				ctx.blast()
+				ctx.explode()
+			end
+		end)
+	end,
+	onTick = function(ctx)
+		if ctx.state.lit then
+			local a = Config.EXPLODE_SHAKE
+			ctx.setOffset(Vector3.new((math.random() * 2 - 1) * a, (math.random() * 2 - 1) * a, 0))
+		end
 	end,
 }
 

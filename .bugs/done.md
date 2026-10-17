@@ -2322,3 +2322,28 @@ review: looks-right (sonnet); checked: git diff of StoreUI, makeSwatch and refre
 studio: Hot Frog (placeId: 114911935371092)
 leftover: none
 owed: none
+
+## b-20261016-192312-l1g5  fixed  2026-10-17 09:18
+note: potatoes should shake when grabbed and explode after 1 second with big particle effect
+cause: Potatoes used Unity's StepBehaviors.CrumbleAfterRelease, which only explodes on release; there was no break-on-grab behaviour, shake or blast. The owner's note answers b-20261016-173812-0e40's question (grab-crumble wanted).
+change: New StepBehaviors.ExplodeAfterGrab, used by StepKinds.Potato: the first grab sets Unsteady and the server jitters the step (±Config.EXPLODE_SHAKE 0.25 studs); Config.EXPLODE_FUSE (1 s) after the grab ctx.blast() fires the new StepExploded RemoteEvent (GameServer remote list) to all clients with the step position, then ctx.explode() recycles the potato and knocks the holder off even while held; early release does not stop the fuse. Effects.client.luau draws a big pooled burst (28 tan chunks plus a 28-ball orange flash ring, WorldConfig.EXPLODE_*) on StepExploded. Potato tip, a Levels comment and a doc 17 deviation row updated; CrumbleAfterRelease stays but no kind uses it.
+files: src/shared/StepBehaviors.luau, src/shared/StepKinds.luau, src/shared/Config.luau, src/shared/WorldConfig.luau, src/shared/Tips.luau, src/shared/Levels.luau, src/client/Effects.client.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check on all 8 .luau files (ok), selene src/ (0 warnings), bash tools/luau_check.sh on each (rc 0), rojo build (ok)
+verified: yes — two Studio Play runs. First run: Unsteady 0.05 s after grab, step left Steps 1.05 s after grab while held, ForceRelease reached the client, tap-and-release still exploded; it also found the client blast never fired (Exploded attribute set in the same frame as Parent = nil), fixed by the StepExploded remote. Second run (after the fix): StepExploded reached the client 1.00 s after Unsteady with the potato's position, PotatoBlast parts 0 -> 56 -> cleaned up within ~0.9 s, tap-and-release also blasted, about 100 carrot/rock recycles and the death cleanups fired no StepExploded, no Effects/GameServer errors. Not observed: a run ending inside the 1 s fuse (no way to force it); the fuse is gated by ctx.stillValid() per the reviews. screen_capture shows no 3D in Play, so the burst was counted, not seen.
+review: concern (sonnet): the client blast fired on any removal of a lit ExplodeAfterGrab step (run end, lane cleanup), not only on ctx.explode; checked: git diff of StepBehaviors/StepKinds/Config/WorldConfig/Levels/Effects, GameServer ctxOf/releaseStep/acquireStep/advanceStep/shownPosition, Effects watch/unwatch, stale-timer safety via stillValid generations, offset composition with STEP_OFFSET_MAX
+re-review: looks-right (sonnet, twice: after the Exploded attribute repair and after the StepExploded remote repair); checked: diffs of StepBehaviors, Effects, GameServer, StepKinds, Config, WorldConfig, doc 17; remote created with ensureRemote in the top list and fetched with WaitForChild; blast gated by stillValid and only in the fuse; grep shows no Exploded attribute left; Ctx type and its single builder ctxOf provide blast; luau_check and stylua rc 0 on the three files
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: none
+
+## b-20261016-173812-0e40  fixed  2026-10-17 09:18
+note: Studio Play check: in the Pot, grab a Potato step, then let go. Does it crumble? If not, fix the cause; if it does, ask the owner whether they want grab-crumble or a rewording of the tip
+cause: The owner answered the question before the check ran (b-20261016-192312-l1g5: shake on grab, explode 1 s later), so potatoes now break on grab instead of Unity's crumble-on-release.
+change: see b-20261016-192312-l1g5 (same commit)
+files: src/shared/StepBehaviors.luau, src/shared/StepKinds.luau, src/shared/Config.luau, src/shared/WorldConfig.luau, src/shared/Tips.luau, src/shared/Levels.luau, src/client/Effects.client.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: see b-20261016-192312-l1g5
+verified: yes — Studio Play run: grabbing a Potato in the Pot shakes it and it explodes 1.0 s later (held or released), with the client blast; details on b-20261016-192312-l1g5
+review: see b-20261016-192312-l1g5
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: none
