@@ -109,6 +109,13 @@ local function trackLane(folder: Folder)
 			table.clear(laneSpecks.grabbed)
 		end
 	end)
+	-- a tutorial fall doesn't end the run (GameServer tutorialRetry), so start over at acorn 1
+	folder:GetAttributeChangedSignal("TutorialRetries"):Connect(function()
+		local laneSpecks = lanes[folder]
+		if laneSpecks then
+			table.clear(laneSpecks.grabbed)
+		end
+	end)
 end
 
 for _, child in lanesFolder:GetChildren() do

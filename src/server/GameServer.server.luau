@@ -1578,6 +1578,7 @@ local function tutorialRetry(lane: Lane.Lane, f: FrogState)
 	if retreat < 0 then
 		pullLane(lane, retreat, 0.6)
 	end
+	lane.folder:SetAttribute("TutorialRetries", ((lane.folder:GetAttribute("TutorialRetries") :: number?) or 0) + 1) -- WorldTutorialSpecks restarts at acorn 1
 	f.pos = lane.origin
 	f.gravityMult = Config.GRAVITY_MULT_START
 	cancelBob(f)

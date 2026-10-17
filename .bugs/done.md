@@ -2404,3 +2404,15 @@ leftover: the acorns still idle-spin (owner ruling b-20260922-194446); the twigs
 owed: Play the Tutorial in Studio and look at the new oak (taste)
 owed: o-20261017-130041-mozs
 leftover: none — the unseen art is covered: the owner played the Tutorial with the new oak and marked o-20261017-130041-mozs done 2026-10-17 13:33
+
+## b-20261017-133204-k24p  fixed  2026-10-17 13:52
+note: the sparkle needs to go back to the first acorn if the player falls during the tutorial
+cause: A Tutorial fall is a retry (GameServer tutorialRetry), not a run end, so RunState never changed and WorldTutorialSpecks kept its `grabbed` set; the sparkles stayed on acorns 2/3 or flew off instead of returning to acorn 1.
+change: tutorialRetry bumps a `TutorialRetries` counter attribute on the lane folder; WorldTutorialSpecks clears the lane's `grabbed` set when it changes, so the next poll targets the nearest acorn again (acorn 1 after the retreat pull).
+files: src/server/GameServer.server.luau, src/client/WorldTutorialSpecks.client.luau
+test: stylua --check (ok), selene src/ (0 warnings), bash tools/luau_check.sh on both (rc 0), rojo build (ok)
+verified: yes — Studio Play run (StartRun "Tutorial"): sparkles 0.0 studs from acorn 1 at start, 0.2 from acorn 2 after grabbing acorn 1; after releasing into a fall, TutorialRetries=1 with RunState still Playing and the sparkles 0.1 from acorn 1 (21.0 from acorn 2).
+review: looks-right (sonnet); checked: both diffs, tutorialRetry and its pullLane retreat, WorldTutorialSpecks grabbed/prune/poll flow, GrabTarget.limbHeldPosition; note (non-blocking): a limb still easing back in the first poll after the retry could in theory re-mark a step, which the next retry or a grab corrects
+studio: Hot Frog (placeId: 114911935371092)
+leftover: none
+owed: none

@@ -193,8 +193,10 @@ no-check: whether the hat height looks right is the owner's call
 evidence: marked done by the user, no check
 cleared: 2026-10-17 12:39 marked done on the fleet dashboard
 
-## o-20261017-130041-mozs  open  2026-10-17 13:00
+## o-20261017-130041-mozs  done  2026-10-17 13:00
 for: b-20261017-123841-69yo
 kind: taste
 step: Play the Tutorial in Studio and look at the new oak: crisp art, acorns hanging from twigs, trunk in front of the frog's face/body with arms and hands on top
 no-check: only the owner can judge the look
+evidence: marked done by the user, no check
+cleared: 2026-10-17 13:33 marked done on the fleet dashboard
