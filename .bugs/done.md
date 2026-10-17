@@ -2402,3 +2402,5 @@ review: looks-right (sonnet); checked: diffs of the script, SkinAssets and doc 1
 studio: Hot Frog (placeId: 114911935371092)
 leftover: the acorns still idle-spin (owner ruling b-20260922-194446); the twigs read as attached anyway
 owed: Play the Tutorial in Studio and look at the new oak (taste)
+owed: o-20261017-130041-mozs
+leftover: none — the unseen art is covered: the owner played the Tutorial with the new oak and marked o-20261017-130041-mozs done 2026-10-17 13:33
