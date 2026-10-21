@@ -17,7 +17,7 @@
 -- `kind` defaults to "steps". Long-tail kinds (b-20261008-141644-lzg7), all read
 -- from signals that already exist server-side (no new persistent counters):
 --   "steps"  -- `threshold` steps in one run (leaderstats.Score)
---   "level"  -- `level` ("Kitchen"/"Country") reached, via Lanes/<UserId>.Level
+--   "level"  -- `level` ("Kitchen"/"Country"/"Space") reached, via Lanes/<UserId>.Level
 --   "streak" -- `threshold` = daily login streak length (Profiles.get(p).streak)
 --   "jar"    -- `threshold` = Flys fed into the Fly Jar (Profiles.get(p).jarFlys;
 --               same thresholds as Shared/JarTiers' titles)
@@ -49,6 +49,7 @@ local Badges: { BadgeEntry } = {
 	{ threshold = 500, id = 0, name = "500 Steps!" },
 	{ kind = "level", level = "Kitchen", threshold = 0, id = 0, name = "Out of the Pot" },
 	{ kind = "level", level = "Country", threshold = 0, id = 0, name = "Country Frog" },
+	{ kind = "level", level = "Space", threshold = 0, id = 0, name = "Space Frog" },
 	{ kind = "streak", threshold = 3, id = 0, name = "3-Day Streak" },
 	{ kind = "streak", threshold = 7, id = 0, name = "7-Day Streak" },
 	{ kind = "streak", threshold = 30, id = 0, name = "30-Day Streak" },

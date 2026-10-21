@@ -23,7 +23,7 @@
 -- ADAPTED (Sun states): LevelManager's Animator isNight/isBlack bools aren't
 -- part of the LevelChanged payload (doc 13's remote list is off-limits for this
 -- phase). Night is inferred from the Tutorial level (doc 11 §3: Stars toggle on
--- for the Tutorial's night sequence); black is a brief pulse on a "death"
+-- for the Tutorial's night sequence) and from Space (port-only); black is a brief pulse on a "death"
 -- transition, giving all three states an observable trigger.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -86,11 +86,16 @@ end
 --     Levels.luau `background` key yet -- kept here so it lights up the
 --     moment a level does (same "kept complete" pattern SceneryKinds.luau
 --     already uses for the unreachable Menu level).
+--   CountryBack / SpaceBack -- PORT ADDITIONS (b-20261020-200915-5ju4, doc 17):
+--     the port's own seamless sky and star-field art (Sprites/Other), no Unity
+--     material; same average-pixel fallback colours.
 -- ---------------------------------------------------------------------------
 local BACKGROUND_COLORS: { [string]: Color3 } = {
 	PotBack = Color3.fromRGB(197, 197, 195),
 	KitchenTile = Color3.fromRGB(220, 216, 209),
 	LavaGradient = Color3.fromRGB(199, 69, 3),
+	CountryBack = Color3.fromRGB(181, 194, 192),
+	SpaceBack = Color3.fromRGB(36, 42, 64),
 }
 local DEFAULT_BACKGROUND_COLOR = Color3.fromRGB(155, 255, 255) -- Sky.mat's own _Color
 
@@ -357,7 +362,7 @@ local function setSun(levelName: string)
 	local halloween = SpriteSkin.halloweenLive()
 	currentSunColor = if halloween
 		then MOON_COLOR
-		elseif levelName == "Tutorial" then WorldConfig.SUN_NIGHT_COLOR
+		elseif levelName == "Tutorial" or levelName == "Space" then WorldConfig.SUN_NIGHT_COLOR
 		else WorldConfig.SUN_DAY_COLOR
 	TweenService:Create(sun, TweenInfo.new(WorldConfig.SUN_TRANSITION_TIME), { Color = currentSunColor }):Play()
 	sunDecal.Color3 = if halloween then MOON_COLOR else Color3.new(1, 1, 1)

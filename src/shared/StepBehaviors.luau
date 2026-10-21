@@ -447,4 +447,48 @@ Behaviors.Vanish = {
 	end,
 }
 
+-- A Country car (b-20261020-200915-5ju4, owner's ruling b-20261020-201705-zwi7;
+-- no Unity source). It drives along its own row at a fixed speed -- base
+-- travel, like Falling, so spawn spacing and the recycle bound follow it -- and
+-- keeps driving while held, so a held limb rides it. While the lane scrolls
+-- vertically a car that drives wholly past the lane's side edge wraps round to
+-- the other edge (its row keeps traffic instead of emptying; a holder is
+-- knocked off first); while it scrolls sideways it just leaves past the bound. Its roof is the foothold, but only briefly: once the
+-- lane's frog has held it for Config.CAR_KNOCK_TIME seconds in a row the car
+-- knocks the frog off (ctx.forceRelease -- a forced release, never a death),
+-- shaking (a jittering visual offset, like the Potato's fuse) for the last
+-- Config.CAR_WARN_TIME of that.
+-- Params: `speed` (studs/s along X, signed: + drives right; the kind's own).
+-- Deterministic: the speed is the kind's, never rolled, and the combo streak
+-- and run height do not change it.
+Behaviors.Drive = {
+	onTick = function(ctx, dt)
+		local speed = numberParam(ctx.params, "speed", 0)
+		ctx.moveBase(Vector3.new(speed * dt, 0, 0))
+		local s = ctx.state
+		if ctx.getSpawnBias().X == 0 then
+			local edge = Config.LANE_HALF_WIDTH + ctx.step.Size.X / 2
+			local rel = ctx.getBase().X - ctx.origin.X
+			if (speed > 0 and rel > edge) or (speed < 0 and rel < -edge) then
+				s.heldFor = 0
+				ctx.forceRelease()
+				ctx.moveBase(Vector3.new(-2 * edge * math.sign(speed), 0, 0))
+			end
+		end
+		s.heldFor = if ctx.isHeld() then (s.heldFor or 0) + dt else 0
+		if s.heldFor >= Config.CAR_KNOCK_TIME then
+			s.heldFor = 0
+			ctx.forceRelease()
+		end
+		if s.heldFor >= Config.CAR_KNOCK_TIME - Config.CAR_WARN_TIME then
+			local a = Config.EXPLODE_SHAKE -- the Potato fuse's jitter: a held limb rides it
+			ctx.setOffset(Vector3.new((math.random() * 2 - 1) * a, (math.random() * 2 - 1) * a, 0))
+			s.shaking = true
+		elseif s.shaking then
+			s.shaking = false
+			ctx.setOffset(Vector3.zero)
+		end
+	end,
+}
+
 return Behaviors

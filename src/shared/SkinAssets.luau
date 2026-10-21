@@ -119,11 +119,15 @@ local Ids: { [string]: number } = {
 	-- Re-running regenerates this block; hand-organize above the sentinel if you want a key to stay put. ====
 
 	-- Steps (auto)
+	Asteroid = 120245558309804,
 	Balloon = 104096570008422,
+	CarLeft = 115985994454882,
+	CarRight = 85583338720193,
 	CarrotStalk = 114500582490557,
 	LillipadShadow = 71795008144326,
 	PotRim = 140153915656484,
 	RockShadow = 72804718225774,
+	TreeTrunk = 126874102114421,
 
 	-- Entities (auto)
 	Wing1 = 135317432340005,
@@ -137,12 +141,14 @@ local Ids: { [string]: number } = {
 	Cloud2 = 91637480695249,
 	Cloud3 = 88238728312627,
 	Cobweb = 111335333493486,
+	CountryBack = 114351282912359,
 	Flame2 = 120601151032376,
 	Fork = 72640815212719,
 	Ghost = 77131033717969,
 	JackOLantern = 100352976265966,
 	Leaf = 75243070709330,
 	Shelf = 120016036483391,
+	SpaceBack = 135997795193676,
 	SplashBackground = 103131700188383,
 	Spoon = 138155159194064,
 	Stars = 74987867151767,

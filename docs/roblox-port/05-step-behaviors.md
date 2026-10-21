@@ -158,6 +158,7 @@ server-owned step CFrames.
 | `Falling` | continuous downward force while active; `canSpawn` only after some progress |
 | `SplashFlinging` / `StepFlinging` / `SpawnFly` | enable a child object on grab (a splash, a sub-step, or a bug) |
 | `Helper` / `MakeFunky` / `MakeTarget` | misc one-offs; port last |
+| _(port-only)_ `Drive` | Country cars: drive the row at a fixed `speed`, wrap at the lane edge, force-release a frog held on for `CAR_KNOCK_TIME` (doc 17) |
 
 Start with `Crumble`, `Fall`, and one `ChangeDirection` — they cover the three
 hook types (grab, timed, spawn-bias) and prove the registry end to end. Add a

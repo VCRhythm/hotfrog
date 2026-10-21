@@ -31,8 +31,10 @@ Tips.list = {
 	"Skittish bugs drift away from your frog's hands. Tap them from a distance.",
 	-- SkinCatalog flyCost.
 	"Spend your Flys on new frog skins in the Shop.",
-	-- Config.LEVEL_THRESHOLDS = { Kitchen = 50, Country = 100 }; Pot -> Kitchen fires on the pot-rim grab.
-	"After 50 steps the pot rim appears: grab it to reach the Kitchen. Country starts at 100.",
+	-- Config.LEVEL_THRESHOLDS = { Kitchen = 50, Country = 100, Space = 250 }; Pot -> Kitchen fires on the pot-rim grab.
+	"After 50 steps the pot rim appears: grab it to reach the Kitchen. Country starts at 100, Space at 250.",
+	-- StepBehaviors.Drive + Config.CAR_KNOCK_TIME (Country cars).
+	"Cars in the Country keep driving. Hop off before they shake you loose.",
 	-- Chef.luau: the tell, then a blow that fizzles if the target is grabbed first.
 	"In the Kitchen, the Chef shows his move first. Grab the step he targets to save it.",
 	-- Chef.luau actions: Knife / Food / Shove.

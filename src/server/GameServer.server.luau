@@ -7,7 +7,7 @@
 --     (Spawning/SpawnManager.cs PullStep/PullVector)
 --   * owns every frog: position, gravity, limbs, death, respawn (Player/Frog.cs)
 --   * tracks score and persists the high score (Core/VariableManager.cs)
---   * drives level flow per lane (Tutorial -> Pot -> Kitchen -> Country)
+--   * drives level flow per lane (Tutorial -> Pot -> Kitchen -> Country -> Space)
 --
 -- Hardened per ../07-multiplayer.md: the client sends intents (taps); the server
 -- owns all state. Frog models live in workspace and replicate to every client,
@@ -1681,7 +1681,8 @@ RunService.Heartbeat:Connect(function(frameDt: number)
 					f.bobY = nil
 				end
 			elseif not holding or y > Config.LAVA_Y then
-				local speed = math.min(Config.GRAVITY * f.gravityMult, Config.MAX_FALL_SPEED)
+				-- Space's low gravity (Lane.gravityScale): 1 on every other level
+				local speed = math.min(Config.GRAVITY * f.gravityMult, Config.MAX_FALL_SPEED) * lane:gravityScale()
 				y -= speed * dt
 				if holding then
 					y = math.max(y, Config.LAVA_Y) -- SteadilyLowerHead: `while HeadPosition.y > -50`

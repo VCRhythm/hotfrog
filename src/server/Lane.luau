@@ -334,11 +334,11 @@ end
 
 -- ---------------------------------------------------------------------------
 -- Height-stage lookup (b-20260923-154344-dr8a, journey 3/8): the stage from
--- `self.level.heightStages` (Levels.luau: Pot, Kitchen, Country) whose
+-- `self.level.heightStages` (Levels.luau: Pot, Kitchen, Country, Space) whose
 -- `maxRunSteps` bound isn't yet passed, plus its 1-based index -- nil, nil for
 -- a level with no heightStages (Menu, Tutorial). The bounds are in stageSteps:
 -- the whole run's steps for the Pot, steps since the lane entered the level for
--- Kitchen and Country (Levels `stagesFromEntry`). Used by both Lane.pickKind
+-- Kitchen, Country and Space (Levels `stagesFromEntry`). Used by both Lane.pickKind
 -- (weight overrides) and Lane.updateStageAttribute (the replicated `Stage`
 -- attribute WorldScenery reads for its Bubble/Flame density).
 -- ---------------------------------------------------------------------------
@@ -1932,7 +1932,7 @@ local TUTORIAL_TREE_KINDS = {
 -- Level flow (Core/LevelManager.cs FillLevelEvents' step-count events, doc 13
 -- item 5): Tutorial -> Pot on the 3rd tree climbed (marks tutorialDone), then
 -- Pot -> Kitchen on grabbing the pot's rim (laid at LEVEL_THRESHOLDS.Kitchen,
--- Lane.spawnRim), Kitchen -> Country at LEVEL_THRESHOLDS. Called by GameServer once per
+-- Lane.spawnRim), Kitchen -> Country -> Space at LEVEL_THRESHOLDS. Called by GameServer once per
 -- successful grab (after it has already bumped the session score), with the
 -- grabbed step's kind name so it can also track tutorialGraceActive
 -- (b-20260922-101541-w1i2).
@@ -1960,6 +1960,8 @@ function Lane.onStepClimbed(self: Lane, kindName: string?)
 		self:levelUp(Levels.KITCHEN)
 	elseif self.levelIndex == Levels.KITCHEN and self.runSteps >= Config.LEVEL_THRESHOLDS.Country then
 		self:levelUp(Levels.COUNTRY)
+	elseif self.levelIndex == Levels.COUNTRY and self.runSteps >= Config.LEVEL_THRESHOLDS.Space then
+		self:levelUp(Levels.SPACE)
 	end
 
 	-- A height-stage change WITHIN the level (e.g. Pot's 15/35 runSteps stage
@@ -1967,6 +1969,20 @@ function Lane.onStepClimbed(self: Lane, kindName: string?)
 	if self.levelIndex == levelBefore then
 		self:updateStageAttribute()
 	end
+end
+
+-- The frog's gravity multiplier for this lane right now (b-20261020-200915-5ju4):
+-- 1 everywhere but Space, where it eases linearly from 1 to
+-- Config.SPACE_GRAVITY_SCALE over the first SPACE_GRAVITY_TRANSITION_STEPS steps
+-- climbed since the lane arrived, then stays there. GameServer scales the frog's
+-- fall speed by it.
+function Lane.gravityScale(self: Lane): number
+	if self.levelIndex ~= Levels.SPACE then
+		return 1
+	end
+	local span = math.max(1, Config.SPACE_GRAVITY_TRANSITION_STEPS)
+	local t = math.clamp((self.runSteps - self.levelStartSteps) / span, 0, 1)
+	return 1 + (Config.SPACE_GRAVITY_SCALE - 1) * t
 end
 
 -- A real mid-run level-up (never run start or respawn -- those go through

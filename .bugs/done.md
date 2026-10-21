@@ -2452,3 +2452,24 @@ verified: yes — `bugloop.py owe --accept` reported each of the five accepted (
 review: n/a
 enforced-by: none in this repo; the `pending` warning on title-match done-checks is b-20261020-201213-yd36 on the bugloop list
 followups: b-20261020-201213-yd36
+
+## b-20261020-200915-5ju4  fixed  2026-10-20 20:51
+note: Feature: endless outdoor area and space area (design: .bugs/attachments/b-20261020-200915-5ju4-1.md) — outdoor area after the kitchen window with trees and cars, then an endless low-gravity Space level.
+cause: Ruling b-20261020-201705-zwi7: "1, but let's give it a new background; 2 space at a step threshold, 250; 3) yes; 4) generate with ludo. try to match my sprite style as closely as possible". Country was the last, endless level with no trees, cars or background of its own, and there was no Space level or low gravity.
+change: Country is now the outdoor area with grabbable TreeTrunk steps, CarRight/CarLeft steps that drive on fixed rows, wrap, and force-release the frog's limb on them after 1.2 s (never a direct death), and a new CountryBack backdrop. A new endless Space level starts at 250 steps (Config.LEVEL_THRESHOLDS) with Asteroid steps, a SpaceBack backdrop, and gravity easing to 20% over 8 steps (Config.SPACE_GRAVITY_SCALE / SPACE_GRAVITY_TRANSITION_STEPS, Lane:gravityScale). HUD landmark, badge rank, a "Space Frog" badge entry (id 0, like every other badge until tools/create_badges.py runs), tips and docs 05/13/17 updated. Six sprites made with Ludo AI, uploaded with the asset pipeline (all Approved/Green), ids written by tools/write_asset_ids.py.
+files: src/shared/Config.luau, src/server/Lane.luau, src/server/GameServer.server.luau, src/shared/StepBehaviors.luau, src/shared/StepKinds.luau, src/shared/Levels.luau, src/shared/SkinAssets.luau, src/client/WorldBackdrop.client.luau, src/client/GameClient.client.luau, src/client/Music.client.luau, src/client/WorldFrogCosmetics.client.luau, src/server/BadgeService.server.luau, src/shared/Badges.luau, src/shared/Tips.luau, docs/roblox-port/05-step-behaviors.md, docs/roblox-port/13-levels-and-lanes.md, docs/roblox-port/17-status-and-known-gaps.md, Sprites/Rocks/TreeTrunk.png, Sprites/Rocks/CarRight.png, Sprites/Rocks/CarLeft.png, Sprites/Rocks/Asteroid.png, Sprites/Other/CountryBack.png, Sprites/Other/SpaceBack.png
+test: stylua --check pass on all 14 .luau; tools/luau_check.sh clean on each; selene src/ 0 errors 0 warnings; rojo build pass; Lane.gravityScale in the Server datamodel 1.00/0.80/0.60/0.20/0.20 at 0/2/4/8/20 steps into Space, 1 in Country.
+verified: partly — Studio Play with a client bot on the real remotes (Normal mode): Pot -> Kitchen at 53, Country at 100, Space at 250 with 0 deaths; TreeTrunk, CarLeft, CarRight and Asteroid grabbed; a held CarRight was force-released after 1.23 s and the run stayed Playing; CarRight moved ~2.5 studs/s; in Space the frog fell 9.9 studs in 3 s against ~38 at normal gravity, then died in the lava and the run went Dead -> Menu; console had no script errors. Not seen: CountryBack in game (the October Halloween overlay and Daily Streak popup covered it), and 4 players at 60 FPS.
+review: looks-right; checked: git diff of Config, Lane, GameServer, StepBehaviors, StepKinds, Levels, SkinAssets; read ctxOf, forceReleaseStep, releaseStep, the Heartbeat step loop and frog fall code; grepped src/ for Country, Kitchen, LEVEL_THRESHOLDS, CLASSIC_SCROLL_SPEED, LEVEL_RANK, MissionService. Noted for play: a knock-off with the other hand empty lets the frog fall (it can still reach the lava); a held car drags the limb up to ~4 studs sideways during the hold; Space has no scenery spawners or patterns and may look sparse.
+studio: Hot Frog (placeId 114911935371092); the fixer started Play and stopped it.
+owed: o-20261020-205042-fnwn (taste: look over the new art and car/Space feel)
+leftover: b-20261020-205042-kryx (Studio check that CountryBack/SpaceBack render, once October's Halloween theme is off); 4-player / 60 FPS: none — the Studio MCP cannot start a multiplayer session or measure frame rate from this host.
+
+## b-20261020-201705-zwi7  answered  2026-10-20 20:51
+note: DECISION: 1, but let's give it a new background; 2 space at a step threshold, 250; 3) yes; 4) generate with ludo. try to match my sprite style as closely as possible
+cause: The owner's ruling on b-20261020-200915-5ju4.
+change: see b-20261020-200915-5ju4
+files: none
+test: none
+verified: see b-20261020-200915-5ju4
+review: n/a

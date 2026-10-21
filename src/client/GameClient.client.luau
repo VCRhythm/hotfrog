@@ -1147,7 +1147,7 @@ end)
 --
 -- b-20260923-154345-9iwk (journey 6/8): also a height meter for THIS frog --
 -- a "Self" marker plus fixed landmark ticks at Config.LEVEL_THRESHOLDS (Pot
--- at 0, Kitchen at 50, Country at 100), so the player can see how far the
+-- at 0, Kitchen at 50, Country at 100, Space at 250), so the player can see how far the
 -- next level is from the very first grab, not just a raw score number.
 -- Markers read the player's `RunSteps` attribute (GameServer, real steps
 -- climbed this run), not leaderstats.Score: the combo bonus
@@ -1231,9 +1231,9 @@ UIKit.corner(selfMarker, 8)
 UIKit.outline(selfMarker, 2)
 local selfTag = addMarkerTag(selfMarker) -- own Jar title only; the name is obvious
 
--- Landmark ticks (Pot/Kitchen/Country): a short bar on the rail plus a label
--- to its left, both repositioned every poll on the same alpha scale as the
--- score markers so they stay aligned even as maxScore grows past Country.
+-- Landmark ticks (Pot/Kitchen/Country/Space): a short bar on the rail plus a
+-- label to its left, both repositioned every poll on the same alpha scale as the
+-- score markers so they stay aligned even as maxScore grows past Space.
 local function addLandmark(name: string, value: number): { tick: Frame, label: TextLabel, value: number }
 	local tick = Instance.new("Frame")
 	tick.Name = "Landmark_" .. name
@@ -1265,6 +1265,7 @@ local landmarks = {
 	addLandmark("Pot", 0),
 	addLandmark("Kitchen", Config.LEVEL_THRESHOLDS.Kitchen),
 	addLandmark("Country", Config.LEVEL_THRESHOLDS.Country),
+	addLandmark("Space", Config.LEVEL_THRESHOLDS.Space),
 }
 
 railGui.Parent = playerGui
@@ -1279,10 +1280,10 @@ task.spawn(function()
 	while true do
 		local ownScore = runStepsOf(player)
 
-		-- Always at least Country, so all three landmarks stay on the strip
+		-- Always at least Space, so all four landmarks stay on the strip
 		-- from step 1; grows past that once someone (including this frog)
 		-- climbs higher, the same way the old other-players-only scale did.
-		local maxScore = math.max(1, Config.LEVEL_THRESHOLDS.Country, ownScore)
+		local maxScore = math.max(1, Config.LEVEL_THRESHOLDS.Space, ownScore)
 		for _, otherPlayer in Players:GetPlayers() do
 			if otherPlayer ~= player then
 				maxScore = math.max(maxScore, runStepsOf(otherPlayer))

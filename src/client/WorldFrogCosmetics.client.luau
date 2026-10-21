@@ -34,7 +34,7 @@ local stepsFolder = playField:WaitForChild("Steps")
 local lanesFolder = playField:WaitForChild("Lanes")
 
 -- Levels.luau's `list` indices are already in progression order (Tutorial <
--- Pot < Kitchen < Country) -- used below to tell a real level-up (index goes
+-- Pot < Kitchen < Country < Space) -- used below to tell a real level-up (index goes
 -- up) apart from a death reset (index goes back down) when all we have for
 -- another lane is its current Level attribute, not the transition string.
 local levelIndexByName: { [string]: number } = {}
@@ -353,7 +353,7 @@ end
 -- own; that one gets the real transition off LevelState.Changed below) --
 -- detects a real level-up from the lane's Level attribute alone. `Level`
 -- changes on every transition ("start"/"soft"/"death"), but only "soft" ever
--- moves to a HIGHER Levels.list index (Tutorial->Pot->Kitchen->Country);
+-- moves to a HIGHER Levels.list index (Tutorial->Pot->Kitchen->Country->Space);
 -- "start" has no prior value to compare against and "death" always resets
 -- back to Pot or Tutorial, so "index went up from a known prior value" is an
 -- exact stand-in for "soft" without needing the transition string itself.

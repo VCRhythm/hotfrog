@@ -139,6 +139,12 @@ already `true`, in which case it starts at **Pot**. `Lane:onStepClimbed()`
   saves the profile, and calls `Lane:setLevel(Pot)`.
 - **Pot → Kitchen**: at `runSteps >= Config.LEVEL_THRESHOLDS.Kitchen` (50).
 - **Kitchen → Country**: at `runSteps >= Config.LEVEL_THRESHOLDS.Country` (100).
+- **Country → Space**: at `runSteps >= Config.LEVEL_THRESHOLDS.Space` (250).
+  Space is a port-only 6th level (`Levels.SPACE`), the last and endless one; it
+  eases the frog's gravity down to `Config.SPACE_GRAVITY_SCALE` over its first
+  `SPACE_GRAVITY_TRANSITION_STEPS` steps (`Lane.gravityScale`). Country's trees
+  and cars and both new backdrops are in doc 17 ("Country outdoor area and
+  Space").
 
 `LEVEL_THRESHOLDS` and reaching Country in single-player are the project
 owner's decision (doc 13) — Unity itself never advanced past Pot.

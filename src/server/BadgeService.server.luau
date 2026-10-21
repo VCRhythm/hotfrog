@@ -33,7 +33,7 @@ local Profiles = require(script.Parent.Profiles)
 
 -- Level order for "reached" badges (Lane.luau sets the lane's `Level` attribute
 -- to Levels' names); anything unlisted (Tutorial) ranks 0.
-local LEVEL_RANK: { [string]: number } = { Pot = 1, Kitchen = 2, Country = 3 }
+local LEVEL_RANK: { [string]: number } = { Pot = 1, Kitchen = 2, Country = 3, Space = 4 }
 local STREAK_POLL = 20 -- seconds; DailyService has no event, the claim just bumps profile.streak
 
 -- Sorted ascending once, so "which thresholds did this jump cross" is a

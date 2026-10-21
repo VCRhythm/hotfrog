@@ -168,7 +168,15 @@ local Config = {
 	-- Changed to a new level every 50 steps 2026-09-22 (b-20260922-101937-mcaj,
 	-- owner's decision; was Kitchen 200, Country 500). Kitchen is where the Pot
 	-- stops and its rim is laid; grabbing the rim is the level-up (Lane.spawnRim).
-	LEVEL_THRESHOLDS = { Kitchen = 50, Country = 100 },
+	-- Space (b-20261020-200915-5ju4, owner's ruling b-20261020-201705-zwi7):
+	-- Country now hands off to Space at 250 run steps; Space is the endless one.
+	LEVEL_THRESHOLDS = { Kitchen = 50, Country = 100, Space = 250 },
+	-- Space's low gravity (same ruling): the frog's fall speed eases from 1x to
+	-- SPACE_GRAVITY_SCALE over the first SPACE_GRAVITY_TRANSITION_STEPS steps
+	-- climbed in Space (Lane.gravityScale), then stays there. The spec's "256-unit
+	-- transition" is 256 * UNITY_TO_STUDS ~ 80 studs, about 8 pulls of ~10 studs.
+	SPACE_GRAVITY_SCALE = 0.2,
+	SPACE_GRAVITY_TRANSITION_STEPS = 8,
 
 	-- Step spawners only run while the field is being pulled (SpawnManager.PullStep
 	-- / ReleasePullingStep), and Unity runs them for a fixed 1 s per grab
@@ -227,6 +235,7 @@ local Config = {
 		Pot = 10 * UNITY_TO_STUDS, -- ~3.14 studs/s
 		Kitchen = 13 * UNITY_TO_STUDS, -- ~4.09 studs/s
 		Country = 16 * UNITY_TO_STUDS, -- ~5.03 studs/s
+		Space = 16 * UNITY_TO_STUDS, -- same as Country: low gravity is Space's own twist
 	} :: { [string]: number },
 	-- Drift spends spawner time per stud scrolled (the port's old per-stud rate,
 	-- 8 studs per spawner-second, see PULL_SPAWN_WINDOW above), settled in chunks
@@ -359,6 +368,13 @@ local Config = {
 	-- blinking (`Unsteady`), then seconds of blinking before it drops away.
 	VANISH_DELAY = 3,
 	VANISH_WARN_TIME = 1.5,
+	-- StepBehaviors.Drive (Country cars, b-20261020-200915-5ju4): a car drives
+	-- straight along its own row at its kind's fixed speed (StepKinds `params.speed`,
+	-- studs/s, signed: + = right), held or not, and a frog that rides one longer
+	-- than CAR_KNOCK_TIME seconds is knocked off it (a forced release, never a
+	-- death). The car shakes for the last CAR_WARN_TIME of that.
+	CAR_KNOCK_TIME = 1.2,
+	CAR_WARN_TIME = 0.6,
 	-- Motion numbers that used to be literals in Lane / GameServer:
 	BOB_ROCK_OUT_FRACTION = 1 / 3, -- Frog.Bob's DOPunchRotation: share of BOB_ROCK_TIME spent swinging out; the rest swings back
 	SPAWN_NUDGE_STEP = 1, -- Lane.clearSpot: studs per try when moving a crowded spawn upstream

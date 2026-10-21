@@ -23,7 +23,8 @@
 -- Multiplayer.unity (the only scene that has the Country level) overrides
 -- musicClips[] with a fifth entry, Audio/Music/Two Wrongs.wav -> music5. An
 -- index with no mapped stem just fades the current track out to silence (see
--- `playIndex` below).
+-- `playIndex` below). Space (a port-only level) uses index 2, music3 (Opening),
+-- which no other level plays.
 --
 -- Respects the `MusicOn` player Attribute (server sets it; per this phase's
 -- contract it may not exist yet -- nil means ON, mirroring `SfxOn` in

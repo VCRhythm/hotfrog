@@ -205,3 +205,9 @@ step: Play the Tutorial in Studio and look at the new oak: crisp art, acorns han
 no-check: only the owner can judge the look
 evidence: marked done by the user, no check
 cleared: 2026-10-17 13:33 marked done on the fleet dashboard
+
+## o-20261020-205042-fnwn  open  2026-10-20 20:50
+for: b-20261020-200915-5ju4
+kind: taste
+step: Look over the new Ludo art for style fit and car feel: Sprites/Rocks/TreeTrunk.png, CarRight.png, CarLeft.png, Asteroid.png, Sprites/Other/CountryBack.png, SpaceBack.png; in game, how a held car drags the frog for 1.2 s before knocking it off, car speed, and Space's 20% gravity. Reply on the dashboard with anything to change
+no-check: style and feel are a judgement only the owner can make

@@ -15,7 +15,8 @@
 -- Multiplayer-scene overrides (doc 11 "Level4 Country" + its patches to the base
 -- 4 levels) are folded directly into this single list rather than kept as a
 -- separate scene: Pot gets its extra UpScenerySpawner, Kitchen gets its Chef
--- levelObject, and Country exists as a 5th level entry.
+-- levelObject, and Country exists as a 5th level entry. Space (a 6th) is a PORT
+-- ADDITION with no Unity counterpart (b-20261020-200915-5ju4, doc 17).
 
 local Config = require(script.Parent.Config)
 
@@ -162,12 +163,14 @@ export type Level = {
 local Levels = {}
 
 -- 1-based indices (Lua arrays), matching Core/LevelManager.cs's 0-based order
--- (Menu=0..Kitchen=3) plus the Multiplayer-only Country as a 5th entry.
+-- (Menu=0..Kitchen=3) plus the Multiplayer-only Country as a 5th entry and the
+-- port's own Space as a 6th.
 Levels.MENU = 1
 Levels.TUTORIAL = 2
 Levels.POT = 3
 Levels.KITCHEN = 4
 Levels.COUNTRY = 5
+Levels.SPACE = 6
 
 local list: { Level } = {}
 
@@ -250,6 +253,19 @@ local DYNAMIC_KINDS = { "Lillipad", "BobRock", "SpringRock", "BlinkRock", "Crumb
 local function withDynamic(pool: { string }): { string }
 	local out = table.clone(pool)
 	for _, kindName in DYNAMIC_KINDS do
+		table.insert(out, kindName)
+	end
+	return out
+end
+
+-- Country's outdoor footholds (b-20261020-200915-5ju4, owner's ruling
+-- b-20261020-201705-zwi7): tree trunks and cars, appended to each Country
+-- rock/shelf pool on top of the dynamic kinds.
+local OUTDOOR_KINDS = { "TreeTrunk", "CarRight", "CarLeft" }
+
+local function withOutdoor(pool: { string }): { string }
+	local out = withDynamic(pool)
+	for _, kindName in OUTDOOR_KINDS do
 		table.insert(out, kindName)
 	end
 	return out
@@ -701,12 +717,17 @@ list[Levels.KITCHEN] = {
 -- index 5 here). Reuses Kitchen's spawners wholesale and adds one themed
 -- Rocket/Balloon spawner; uniquely starts with a HORIZONTAL initial direction.
 -- Owner's decision (doc 13 item 5): reachable in the single-player port too, at
--- LEVEL_THRESHOLDS.Country steps.
+-- LEVEL_THRESHOLDS.Country steps. PORT ADDITIONS (b-20261020-200915-5ju4, ruling
+-- b-20261020-201705-zwi7, doc 17): Country is the outdoor area -- its own sky
+-- backdrop, tree trunks and cars in its rock/shelf pools -- and it is no longer
+-- endless: LEVEL_THRESHOLDS.Space run steps hand the lane on to Space.
 -- ---------------------------------------------------------------------------
 list[Levels.COUNTRY] = {
 	name = "Country",
 	musicIndex = 4,
-	background = nil, -- explicitly none (doc 11: backgroundMaterial set to {fileID:0,pathID:0})
+	-- PORT DEVIATION: Unity has none (doc 11: backgroundMaterial {fileID:0,pathID:0});
+	-- the port paints a sky (Sprites/Other/CountryBack.png).
+	background = "CountryBack",
 	overlay = nil,
 	initialSpawnDirection = Vector2.new(-0.5, 0),
 	stepSpawners = {
@@ -743,7 +764,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
+			pool = withOutdoor({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -758,7 +779,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" }),
+			pool = withOutdoor({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" }),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
@@ -773,7 +794,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" }),
+			pool = withOutdoor({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" }),
 			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
 		},
 		{
@@ -791,7 +812,7 @@ list[Levels.COUNTRY] = {
 			-- PORT ADDITION: LeftRock/RightRock are in no shipped Unity pool, which left the
 			-- Left/Right spawners unreachable from a downward scroll; adding them here is
 			-- what makes sideways travel actually happen (doc 13).
-			pool = withDynamic({
+			pool = withOutdoor({
 				"ShelfWithSpoon",
 				"ShelfWithFork",
 				"Shelf",
@@ -813,36 +834,71 @@ list[Levels.COUNTRY] = {
 		},
 	},
 	levelObjects = { "US" },
-	-- PORT ADDITION: Country is the last level and never ends, so its stages ramp
-	-- from "Kitchen's movers, no hazards" (a breather on arrival) to a mix where
-	-- roughly half the rock/shelf spawns are dynamic. The themed Rocket/Balloon
-	-- spawner is untouched. Counted from the lane's arrival, like Kitchen's.
+	-- PORT ADDITION: Country's ~150 steps (LEVEL_THRESHOLDS.Country to .Space)
+	-- ramp from "Kitchen's movers, no hazards" (a breather on arrival, no cars
+	-- yet) to a mix where roughly half the rock/shelf spawns are dynamic. Tree
+	-- trunks keep their StepKinds weight throughout; cars join after stage 1 and
+	-- grow more common (each stage lists both, so the stage tables match). The
+	-- themed Rocket/Balloon spawner is untouched. Counted from the lane's
+	-- arrival, like Kitchen's.
 	stagesFromEntry = true,
 	heightStages = {
 		{
 			maxRunSteps = 10,
-			weights = { Lillipad = 0.35, BobRock = 0.3, SpringRock = 0.15, BlinkRock = 0, CrumbleRock = 0 },
+			weights = {
+				Lillipad = 0.35,
+				BobRock = 0.3,
+				SpringRock = 0.15,
+				BlinkRock = 0,
+				CrumbleRock = 0,
+				CarRight = 0,
+				CarLeft = 0,
+			},
 			sceneryDensity = 1,
 			patternChance = 0.1,
 			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster },
 		},
 		{
 			maxRunSteps = 30,
-			weights = { Lillipad = 0.4, BobRock = 0.35, SpringRock = 0.25, BlinkRock = 0.2, CrumbleRock = 0.3 },
+			weights = {
+				Lillipad = 0.4,
+				BobRock = 0.35,
+				SpringRock = 0.25,
+				BlinkRock = 0.2,
+				CrumbleRock = 0.3,
+				CarRight = 0.15,
+				CarLeft = 0.15,
+			},
 			sceneryDensity = 1,
 			patternChance = 0.18,
 			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain },
 		},
 		{
 			maxRunSteps = 60,
-			weights = { Lillipad = 0.45, BobRock = 0.4, SpringRock = 0.25, BlinkRock = 0.35, CrumbleRock = 0.4 },
+			weights = {
+				Lillipad = 0.45,
+				BobRock = 0.4,
+				SpringRock = 0.25,
+				BlinkRock = 0.35,
+				CrumbleRock = 0.4,
+				CarRight = 0.2,
+				CarLeft = 0.2,
+			},
 			sceneryDensity = 1,
 			patternChance = 0.22,
 			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain, patterns.PadLadder },
 		},
 		{
 			maxRunSteps = math.huge,
-			weights = { Lillipad = 0.5, BobRock = 0.45, SpringRock = 0.3, BlinkRock = 0.45, CrumbleRock = 0.45 },
+			weights = {
+				Lillipad = 0.5,
+				BobRock = 0.45,
+				SpringRock = 0.3,
+				BlinkRock = 0.45,
+				CrumbleRock = 0.45,
+				CarRight = 0.25,
+				CarLeft = 0.25,
+			},
 			sceneryDensity = 1,
 			patternChance = 0.25,
 			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain, patterns.PadLadder },
@@ -856,6 +912,131 @@ list[Levels.COUNTRY] = {
 			cooldown = 20,
 			pattern = patterns.CastleKeep,
 		},
+		{
+			name = "SpringStreak",
+			chance = 0.03,
+			minRunSteps = 25,
+			cooldown = 25,
+			pattern = patterns.SpringStreak,
+		},
+	},
+}
+
+-- ---------------------------------------------------------------------------
+-- Space (PORT ADDITION, no Unity level: b-20261020-200915-5ju4, owner's ruling
+-- b-20261020-201705-zwi7, doc 17). Reached from Country at
+-- LEVEL_THRESHOLDS.Space run steps; the last level, endless. Gravity eases to
+-- Config.SPACE_GRAVITY_SCALE over the first SPACE_GRAVITY_TRANSITION_STEPS
+-- steps after arrival (Lane.gravityScale) and stays there. Country's spawners
+-- with asteroids in place of the shelves and trees/cars, the themed spawner
+-- down to rockets, and a star-field backdrop; travel starts straight up.
+-- ---------------------------------------------------------------------------
+list[Levels.SPACE] = {
+	name = "Space",
+	musicIndex = 2, -- music3 "Opening", otherwise unused in-game
+	background = "SpaceBack",
+	overlay = nil,
+	initialSpawnDirection = Vector2.new(0, -1),
+	stepSpawners = {
+		{
+			name = "RocketSpawner",
+			direction = Vector2.new(-0.5, 0),
+			discreteMovement = false,
+			moveTimeMin = 1,
+			moveTimeMax = 2,
+			moveSpeedMin = 0.5,
+			moveSpeedMax = 1,
+			maxSpawnCount = -1,
+			spawningSpeedMin = 2,
+			spawningSpeedMax = 3,
+			spawnAllOnAwake = false,
+			pool = { "Rocket" },
+			noPatterns = true,
+			movements = mv({ { 1.0, -1.25 }, { 1.5, -1.25 }, { 2.5, -1.25 } }),
+		},
+		{
+			name = "DownLeftStepSpawner",
+			direction = Vector2.new(-0.5, -1),
+			discreteMovement = true,
+			moveTimeMin = 1,
+			moveTimeMax = 2,
+			moveSpeedMin = 0.5,
+			moveSpeedMax = 1,
+			maxSpawnCount = -1,
+			spawningSpeedMin = 0.5,
+			spawningSpeedMax = 1.0,
+			spawnAllOnAwake = false,
+			pool = withDynamic({ "Asteroid", "UpRock" }),
+			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
+		},
+		{
+			name = "RightStepSpawner",
+			direction = Vector2.new(0.5, 0),
+			discreteMovement = true,
+			moveTimeMin = 1,
+			moveTimeMax = 2,
+			moveSpeedMin = 0.5,
+			moveSpeedMax = 1,
+			maxSpawnCount = -1,
+			spawningSpeedMin = 0.5,
+			spawningSpeedMax = 1.0,
+			spawnAllOnAwake = false,
+			pool = withDynamic({ "Asteroid", "UpRock", "UpRightRock" }),
+			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
+		},
+		{
+			name = "LeftStepSpawner",
+			direction = Vector2.new(-0.5, 0),
+			discreteMovement = true,
+			moveTimeMin = 1,
+			moveTimeMax = 2,
+			moveSpeedMin = 0.5,
+			moveSpeedMax = 1,
+			maxSpawnCount = -1,
+			spawningSpeedMin = 0.5,
+			spawningSpeedMax = 1.0,
+			spawnAllOnAwake = false,
+			pool = withDynamic({ "Asteroid", "UpRock", "UpLeftRock" }),
+			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
+		},
+		{
+			name = "DownStepSpawner",
+			direction = Vector2.new(0, -1),
+			discreteMovement = false,
+			moveTimeMin = 1,
+			moveTimeMax = 2,
+			moveSpeedMin = 0.5,
+			moveSpeedMax = 1,
+			maxSpawnCount = -1,
+			spawningSpeedMin = 0.5,
+			spawningSpeedMax = 1.0,
+			spawnAllOnAwake = false,
+			pool = withDynamic({ "Asteroid", "UpLeftRock", "UpRightRock", "LeftRock", "RightRock" }),
+			movements = mv({ { 0.0, 1.25 }, { 1.5, 1.25 }, { 2.0, 1.25 } }),
+		},
+	},
+	scenerySpawners = {},
+	levelObjects = {},
+	-- Two asteroids to land on while gravity eases off, before anything else.
+	introSequence = { "Asteroid", "Asteroid" },
+	-- Counted from the lane's arrival: a calm stretch (movers only) while the
+	-- gravity transition plays, then Country's late-game mix.
+	stagesFromEntry = true,
+	heightStages = {
+		{
+			maxRunSteps = 12,
+			weights = { Lillipad = 0.35, BobRock = 0.3, SpringRock = 0, BlinkRock = 0, CrumbleRock = 0 },
+			sceneryDensity = 1,
+		},
+		{
+			maxRunSteps = math.huge,
+			weights = { Lillipad = 0.5, BobRock = 0.45, SpringRock = 0.3, BlinkRock = 0.45, CrumbleRock = 0.45 },
+			sceneryDensity = 1,
+			patternChance = 0.25,
+			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain, patterns.PadLadder },
+		},
+	},
+	events = {
 		{
 			name = "SpringStreak",
 			chance = 0.03,

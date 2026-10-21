@@ -263,6 +263,62 @@ local StepKinds: { [string]: Kind } = {
 		hitSize = HIT_BALLOON,
 	},
 
+	-- PORT ADDITIONS (b-20261020-200915-5ju4, owner's ruling
+	-- b-20261020-201705-zwi7; doc 17): Country's outdoor footholds and Space's
+	-- rocks. No Unity prefab or .meta, so each canvas is the port's own size
+	-- for its Ludo-generated art (Sprites/Rocks/<sprite>.png) and the hit box
+	-- is the art's own extent on it.
+	-- A static tree trunk. TreeTrunk.png is 256x512 px; the trunk runs the
+	-- canvas height but sits left of centre (a leafy twig fills the right), so
+	-- the grip and hit box are shifted onto the trunk (x 38-146 px of 256).
+	TreeTrunk = {
+		behavior = "None",
+		sprite = "TreeTrunk",
+		spawnProbability = 0.4,
+		size = Vector3.new(4.5, 9, 1),
+		hitSize = Vector2.new(2.2, 8.4),
+		gripOffset = Vector2.new(-0.63, 0),
+		hitOffset = Vector2.new(-0.63, 0),
+		tapSize = Vector2.new(4, 8.8),
+	},
+	-- Cars (StepBehaviors.Drive): each drives its row at the kind's own fixed
+	-- speed and knocks a frog that rides it too long off (a forced release).
+	-- CarRight.png / CarLeft.png (mirrored) are 512x256 px; the body spans x
+	-- 62-444 and y 9-212 px, so the hit box and grip sit ~0.38 studs above the
+	-- canvas centre (off the wheels).
+	CarRight = {
+		behavior = "Drive",
+		sprite = "CarRight",
+		spawnProbability = 0.2,
+		size = Vector3.new(11, 5.5, 1),
+		hitSize = Vector2.new(8.2, 4.2),
+		gripOffset = Vector2.new(0, 0.38),
+		hitOffset = Vector2.new(0, 0.38),
+		params = { speed = 2.5 },
+		hazard = true,
+	},
+	CarLeft = {
+		behavior = "Drive",
+		sprite = "CarLeft",
+		spawnProbability = 0.2,
+		size = Vector3.new(11, 5.5, 1),
+		hitSize = Vector2.new(8.2, 4.2),
+		gripOffset = Vector2.new(0, 0.38),
+		hitOffset = Vector2.new(0, 0.38),
+		params = { speed = -3.5 },
+		hazard = true,
+	},
+	-- Space's plain rock (Asteroid.png, 256 px, the rock canvas and collider).
+	-- It alone stands in for Country's three shelf kinds (0.5 each), so it
+	-- carries their summed weight and the arrows keep their share.
+	Asteroid = {
+		behavior = "None",
+		sprite = "Asteroid",
+		spawnProbability = 1.5,
+		size = ART_ROCK,
+		hitSize = HIT_ROCK,
+	},
+
 	-- Legacy `General/Spawners/*` pool (doc 11 §2b) -- not referenced by any live
 	-- level's spawners, but kept as data in case a future level wants them.
 	StillRock = {
