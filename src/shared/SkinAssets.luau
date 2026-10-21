@@ -125,6 +125,7 @@ local Ids: { [string]: number } = {
 	CarLeft = 115985994454882,
 	CarRight = 85583338720193,
 	CarrotStalk = 114500582490557,
+	CashPile = 108558830846506,
 	IceCube = 83493672664928,
 	LillipadShadow = 71795008144326,
 	PotRim = 140153915656484,

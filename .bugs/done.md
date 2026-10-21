@@ -2984,3 +2984,14 @@ verified: partly — contact sheet only; the in-game look is held by b-20261021-
 review: looks-right (orchestrator viewed the contact sheets)
 leftover: none — in-game look is b-20261021-101926-frao
 owed: none
+
+## b-20261021-094516-9uqb  fixed  2026-10-21 10:25
+note: remove the trampolines. they don't fit the theme of climbing. maybe a pile of cash instead?
+cause: Country's Launch role was the Trampoline (theming part 5, rv4a), which the owner finds off-theme for a climbing game.
+change: new `CashPile` step (Ludo art, soft.py restyle to flat soft colours, 512x256 on the 8 x 4 canvas; alpha box x 4-508, y 59-196 px, hit 7.8 x 2, tap 8 x 3.6) takes Country's Launch role with the Trampoline's behaviour and weights (`Launch`, pull 8; .15 / .25 / .25 / .3); SpringStreak lays it through the role. The Trampoline StepKinds entry and every pool/weight reference are gone; Trampoline.png and its generated id stay unused. Uploaded (108558830846506, Approved/Green) and written by tools/write_asset_ids.py; music1/music5 restored, SoundAssets has no content diff. Docs 17 (part 5 row), 18 and 19 (Country Launch rows) updated.
+files: Sprites/Rocks/CashPile.png, src/shared/StepKinds.luau, src/shared/Levels.luau, src/shared/SkinAssets.luau, docs/roblox-port/17-status-and-known-gaps.md, docs/roblox-port/18-step-kinds-by-level.md, docs/roblox-port/19-level-theming.md
+test: stylua --check, selene src/ 0/0, tools/luau_check.sh on the changed files; contact sheet beside the potato and toaster.
+verified: partly — contact sheet only; the in-game check is b-20261021-102559-xryp
+review: looks-right (orchestrator read the diff and viewed the contact sheet); checked: no Trampoline left in src/ pools or roles, SkinAssets diff adds only CashPile.
+leftover: none — in-game look and launch are b-20261021-102559-xryp; doc 19's planning prose (ruling text) keeps the word Trampoline as history
+owed: none
