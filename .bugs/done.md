@@ -2918,3 +2918,36 @@ verified: yes — Studio is in Edit; the rule is applied from the next checker o
 review: n/a (process change, no code)
 leftover: none — the held checks are open entries (b-20261021-092032-44by, b-20261021-092339-6q9n, b-20261021-092756-3yan, b-20261021-100046-k6c8)
 owed: none
+
+## b-20261021-091537-xh0w  fixed  2026-10-21 10:05
+note: Theming part 6 (rulings 1B, 2A, 5B; Space new art): UFO replaces BobRock (RiseAndFall) at its weight; Satellite splits the Patrol weight beside Lillipad
+cause: Space's Bob and Patrol movers were the tinted BobRock and the pond Lillipad; the new UFO and Satellite art had asset ids but no StepKinds entries.
+change: StepKinds gains `UFO` (RiseAndFall, amplitude 1.5, period 2.5, as BobRock) and `Satellite` (Patrol, amplitude 2.5, period 3.5, as Lillipad), both untinted non-hazard on an 8 x 4 canvas (UFO hit 7.8 x 2.5, tap 8 x 3.6; Satellite hit 7.8 x 1.5, tap 8 x 3.4, from PIL alpha boxes). Levels: `SPACE_ROLES` (Bob = UFO) and `withSpace` (appends Satellite) feed Space's roles and its four pools; stage weights Lillipad .175 / .25, Satellite .175 / .25, UFO .3 / .45 (was Lillipad .35 / .5, BobRock .3 / .45). Lillipad stays the Patrol role, so PadLadder and SpringStreak are unchanged; no Meteor/BoostRocket/DriftAsteroid. Halloween already keeps Patrol and RiseAndFall. New doc 17 row "Space UFO and Satellite"; doc 18 "Space movers" bullet.
+files: src/shared/StepKinds.luau, src/shared/Levels.luau, docs/roblox-port/17-status-and-known-gaps.md, docs/roblox-port/18-step-kinds-by-level.md
+test: stylua --check, selene src/ 0/0, tools/luau_check.sh on the changed files, rojo build ok.
+verified: no — not spawned in Studio yet; the theming integration check b-20261021-091538-mio4 covers Space
+review: looks-right (orchestrator read the diff); checked: UFO and Satellite ids exist in SkinAssets, Satellite is in all four Space pools, UFO reaches them through the Bob role, BobRock stays in the other levels' weights, weights still sum per stage as before.
+leftover: none — hit boxes and tap pads are guesses, noted in the doc 17 row; in-game look is b-20261021-091538-mio4
+owed: none
+
+## b-20261021-100046-k99v  fixed  2026-10-21 10:05
+note: Stale comment: GameClient.client.luau (about line 463) says steps are never rotated, but un-grabbed steps idle-spin
+cause: the comment above stepAt predates the idle spin (knoi) and the shelf no-spin flag (4kya).
+change: the comment now says un-grabbed steps idle-spin except shelf kinds (`spin = false`) and that the hit test ignores the rotation: an axis-aligned rectangle on the step centre, exact for level steps, approximate for tilted ones. Comment only.
+files: src/client/GameClient.client.luau
+test: stylua --check, selene src/ 0/0, tools/luau_check.sh.
+verified: n/a — comment only
+review: looks-right (orchestrator read the diff)
+leftover: none — comment only
+owed: none
+
+## b-20261021-095805-o1t7  fixed  2026-10-21 10:05
+note: Chef Food throw: the arm, the potato and the arrow all sit on the FX plane Z 1 and can z-fight where they overlap
+cause: WorldChef put the Food / Shove arm, the potato and the arrow at the same `PLANE_Z + 1`.
+change: arm `FX_Z` +1.0, potato `POTATO_Z` +1.02, arrow `ARROW_Z` +1.04, all behind the Knife's front layer (+1.4 to +1.7). The potato's WindUp, Flight and Strike CFrames and the arrow CFrame take their Z from these; `stepPos` still uses FX_Z, so the Knife stance and Shove reach maths are unchanged. Depth comment updated.
+files: src/client/WorldChef.client.luau
+test: stylua --check, selene src/ 0/0, tools/luau_check.sh, rojo build ok.
+verified: no — not seen in Studio yet; the chef integration check b-20261021-091555-rjh8 covers a Food and a Shove throw
+review: looks-right (orchestrator read the diff); checked: every potato/arrow CFrame write carries the new Z, no other client part draws at +1.
+leftover: none — in-game look is b-20261021-091555-rjh8
+owed: none

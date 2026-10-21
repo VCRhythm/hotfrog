@@ -35,13 +35,20 @@ local stepsFolder = workspace:WaitForChild("PlayField"):WaitForChild("Steps")
 local CHEF_SIZE = 20
 -- Depths. Behind: in front of WorldScenery's dressing (-1), behind the steps.
 -- Front (the Knife): in front of the steps (0), the gripping frog hand (+0.3),
--- the touch dot (+0.6) and the potato / arrow FX plane (+1).
+-- the touch dot (+0.6) and the Food / Shove arm, potato and arrow (+1.0 to +1.04).
 local CHEF_Z = Config.PLANE_Z - 0.8
 local FRONT_Z = Config.PLANE_Z + 1.5
 local BODY_DZ = -0.1 -- the body just behind the head (front face -0.85 behind: still before the scenery's -0.9)
 local ARM_DZ = 0.2 -- the knife arm, in front of his own body and head
 local MARK_Z = Config.PLANE_Z - 0.6 -- the target ring, just behind the step
-local FX_Z = Config.PLANE_Z + 1 -- potato, arrow, and the Food / Shove arm: in front of the step they hit
+-- The Food / Shove arm, the potato and the arrow sit in front of the step they hit
+-- (0) and the touch dot (+0.6), each at its own stable depth so they never
+-- z-fight where they overlap: arm behind, potato over it, arrow on top. All
+-- stay behind the Knife's front layer (+1.4 to +1.7). Nothing else in the
+-- client draws at +1 (grep PLANE_Z).
+local FX_Z = Config.PLANE_Z + 1 -- the Food / Shove arm
+local POTATO_Z = FX_Z + 0.02
+local ARROW_Z = FX_Z + 0.04
 local MARK_COLOR = Color3.fromRGB(255, 40, 40)
 
 -- Body: ChefBody.png is a 1024px canvas whose art (x 311-825, y 2-650) is a
@@ -480,16 +487,16 @@ local function update(view: View, dt: number, now: number)
 			-- wound back over his shoulder, wobbling
 			local tell = math.clamp(clock / Config.CHEF_WINDUP_TIME, 0, 1)
 			local p = hand + Vector3.new(-facing * 5 * tell, 2 * tell + math.sin(now * 30) * 0.2 * tell, 0)
-			view.potato.CFrame = CFrame.new(p) * CFrame.Angles(0, 0, now * 2)
+			view.potato.CFrame = CFrame.new(p.X, p.Y, POTATO_Z) * CFrame.Angles(0, 0, now * 2)
 			placeArm(view.arm, shoulder, p, FIST_FRAC)
 		elseif phase == "Flight" and stepPos then
 			local a = math.clamp(clock / Config.CHEF_FOOD_FLIGHT_TIME, 0, 1)
 			local from = view.throwFrom or (hand + Vector3.new(-facing * 5, 2, 0))
 			local p = from:Lerp(stepPos, a) + Vector3.new(0, 6 * 4 * a * (1 - a), 0)
-			view.potato.CFrame = CFrame.new(p) * CFrame.Angles(0, 0, -now * 12)
+			view.potato.CFrame = CFrame.new(p.X, p.Y, POTATO_Z) * CFrame.Angles(0, 0, -now * 12)
 			placeArm(view.arm, shoulder, hand + Vector3.new(facing * 2, -1, 0), FIST_FRAC)
 		elseif stepPos then -- Strike: lands on the step and goes down with it
-			view.potato.CFrame = CFrame.new(stepPos + Vector3.new(0, 1.2, 0)) * CFrame.Angles(0, 0, -now * 6)
+			view.potato.CFrame = CFrame.new(stepPos.X, stepPos.Y + 1.2, POTATO_Z) * CFrame.Angles(0, 0, -now * 6)
 			placeArm(view.arm, shoulder, hand, FIST_FRAC)
 		else
 			showPotato = false
@@ -519,7 +526,7 @@ local function update(view: View, dt: number, now: number)
 				SpriteSkin.apply(view.arrow)
 			end
 			local nudge = math.sin(now * 12) * 0.4
-			view.arrow.CFrame = CFrame.new(stepPos + Vector3.new(shoveDir * (halfWidth + 3 + nudge), 0, 0))
+			view.arrow.CFrame = CFrame.new(stepPos.X + shoveDir * (halfWidth + 3 + nudge), stepPos.Y, ARROW_Z)
 		end
 	end
 	setShown(view.arm, view, showArm)

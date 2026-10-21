@@ -460,9 +460,11 @@ end
 -- collider's actual Unity position when a kind's sprite pivot/collider isn't
 -- canvas-centred (Carrot) -- without it the box sat on the padded canvas
 -- centre, mostly missing the small off-centre art (b-20260921-142133-wica).
--- Steps are never rotated (GameServer sets a plain CFrame.new), so an
--- axis-aligned rectangle test is exact. Nearest centre wins when two colliders
--- overlap the tap.
+-- Un-grabbed steps idle-spin (b-20260922-194446-knoi) except the shelf kinds
+-- (`spin = false`, b-20261021-094844-4kya), but the test ignores that rotation:
+-- it is an axis-aligned rectangle on the step's centre, which is exact for
+-- level steps and an approximation for a tilted one. Nearest centre wins when
+-- two colliders overlap the tap.
 local function stepAt(worldPos: Vector3): BasePart?
 	-- Tier 1: inside the step's real collider. Tier 2: only inside a kind's
 	-- generous `tapSize` pad (Carrot). Any tier-1 hit beats every tier-2 hit, so a

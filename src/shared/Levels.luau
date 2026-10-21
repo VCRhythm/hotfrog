@@ -281,10 +281,27 @@ KITCHEN_ROLES.Vanish = "IceCube"
 local COUNTRY_ROLES: { [string]: string } = table.clone(DYNAMIC_ROLES)
 COUNTRY_ROLES.Launch = "Trampoline"
 
+-- Space: a UFO bobs where BobRock did (b-20261021-091537-xh0w). Lillipad stays
+-- the Patrol kind; the Satellite joins beside it (SPACE_KINDS, split weight).
+-- Space keeps its rock steps: no Meteor, BoostRocket or DriftAsteroid.
+local SPACE_ROLES: { [string]: string } = table.clone(DYNAMIC_ROLES)
+SPACE_ROLES.Bob = "UFO"
+
 local function withRoles(roles: { [string]: string }, pool: { string }): { string }
 	local out = table.clone(pool)
 	for _, role in ROLES do
 		table.insert(out, roles[role])
+	end
+	return out
+end
+
+-- Space's extra Patrol mover (a pool is eligible kinds; stages give the weight).
+local SPACE_KINDS = { "Satellite" }
+
+local function withSpace(roles: { [string]: string }, pool: { string }): { string }
+	local out = withRoles(roles, pool)
+	for _, kindName in SPACE_KINDS do
+		table.insert(out, kindName)
 	end
 	return out
 end
@@ -1082,7 +1099,7 @@ list[Levels.COUNTRY] = {
 -- ---------------------------------------------------------------------------
 list[Levels.SPACE] = {
 	name = "Space",
-	roles = DYNAMIC_ROLES,
+	roles = SPACE_ROLES,
 	musicIndex = 2, -- music3 "Opening", otherwise unused in-game
 	background = "SpaceBack",
 	overlay = nil,
@@ -1116,7 +1133,7 @@ list[Levels.SPACE] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withRoles(DYNAMIC_ROLES, { "Asteroid", "UpRock" }),
+			pool = withSpace(SPACE_ROLES, { "Asteroid", "UpRock" }),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -1131,7 +1148,7 @@ list[Levels.SPACE] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withRoles(DYNAMIC_ROLES, { "Asteroid", "UpRock", "UpRightRock" }),
+			pool = withSpace(SPACE_ROLES, { "Asteroid", "UpRock", "UpRightRock" }),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
@@ -1146,7 +1163,7 @@ list[Levels.SPACE] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withRoles(DYNAMIC_ROLES, { "Asteroid", "UpRock", "UpLeftRock" }),
+			pool = withSpace(SPACE_ROLES, { "Asteroid", "UpRock", "UpLeftRock" }),
 			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
 		},
 		{
@@ -1161,7 +1178,7 @@ list[Levels.SPACE] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withRoles(DYNAMIC_ROLES, { "Asteroid", "UpLeftRock", "UpRightRock", "LeftRock", "RightRock" }),
+			pool = withSpace(SPACE_ROLES, { "Asteroid", "UpLeftRock", "UpRightRock", "LeftRock", "RightRock" }),
 			movements = mv({ { 0.0, 1.25 }, { 1.5, 1.25 }, { 2.0, 1.25 } }),
 		},
 	},
@@ -1175,12 +1192,19 @@ list[Levels.SPACE] = {
 	heightStages = {
 		{
 			maxRunSteps = 12,
-			weights = { Lillipad = 0.35, BobRock = 0.3, SpringRock = 0, BlinkRock = 0, CrumbleRock = 0 },
+			weights = { Lillipad = 0.175, Satellite = 0.175, UFO = 0.3, SpringRock = 0, BlinkRock = 0, CrumbleRock = 0 },
 			sceneryDensity = 1,
 		},
 		{
 			maxRunSteps = math.huge,
-			weights = { Lillipad = 0.5, BobRock = 0.45, SpringRock = 0.3, BlinkRock = 0.45, CrumbleRock = 0.45 },
+			weights = {
+				Lillipad = 0.25,
+				Satellite = 0.25,
+				UFO = 0.45,
+				SpringRock = 0.3,
+				BlinkRock = 0.45,
+				CrumbleRock = 0.45,
+			},
 			sceneryDensity = 1,
 			patternChance = 0.25,
 			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain, patterns.PadLadder },

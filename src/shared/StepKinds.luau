@@ -558,6 +558,32 @@ local StepKinds: { [string]: Kind } = {
 		tapSize = Vector2.new(8, 3.6),
 		params = { pull = 8 },
 	},
+	-- Space's RiseAndFall kind (BobRock elsewhere): a flying saucer that bobs.
+	-- UFO.png is 512x256 px on an 8 x 4 canvas (64 px/stud); the saucer spans
+	-- x 6-507, y 47-209 px (centred), 7.8 x 2.5 studs, which is the hit box; the
+	-- tap pad adds height to stay thumb-sized. Params and weight are BobRock's.
+	UFO = {
+		behavior = "RiseAndFall",
+		sprite = "UFO",
+		spawnProbability = 0.15,
+		size = Vector3.new(8, 4, 1),
+		hitSize = Vector2.new(7.8, 2.5),
+		tapSize = Vector2.new(8, 3.6),
+		params = { amplitude = 1.5, period = 2.5 },
+	},
+	-- Space's second Patrol kind, beside Lillipad (which keeps the Patrol role
+	-- everywhere, z0a9). Satellite.png is 512x256 px on an 8 x 4 canvas; the
+	-- satellite with its panels spans x 6-506, y 79-178 px (centred), 7.8 x 1.5
+	-- studs, so the tap pad is taller than the hit box. Params are Lillipad's.
+	Satellite = {
+		behavior = "Patrol",
+		sprite = "Satellite",
+		spawnProbability = 0.15,
+		size = Vector3.new(8, 4, 1),
+		hitSize = Vector2.new(7.8, 1.5),
+		tapSize = Vector2.new(8, 3.4),
+		params = { amplitude = 2.5, period = 3.5 },
+	},
 	-- CrumblyRock's art, untinted. Same shake-then-pebble-burst life as
 	-- CrumblyRock above (b-20261021-095009-vou1); it was StepBehaviors.Crumble
 	-- (Unity's never-used 1.5 s fuse), now the Potato's Config.EXPLODE_FUSE.
