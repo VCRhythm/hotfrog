@@ -78,6 +78,10 @@ local stats: Stats = {
 }
 local generation = 0 -- bumped by start/stop; a loop from an older start exits
 local held: { [number]: BasePart } = {}
+-- Limbs the server may still hold from an earlier run of the bot (stop/stall leaves
+-- them gripped, and a grab on a held limb is refused: b-20261020-235314-h5lo). Freed
+-- lazily, one limb right before its first grab, so the other hand keeps holding.
+local stale: { [number]: boolean } = { true, true }
 
 -- A recently grabbed step: the pooled Instance plus its spawn generation, so a
 -- recycled Instance (a fresh step) is not mistaken for the one grabbed before.
@@ -240,6 +244,20 @@ local function run(gen: number, mode: string, interval: number, restart: boolean
 			ReleaseStep:FireServer(limb, old)
 			held[limb] = nil
 		end
+		if stale[limb] then
+			stale[limb] = false
+			for _, child in stepsFolder:GetChildren() do
+				-- ReleaseStep frees whichever limb holds the step, so spare the other
+				-- hand's grab from this run.
+				if
+					child:IsA("BasePart")
+					and child ~= held[3 - limb]
+					and child:GetAttribute("LaneUserId") == player.UserId
+				then
+					ReleaseStep:FireServer(limb, child)
+				end
+			end
+		end
 		local before = runSteps()
 		GrabStep:FireServer(step, step.Position, limb)
 		held[limb] = step
@@ -299,6 +317,7 @@ fn.OnInvoke = function(command: any, arg: any): string
 		local opts = if type(arg) == "table" then arg else {}
 		generation += 1
 		table.clear(held)
+		stale[1], stale[2] = true, true
 		stats.running = true
 		stats.target = if type(opts.steps) == "number" then opts.steps else 10
 		stats.grabs, stats.rejects, stats.deaths, stats.stalls = 0, 0, 0, 0

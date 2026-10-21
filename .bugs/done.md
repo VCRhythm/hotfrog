@@ -2721,3 +2721,16 @@ verified: yes. In Studio Play, after StudioSkipTo("Country", 2) and StudioSpawnK
 review: looks-right; checked: git diff of GameServer and README; acquireStep, releaseStep, spawnStep, placeStep, the StudioSkipTo block, Lane.get; IsStudio-only, no new remote; same state as a natural spawn and recycles normally; spawner state untouched; bad kind / nil player / no lane handled; README accurate.
 studio: Hot Frog (placeId 114911935371092, studio 034d9972-550c-43ec-a923-0ae3c9bac1fd), never Centralia; hook name found in the synced GameServer source in the Edit datamodel before Play; the fixer started Play and stopped it (get_studio_state Edit): Play stopped.
 owed: none
+
+## b-20261020-235314-h5lo  fixed  2026-10-21 00:11
+note: StudioBot restarted on a previously stalled lane gets many rejects and no grabs (e.g. 0/30 grabs, 42 rejects)
+cause: Bot-side, not a game bug. StudioBot "start" cleared its own `held` table, but the server frog still gripped steps from the earlier run. GrabStep on an already-held limb is refused, and the server only sends ForceRelease, which the bot counted as a reject.
+change: src/client/StudioBot.client.luau keeps a per-limb `stale` flag, set to true on "start". Right before the bot's first GrabStep with limb i, it clears the flag and fires ReleaseStep for each own-lane step, then makes that grab in the same frame. After the re-review, the orchestrator changed the sweep to skip `held[other]`. ReleaseStep frees whichever limb holds a step, so this keeps the other hand's grab from this run. Bot-only and Studio-only; no server change.
+files: src/client/StudioBot.client.luau
+test: stylua --check pass; selene src/ clean; tools/luau_check.sh on the file clean; rojo build pass (after the final edit too).
+verified: yes, checked before the orchestrator's `held[other]` change, which is static only. Before: start steps=4 gave 4/4, then stop, then start gave 0/4 with 23 rejects. After (the fixer's lazy per-limb version, canary "stale[limb]"): 4/4 with 0 rejects, then stop/start 6/6 with 0 rejects, twice. Not re-run: the StudioSkipTo path and the Kitchen/Country stall from the original report.
+review: concern: releasing both limbs at "start" could drop a frog that had sunk to LAVA_Y while holding; the server kills a holdless frog at lava on the next tick. Repaired by the fixer with a lazy per-limb release. checked: StudioBot diff and file, GameServer GrabStep refusal ~1900 and ReleaseStep ~2022, the lava-kill tick ~1698-1730.
+re-review: concern: ReleaseStep ignores limbIndex, so limb 2's stale sweep also dropped limb 1's fresh grab. Fixed by the orchestrator: the sweep skips `held[3 - limb]`. The first grab after a restart still frees every old grip in the same frame as its GrabStep, which is no wider than the first version. checked: StudioBot diff, a grep for `stale`, ReleaseStep handler. The final one-line change was not re-reviewed.
+studio: Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd, placeId 114911935371092), never Centralia; the canary was found in the Edit datamodel; the fixer started Play and stopped it, and get_studio_state shows Edit: Play stopped.
+owed: none
+followups: b-20261021-001004-5q5n (the real-player version: does a server reset/respawn path clear f.held without ForceRelease, leaving GameClient slots full?)
