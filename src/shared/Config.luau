@@ -510,6 +510,9 @@ local Config = {
 	-- window, this share of a lane's weighted step picks that land on an ordinary
 	-- kind (not an arrow, not a hazard) spawn as StepKinds.Pumpkin instead (Lane.pickKind).
 	HALLOWEEN_PUMPKIN_CHANCE = 0.25,
+	-- Moving kinds (StepKinds behavior) the pumpkin swap leaves alone, so it only
+	-- replaces plain footholds (doc 19 ruling 6B).
+	HALLOWEEN_KEEP_BEHAVIORS = { Patrol = true, RiseAndFall = true, Launch = true } :: { [string]: boolean },
 }
 
 return Config

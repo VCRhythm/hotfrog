@@ -552,7 +552,8 @@ function Lane.pickKind(self: Lane, state: SpawnerState, plain: boolean?): string
 	if chosen then
 		-- Halloween pumpkins (b-20261016-192144-g2e2; port-only, doc 17): while
 		-- the window is live, a share of the ordinary picks (never an arrow, whose
-		-- direction is the information, nor a hazard) become the plain Pumpkin --
+		-- direction is the information, nor a hazard, nor a mover: Patrol,
+		-- RiseAndFall, Launch -- b-20261021-091520-sh6c) become the plain Pumpkin --
 		-- never in the Tutorial, whose tree grabs drive its no-death grace.
 		local kind = StepKinds[chosen]
 		if
@@ -560,6 +561,7 @@ function Lane.pickKind(self: Lane, state: SpawnerState, plain: boolean?): string
 			and self.levelIndex ~= Levels.TUTORIAL
 			and not kind.isArrow
 			and not kind.hazard
+			and not Config.HALLOWEEN_KEEP_BEHAVIORS[kind.behavior]
 			and math.random() < Config.HALLOWEEN_PUMPKIN_CHANCE
 			and SpriteSkin.halloweenLive()
 		then
@@ -1496,7 +1498,7 @@ local function spawnPattern(
 		if slack > Config.PATTERN_MAX_UPSTREAM then
 			break -- members are listed outward, so every later one is further still
 		end
-		local kindName = member.kind
+		local kindName = if member.role and self.level.roles then self.level.roles[member.role] else member.kind
 		local named = if kindName then StepKinds[kindName] else nil
 		local isHazard = named ~= nil and named.hazard == true
 		if isHazard and (hazards >= hazardRoom or self.hazardCount >= Config.HAZARD_MAX_RECENT) then
@@ -1507,7 +1509,7 @@ local function spawnPattern(
 		end
 		if kindName then
 			local kind = StepKinds[kindName]
-			local params = if member.kind == kindName and member.params
+			local params = if (member.kind == kindName or member.role) and member.params
 				then member.params
 				elseif kind then kind.params
 				else nil

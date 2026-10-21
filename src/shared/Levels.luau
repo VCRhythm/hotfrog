@@ -107,6 +107,9 @@ export type PatternMember = {
 	lateral: number,
 	upstream: number,
 	kind: string?,
+	-- a role name (Levels.ROLES) resolved to the lane level's kind for it
+	-- (Lane.spawnPattern); wins over `kind`, which is for fixed kinds
+	role: string?,
 	params: { [string]: any }?, -- replaces the kind's default StepKinds params
 }
 
@@ -145,6 +148,10 @@ export type EventDef = {
 -- force a kind onto a spawner that never carries it.
 export type Level = {
 	name: string,
+	-- which StepKinds name plays each role in this level (Levels.ROLES); nil for
+	-- levels with no dynamic steps. Builds the pools (withRoles) and resolves
+	-- pattern members that name a role.
+	roles: { [string]: string }?,
 	musicIndex: number,
 	background: string?, -- doc 11 backgroundMaterial, as a bare material-name key
 	overlay: string?, -- doc 11 overlayMaterial, as a bare material-name key
@@ -248,12 +255,24 @@ end
 -- The moving / timed kinds (Shared/StepKinds), appended to every Kitchen and
 -- Country rock/shelf pool. A pool only makes a kind ELIGIBLE: the level's height
 -- stages give each one its weight, starting at 0.
-local DYNAMIC_KINDS = { "Lillipad", "BobRock", "SpringRock", "BlinkRock", "CrumbleRock" }
+-- Role order is the order the kinds are appended to a pool.
+local ROLES = { "Patrol", "Bob", "Launch", "Vanish", "Crumble" }
+Levels.ROLES = ROLES
 
-local function withDynamic(pool: { string }): { string }
+-- Every level with dynamic steps uses the same kind per role today; later
+-- themed levels swap a role's kind here (doc 19).
+local DYNAMIC_ROLES: { [string]: string } = {
+	Patrol = "Lillipad",
+	Bob = "BobRock",
+	Launch = "SpringRock",
+	Vanish = "BlinkRock",
+	Crumble = "CrumbleRock",
+}
+
+local function withRoles(roles: { [string]: string }, pool: { string }): { string }
 	local out = table.clone(pool)
-	for _, kindName in DYNAMIC_KINDS do
-		table.insert(out, kindName)
+	for _, role in ROLES do
+		table.insert(out, roles[role])
 	end
 	return out
 end
@@ -263,8 +282,8 @@ end
 -- rock/shelf pool on top of the dynamic kinds.
 local OUTDOOR_KINDS = { "TreeTrunk", "OakTree", "CarRight", "CarLeft" }
 
-local function withOutdoor(pool: { string }): { string }
-	local out = withDynamic(pool)
+local function withOutdoor(roles: { [string]: string }, pool: { string }): { string }
+	local out = withRoles(roles, pool)
 	for _, kindName in OUTDOOR_KINDS do
 		table.insert(out, kindName)
 	end
@@ -277,6 +296,11 @@ local RISE = 4.75 -- one shelf-height step up
 
 local function member(lateral: number, upstream: number, kind: string?, params: { [string]: any }?): PatternMember
 	return { lateral = lateral, upstream = upstream, kind = kind, params = params }
+end
+
+-- A member that plays a role; the lane's level picks the kind.
+local function roleMember(lateral: number, upstream: number, role: string, params: { [string]: any }?): PatternMember
+	return { lateral = lateral, upstream = upstream, role = role, params = params }
 end
 
 local patterns: { [string]: PatternDef } = {
@@ -313,15 +337,15 @@ local patterns: { [string]: PatternDef } = {
 		name = "PadLadder",
 		weight = 1,
 		members = {
-			member(0, 0, "Lillipad", { amplitude = 2.5, period = 3.5, phase = 0 }),
-			member(0, 7.25, "Lillipad", { amplitude = 2.5, period = 3.5, phase = math.pi }),
+			roleMember(0, 0, "Patrol", { amplitude = 2.5, period = 3.5, phase = 0 }),
+			roleMember(0, 7.25, "Patrol", { amplitude = 2.5, period = 3.5, phase = math.pi }),
 		},
 	},
 	-- event: two springboards and somewhere ordinary to land
 	SpringStreak = {
 		name = "SpringStreak",
 		weight = 1,
-		members = { member(-COLUMN, 0, "SpringRock"), member(COLUMN, RISE, "SpringRock"), member(-COLUMN, 2 * RISE) },
+		members = { roleMember(-COLUMN, 0, "Launch"), roleMember(COLUMN, RISE, "Launch"), member(-COLUMN, 2 * RISE) },
 	},
 	-- event: the tall castle (StepKinds.Castle, in no pool)
 	CastleKeep = {
@@ -550,6 +574,7 @@ list[Levels.POT] = {
 -- ---------------------------------------------------------------------------
 list[Levels.KITCHEN] = {
 	name = "Kitchen",
+	roles = DYNAMIC_ROLES,
 	-- PORT DEVIATION: Unity plays musicIndex 1 (FrogSounds, the menu track) here;
 	-- 3 = Adenine, a beat-driven track as groovy as Pot's BrusselSprouts and
 	-- unused by the base game (b-20261010-192146-ml2d, doc 17 "Kitchen music").
@@ -570,7 +595,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
+			pool = withRoles(DYNAMIC_ROLES, { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
 			movements = mv({ { -1.0, 0.5 }, { -1.0, 1.25 }, { 0.0, 1.25 } }),
 		},
 		{
@@ -585,7 +610,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
+			pool = withRoles(DYNAMIC_ROLES, { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -600,7 +625,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" }),
+			pool = withRoles(DYNAMIC_ROLES, { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" }),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
@@ -615,7 +640,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" }),
+			pool = withRoles(DYNAMIC_ROLES, { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" }),
 			-- doc 13's worked example: this is the spawner whose Movements sit past the
 			-- RIGHT edge despite a leftward spawnDirection (see "Direction / arrow semantics").
 			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
@@ -635,7 +660,7 @@ list[Levels.KITCHEN] = {
 			-- PORT ADDITION: LeftRock/RightRock are in no shipped Unity pool, which left the
 			-- Left/Right spawners unreachable from a downward scroll; adding them here is
 			-- what makes sideways travel actually happen (doc 13).
-			pool = withDynamic({
+			pool = withRoles(DYNAMIC_ROLES, {
 				"ShelfWithSpoon",
 				"ShelfWithFork",
 				"Shelf",
@@ -724,6 +749,7 @@ list[Levels.KITCHEN] = {
 -- ---------------------------------------------------------------------------
 list[Levels.COUNTRY] = {
 	name = "Country",
+	roles = DYNAMIC_ROLES,
 	musicIndex = 4,
 	-- PORT DEVIATION: Unity has none (doc 11: backgroundMaterial {fileID:0,pathID:0});
 	-- the port paints a sky (Sprites/Other/CountryBack.png).
@@ -764,7 +790,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withOutdoor({ "UpRock", "UpLeftRock", "UpRightRock" }),
+			pool = withOutdoor(DYNAMIC_ROLES, { "UpRock", "UpLeftRock", "UpRightRock" }),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -779,7 +805,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withOutdoor({ "UpRock", "UpRightRock", "RightRock" }),
+			pool = withOutdoor(DYNAMIC_ROLES, { "UpRock", "UpRightRock", "RightRock" }),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
@@ -794,7 +820,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withOutdoor({ "UpRock", "UpLeftRock", "LeftRock" }),
+			pool = withOutdoor(DYNAMIC_ROLES, { "UpRock", "UpLeftRock", "LeftRock" }),
 			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
 		},
 		{
@@ -812,7 +838,7 @@ list[Levels.COUNTRY] = {
 			-- PORT ADDITION: LeftRock/RightRock are in no shipped Unity pool, which left the
 			-- Left/Right spawners unreachable from a downward scroll; adding them here is
 			-- what makes sideways travel actually happen (doc 13).
-			pool = withOutdoor({
+			pool = withOutdoor(DYNAMIC_ROLES, {
 				"UpLeftRock",
 				"UpRightRock",
 				"LeftRock",
@@ -961,6 +987,7 @@ list[Levels.COUNTRY] = {
 -- ---------------------------------------------------------------------------
 list[Levels.SPACE] = {
 	name = "Space",
+	roles = DYNAMIC_ROLES,
 	musicIndex = 2, -- music3 "Opening", otherwise unused in-game
 	background = "SpaceBack",
 	overlay = nil,
@@ -994,7 +1021,7 @@ list[Levels.SPACE] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "Asteroid", "UpRock" }),
+			pool = withRoles(DYNAMIC_ROLES, { "Asteroid", "UpRock" }),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -1009,7 +1036,7 @@ list[Levels.SPACE] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "Asteroid", "UpRock", "UpRightRock" }),
+			pool = withRoles(DYNAMIC_ROLES, { "Asteroid", "UpRock", "UpRightRock" }),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
@@ -1024,7 +1051,7 @@ list[Levels.SPACE] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "Asteroid", "UpRock", "UpLeftRock" }),
+			pool = withRoles(DYNAMIC_ROLES, { "Asteroid", "UpRock", "UpLeftRock" }),
 			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
 		},
 		{
@@ -1039,7 +1066,7 @@ list[Levels.SPACE] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withDynamic({ "Asteroid", "UpLeftRock", "UpRightRock", "LeftRock", "RightRock" }),
+			pool = withRoles(DYNAMIC_ROLES, { "Asteroid", "UpLeftRock", "UpRightRock", "LeftRock", "RightRock" }),
 			movements = mv({ { 0.0, 1.25 }, { 1.5, 1.25 }, { 2.0, 1.25 } }),
 		},
 	},

@@ -2762,7 +2762,7 @@ review: n/a
 note: DECISION: 1B 2A 3C 4(all six) 5B 6B (full ruling text quoted in b-20261021-074242-z0a9's cause)
 cause: owner ruling on b-20261021-074242-z0a9; applied there.
 change: see b-20261021-074242-z0a9
-files: see b-20261021-074242-z0a9
+files: none
 test: none
 verified: see b-20261021-074242-z0a9
 review: n/a
@@ -2776,3 +2776,14 @@ files: none
 test: none
 verified: no — the integration check b-20261021-091555-rjh8 runs the whole feature
 review: n/a
+
+## b-20261021-091520-sh6c  fixed  2026-10-21 09:22
+note: Theming part 2 (ruling 6B, groundwork for 1B/2A): the Halloween Pumpkin swap in Lane.pickKind skips moving steps (Patrol, RiseAndFall, Launch kinds) and only replaces plain footholds; replace the global DYNAMIC_KINDS/withDynamic with a per-level role map (Patrol, Bob, Launch, Vanish, Crumble) that resolves PadLadder and SpringStreak members and pools by role, behaviour otherwise unchanged; no arrowTint (3C).
+cause: Lane.pickKind's Halloween swap only excluded arrows and hazards, so it turned Patrol, RiseAndFall and Launch steps into static Pumpkins; dynamic steps came from one global DYNAMIC_KINDS/withDynamic list that could not differ per level.
+change: Levels.luau gets a per-level role map (Level.roles; DYNAMIC_ROLES maps Patrol/Bob/Launch/Vanish/Crumble to the same five kinds as before) used by withRoles (replacing withDynamic) and withOutdoor; PadLadder/SpringStreak members use roleMember and Lane.spawnPattern resolves them through self.level.roles; the Pumpkin swap skips kinds whose behaviour is in Config.HALLOWEEN_KEEP_BEHAVIORS (Patrol, RiseAndFall, Launch); doc 17 Halloween row updated. No new kinds, no arrowTint.
+files: src/shared/Levels.luau, src/server/Lane.luau, src/shared/Config.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check on the three .luau files passes; selene src/ 0 warnings/0 errors; tools/luau_check.sh on the three files 0 errors (strict); rojo build ok. (stylua --check src/ flags generated SoundAssets.luau / CRLF files untouched here.)
+verified: no — Studio Play held: Hot Frog (placeId 114911935371092) has been in Play since 08:47, started before this loop, so it may be the owner's; left running. Play check re-filed as b-20261021-092032-44by after o-20261021-092031-ss9x.
+review: looks-right; checked: git diff of Levels/Lane/Config, Lane.spawnPattern and StepKinds behaviours; per-level pools and pattern members compared with HEAD (Pot/Tutorial set no roles and use no role members); Halloween skip reads kind.behavior and keeps the arrow/hazard checks; luau_check, selene and stylua on the three files clean.
+leftover: Studio Play check b-20261021-092032-44by
+owed: o-20261021-092031-ss9x stop Play in the Hot Frog Studio
