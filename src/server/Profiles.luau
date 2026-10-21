@@ -400,8 +400,43 @@ local function doSave(player: Player, release: boolean): boolean
 	return ok
 end
 
+-- Roblox throttles writes to one key to roughly one per 6 s; several services
+-- call Profiles.save back to back (grab bots, Fly awards, high score, mission
+-- progress), which queued requests ("DataStore request was added to queue").
+-- So non-final saves are coalesced: at most one per SAVE_MIN_INTERVAL per
+-- player, with a single trailing save so the latest in-memory state still
+-- lands. PlayerRemoving/BindToClose call doSave directly and are not delayed.
+local SAVE_MIN_INTERVAL = 7
+local lastSaveAt: { [Player]: number } = {}
+local saveScheduled: { [Player]: boolean } = {}
+
 function Profiles.save(player: Player)
-	doSave(player, false)
+	if saveScheduled[player] then
+		return -- the pending trailing save will read the latest state
+	end
+	local last = lastSaveAt[player]
+	local wait = if last then SAVE_MIN_INTERVAL - (os.clock() - last) else 0
+	if wait <= 0 then
+		lastSaveAt[player] = os.clock()
+		doSave(player, false)
+		return
+	end
+	saveScheduled[player] = true
+	task.delay(wait, function()
+		saveScheduled[player] = nil
+		if cache[player] then
+			lastSaveAt[player] = os.clock()
+			doSave(player, false)
+		end
+	end)
+end
+
+-- Immediate save for purchases (receipts, game passes, Fly spends): these must
+-- be on disk before they're acknowledged, so they skip the coalescing. Returns
+-- whether the write succeeded.
+function Profiles.saveNow(player: Player): boolean
+	lastSaveAt[player] = os.clock()
+	return doSave(player, false)
 end
 
 -- Mirror a new personal best into the OrderedDataStore so a global top-N is
@@ -645,6 +680,8 @@ Players.PlayerRemoving:Connect(function(player)
 	cache[player] = nil
 	loadFailed[player] = nil
 	periodBest[player] = nil
+	lastSaveAt[player] = nil
+	saveScheduled[player] = nil
 end)
 
 task.spawn(function()

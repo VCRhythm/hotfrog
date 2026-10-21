@@ -251,7 +251,7 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passI
 		if entry.gamePassId == passId then
 			p.owned[id] = true
 			push(player)
-			Profiles.save(player)
+			Profiles.saveNow(player)
 		end
 	end
 end)
@@ -271,7 +271,13 @@ MarketplaceService.ProcessReceipt = function(receipt)
 		p.applied[receipt.PurchaseId] = true
 		p.flys += grant
 		push(player)
-		Profiles.save(player) -- persist before acknowledging
+		if not Profiles.saveNow(player) then -- persist before acknowledging
+			-- undo so the retry grants it again instead of skipping as applied
+			p.applied[receipt.PurchaseId] = nil
+			p.flys -= grant
+			push(player)
+			return Enum.ProductPurchaseDecision.NotProcessedYet
+		end
 	end
 	return Enum.ProductPurchaseDecision.PurchaseGranted
 end
