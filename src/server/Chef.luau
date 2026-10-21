@@ -4,7 +4,8 @@
 -- 17): Unity's Chef is only drifting scenery. Here each lane's Chef, on the
 -- Kitchen level only, picks one visible step its player isn't holding every
 -- Config.CHEF_INTERVAL_MIN..MAX seconds and, after a readable tell, does one of:
---   Knife -- walks over, raises the knife (the tell), chops: the step drops away
+--   Knife -- walks over, raises the knife (the tell), then swings it horizontally
+--            in slow motion (Config.CHEF_SWING_TIME); the step breaks at contact
 --   Food  -- winds back a potato (the tell), throws it: the step is knocked loose
 --   Shove -- walks over, sets his hands (the tell), shoves: the step slides sideways
 -- If the player grabs the target (or it leaves the lane or the view) before the
@@ -19,10 +20,23 @@
 -- Pure per-lane timing and targeting; GameServer drives `tick` from its step
 -- Heartbeat and applies the effect through `strike` (ctx.dropAway / a slide).
 -- Client contract (WorldChef.client.luau, cosmetic only): the lane folder's
--- `ChefAction` ("Knife" | "Food" | "Shove" | nil), `ChefPhase` ("Walk" |
--- "WindUp" | "Flight" | "Strike"), `ChefSeq` (bumped per action) and
--- `ChefShoveDir` (+1 / -1, Shove only), plus `ChefTarget = true` on the
--- targeted step.
+-- `ChefAction` ("Knife" | "Food" | "Shove" | nil), `ChefPhase`, `ChefSeq`
+-- (bumped per action) and `ChefShoveDir` (+1 / -1, Shove only), plus
+-- `ChefTarget = true` on the targeted step. Phase sequence per action:
+--   Knife: Walk -> WindUp -> Swing -> (nil; ChefAction cleared)
+--   Food:  WindUp -> Flight -> Strike -> nil
+--   Shove: Walk -> WindUp -> Strike -> nil
+-- Every phase also sets `ChefPhaseStart` (workspace:GetServerTimeNow() when it
+-- began) and `ChefPhaseDuration` (its nominal length in seconds), and a Swing
+-- also `ChefSwingContact` (fraction 0..1 of the duration). Swing is the Knife's
+-- blow: the blade crosses the target step at ChefPhaseStart +
+-- ChefPhaseDuration * ChefSwingContact (server time) and the step breaks at
+-- exactly that moment (ChefTarget is still set until then); the remainder is
+-- follow-through. Swing runs in REAL time: unlike Walk / WindUp / Flight it is
+-- NOT sped by the lane's StreakSpeed, so the client must not scale its clock.
+-- If the player grabs the target before contact the action fizzles: ChefAction
+-- and ChefPhase clear mid-Swing with no break. Unknown phases should be drawn
+-- as the last known pose or hidden, never errored on.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 
@@ -36,7 +50,7 @@ local Chef = {}
 export type Action = "Knife" | "Food" | "Shove"
 type IsHeld = (lane: Lane.Lane, step: BasePart) -> boolean
 type Strike = (lane: Lane.Lane, step: BasePart, st: Lane.StepState, action: Action, shoveDir: number) -> ()
-type Phase = "Idle" | "Walk" | "WindUp" | "Flight" | "Strike"
+type Phase = "Idle" | "Walk" | "WindUp" | "Flight" | "Strike" | "Swing"
 
 type ChefState = {
 	phase: Phase,
@@ -46,6 +60,7 @@ type ChefState = {
 	targetState: Lane.StepState?, -- the target's generation (lane.states[target] == targetState)
 	shoveDir: number,
 	pending: boolean, -- Strike shown, effect not yet applied (CHEF_STRIKE_GRACE)
+	contacted: boolean, -- Swing: the blade has met the step (the strike was attempted)
 	seq: number,
 }
 
@@ -64,6 +79,9 @@ end
 local function setPhase(lane: Lane.Lane, s: ChefState, phase: Phase, time: number)
 	s.phase = phase
 	s.timer = time
+	lane.folder:SetAttribute("ChefPhaseStart", if phase == "Idle" then nil else workspace:GetServerTimeNow())
+	lane.folder:SetAttribute("ChefPhaseDuration", if phase == "Idle" then nil else time)
+	lane.folder:SetAttribute("ChefSwingContact", if phase == "Swing" then Config.CHEF_SWING_CONTACT else nil)
 	lane.folder:SetAttribute("ChefPhase", if phase == "Idle" then nil else phase)
 end
 
@@ -77,6 +95,7 @@ local function finish(lane: Lane.Lane, s: ChefState, nextIn: number)
 	s.target = nil
 	s.targetState = nil
 	s.pending = false
+	s.contacted = false
 	lane.folder:SetAttribute("ChefAction", nil)
 	lane.folder:SetAttribute("ChefShoveDir", nil)
 	setPhase(lane, s, "Idle", nextIn)
@@ -85,7 +104,7 @@ end
 local function stateOf(lane: Lane.Lane): ChefState
 	local s = states[lane]
 	if not s then
-		s = { phase = "Idle", timer = firstDelay(), shoveDir = 1, pending = false, seq = 0 }
+		s = { phase = "Idle", timer = firstDelay(), shoveDir = 1, pending = false, contacted = false, seq = 0 }
 		states[lane] = s
 	end
 	return s
@@ -204,6 +223,7 @@ local function begin(lane: Lane.Lane, s: ChefState, isHeld: IsHeld): boolean
 	s.targetState = st
 	s.shoveDir = dir or 1
 	s.pending = false
+	s.contacted = false
 	s.seq += 1
 	step:SetAttribute("ChefTarget", true)
 	lane.folder:SetAttribute("ChefShoveDir", if action == "Shove" then s.shoveDir else nil)
@@ -252,7 +272,7 @@ function Chef.tick(lane: Lane.Lane, dt: number, active: boolean, isHeld: IsHeld,
 
 	-- Until the effect is applied the target must stay the same live step,
 	-- un-held and not already dropping; otherwise the action fizzles.
-	if s.action and (s.phase ~= "Strike" or s.pending) then
+	if s.action and ((s.phase ~= "Strike" and not s.contacted) or s.pending) then
 		local target, targetState = s.target, s.targetState
 		if
 			not target
@@ -266,7 +286,23 @@ function Chef.tick(lane: Lane.Lane, dt: number, active: boolean, isHeld: IsHeld,
 		end
 	end
 
-	s.timer -= if s.phase == "Strike" then dt else dt * (speed or 1)
+	-- Strike and Swing run in real time; the combo only shortens the waits.
+	local realTime = s.phase == "Strike" or s.phase == "Swing"
+	s.timer -= if realTime then dt else dt * (speed or 1)
+
+	-- The Swing's contact: the blade meets the step and it breaks right now (the
+	-- validity check above has just confirmed it is still live and un-held).
+	if
+		s.phase == "Swing"
+		and not s.contacted
+		and Config.CHEF_SWING_TIME - s.timer >= Config.CHEF_SWING_TIME * Config.CHEF_SWING_CONTACT
+	then
+		s.contacted = true
+		if not land(lane, s, isHeld, strike) then
+			finish(lane, s, interval())
+			return
+		end
+	end
 	if s.timer > 0 then
 		return
 	end
@@ -279,6 +315,8 @@ function Chef.tick(lane: Lane.Lane, dt: number, active: boolean, isHeld: IsHeld,
 		setPhase(lane, s, "WindUp", Config.CHEF_WINDUP_TIME)
 	elseif s.phase == "WindUp" and s.action == "Food" then
 		setPhase(lane, s, "Flight", Config.CHEF_FOOD_FLIGHT_TIME)
+	elseif s.phase == "WindUp" and s.action == "Knife" then
+		setPhase(lane, s, "Swing", Config.CHEF_SWING_TIME)
 	elseif s.phase == "WindUp" or s.phase == "Flight" then
 		s.pending = true
 		setPhase(lane, s, "Strike", Config.CHEF_STRIKE_GRACE)
@@ -289,7 +327,7 @@ function Chef.tick(lane: Lane.Lane, dt: number, active: boolean, isHeld: IsHeld,
 		else
 			finish(lane, s, interval())
 		end
-	else -- Strike follow-through over
+	else -- Strike / Swing follow-through over
 		finish(lane, s, interval())
 	end
 end
