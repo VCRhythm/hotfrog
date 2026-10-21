@@ -1107,6 +1107,9 @@ end)
 -- ---------------------------------------------------------------------------
 local sessionScore: { [Player]: number } = {}
 local sessionSteps: { [Player]: number } = {}
+-- true for a run the Studio-only StudioSkipTo (below) jumped ahead: its score is
+-- not banked, so a skip never writes a best or a leaderboard entry.
+local skippedRun: { [Player]: boolean } = {}
 
 -- Per-run grab-quality counts (Player/Player.cs grabStats Vector4i / TrackGrabQuality).
 -- Unity's score is a flat +1 per step climbed -- quality only feeds these separate
@@ -1186,6 +1189,9 @@ local function addScore(player: Player, amount: number, quality: string?)
 end
 
 local function commitHighScore(player: Player)
+	if skippedRun[player] then
+		return
+	end
 	local p = Profiles.get(player)
 	local score = sessionSteps[player] or 0 -- steps, not the bonus-inclusive sessionScore
 	if p and score > p.highScore then
@@ -1201,6 +1207,7 @@ end
 local function resetScore(player: Player)
 	sessionScore[player] = 0
 	sessionSteps[player] = 0
+	skippedRun[player] = nil
 	player:SetAttribute("RunSteps", 0)
 	resetGrabQuality(player)
 	pushScore(player)
@@ -2114,6 +2121,27 @@ local function forceTutorial(player: Player, lane: Lane.Lane)
 	lane:resetRun(false) -- back to Tutorial; fires LevelChanged for the client's level-name toast
 end
 
+-- The frog back at its lane's origin, alive and not yet armed (Player.cs canFall).
+local function parkFrog(f: FrogState, origin: Vector3)
+	f.pos = origin
+	f.gravityMult = Config.GRAVITY_MULT_START
+	cancelBob(f)
+	f.dead = false
+	f.canFall = false
+	f.model:SetAttribute("Dead", false)
+end
+
+-- Start a run on a Menu lane in `mode` (Lane.setMode): park the frog, prefill the
+-- lane and go Playing. StartRun, and the Studio-only skip below.
+local function beginRun(player: Player, lane: Lane.Lane, f: FrogState, mode: string)
+	parkFrog(f, lane.origin)
+	flysThisRun[player] = 0
+	bugsThisRun[player] = 0
+	lane:setMode(mode)
+	prefillLane(lane)
+	setRunState(player, RunState.Playing)
+end
+
 -- doc 15 item 1: begin a run from the main menu. Only valid from Menu (a
 -- client stuck mid-Playing or mid-death-beat can't re-trigger it), and
 -- rate-limited the same way grabs are so a bot can't hammer it.
@@ -2146,18 +2174,7 @@ StartRun.OnServerEvent:Connect(function(player, mode)
 		forceTutorial(player, lane)
 		modeStr = Config.RUN_MODES.Classic
 	end
-
-	f.pos = lane.origin
-	f.gravityMult = Config.GRAVITY_MULT_START
-	cancelBob(f)
-	f.dead = false
-	f.canFall = false
-	f.model:SetAttribute("Dead", false)
-	flysThisRun[player] = 0
-	bugsThisRun[player] = 0
-	lane:setMode(modeStr)
-	prefillLane(lane)
-	setRunState(player, RunState.Playing)
+	beginRun(player, lane, f, modeStr)
 end)
 
 -- Reset Character / "respawn" (b-20261017-123801-td2q): the avatar is the frog,
@@ -2245,6 +2262,101 @@ ReplayTutorial.OnServerEvent:Connect(function(player)
 		forceTutorial(player, lane)
 	end
 end)
+
+-- ---------------------------------------------------------------------------
+-- Studio-only level skip (b-20261020-213324-txe8): lets a playtest jump a lane
+-- to just before the end of a level instead of climbing there. A BindableFunction
+-- in ServerStorage, so the MCP's execute_luau (which gets its own copies of
+-- required modules, never this script's Lane registry) reaches the live lane:
+--   game.ServerStorage.StudioSkipTo:Invoke("Kitchen", 3)  -- 3 grabs from Country
+--   ...:Invoke(levelName, stepsBefore?, mode?, player?) -> summary string
+-- levelName: Tutorial (stepsBefore = trees left) | Pot (steps before the rim is
+-- laid; grab the rim to leave) | Kitchen | Country | Space (endless: lands at its
+-- start). From Menu it starts a run in `mode` (default Normal); mid-run it keeps
+-- the mode. The lane is emptied and refilled at the target level, the frog parked
+-- unarmed at the origin, the score set to the steps that point implies (never
+-- banked: skippedRun). Never created outside Studio.
+-- ---------------------------------------------------------------------------
+if RunService:IsStudio() then
+	local T = Config.LEVEL_THRESHOLDS
+	-- name -> level index, the run step the level begins at, and the run step
+	-- its exit fires at (nil: Tutorial counts trees, Space never ends)
+	local SKIP: { [string]: { index: number, start: number, exit: number? } } = {
+		Tutorial = { index = Levels.TUTORIAL, start = 0 },
+		Pot = { index = Levels.POT, start = 0, exit = T.Kitchen },
+		Kitchen = { index = Levels.KITCHEN, start = T.Kitchen, exit = T.Country },
+		Country = { index = Levels.COUNTRY, start = T.Country, exit = T.Space },
+		Space = { index = Levels.SPACE, start = T.Space },
+	}
+
+	local function skipTo(levelName: any, stepsBefore: any, mode: any, who: any): string
+		local target = if typeof(levelName) == "string" then SKIP[levelName] else nil
+		if not target then
+			return "unknown level " .. tostring(levelName) .. " (Tutorial|Pot|Kitchen|Country|Space)"
+		end
+		local player: Player? = if typeof(who) == "Instance" and who:IsA("Player") then who else Players:GetPlayers()[1]
+		if not player then
+			return "no player"
+		end
+		local lane = Lane.get(player)
+		local f = frogs[player]
+		local state = runState[player]
+		if not lane or not f then
+			return "player has no lane yet"
+		end
+		if state ~= RunState.Playing and state ~= RunState.Menu then
+			return "run state is " .. tostring(state) .. "; retry once it is Menu"
+		end
+		local before = math.max(0, math.floor(if typeof(stepsBefore) == "number" then stepsBefore else 3))
+
+		local runSteps, trees = target.start, 0
+		if target.exit then
+			runSteps = math.clamp(target.exit - before, target.start, target.exit)
+		elseif target.index == Levels.TUTORIAL then
+			trees = Config.TUTORIAL_STEPS - math.clamp(before, 1, Config.TUTORIAL_STEPS)
+		end
+
+		for i = 1, Config.MAX_HELD_STEPS do
+			local step = f.held[i]
+			if step then
+				forceReleaseStep(lane, step)
+			end
+		end
+		clearLaneSteps(lane)
+		Chef.reset(lane)
+		parkFrog(f, lane.origin)
+		lane:skipTo(target.index, runSteps, target.start, trees)
+
+		sessionScore[player] = runSteps
+		sessionSteps[player] = runSteps
+		skippedRun[player] = true
+		player:SetAttribute("RunSteps", runSteps)
+		pushScore(player)
+
+		if state == RunState.Menu then
+			beginRun(player, lane, f, if mode == Config.RUN_MODES.Classic then mode else Config.RUN_MODES.Normal)
+		else
+			setStreak(lane, 0)
+			prefillLane(lane)
+		end
+		return ("%s: %s at runSteps %d (level from %d, exit %s), mode %s"):format(
+			player.Name,
+			lane.level.name,
+			lane.runSteps,
+			lane.levelStartSteps,
+			if target.exit then tostring(target.exit) else "none",
+			lane.mode
+		)
+	end
+
+	local skipFn = ServerStorage:FindFirstChild("StudioSkipTo")
+	if not skipFn then
+		skipFn = Instance.new("BindableFunction")
+		skipFn.Name = "StudioSkipTo"
+		skipFn.Parent = ServerStorage
+	end
+	(skipFn :: BindableFunction).OnInvoke = skipTo
+end
 
 -- Global top-scores boards (doc 15 item 5; daily/weekly per doc 17):
 -- Profiles.topScores(10, period) + name resolution are both DataStore-ish
@@ -2351,6 +2463,7 @@ Players.PlayerRemoving:Connect(function(player: Player)
 	end
 	sessionScore[player] = nil
 	sessionSteps[player] = nil
+	skippedRun[player] = nil
 	grabQuality[player] = nil
 	grabTimes[player] = nil
 	lastObstruction[player] = nil

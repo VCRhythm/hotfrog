@@ -16,6 +16,13 @@ original**: Luau files cite the C# file they port — read it for "how should th
   or run Luau, capture if visual, stop play. Never edit files while a playtest runs. If a play
   session is already live, the user is playing: inspect only, do not start/stop it. If the MCP is
   not attached, report `verified: not run: Studio only`; never claim a pass.
+- Studio-only playtest tools (execute_luau gets its own module copies, so these are Instances):
+  Server: `return game.ServerStorage.StudioSkipTo:Invoke("Kitchen", 3)` -- lane jumps to 3
+  grabs before Country (Pot: steps before the rim; Tutorial: trees left; Space: its start;
+  from Menu it starts a Normal run; skipped runs never bank a best). Client:
+  `local b = game.Players.LocalPlayer.StudioBot; return b:Invoke("start", {steps = 5})`,
+  then `return game.Players.LocalPlayer.StudioBot:Invoke("wait", 40)` (blocks <= 45 s) until
+  it reads STOPPED: grabs, rejects, deaths, levels passed, score. Also `"status"`, `"stop"`.
 - Headless Luau in the published place: `python tools/luau_exec.py --script "..."`.
 - Owed "open Studio" / "switch rojo serve" steps use `bash tools/studio_ready.sh` as the
   done-check, never a `MainWindowTitle -match` window-title match. Once a Play check passes in

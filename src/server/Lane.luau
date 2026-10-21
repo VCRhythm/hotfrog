@@ -2010,18 +2010,14 @@ function Lane.beginArrival(self: Lane)
 	self.folder:SetAttribute("ArrivalCount", (if typeof(count) == "number" then count else 0) + 1)
 end
 
--- A new run: back to Pot, or Tutorial if this profile never finished it
--- (doc 13 item 5). Soft -- doesn't touch `self.active` either.
-function Lane.resetRun(self: Lane, tutorialDone: boolean)
-	self.runSteps = 0
-	self.tutorialStepsClimbed = 0
-	self.tutorialGraceActive = not tutorialDone
-	self.folder:SetAttribute("TutorialGrace", not tutorialDone)
+-- The scroll a lane's run has built up, started over: its fairness ring, its
+-- running motions (the caller just emptied the lane, GameServer.clearLaneSteps),
+-- the replicated pull total and the Classic drift.
+local function restartScroll(self: Lane)
 	resetRecent(self)
-	table.clear(self.motions) -- the lane was just emptied (GameServer.clearLaneSteps)
-	-- ...so the replicated pull total (GameServer.publishPull) starts over too.
+	table.clear(self.motions)
 	-- PullEpoch is bumped FIRST: it tells a client's PullScroller that the total
-	-- restarted, so the drop to zero is not read as a pull back.
+	-- (GameServer.publishPull) restarted, so the drop to zero is not read as a pull back.
 	local epoch = self.folder:GetAttribute("PullEpoch")
 	self.folder:SetAttribute("PullEpoch", (if typeof(epoch) == "number" then epoch else 0) + 1)
 	self.folder:SetAttribute("PullTotal", Vector3.zero)
@@ -2030,9 +2026,46 @@ function Lane.resetRun(self: Lane, tutorialDone: boolean)
 	self.driftElapsed = 0
 	self.driftBase = 0
 	self.driftHold = 0
+end
+
+-- A new run: back to Pot, or Tutorial if this profile never finished it
+-- (doc 13 item 5). Soft -- doesn't touch `self.active` either.
+function Lane.resetRun(self: Lane, tutorialDone: boolean)
+	self.runSteps = 0
+	self.tutorialStepsClimbed = 0
+	self.tutorialGraceActive = not tutorialDone
+	self.folder:SetAttribute("TutorialGrace", not tutorialDone)
+	restartScroll(self)
 	self:setLevel(if tutorialDone then Levels.POT else Levels.TUTORIAL)
 	if self.notify then
 		self.notify(self, "death")
+	end
+end
+
+-- Studio-only level skip (GameServer's ServerStorage/StudioSkipTo,
+-- b-20261020-213324-txe8): put this lane in `levelIndex` as if the run had
+-- climbed there -- `runSteps` steps this run, the level entered at
+-- `levelStartSteps` (what height stages, Space's gravity ease and the level-up
+-- thresholds in onStepClimbed count from) and `treesClimbed` Tutorial trees --
+-- with fresh spawners, so the next real grabs play the real transition. The
+-- caller has emptied the lane and prefills it after. A lane landed partway
+-- through its level skips that level's introSequence. Fires notify("start"),
+-- which snaps the client's backdrop and music to the level.
+function Lane.skipTo(self: Lane, levelIndex: number, runSteps: number, levelStartSteps: number, treesClimbed: number)
+	restartScroll(self)
+	self.runSteps = levelStartSteps
+	self:setLevel(levelIndex) -- levelStartSteps = runSteps, Level/Stage attributes
+	self.runSteps = runSteps
+	local intro = self.level.introSequence
+	if intro and runSteps > levelStartSteps then
+		self.introIndex = #intro + 1
+	end
+	self.tutorialStepsClimbed = treesClimbed
+	self.tutorialGraceActive = levelIndex == Levels.TUTORIAL
+	self.folder:SetAttribute("TutorialGrace", self.tutorialGraceActive)
+	self:updateStageAttribute()
+	if self.notify then
+		self.notify(self, "start")
 	end
 end
 
