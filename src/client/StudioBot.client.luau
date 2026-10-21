@@ -16,7 +16,9 @@
 -- A Menu lane is started first (StartRun with `mode`, default Normal).
 -- Target pick (the filter earlier checks found works for every travel direction):
 -- own-lane steps within 29 studs of the lane origin (server reach), not held or
--- grabbed in the last few grabs; the pot's rim first; then, within |x| < 24 and
+-- grabbed in the last few grabs (matched by the step's spawn `Gen` too: steps are
+-- pooled, so a recycled Instance is a new step -- b-20261020-220122-w9qy); the
+-- pot's rim first; then, within |x| < 24 and
 -- -2 < y < 26, the nearest step at least CLIMB_Y up (a grab pulls it to the
 -- centre, so low steps barely scroll and an upstream rim would never arrive),
 -- else the nearest; else the nearest step in reach at all.
@@ -77,6 +79,20 @@ local stats: Stats = {
 local generation = 0 -- bumped by start/stop; a loop from an older start exits
 local held: { [number]: BasePart } = {}
 
+-- A recently grabbed step: the pooled Instance plus its spawn generation, so a
+-- recycled Instance (a fresh step) is not mistaken for the one grabbed before.
+type Recent = { step: BasePart, gen: any }
+
+local function isRecent(recent: { Recent }, step: BasePart): boolean
+	local gen = step:GetAttribute("Gen")
+	for _, entry in recent do
+		if entry.step == step and entry.gen == gen then
+			return true
+		end
+	end
+	return false
+end
+
 local function laneFolder(): Instance?
 	return lanesFolder:FindFirstChild(tostring(player.UserId))
 end
@@ -118,7 +134,7 @@ local function statusLine(): string
 	)
 end
 
-local function pickStep(origin: Vector3, recent: { BasePart }): BasePart?
+local function pickStep(origin: Vector3, recent: { Recent }): BasePart?
 	local best: BasePart? = nil
 	local high: BasePart? = nil
 	local loose: BasePart? = nil
@@ -127,7 +143,7 @@ local function pickStep(origin: Vector3, recent: { BasePart }): BasePart?
 		if not child:IsA("BasePart") or child:GetAttribute("LaneUserId") ~= player.UserId then
 			continue
 		end
-		if held[1] == child or held[2] == child or table.find(recent, child) then
+		if held[1] == child or held[2] == child or isRecent(recent, child) then
 			continue
 		end
 		local rel = child.Position - origin
@@ -175,7 +191,7 @@ local function stop(reason: string)
 end
 
 local function run(gen: number, mode: string, interval: number, restart: boolean)
-	local recent: { BasePart } = {}
+	local recent: { Recent } = {}
 	local stalledSince: number? = nil
 	local limb = 1
 	while gen == generation and stats.grabs < stats.target do
@@ -227,7 +243,7 @@ local function run(gen: number, mode: string, interval: number, restart: boolean
 		local before = runSteps()
 		GrabStep:FireServer(step, step.Position, limb)
 		held[limb] = step
-		table.insert(recent, step)
+		table.insert(recent, { step = step, gen = step:GetAttribute("Gen") })
 		if #recent > RECENT then
 			table.remove(recent, 1)
 		end

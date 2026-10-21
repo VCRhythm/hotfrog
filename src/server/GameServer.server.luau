@@ -950,6 +950,29 @@ scaffoldLane = function(lane: Lane.Lane, anchorStep: BasePart)
 	slideIn(lane, batch, Vector2.new(0, -1))
 end
 
+-- Starvation guard (b-20261020-220122-w9qy, doc 17). Without Classic drift the
+-- field only moves, and the spawners only run, on a grab -- so a grab that
+-- leaves nothing else to grab soft-locks the run for good: a small pull's
+-- spawns all rest off-screen (and some are refused at the lane's edge under a
+-- 45-degree arrow scroll), and with no further grab nothing ever brings them
+-- in. True while `f` has a step to grab next: one it isn't holding, not
+-- dropping away, resting in the camera band and within reach of the origin.
+local function hasFoothold(lane: Lane.Lane, f: FrogState): boolean
+	local shared = lane:sharedPending()
+	for step, st in lane.states do
+		if not st.dropElapsed and not isHeldBy(f, step) then
+			local rel = lane:restPosition(step, shared) - lane.origin
+			if
+				math.abs(rel.Y) <= Config.VIEW_HALF_HEIGHT
+				and Vector2.new(rel.X, rel.Y).Magnitude <= Config.MAX_GRAB_DISTANCE
+			then
+				return true
+			end
+		end
+	end
+	return false
+end
+
 -- The Heartbeat's per-lane spawn batch (the Tutorial ladder's one-shot batch,
 -- the pot's rim) and the callback that fills it, hoisted so an ordinary tick --
 -- where neither spawns anything -- allocates nothing. Cleared per lane, and only
@@ -1968,6 +1991,11 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	local onGrab = st.behavior.onGrab
 	if onGrab and lane.states[step] == st then
 		onGrab(ctxOf(lane, step, st))
+	end
+	-- nothing left to grab after this one (hasFoothold): lay the direction-change
+	-- scaffold from it, so the run can go on (b-20261020-220122-w9qy)
+	if not lane:drifts() and not f.dead and lane.states[step] == st and not hasFoothold(lane, f) then
+		scaffoldLane(lane, step)
 	end
 end)
 

@@ -2655,3 +2655,17 @@ studio: not run (static only); no Play started, so none to stop: Play stopped.
 owed: none
 note: this entry answers the owner's earlier taste step o-20261020-214949-7t5n (sent back to the loop).
 leftover: b-20261020-230842-3skp (a Studio Play check in Kitchen: body in proportion, coat behind the head, arm visibly reaching the targeted step)
+
+## b-20261020-220122-w9qy  fixed  2026-10-20 23:33
+note: Country lane runs out of steps: after ~18-44 grabs in Country the StudioBot stalls (nothing grabbable for 10 s), lane holds only 3-7 stationary steps and no new spawns while PullCount stays frozen; 3 of 5 runs from StudioSkipTo("Kitchen", 3)
+cause: Two causes. (1) A StudioBot artifact: the bot skipped "recently grabbed" steps by pooled Instance, so a recycled Instance holding a new step was excluded. (2) A real soft-lock in non-drifting (Normal-mode) lanes: the port pulls and spawns only on a grab, so a grab whose short pull left every new spawn off-screen or out of reach left nothing to grab, and nothing ever spawned again. An example is Country's DownLeftStepSpawner under UpRightRock's 45-degree scroll. The k25y pool change made this likelier but did not create it.
+change: StudioBot matches recent grabs by Instance plus the step's `Gen` attribute. In GameServer's GrabStep handler, once a non-drifting lane is left with no grabbable foothold, it now lays the existing direction-change scaffold (scaffoldLane, from b-20260921-182631-0a8u) from the grabbed step. The new hasFoothold check looks at rest positions after pending pulls, for steps that are not held and not dropping, within VIEW_HALF_HEIGHT vertically and MAX_GRAB_DISTANCE. Doc 17 has a new deviation row.
+files: src/client/StudioBot.client.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check pass; selene src/ 0 errors 0 warnings; tools/luau_check.sh on both files clean; rojo build pass.
+verified: yes. StudioBot runs in Studio Play, Normal mode, from StudioSkipTo("Kitchen", 3):
+  - Original code: 1 of 3 runs stalled at 21 grabs, a bot artifact (a reachable Castle step was excluded as a recycled Instance).
+  - Bot fix only: five 60-grab runs went 60/60, but a 150-grab run soft-locked at 102 grabs in Country with 3 steps on the lane (the real bug).
+  - Bot fix plus the guard: three 150-grab runs went 150/150 with 0 stalls, deaths or rejects. A temporary log showed the guard firing twice in Country in one run.
+  The debug print was then deleted; static checks were re-run, Play was not (that line was the only change).
+review: looks-right; checked: the diff of all three files, the GrabStep handler, scaffoldLane and its other caller, and in Lane.luau restPosition, sharedPending, drifts and scaffold. hasFoothold runs after pullLane and onGrab using rest positions, so it never measures steps mid-tween. It is relative to lane.origin and iterates only lane.states. Held steps are excluded via isHeldBy, and it is skipped when dead. A scaffold only fires with no foothold and clearSpot prevents overlap. Classic drift is untouched. Gen is incremented on every spawn. luau_check exit 0; stylua exit 0. Minor: hazard kinds such as cars count as footholds; Tutorial and the Pot top were not tested by the reviewer.
+studio: Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd, placeId 114911935371092), never Centralia; the fixer started and stopped its own Play runs: Play stopped.
