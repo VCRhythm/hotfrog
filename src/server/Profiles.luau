@@ -433,8 +433,12 @@ end
 
 -- Immediate save for purchases (receipts, game passes, Fly spends): these must
 -- be on disk before they're acknowledged, so they skip the coalescing. Returns
--- whether the write succeeded.
+-- whether the write succeeded; with Studio API access off there is nothing to
+-- write to, so that counts as success (as it did before saves were coalesced).
 function Profiles.saveNow(player: Player): boolean
+	if apiAccessDisabled then
+		return true
+	end
 	lastSaveAt[player] = os.clock()
 	return doSave(player, false)
 end

@@ -257,6 +257,10 @@ MarketplaceService.PromptGamePassPurchaseFinished:Connect(function(player, passI
 end)
 
 -- Consumables (Fly packs). ProcessReceipt may fire more than once -> idempotent.
+-- A receipt whose save is still in flight answers NotProcessedYet, so a repeat
+-- can't acknowledge a grant that the save failure is about to roll back.
+local savingReceipts: { [string]: boolean } = {}
+
 MarketplaceService.ProcessReceipt = function(receipt)
 	local player = Players:GetPlayerByUserId(receipt.PlayerId)
 	local p = player and Profiles.get(player)
@@ -267,11 +271,17 @@ MarketplaceService.ProcessReceipt = function(receipt)
 	if not grant then
 		return Enum.ProductPurchaseDecision.NotProcessedYet
 	end
+	if savingReceipts[receipt.PurchaseId] then
+		return Enum.ProductPurchaseDecision.NotProcessedYet
+	end
 	if not p.applied[receipt.PurchaseId] then
 		p.applied[receipt.PurchaseId] = true
 		p.flys += grant
 		push(player)
-		if not Profiles.saveNow(player) then -- persist before acknowledging
+		savingReceipts[receipt.PurchaseId] = true
+		local saved = Profiles.saveNow(player) -- persist before acknowledging
+		savingReceipts[receipt.PurchaseId] = nil
+		if not saved then
 			-- undo so the retry grants it again instead of skipping as applied
 			p.applied[receipt.PurchaseId] = nil
 			p.flys -= grant
