@@ -2995,3 +2995,75 @@ verified: partly — contact sheet only; the in-game check is b-20261021-102559-
 review: looks-right (orchestrator read the diff and viewed the contact sheet); checked: no Trampoline left in src/ pools or roles, SkinAssets diff adds only CashPile.
 leftover: none — in-game look and launch are b-20261021-102559-xryp; doc 19's planning prose (ruling text) keeps the word Trampoline as history
 owed: none
+
+## b-20261021-092032-44by  fixed  2026-10-21 10:26
+note: Studio Play check for theming part 2 (sh6c): role map pools, PadLadder/SpringStreak, Halloween never swapping movers or Launch kinds
+cause: check entry (no defect found).
+change: none. StudioBot in Pot (40 grabs), Kitchen (45/47/44), Country (45/45) and Space (30), 0 rejects, 0 deaths; each level spawned its expected pool (Kitchen Shelf trio, Toaster, IceCube, CrumblyRock, FallingRock; Country TreeTrunk, OakTree, StillRock, SlowFallRock, Beetle, Trampoline, cars; Space Asteroid, UFO, Satellite, Lillipad). With ForceHalloween on, Pumpkins never replaced Patrol, RiseAndFall or Launch kinds (HALLOWEEN_KEEP_BEHAVIORS) nor hazards.
+files: none
+test: Studio Play with StudioSkipTo, StudioBot and a spawn sampler.
+verified: yes for pools and the Halloween swap; PadLadder and SpringStreak were not seen (rare patterns)
+studio: loop checker started Play on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd) after confirming rojo sync (UFO, SPACE_ROLES, POTATO_Z found) and stopped it itself; get_studio_state Edit at the end; ForceHalloween left true as found; console only [BugReport] ready plus engine noise (UIBlox FoundationProvider, ContentId generation for new asset ids)
+review: n/a (check only)
+leftover: b-20261021-102627-iae5 (PadLadder/SpringStreak). One Space bot stall right after StudioSkipTo (24 grabs, nothing in reach) did not reproduce on a rerun (30/30), so not filed.
+owed: none
+
+## b-20261021-092339-6q9n  fixed  2026-10-21 10:26
+note: Studio Play check for theming part 3 (8ayk): Ember, StillRock, FlyRock, SlowFallRock tints and behaviour
+cause: check entry (no defect found).
+change: none. Tints read apart: Ember (FlingingRock) 1, 0.5, 0.12 orange; StillRock untinted; FlyRock 1, 0.88, 0.35 gold; SlowFallRock 1, 0.55, 0.78 pink. Grabbing the Ember spawned a Flame flingee; SlowFallRock went Unsteady and dropped after the 3 s FALL_DELAY (y 5 to 4.65 held, then -7.86).
+files: none
+test: Studio Play, StudioSpawnKind in Pot and Country, GrabStep from the client.
+verified: yes
+studio: loop checker started Play on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd) after confirming rojo sync (UFO, SPACE_ROLES, POTATO_Z found) and stopped it itself; get_studio_state Edit at the end; ForceHalloween left true as found; console only [BugReport] ready plus engine noise (UIBlox FoundationProvider, ContentId generation for new asset ids)
+review: n/a (check only)
+leftover: none — all four kinds behaved as specified
+owed: none
+
+## b-20261021-092756-3yan  fixed  2026-10-21 10:26
+note: Studio Play check for theming part 4 (2ymu): CrumblyRock tint, FallingRock sink, hazard cap in Kitchen stages 3-4
+cause: check entry (no defect found).
+change: none. CrumblyRock biscuit 0.88, 0.70, 0.45 vs CrumbleRock 1, 0.90, 0.50; FallingRock salmon 1, 0.46, 0.40 sank about 24 studs/s (y 5 to -31.4 in 1.5 s) and parked at y -33.4 for the pool; over a 44-step Kitchen run at most 1 hazard was on screen at once (cap 2 of the last 6). FallingRock is rare in natural spawns (seen once in stage 3), as expected from its 0.2-0.3 weight under the shared hazard cap.
+files: none
+test: Studio Play, StudioSpawnKind and a StudioBot run through Kitchen stages 3-4.
+verified: yes
+studio: loop checker started Play on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd) after confirming rojo sync (UFO, SPACE_ROLES, POTATO_Z found) and stopped it itself; get_studio_state Edit at the end; ForceHalloween left true as found; console only [BugReport] ready plus engine noise (UIBlox FoundationProvider, ContentId generation for new asset ids)
+review: n/a (check only)
+leftover: none — FallingRock's rarity follows the guessed weights and the hazard cap; tune only if the owner wants more
+owed: none
+
+## b-20261021-100046-k6c8  fixed  2026-10-21 10:26
+note: Studio Play check for 4kya/pbfk/vou1: level shelves, per-step Z bias, pebble burst
+cause: check entry (no defect found); also holds the in-game check for b-20261021-094844-4kya and b-20261021-094526-pbfk.
+change: none. Shelf, ShelfWithFork and ShelfWithSpoon stayed at rotation 0 over 3 s while a Pumpkin tumbled (rotZ 12 to 99). Eight steps spawned on one spot got distinct Z inside +-0.05 (0.0219, 0.0156, -0.0094, 0.0031, 0.0469, -0.0031, 0.0406, -0.0156). Grabbing a CrumbleRock (Country) jittered, then at 1.07 s fired StepExploded "Pebble" with 27 grey chunks in three shades and knocked the holder off; a CrumblyRock (Kitchen) jittered and released the holder at about 1.1 s on the same code path.
+files: none
+test: Studio Play, StudioSpawnKind, GrabStep from the client.
+verified: yes (flicker judged from the distinct Z values, not a screenshot; CrumblyRock's pebbles not captured, same ExplodeAfterGrab path as CrumbleRock)
+studio: loop checker started Play on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd) after confirming rojo sync (UFO, SPACE_ROLES, POTATO_Z found) and stopped it itself; get_studio_state Edit at the end; ForceHalloween left true as found; console only [BugReport] ready plus engine noise (UIBlox FoundationProvider, ContentId generation for new asset ids)
+review: n/a (check only)
+leftover: none — all three fixes behaved as specified
+owed: none
+
+## b-20261021-091555-rjh8  fixed  2026-10-21 10:26
+note: Integration check: chef strike redesign (iuhy) and the Food/Shove FX depths (o1t7)
+cause: check entry (no defect found).
+change: none. Body and arm sprites draw; the chef enters from either side; the Knife draws in front of the frog and steps, the other actions behind (by design). Knife timeline Walk 0.8 s, WindUp 1.0 s, Swing 1.2 s, the target shelf dropped about 0.8 s into the Swing, then the phase cleared; the Knife has no Strike phase (Chef.luau's contract; Strike belongs to Shove and Food, which ran Walk/WindUp/Strike and WindUp/Flight/Strike). Grabbing the Knife's target during WindUp cleared ChefAction and ChefPhase at once and the step stayed: the swing fizzled. No flicker seen between arm, potato and arrow in the Food shots. Knife and Food need another un-held foothold in view (otherFoothold), so a frog holding still on a bare field sees only Shoves.
+files: none
+test: Studio Play, StudioSkipTo Kitchen 3, polling Chef* lane attributes at 20 ms, screen_capture of wind-up and swing.
+verified: partly — the contact frame and a Shove frame were too quick for the MCP's screenshot latency; the timeline was confirmed by polling instead
+studio: loop checker started Play on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd) after confirming rojo sync (UFO, SPACE_ROLES, POTATO_Z found) and stopped it itself; get_studio_state Edit at the end; ForceHalloween left true as found; console only [BugReport] ready plus engine noise (UIBlox FoundationProvider, ContentId generation for new asset ids)
+review: n/a (check only)
+leftover: none — the contact-frame look cannot be captured through the MCP's screenshot latency, and the polled timeline shows the drop lands inside the Swing
+owed: none
+
+## b-20261021-091538-mio4  fixed  2026-10-21 10:26
+note: Integration check: level theming (z0a9), new and revived kinds in every level
+cause: check entry (no defect found).
+change: none. All new kinds spawned with art, untinted, grip at the step centre, hit boxes as specified (Satellite 7.8 x 1.5, UFO 7.8 x 2.5, Toaster 7.1 x 5.3, IceCube 3.657 square, Trampoline 7.8 x 1.8, Beetle 6.9 x 3.7). Beetle's first grab forced a release and the regrab held; Trampoline and Toaster launched (PullTotal jumps of about -11 and -13 against -3 for a StillRock); IceCube held about 4 s then vanished. Lillipad present in Kitchen, Country and Space. Revived kinds as in 6q9n and 3yan.
+files: none
+test: Studio Play across all four levels with StudioSpawnKind and StudioBot.
+verified: partly — presence and behaviour yes; the per-stage spawn counts were too small to compare with the Levels weights; the Trampoline has since been replaced by CashPile (b-20261021-094516-9uqb, checked by b-20261021-102559-xryp)
+studio: loop checker started Play on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd) after confirming rojo sync (UFO, SPACE_ROLES, POTATO_Z found) and stopped it itself; get_studio_state Edit at the end; ForceHalloween left true as found; console only [BugReport] ready plus engine noise (UIBlox FoundationProvider, ContentId generation for new asset ids)
+review: n/a (check only)
+leftover: b-20261021-102627-iae5 (patterns) and b-20261021-102559-xryp (CashPile); none for the weights — they are guesses, and matching them needs long bot runs the owner's own play replaces
+owed: none
