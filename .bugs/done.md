@@ -2734,3 +2734,14 @@ re-review: concern: ReleaseStep ignores limbIndex, so limb 2's stale sweep also 
 studio: Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd, placeId 114911935371092), never Centralia; the canary was found in the Edit datamodel; the fixer started Play and stopped it, and get_studio_state shows Edit: Play stopped.
 owed: none
 followups: b-20261021-001004-5q5n (the real-player version: does a server reset/respawn path clear f.held without ForceRelease, leaving GameClient slots full?)
+
+## b-20261021-001004-5q5n  cannot-reproduce  2026-10-21 00:13
+note: Check whether a server reset/respawn path clears a frog's held limbs without firing ForceRelease, leaving GameClient's slots full so a real player's taps are ignored
+cause: Not a bug. Every server path that clears a real frog's f.held goes through forceReleaseStep (GameServer ~343-352), which fires ForceRelease to the owner, so GameClient's releaseSlot runs. The paths are death (killFrog ~1531), tutorial retry (~1606), run reset/restart (~2230), StudioSkipTo (~2356), held step carried into lava or off the lane (~1063), and step-behaviour knock-off. clearLaneSteps callers force-release first. A rejected GrabStep fires ForceRelease directly (~1886-1928). The client's own ReleaseStep (~2024) was cleared client-side first. The only silent clear is PlayerRemoving (~2519), where the player is leaving. GameClient does not reset slots on RunState changes, and doesn't need to: each transition force-releases before the state changes.
+change: none
+files: none
+test: static audit of every f.held write in src/server/GameServer.server.luau and of GameClient's slots/RunStateChanged handlers; bugloop recall (only h5lo matched); the orchestrator re-grepped the clears and ForceRelease fires. No code changed, so the checks were not run.
+verified: no — static audit only; nothing changed and the audit found no path to drive in Play.
+review: n/a
+leftover: none — nothing was changed and the audit found no desyncing path, so there is no fix to check in Play. The reverse case, where the server holds and the client thinks the limb is free (silent return at ~2111), comes only from a stale client; h5lo (4461a16) covers its one real instance, StudioBot.
+owed: none
