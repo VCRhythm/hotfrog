@@ -206,8 +206,10 @@ no-check: only the owner can judge the look
 evidence: marked done by the user, no check
 cleared: 2026-10-17 13:33 marked done on the fleet dashboard
 
-## o-20261020-205042-fnwn  open  2026-10-20 20:50
+## o-20261020-205042-fnwn  done  2026-10-20 20:50
 for: b-20261020-200915-5ju4
 kind: taste
 step: Look over the new Ludo art for style fit and car feel: Sprites/Rocks/TreeTrunk.png, CarRight.png, CarLeft.png, Asteroid.png, Sprites/Other/CountryBack.png, SpaceBack.png; in game, how a held car drags the frog for 1.2 s before knocking it off, car speed, and Space's 20% gravity. Reply on the dashboard with anything to change
 no-check: style and feel are a judgement only the owner can make
+evidence: none, the user sent it back to the loop as b-20261020-205151-b1ob
+cleared: 2026-10-20 20:51 sent back to loop as b-20261020-205151-b1ob: show me

@@ -2473,3 +2473,13 @@ files: none
 test: none
 verified: see b-20261020-200915-5ju4
 review: n/a
+
+## b-20261020-205151-b1ob  answered  2026-10-20 20:53
+note: show me (sent back from owed step o-20261020-205042-fnwn: look over the new Ludo art and car/Space feel, for b-20261020-200915-5ju4)
+cause: The owner wanted to see the new art before judging it.
+change: Sent the six new sprites (Sprites/Rocks/TreeTrunk.png, CarRight.png, CarLeft.png, Asteroid.png, Sprites/Other/CountryBack.png, SpaceBack.png) to the owner's session, and filed the taste review as question b-20261020-205326-jmsu with the six images attached, so it shows on the dashboard with the pictures.
+files: none
+test: none
+verified: yes — SendUserFile delivered all six images; bugloop.py ask filed b-20261020-205326-jmsu with the attachments.
+review: n/a
+followups: b-20261020-205326-jmsu
