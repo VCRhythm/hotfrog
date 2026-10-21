@@ -764,7 +764,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withOutdoor({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
+			pool = withOutdoor({ "UpRock", "UpLeftRock", "UpRightRock" }),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -779,7 +779,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withOutdoor({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" }),
+			pool = withOutdoor({ "UpRock", "UpRightRock", "RightRock" }),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
@@ -794,7 +794,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withOutdoor({ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" }),
+			pool = withOutdoor({ "UpRock", "UpLeftRock", "LeftRock" }),
 			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
 		},
 		{
@@ -813,9 +813,6 @@ list[Levels.COUNTRY] = {
 			-- Left/Right spawners unreachable from a downward scroll; adding them here is
 			-- what makes sideways travel actually happen (doc 13).
 			pool = withOutdoor({
-				"ShelfWithSpoon",
-				"ShelfWithFork",
-				"Shelf",
 				"UpLeftRock",
 				"UpRightRock",
 				"LeftRock",
@@ -839,7 +836,10 @@ list[Levels.COUNTRY] = {
 	-- yet) to a mix where roughly half the rock/shelf spawns are dynamic. Tree
 	-- trunks keep their StepKinds weight throughout; cars join after stage 1 and
 	-- grow more common (each stage lists both, so the stage tables match). The
-	-- themed Rocket/Balloon spawner is untouched. Counted from the lane's
+	-- themed Rocket/Balloon spawner is untouched. Shelves are gone from Country
+	-- (b-20261020-213556-k25y): the plain footholds are the trees, and every
+	-- stage weights the arrows (0.25 each) well above their 0.1 default.
+	-- Counted from the lane's
 	-- arrival, like Kitchen's.
 	stagesFromEntry = true,
 	heightStages = {
@@ -852,6 +852,13 @@ list[Levels.COUNTRY] = {
 				BlinkRock = 0,
 				CrumbleRock = 0,
 				CarRight = 0,
+				TreeTrunk = 0.6,
+				OakTree = 0.6,
+				UpRock = 0.25,
+				UpLeftRock = 0.25,
+				UpRightRock = 0.25,
+				LeftRock = 0.25,
+				RightRock = 0.25,
 				CarLeft = 0,
 			},
 			sceneryDensity = 1,
@@ -867,6 +874,13 @@ list[Levels.COUNTRY] = {
 				BlinkRock = 0.2,
 				CrumbleRock = 0.3,
 				CarRight = 0.15,
+				TreeTrunk = 0.6,
+				OakTree = 0.6,
+				UpRock = 0.25,
+				UpLeftRock = 0.25,
+				UpRightRock = 0.25,
+				LeftRock = 0.25,
+				RightRock = 0.25,
 				CarLeft = 0.15,
 			},
 			sceneryDensity = 1,
@@ -882,6 +896,13 @@ list[Levels.COUNTRY] = {
 				BlinkRock = 0.35,
 				CrumbleRock = 0.4,
 				CarRight = 0.2,
+				TreeTrunk = 0.6,
+				OakTree = 0.6,
+				UpRock = 0.25,
+				UpLeftRock = 0.25,
+				UpRightRock = 0.25,
+				LeftRock = 0.25,
+				RightRock = 0.25,
 				CarLeft = 0.2,
 			},
 			sceneryDensity = 1,
@@ -897,6 +918,13 @@ list[Levels.COUNTRY] = {
 				BlinkRock = 0.45,
 				CrumbleRock = 0.45,
 				CarRight = 0.25,
+				TreeTrunk = 0.6,
+				OakTree = 0.6,
+				UpRock = 0.25,
+				UpLeftRock = 0.25,
+				UpRightRock = 0.25,
+				LeftRock = 0.25,
+				RightRock = 0.25,
 				CarLeft = 0.25,
 			},
 			sceneryDensity = 1,
