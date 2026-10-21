@@ -3078,3 +3078,39 @@ verified: no — nobody has heard the track; the Studio MCP cannot play audio
 review: looks-right (orchestrator read the diff); checked: MUSIC_STEMS has index 5, SoundAssets ignore-whitespace diff is the single music6 line, build_manifest skips the file cleanly when absent.
 leftover: none — whether the track fits and loops cleanly is a taste call owed as o-20261021-103548-zf5x
 owed: o-20261021-103548-zf5x — listen to the Kitchen track and its loop seam
+
+## b-20261021-101926-frao  fixed  2026-10-21 10:36
+note: Studio Play look check for the restyled sprites (Toaster, Asteroid, TreeTrunk)
+cause: check entry (no defect found).
+change: none. In game the Toaster is a soft blue-grey body with no outline or grain, the Asteroids are soft grey rocks with blurred craters, and the TreeTrunk is a flat brown cylinder with a soft gradient and a small sprig; all have clean alpha edges. The orchestrator viewed the Country screenshot.
+files: none
+test: Studio Play, StudioSkipTo Kitchen / Space / Country, StudioSpawnKind, screen_capture.
+verified: yes — seen in game, though stacked on the grip spot under a very close camera (filed as b-20261021-103630-zqh2)
+studio: loop checker started Play on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd) after confirming rojo sync (CashPile in StepKinds) and stopped it itself; get_studio_state Edit at the end; ForceHalloween untouched; console only [BugReport] ready plus Studio UIBlox noise and a transient "asset content representation is being generated" for the new CashPile id
+review: n/a (check only)
+leftover: b-20261021-103630-zqh2 (close camera seen in the screenshots)
+owed: none
+
+## b-20261021-102559-xryp  fixed  2026-10-21 10:36
+note: Studio Play look check for CashPile (replaced Trampoline)
+cause: check entry (no defect found).
+change: none. The CashPile draws as a low pile of green notes and coins that reads as a foothold; the spawned step has HitSize 7.8 x 2, Size 8 x 4 x 1. A GrabStep on it moved PullTotal by -11 against -3 for a StillRock (it launches). A 140-grab Country StudioBot run spawned 26 CashPiles and no Trampoline.
+files: none
+test: Studio Play, StudioSpawnKind, the GrabStep remote from the client, StudioBot with a spawn sampler.
+verified: yes
+studio: loop checker started Play on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd) after confirming rojo sync (CashPile in StepKinds) and stopped it itself; get_studio_state Edit at the end; ForceHalloween untouched; console only [BugReport] ready plus Studio UIBlox noise and a transient "asset content representation is being generated" for the new CashPile id
+review: n/a (check only)
+leftover: none — the asset-generation console line is the new id being processed by Roblox and the art rendered
+owed: none
+
+## b-20261021-102627-iae5  fixed  2026-10-21 10:36
+note: Studio Play check: PadLadder and SpringStreak still lay the role kinds
+cause: check entry (no defect found).
+change: none. A server spawn logger found pattern pairs at the pattern offsets: Country SpringStreak laid CashPile pairs three times (members 10.0 studs apart, the expected sqrt(8.8^2 + 4.75^2)); Kitchen SpringStreak laid a Toaster pair once (10.2 apart); PadLadder laid Lillipad pairs about 7.25 upstream in Kitchen, Country and Space. The 6 SpringRocks seen in Space are expected: Space stage 2 weights SpringRock 0.3 (only stage 1 has 0).
+files: none
+test: Studio Play, long StudioBot runs in Kitchen, Country and Space with a detached spawn logger (no Studio lever forces a pattern).
+verified: yes (Kitchen SpringStreak from one sighting)
+studio: loop checker started Play on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd) after confirming rojo sync (CashPile in StepKinds) and stopped it itself; get_studio_state Edit at the end; ForceHalloween untouched; console only [BugReport] ready plus Studio UIBlox noise and a transient "asset content representation is being generated" for the new CashPile id
+review: n/a (check only)
+leftover: none — every pattern was seen laying its role kind
+owed: none
