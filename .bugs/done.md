@@ -2526,3 +2526,49 @@ review: looks-right; checked: git show 0516a4c; SkinAssets diff is only the two 
 " covers both generated files, line-ending-only differences still count as unchanged); PIL on old vs new PNGs: 512x512 RGBA, pumpkin opaque bbox (62,87)-(450,429) -> (70,90)-(446,433), ghost ~6% shorter; cosmetic note: the ghost's body sides keep a fairly crisp edge.
 studio: Hot Frog (placeId 114911935371092); Edit-datamodel canary only; this check started no Play (Studio was in Edit), so none to stop: Play stopped.
 leftover: b-20261020-214145-hx6a (render check in Play with ForceHalloween)
+
+## b-20261020-213324-txe8  fixed  2026-10-20 21:49
+note: Studio-only playtest tools: jump a lane to just before a level transition, and a reusable client bot to drive grabs
+cause: Feature. execute_luau gets its own copies of ModuleScripts, so calling Lane or Config from it never reached the live game; every level check needed a full natural climb.
+change: Server `ServerStorage.StudioSkipTo` BindableFunction, created only under RunService:IsStudio(): Invoke(level, stepsBefore=3, mode?, player?) runs the new Lane.skipTo (run progress stepsBefore grabs before that level's exit; Pot: before the rim; Tutorial: trees left; Space: its start), force-releases held steps, refills the lane, resets Chef, parks the frog, restarts the scroll and starts a run from Menu. The run is marked skippedRun so commitHighScore never banks it; refused while Dead. StartRun and Lane.resetRun bodies moved verbatim into helpers beginRun / parkFrog / restartScroll. New Studio-only LocalScript StudioBot (LocalPlayer.StudioBot: start/wait/status/stop) grabs hand over hand through the real StartRun/GrabStep/ReleaseStep remotes and reports grabs, rejects, deaths, stalls and levels passed. .bugs/README.md Verification documents both.
+files: src/server/GameServer.server.luau, src/server/Lane.luau, src/client/StudioBot.client.luau, .bugs/README.md
+enforced-by: .bugs/README.md Verification bullet "Studio-only playtest tools" (every fixer reads it before a Studio check)
+test: stylua --check pass; selene src/ clean; tools/luau_check.sh on each file clean; rojo build pass.
+verified: yes for Pot>Kitchen (skip Pot 2 -> runSteps 48, bot 8/8 grabs, LevelState Kitchen, KitchenTile, music 3), Kitchen>Country (skip Kitchen 3 from Menu -> 97, bot 5/5, CountryBack seen in a screenshot) and Country>Space (skip Country 2 mid-run -> 248, Best stayed 291, bot reached Space, SpaceBack in a screenshot). Not checked: Tutorial skips, Classic mode, the Space gravity ease (lane gravity is not exposed).
+review: looks-right; checked: full diffs of GameServer/Lane/README and all of StudioBot; StartRun/resetRun refactor is order-preserving; tooling only under IsStudio, no new remotes; skippedRun set only in skipTo, cleared in resetScore/PlayerRemoving, commitHighScore runs before the clear; Lane.skipTo vs setLevel/onStepClimbed/thresholds; luau_check + stylua clean. Cosmetic note: after a skipped run dies the end panel may still say "new best" (not banked); Studio only, display only.
+studio: Hot Frog (placeId 114911935371092), never Centralia; canaries StudioSkipTo / function Lane.skipTo found in the Edit datamodel before each Play; three Play sessions started and stopped by the fixer: Play stopped. Console clean apart from CorePackages UIBlox warnings.
+followups: none filed (the "new best" display after a skipped run is Studio-only)
+
+## b-20261020-213710-3823  fixed  2026-10-20 21:49
+note: DataStore request was added to queue. If request queue fills, further requests will be dropped. Try sending fewer requests. Key = u_4272203669
+cause: Many callers (commitHighScore, Fly awards, missions, daily, gift, music toggle, Lane tutorial-done, autosave) call Profiles.save back to back, and each was an immediate UpdateAsync on the same player key; Roblox allows about one write per key per 6 s and queues the rest. Earlier related entry: b-20260919-161227-4uzb.
+change: Profiles.save coalesces non-final saves: at most one per 7 s per player plus one trailing save (task.delay) that reads the live cache, so the latest state still lands; per-player tracking cleared on leave; PlayerRemoving and BindToClose still call doSave directly. After review, new Profiles.saveNow(player): boolean writes at once: ProcessReceipt acknowledges a Fly pack only when it succeeds (otherwise rolls the grant back and returns NotProcessedYet), and game-pass grants use it too.
+files: src/server/Profiles.luau, src/server/SkinService.server.luau
+test: stylua --check pass; selene src/ clean; tools/luau_check.sh on both files clean; rojo build pass.
+verified: partly; static only, not run in Play.
+review: concern: ProcessReceipt could acknowledge a paid purchase up to 7 s before it was written (needs a force-flush path); secondary: a trailing save in flight during PlayerRemoving could re-stamp the session lock (narrow; the old code had a similar race). The first is addressed by Profiles.saveNow + rollback (orchestrator); the secondary is left as is. checked: Profiles diff and whole file, every Profiles.save caller, SkinService 225-285, GameServer high-score and SetMusicOn handlers. The saveNow change itself was not re-reviewed.
+studio: not run (static only); no Play started, so none to stop: Play stopped.
+leftover: b-20261020-214944-nzdy (Play check with StudioBot: no queue warning; a test Fly-pack purchase grants and persists)
+
+## b-20261020-213524-zhza  fixed  2026-10-20 21:49
+note: give the chef a body that follows along with him
+cause: Chef.png is head-and-hat art only, so the Kitchen Chef was a floating head.
+change: WorldChef.client.luau adds per lane a placeholder white coat torso and two trouser legs from the existing block() helper (anchored, no collide/query/touch), posed each frame off the chef sprite's CFrame so they follow wander, lean and bob; legs swing with speed; the arm's shoulder moved onto the coat; hideAll and lane removal cover the new parts. After review the torso sits 0.3 studs back (its face at Z -0.95, behind the head art at -0.75) so the neck overlap cannot z-fight. Doc 17's Kitchen Chef row notes the placeholder body.
+files: src/client/WorldChef.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check pass; selene src/ clean; tools/luau_check.sh clean; rojo build pass.
+verified: partly; static only, not seen in Play.
+review: concern: the coat's front face was coplanar with the chef decal (Z -0.75), so the neck overlap could z-fight; fixed by moving the torso to body-local Z -0.3 (orchestrator). checked: WorldChef diff and whole file; block() flags; per-lane create/destroy and hideAll; legs only below the art; knife/shove telegraph built from stepPos so unchanged; per-frame cost three CFrames per Kitchen lane.
+studio: not run (static only); no Play started, so none to stop: Play stopped.
+owed: o-20261020-214949-7t5n (taste: owner judges the placeholder coat and legs, or asks for a painted body)
+leftover: b-20261020-214945-tkhv (Play check in Kitchen: body follows, no neck z-fight)
+
+## b-20261020-213556-k25y  fixed  2026-10-20 21:49
+note: remove shelves from the "country" level and add in more directional steps
+cause: Country's four step pools were Unity's rock/shelf pools, so shelves (Shelf, ShelfWithSpoon, ShelfWithFork) kept spawning outdoors and arrows were weighted 0.1.
+change: Levels.luau Country only: shelves removed from all four pools; DownLeft UpRock/UpLeftRock/UpRightRock, Right UpRock/UpRightRock/RightRock, Left UpRock/UpLeftRock/LeftRock, Down unchanged (four sideways/up arrows), each still plus withOutdoor's TreeTrunk/OakTree/cars; every height stage weights each arrow 0.25 (was 0.1) and TreeTrunk/OakTree 0.6 (was 0.4). Doc 17's Country row updated (and its stale "rock/shelf pools" / "OakTree weight 0.4" wording fixed). Levels.luau rewritten with LF endings.
+files: src/shared/Levels.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check pass; selene src/ clean; tools/luau_check.sh clean; rojo build pass.
+verified: partly; static only, not run in Play.
+review: looks-right; checked: Levels diff is Country-only (Tutorial/Pot/Kitchen/Space untouched); all kind names exist in StepKinds; arrows only bias spawn direction (StepBehaviors onGrab -> setSpawnBias), are grabbable, not hazards; arrow share ~17-33% by stage; trees/Lillipad/BobRock/SpringRock remain as plain footholds; Lane.pickKind's Pumpkin swap still has ordinary kinds; doc nit (sentence spliced mid-row) fixed by orchestrator.
+studio: not run (static only); no Play started, so none to stop: Play stopped.
+leftover: b-20261020-214946-mowo (Play check in Country: no shelves, arrows appear, bot climbs 30+ grabs)
