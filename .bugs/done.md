@@ -2907,3 +2907,14 @@ verified: no — Studio is in the owner's session; the loop's check b-20261021-1
 review: looks-right; checked: StepExploded has one listener (Effects) and an unknown style falls back; role maps, Halloween tint (keyed by sprite stem), Levels lists and Lane hazard caps unaffected beyond the intended cap.
 leftover: none — Ember (FlingingRock, Pot) shares the art but is orange-tinted and flings a harmless flame, left as is on purpose
 owed: none
+
+## b-20261021-100120-anmj  fixed  2026-10-21 10:02
+note: you are starting studio yourself. you need to be able to end it yourself (sent back from owed step o-20261021-095849-v7sv for b-20261021-092032-44by)
+cause: the loop's Studio checker started Play at 09:42; when F8 reports arrived during it the loop told the checker to leave Play running as "the owner's session", then owed the owner a step to stop it, against the rule that a session which starts Play stops it.
+change: no code. The loop no longer leaves a Play it started: every Studio checker prompt now says to stop Play before it finishes, always, and F8 reports during a loop-started Play do not hand that Play to the owner; recorded as a feedback memory for later sessions. Studio was already back in Edit at 10:02 (get_studio_state), so the held checks 44by, 6q9n, 3yan and k6c8 run in the next loop-started Play.
+files: none
+test: get_studio_state on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd): Edit.
+verified: yes — Studio is in Edit; the rule is applied from the next checker on
+review: n/a (process change, no code)
+leftover: none — the held checks are open entries (b-20261021-092032-44by, b-20261021-092339-6q9n, b-20261021-092756-3yan, b-20261021-100046-k6c8)
+owed: none

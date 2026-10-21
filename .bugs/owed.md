@@ -222,8 +222,18 @@ no-check: only the owner can judge the look
 evidence: none, the user sent it back to the loop as b-20261020-215940-pyvu
 cleared: 2026-10-20 21:59 sent back to loop as b-20261020-215940-pyvu: the chef should have a huge body, sized correctly to his head. and currently his arm isn't viewable in a way that shows which step he's about to break
 
-## o-20261021-092031-ss9x  open  2026-10-21 09:20
+## o-20261021-092031-ss9x  done  2026-10-21 09:20
 for: b-20261021-091520-sh6c
 kind: restart
 step: Stop Play in the Hot Frog Studio (Play has run since 08:47 and may be yours); the loop's Studio checks wait until Studio is back in Edit mode
 done-check: cd "$LOCALAPPDATA/Roblox/logs" && f=$(ls -t *Studio*_last.log | head -3 | xargs grep -a -l 114911935371092 | head -1) && [ -n "$f" ] && grep -a -o "WaypointTelemetry\] \(PSMStartPlaySolo\|StopPlaySoloEnd\)" "$f" | tail -1 | grep -q StopPlaySoloEnd
+evidence: done-check passed: exit 0, no output
+cleared: 2026-10-21 09:40 marked done on the fleet dashboard
+
+## o-20261021-095849-v7sv  done  2026-10-21 09:58
+for: b-20261021-092032-44by
+kind: restart
+step: Stop Play in the Hot Frog Studio when you're finished with it; the loop's Studio work waits until Studio is back in Edit mode
+done-check: cd "$LOCALAPPDATA/Roblox/logs" && f=$(ls -t *Studio*_last.log | head -3 | xargs grep -a -l 114911935371092 | head -1) && [ -n "$f" ] && grep -a -o "WaypointTelemetry\] \(PSMStartPlaySolo\|StopPlaySoloEnd\)" "$f" | tail -1 | grep -q StopPlaySoloEnd
+evidence: none, the user sent it back to the loop as b-20261021-100120-anmj
+cleared: 2026-10-21 10:01 sent back to loop as b-20261021-100120-anmj: you are starting studio yourself. you need to be able to end it yourself
