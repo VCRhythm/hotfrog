@@ -2441,3 +2441,14 @@ review: looks-right (sonnet); checked: the diff, tryCatchBug raycast include lis
 studio: Hot Frog (placeId: 114911935371092)
 leftover: none
 owed: none
+
+## b-20261019-032005-wkiu  fixed  2026-10-20 20:14
+note: Feature: Once a Play check passes in the owner's Studio, the loop accepts (or re-owes with the current `tools/studio_ready.sh` check) every older "open Studio" or "switch rojo serve" step whose done-check is the retired window-title match (lesson from the reading brief 2026-10-18)
+cause: Five owed steps (o-20261015-100456-yqw2, o-20261015-100656-nw90, o-20261016-120238-gmyn, o-20261016-120554-lf1c, o-20261016-120554-5vc2) were closed by the user over a failing `MainWindowTitle -match 'Hot Frog'` done-check and stayed in every loop report as "closed on a failing check", though Studio Play checks have passed in Hot Frog since (2026-10-17 13:52, b-20261017-133312-vqnu).
+change: Accepted all five with `bugloop.py owe <o-id> --accept` (reason cites the 2026-10-17 Play pass and `tools/studio_ready.sh`), and added the rule to .bugs/README.md (Verification): owed Studio/Rojo steps use `bash tools/studio_ready.sh` as the done-check, and stale title-match steps are accepted or re-owed after the next passing Play check. The `pending` warning half is the skill script's, filed on the bugloop list as b-20261020-201213-yd36.
+files: .bugs/README.md, .bugs/owed.md
+test: none
+verified: yes — `bugloop.py owe --accept` reported each of the five accepted ("the loop report no longer lists it"); `grep -c '^accepted:' .bugs/owed.md` shows the lines on the blocks.
+review: n/a
+enforced-by: none in this repo; the `pending` warning on title-match done-checks is b-20261020-201213-yd36 on the bugloop list
+followups: b-20261020-201213-yd36

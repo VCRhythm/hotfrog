@@ -17,6 +17,10 @@ original**: Luau files cite the C# file they port — read it for "how should th
   session is already live, the user is playing: inspect only, do not start/stop it. If the MCP is
   not attached, report `verified: not run: Studio only`; never claim a pass.
 - Headless Luau in the published place: `python tools/luau_exec.py --script "..."`.
+- Owed "open Studio" / "switch rojo serve" steps use `bash tools/studio_ready.sh` as the
+  done-check, never a `MainWindowTitle -match` window-title match. Once a Play check passes in
+  the owner's Studio, accept (`bugloop.py owe <o-id> --accept "<why>"`) or re-owe with
+  `studio_ready.sh` every older step still closed on a title-match check.
 
 ## Entry points
 - Server: `src/server/GameServer.server.luau` (frog sim, steps, grab validation, pull, score;
