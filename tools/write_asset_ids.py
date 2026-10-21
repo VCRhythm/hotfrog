@@ -203,7 +203,8 @@ def rewrite_file(path: Path, manifest_entries: list[dict], id_map: dict[str, int
 
     changed = new_text != text
     if changed:
-        path.write_text(new_text, encoding="utf-8")
+        # LF always: stylua.toml wants Unix endings, and Windows text mode would write CRLF.
+        path.write_text(new_text, encoding="utf-8", newline="\n")
     return changed
 
 

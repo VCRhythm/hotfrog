@@ -2514,3 +2514,14 @@ verified: partly. A bot reached Country naturally at ~100 score. It grabbed an O
 review: n/a
 studio: Hot Frog (placeId 114911935371092); canary found "OakTree" in StepKinds .Source; the checker started Play and stopped it; console clean apart from CorePackages UIBlox warnings.
 leftover: b-20261020-213634-p1sp (full-lane leaf-overlap look, after the txe8 skip-ahead tool lands)
+
+## b-20261020-213335-g57k  fixed  2026-10-20 21:42
+note: remove the detailing from the ghosts and jack o lanterns to more closely match the "blurred" look of carrots, potatoes, etc
+cause: Sprites/Scenery/Ghost.png and JackOLantern.png (port-made in 7e3db63) were flat vector art with thick dark outlines, hard cel shapes and crisp faces, while Carrot.png and Potato.png are soft airbrushed paintings with no outlines.
+change: Redrew both 512 px sprites procedurally in PIL on the same footprints (the pumpkin keeps Potato's canvas area for the Pumpkin step): heavily blurred layered shapes, soft shading and highlight, no outlines, no halo; the ghost keeps a soft blurred face and scalloped hem, the jack-o'-lantern a blurred glowing face. Uploaded both through tools/upload_to_roblox.py (changed hash, so new ids) and ran tools/write_asset_ids.py: Ghost 99143787431972, JackOLantern 135228146455303 in src/shared/SkinAssets.luau. tools/write_asset_ids.py now writes LF (newline="\n"); on Windows it wrote CRLF, which fails stylua --check (stylua.toml line_endings Unix).
+files: Sprites/Scenery/Ghost.png, Sprites/Scenery/JackOLantern.png, src/shared/SkinAssets.luau, tools/write_asset_ids.py
+test: stylua --check SkinAssets.luau pass; selene src/ clean; tools/luau_check.sh SkinAssets.luau clean; rojo build pass.
+verified: partly — a comparison sheet (carrot, potato, old/new ghost, old/new pumpkin) was checked and sent to the owner; the Edit-datamodel canary found both new ids in SkinAssets .Source. Not seen in Play (another fixer held Studio Play) and moderation of the new images was not confirmed.
+review: n/a (art plus pipeline-generated ids; the script change is one argument)
+studio: Hot Frog (placeId 114911935371092); Edit-datamodel canary only, no Play.
+leftover: b-20261020-214145-hx6a (render check in Play with ForceHalloween)
