@@ -2547,6 +2547,7 @@ files: src/server/Profiles.luau, src/server/SkinService.server.luau
 test: stylua --check pass; selene src/ clean; tools/luau_check.sh on both files clean; rojo build pass.
 verified: partly; static only, not run in Play.
 review: concern: ProcessReceipt could acknowledge a paid purchase up to 7 s before it was written (needs a force-flush path); secondary: a trailing save in flight during PlayerRemoving could re-stamp the session lock (narrow; the old code had a similar race). The first is addressed by Profiles.saveNow + rollback (orchestrator); the secondary is left as is. checked: Profiles diff and whole file, every Profiles.save caller, SkinService 225-285, GameServer high-score and SetMusicOn handlers. The saveNow change itself was not re-reviewed.
+re-review: concern: with Studio API access off saveNow failed, so Fly packs were never granted; a repeat ProcessReceipt mid-save could acknowledge a grant the rollback then undid. Both fixed in f816cde (saveNow counts API-off as saved; in-flight PurchaseIds answer NotProcessedYet). checked: git show 668d7e6, doSave/withRetry/apiAccessDisabled in Profiles, ProcessReceipt in SkinService. The f816cde change was static-checked, not re-reviewed again. Play check b-20261020-214944-nzdy passed (no queue warning over 150+ bot grabs, API access on).
 studio: not run (static only); no Play started, so none to stop: Play stopped.
 leftover: b-20261020-214944-nzdy (Play check with StudioBot: no queue warning; a test Fly-pack purchase grants and persists)
 
@@ -2558,6 +2559,7 @@ files: src/client/WorldChef.client.luau, docs/roblox-port/17-status-and-known-ga
 test: stylua --check pass; selene src/ clean; tools/luau_check.sh clean; rojo build pass.
 verified: partly; static only, not seen in Play.
 review: concern: the coat's front face was coplanar with the chef decal (Z -0.75), so the neck overlap could z-fight; fixed by moving the torso to body-local Z -0.3 (orchestrator). checked: WorldChef diff and whole file; block() flags; per-lane create/destroy and hideAll; legs only below the art; knife/shove telegraph built from stepPos so unchanged; per-frame cost three CFrames per Kitchen lane.
+re-review: concern: at local Z -0.3 the coat's front (-0.95) sat behind the scenery front (-0.9, SCENERY_Z -1, parts 0.2 thick), so scenery could hide it; fixed in dd44df3 (local Z -0.2, front at -0.85, between scenery and the head decal at -0.75). checked: git show c6f7922, sprite() in WorldChef, PLANE_Z in Config, SCENERY_Z in WorldConfig, scenery part sizes in WorldScenery. Play check b-20261020-214945-tkhv passed on the -0.3 build (body follows, legs swing, no neck flicker).
 studio: not run (static only); no Play started, so none to stop: Play stopped.
 owed: o-20261020-214949-7t5n (taste: owner judges the placeholder coat and legs, or asks for a painted body)
 leftover: b-20261020-214945-tkhv (Play check in Kitchen: body follows, no neck z-fight)
@@ -2572,3 +2574,57 @@ verified: partly; static only, not run in Play.
 review: looks-right; checked: Levels diff is Country-only (Tutorial/Pot/Kitchen/Space untouched); all kind names exist in StepKinds; arrows only bias spawn direction (StepBehaviors onGrab -> setSpawnBias), are grabbable, not hazards; arrow share ~17-33% by stage; trees/Lillipad/BobRock/SpringRock remain as plain footholds; Lane.pickKind's Pumpkin swap still has ordinary kinds; doc nit (sentence spliced mid-row) fixed by orchestrator.
 studio: not run (static only); no Play started, so none to stop: Play stopped.
 leftover: b-20261020-214946-mowo (Play check in Country: no shelves, arrows appear, bot climbs 30+ grabs)
+
+## b-20261020-214944-nzdy  fixed  2026-10-20 22:01
+note: Studio Play check for b-20261020-213710-3823: no "DataStore request was added to queue" warning during fast bot play; a test Fly-pack purchase still grants and persists
+cause: Verification only.
+change: none (verification only)
+files: none
+test: none
+verified: partly. Over about 6 StudioBot runs and 150+ fast grabs there was no queue warning: the server LogService history held only "[BugReport] ready" and the client only UIBlox warnings. DataStore API access was on (a GetAsync probe succeeded; profile Best 291, Flys 605), so the check is conclusive. No purchase was attempted, so the Fly-pack half is unchecked (Studio test purchases need a person at the prompt).
+review: n/a
+studio: Hot Frog (placeId 114911935371092), never Centralia; canaries StudioSkipTo (GameServer), ChefTorso (WorldChef), saveNow (Profiles) found in the Edit datamodel; the verifier started Play and stopped it: Play stopped.
+owed: none (the receipt path has the f816cde static fix; a real Fly-pack test is left to normal play)
+
+## b-20261020-214945-tkhv  fixed  2026-10-20 22:01
+note: Studio Play check for b-20261020-213524-zhza: the Chef's coat and legs follow him in Kitchen, no neck z-fight, legs swing
+cause: Verification only.
+change: none (verification only)
+files: none
+test: none
+verified: yes (on the local Z -0.3 build, before dd44df3 moved the coat to -0.2). After StudioSkipTo("Pot", 2) and the bot into Kitchen, Chef_<UserId> held Chef, ChefTorso (7x7), ChefLegL and ChefLegR. Over 12 samples while he wandered from x≈4 to -10 and y≈-6 to -13, the torso stayed a constant -5.7 below the head and the legs -10.7. The legs' rotZ swung -10° to +22° while moving and was ~0 when idle. Screenshots showed a pale coat under the face with dark legs, no flicker at the neck.
+review: n/a
+studio: Hot Frog (placeId 114911935371092); same Play session as b-20261020-214944-nzdy, canaries found; the verifier started Play and stopped it: Play stopped.
+
+## b-20261020-213634-p1sp  fixed  2026-10-20 22:01
+note: Check OakTree leaves in a full-lane Country view: do the 12-stud leafy sprites cover neighbouring steps?
+cause: Verification only.
+change: none (verification only)
+files: none
+test: none
+verified: partly. OakTree steps are 12x12 studs and render as a trunk with sparse small leaf sprigs and thin branches. In one capture, neighbouring Lillipad, TreeTrunk and BobRock steps stayed fully visible beside it. The camera stays tight on the frog and the verifier's zoom-out attempt was unusable, so there was no true full-lane view.
+review: n/a
+studio: Hot Frog (placeId 114911935371092); same Play session as b-20261020-214944-nzdy, canaries found; the verifier started Play and stopped it: Play stopped.
+owed: none (the owner sees the trees in normal play; leaves read as sparse, so no further check filed)
+
+## b-20261020-214145-hx6a  fixed  2026-10-20 22:01
+note: Check the softened Halloween Ghost and JackOLantern art renders in Play (ForceHalloween): new ids 99143787431972 / 135228146455303
+cause: Verification only.
+change: none (verification only)
+files: none
+test: none
+verified: yes. With workspace ForceHalloween=true set at runtime, Pumpkin steps' StepTemplate.Art used rbxassetid://135228146455303 and the soft jack-o'-lantern rendered on screen in several captures, held and floating. The soft ghost (99143787431972) rendered on screen in two captures; the instance holding it wasn't located. A ContentProvider probe on an unparented ImageLabel said not loaded for both, which isn't reliable; the captures are the evidence.
+review: n/a
+studio: Hot Frog (placeId 114911935371092); same Play session as b-20261020-214944-nzdy, canaries found; the verifier started Play and stopped it: Play stopped.
+
+## b-20261020-214946-mowo  unsure  2026-10-20 22:01
+note: Studio Play check for b-20261020-213556-k25y: in Country no shelves spawn, arrow rocks appear, and the bot climbs 30+ grabs without stalling
+cause: Kind checks passed; the climbability check failed. Whether the k25y pool change caused the stalls is not known yet.
+change: none (verification only)
+files: none
+test: none
+verified: partly. Sampling unique step instances in Country: no Shelf / ShelfWithSpoon / ShelfWithFork (two shelves seen were Kitchen leftovers on screen at the switch); UpLeftRock, UpRock, UpRightRock and LeftRock appeared, with Pumpkin, OakTree, TreeTrunk, BobRock, CrumbleRock, BlinkRock, Lillipad, Castle and Balloon. But five bot runs from StudioSkipTo("Kitchen", 3) went 27/60 stalled, 48/60 died (~45 in Country), 44/60 stalled, 18/60 stalled, 25/25: in the stalls the lane held 3-7 stationary steps out of reach, no new spawns, PullCount frozen.
+review: n/a
+studio: Hot Frog (placeId 114911935371092); same Play session as b-20261020-214944-nzdy, canaries found; the verifier started Play and stopped it: Play stopped.
+leftover: b-20261020-220122-w9qy (Country lane runs out of steps; reopens k25y)
+followups: the verifier also saw the HUD score (234, 336) differ from the bot's runSteps (124, 141), which is the combo/score vs steps split by design (ruling b426), not filed
