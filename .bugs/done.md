@@ -2682,3 +2682,29 @@ re-review: looks-right; checked: Lane gripOf/withinReach/scaffold/fitStaging/pla
 studio: not run (static only); no Play started, so none to stop: Play stopped.
 owed: none
 leftover: b-20261020-233708-esmz (Play check: hand lands on the castle top / rocket nose, bot climbs Country and Space without stalls)
+
+## b-20261020-230842-3skp  fixed  2026-10-20 23:53
+note: Studio Play check for b-20261020-215940-pyvu: in Kitchen the Chef's new 18x14 coat and legs look in proportion to his head and the arm reaches the target
+cause: Verification only.
+change: none (verification only)
+files: none
+test: none
+verified: partly. Sampled Chef_<UserId> in Kitchen after a bot Pot>Kitchen climb: head sprite 20x20 at Z -0.8, ChefTorso 18x14 at Z -1.0 hanging ~9 studs below the head centre, legs 6x13 at Z -0.9 ~13 below that; ChefArm 2.2 wide at Z +1.0 (in front of steps), ChefMark Z -0.6. Knife sequences 2, 6, 7 went Walk > WindUp > Strike with the 15-stud arm's blade over or past the mark (seq 6 mark (8.6,-1.3), blade (6.3,5.2); seq 7 mark (-3.4,6.4), blade (-1.1,12.9)). Chef x stayed within about -4..+4.6 (CHEF_MAX_X). Idle and Shove screenshots showed the whole head and hat on screen with the coat block below; no screenshot caught a Knife telegraph (Knife is rare: about 3 in several runs).
+review: n/a
+studio: Hot Frog (placeId 114911935371092), never Centralia; canary CHEF_MAX_X found in the Edit datamodel; the verifier started Play and stopped it: Play stopped.
+owed: none
+leftover: none — reach and proportions are confirmed by the sampled positions; the look itself is the owner's call in normal play, and another capture attempt would hit the same rare-Knife timing
+followups: b-20261020-235314-h5lo (StudioBot restarted on a stalled lane gets 42 rejects, 0 grabs; seen during this check)
+
+## b-20261020-233708-esmz  unsure  2026-10-20 23:53
+note: Studio Play check for b-20261020-215647-efp2: Castle (tower) and Rocket (missile) are grabbed at their tops; bot climbs Country without stalls
+cause: Verification only; the hand-on-top half could not be observed.
+change: none (verification only)
+files: none
+test: none
+verified: partly. Synced source has GRIP_CASTLE (0, 12) and GRIP_ROCKET (-0.38, 9.5), and live Rocket steps carry GripOffset = HitOffset = (-0.38, 9.5); a rotated (inverted) Castle's grip followed its battlement end (grip y 9.6 vs centre 21.6). Bot runs from StudioSkipTo("Country", ...): 2/2, 40/40 (into Space, 0 stalls), 40/40 (1 stall); no deaths. No natural bot grab of a Castle or Rocket happened (both rare), and two manual GrabStep attempts left the hand 10+ studs off, so a hand at the tower top / rocket nose was never seen. Rocket is a Country spawner, not Space.
+review: n/a
+studio: Hot Frog (placeId 114911935371092), never Centralia; StepKinds constants found in the Edit datamodel; the verifier started Play and stopped it: Play stopped.
+owed: none
+leftover: b-20261020-235314-k0ex (Studio-only spawn-a-kind hook, then confirm the hand lands at the Castle top and Rocket nose)
+followups: b-20261020-235314-h5lo (bot rejects on a restarted stalled lane)
