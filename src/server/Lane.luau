@@ -68,6 +68,7 @@ export type StepState = {
 	base: Vector3,
 	angle: number, -- Z rotation, radians (idle spin, frozen on grab)
 	spinRate: number?, -- rad/s while it still tumbles; nil once grabbed (and for the pot's rim)
+	zBias: number, -- this step's fixed depth nudge off the play plane (GameServer.nextZBias): overlapping step decals sort the same way every frame
 	offset: Vector3, -- the behaviour's visual offset (StepBehaviors ctx.setOffset)
 	-- How far `offset` may carry the step from `base`, per axis (the behaviour's
 	-- `sweep`); clearSpot keeps other steps' grab boxes out of that whole extent.
@@ -844,6 +845,7 @@ function Lane.trackStep(self: Lane, step: BasePart, base: Vector3): StepState
 		base = base,
 		angle = 0,
 		spinRate = nil,
+		zBias = 0,
 		offset = Vector3.zero,
 		sweep = Vector2.zero,
 		recoil = Vector3.zero,

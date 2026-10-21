@@ -110,8 +110,43 @@ local function emitBlast(origin: Vector3)
 	})
 end
 
-StepExploded.OnClientEvent:Connect(function(position: unknown)
-	if typeof(position) == "Vector3" then
+-- The pebble-cluster rocks' blast (owner's request b-20261021-095009-vou1): the
+-- same pooled-burst shape as the Potato's, but small grey / dark chunks and no
+-- hot flash. Several emits so the chunks come in a few shades of rock.
+local PEBBLE_BLAST_COLORS = {
+	Color3.fromRGB(70, 66, 68),
+	Color3.fromRGB(105, 100, 102),
+	Color3.fromRGB(40, 38, 42),
+}
+local pebbleBlasts = Bursts.new({
+	name = "PebbleBlast",
+	size = Vector3.new(0.7, 0.7, 0.7),
+	cap = 96,
+})
+
+local function emitPebbleBlast(origin: Vector3)
+	for _, color in PEBBLE_BLAST_COLORS do
+		pebbleBlasts.emit(origin, {
+			count = 9,
+			radialSpeed = 26,
+			lifetime = 0.9,
+			color = color,
+			spin = WorldConfig.PEBBLE_ROT_FORCE,
+			jitterX = 1.2,
+			jitterY = 1.2,
+			fadeStart = 0.5,
+			scale = 0.6 + math.random() * 0.8,
+		})
+	end
+end
+
+StepExploded.OnClientEvent:Connect(function(position: unknown, style: unknown)
+	if typeof(position) ~= "Vector3" then
+		return
+	end
+	if style == "Pebble" then
+		emitPebbleBlast(position)
+	else
 		emitBlast(position)
 	end
 end)

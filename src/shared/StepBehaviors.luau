@@ -47,7 +47,7 @@ export type Ctx = {
 	isHeld: () -> boolean, -- is a limb of the lane's frog on this step right now?
 	makeUnsteady: () -> (), -- sets the Unsteady attribute (clients may shake/emit)
 	explode: () -> (), -- knock the holder off + recycle (Step.cs Explode)
-	blast: () -> (), -- tell every client to draw the Potato blast here (StepExploded remote; cosmetic only)
+	blast: (style: string?) -> (), -- tell every client to draw a burst here (StepExploded remote; cosmetic only). style nil = the Potato's chunks, "Pebble" = grey rock spray
 	dropAway: () -> (), -- knock the holder off, then accelerate down until the lava line recycles it (Step.cs Fall)
 	forceRelease: () -> (), -- make the holder's limb let go (Step.cs ForceRelease)
 	getSpawnBias: () -> Vector2, -- the lane's spawn direction: the way the WORLD scrolls
@@ -111,6 +111,8 @@ Behaviors.CrumbleAfterRelease = {
 -- offset (a held limb rides it, as it rides the grab recoil). The fuse fires
 -- ctx.blast (the StepExploded remote; Effects.client.luau draws the blast) and
 -- then recycles the step, so a run end or lane cleanup mid-fuse makes no blast.
+-- The pebble-cluster rocks (StepKinds CrumblyRock, CrumbleRock) use it too
+-- (owner's request b-20261021-095009-vou1), with params.burst = "Pebble".
 Behaviors.ExplodeAfterGrab = {
 	onGrab = function(ctx)
 		if ctx.state.lit then
@@ -120,7 +122,7 @@ Behaviors.ExplodeAfterGrab = {
 		ctx.makeUnsteady()
 		task.delay(Config.EXPLODE_FUSE, function()
 			if ctx.stillValid() then
-				ctx.blast()
+				ctx.blast(ctx.params.burst) -- StepKinds `params.burst = "Pebble"` for the pebble-cluster rocks
 				ctx.explode()
 			end
 		end)

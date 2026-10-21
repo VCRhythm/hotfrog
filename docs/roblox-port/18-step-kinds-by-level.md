@@ -86,7 +86,7 @@ Menu: BackGrass, Cloud3, Grass. Tutorial: Stars. Pot: Flame, Bubble (client extr
 | PotRim | Pot (scripted, step 50) | weight 0, in no pool |
 | UpRock, UpLeftRock, UpRightRock | Pot, Kitchen, Country, Space | rock-art arrows in every level |
 | LeftRock, RightRock | Kitchen (Down pool), Country, Space (Down pool) | no Unity pool; port addition |
-| Shelf, ShelfWithFork, ShelfWithSpoon | Kitchen | fits; none outdoors or in Space |
+| Shelf, ShelfWithFork, ShelfWithSpoon | Kitchen | fits; none outdoors or in Space; never idle-spin (`spin = false`, `b-20261021-094844-4kya`) |
 | Lillipad | Pot (stage 3), Kitchen, Country, Space, PadLadder | pond art in a pot, kitchen, sky and space |
 | BobRock | Kitchen, Country, Space | tinted WhiteRock (sky) |
 | SpringRock | Space (Launch role) | lime WhiteRock (since `b-20261021-091537-rv4a`; was Kitchen and Country too) |
@@ -94,7 +94,8 @@ Menu: BackGrass, Cloud3, Grass. Tutorial: Stars. Pot: Flame, Bubble (client extr
 | Trampoline | Country (Launch role) | own art, untinted (since `b-20261021-091537-rv4a`) |
 | BlinkRock | Country, Space (Vanish role) | violet SmallRock; hazard (Kitchen until `b-20261021-091537-rv4a`) |
 | IceCube | Kitchen (Vanish role, stage 4) | own art, untinted; hazard (since `b-20261021-091537-rv4a`) |
-| CrumbleRock | Kitchen (late), Country, Space | CrumblyRock art; hazard |
+| CrumbleRock | Kitchen (late), Country, Space | CrumblyRock art; hazard; shakes then bursts into grey pebbles 1 s after the grab (`b-20261021-095009-vou1`) |
+| CrumblyRock | Kitchen, Country (weights unchanged) | the same pebble-cluster art tinted biscuit; now a hazard that shakes then bursts like CrumbleRock and the Potato (`b-20261021-095009-vou1`; was a plain step, and so could be swapped for a Halloween Pumpkin). The Pot's Ember (FlingingRock) shares the art but stays a harmless flame-flinger |
 | Rocket | Country, Space | fits both |
 | Balloon | Country | fits |
 | TreeTrunk, OakTree | Country | fits |

@@ -95,7 +95,7 @@ local ReachEmpty = ensureRemote("ReachEmpty") -- client -> server: tapped empty 
 local ScoreChanged = ensureRemote("ScoreChanged") -- server -> client: score (incl. combo bonus)/best (steps)/quality/grabQuality/steps (real steps this run)
 local GameOver = ensureRemote("GameOver") -- server -> client: run ended, restart (score, cause)
 local ForceRelease = ensureRemote("ForceRelease") -- server -> client: drop this step (Step.cs ForceRelease)
-local StepExploded = ensureRemote("StepExploded") -- server -> all clients: a Potato's fuse blew it up (world position Vector3); Effects.client.luau draws the blast (StepBehaviors.ExplodeAfterGrab, doc 17)
+local StepExploded = ensureRemote("StepExploded") -- server -> all clients: a Potato's fuse blew it up (world position Vector3, optional burst style string: nil = potato chunks, "Pebble" = rock spray); Effects.client.luau draws the blast (StepBehaviors.ExplodeAfterGrab, doc 17)
 local LevelChanged = ensureRemote("LevelChanged") -- server -> client: this lane's level/transition changed
 local ScreenObstruction = ensureRemote("ScreenObstruction") -- client -> server: rough lane-relative world rectangle of the open Roblox PlayerList (minX, minY, maxX, maxY studs), or no args when closed; rate-limited and validated, grab pulls are lengthened to keep steps out of it (doc 17)
 
@@ -473,7 +473,8 @@ end
 -- reads as falling debris. One signed rate (rad/s about Z) is rolled per spawn,
 -- biased toward slow (Config.STEP_SPIN_*), and dropped for good on the grab, so
 -- a held step's grip point -- and the limb snapped to it -- never drifts. A
--- pooled part re-rolls when it is acquired again. Nothing else depends on a
+-- pooled part re-rolls when it is acquired again. Kinds with StepKinds
+-- `spin = false` (the shelves) never get a rate and stay level. Nothing else depends on a
 -- step's orientation: every hit test and reach check is taken from its position
 -- in world space.
 -- ---------------------------------------------------------------------------
@@ -565,8 +566,25 @@ local function advanceStep(st: StepState, dt: number, held: boolean)
 	end
 end
 
+-- Depth bias (owner's report b-20261021-094526-pbfk, z fighting between
+-- steps). Every step sits on the play plane (Z 0), so two overlapping step
+-- decals were coplanar and flickered. Each acquire gets the next of
+-- Z_BIAS_SLOTS evenly spaced, fixed Z nudges inside +-Z_BIAS_RANGE, so
+-- neighbouring steps differ and a step keeps the same depth for its whole life.
+-- Kept far inside the draw-order ruling b-20261015-100802-a17l (hand +0.3, arm
+-- -0.2): a step never reaches either. It is part of the replicated CFrame only;
+-- base, hit tests, reach and grip maths are all XY, so nothing reads it.
+local Z_BIAS_SLOTS = 16
+local Z_BIAS_RANGE = 0.05 -- studs; max |bias|
+local zBiasCounter = 0
+
+local function nextZBias(): number
+	zBiasCounter = (zBiasCounter + 7) % Z_BIAS_SLOTS -- 7 is coprime to 16: visits every slot, neighbours far apart
+	return ((zBiasCounter + 0.5) / Z_BIAS_SLOTS * 2 - 1) * Z_BIAS_RANGE
+end
+
 local function shownPosition(st: StepState): Vector3
-	return st.base + st.offset + st.recoil - Vector3.new(0, st.sag, 0)
+	return st.base + st.offset + st.recoil - Vector3.new(0, st.sag, -st.zBias)
 end
 
 -- Write `step`'s CFrame from its state right now. Only for a step being placed
@@ -644,11 +662,11 @@ local function ctxOf(lane: Lane.Lane, step: BasePart, st: StepState): StepBehavi
 				releaseStep(lane, step) -- knocks the holder off too; effects (pebbles/sound) are client polish, doc 05
 			end
 		end,
-		blast = function()
+		blast = function(style: string?)
 			if stillValid() then
 				-- a remote, not an attribute: the step leaves the replicated tree
 				-- this same frame, so an attribute change on it never arrives
-				StepExploded:FireAllClients(step.Position)
+				StepExploded:FireAllClients(step.Position, style)
 			end
 		end,
 		dropAway = function()
@@ -820,8 +838,12 @@ local function acquireStep(lane: Lane.Lane, kindName: string, worldPos: Vector3,
 	if behavior.sweep then
 		st.sweep = behavior.sweep(params) -- reserved by Lane.clearSpot for every later spawn
 	end
-	if kindName ~= Lane.POT_RIM_KIND and not (kind and kind.isArrow) then
-		st.spinRate = rollSpin() -- the pot's rim and the direction arrows stay level (the arrow is the info)
+	st.zBias = nextZBias()
+	-- the pot's rim and the direction arrows stay level (the arrow is the info);
+	-- so does any kind with `spin = false` (shelves, b-20261021-094844-4kya).
+	-- st.angle is 0 in a fresh StepState, so a re-acquired pooled shelf is level.
+	if kindName ~= Lane.POT_RIM_KIND and not (kind and (kind.isArrow or kind.spin == false)) then
+		st.spinRate = rollSpin()
 	end
 	if behavior.onSpawn then
 		behavior.onSpawn(ctxOf(lane, step, st)) -- after the attributes above: it may read HitSize

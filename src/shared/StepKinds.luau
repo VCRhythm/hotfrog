@@ -56,6 +56,8 @@
 --   `isArrow`  -- a ChangeDirection* step. Lane leaves these out wherever it
 --                needs an ordinary foothold (the direction-change scaffold,
 --                pattern members).
+--   `spin`     -- false keeps the kind level: GameServer's idle spin
+--                (b-20260922-194446) skips it (shelves, b-20261021-094844-4kya).
 --   `hazard`   -- the step takes itself away (crumbles, drops, blinks out), so
 --                it must never be the only thing on offer: Lane.pickKind caps
 --                these at Config.HAZARD_MAX_RECENT of the last HAZARD_WINDOW
@@ -79,6 +81,7 @@ export type Kind = {
 	color: Color3?, -- Unity SpriteRenderer tint (see header); nil = untinted (white)
 	params: { [string]: any }?, -- default behaviour parameters (see header)
 	isArrow: boolean?, -- a ChangeDirection* step (see header)
+	spin: boolean?, -- false = never idle-spins, stays level (the shelves; see header); nil = spins
 	hazard: boolean?, -- removes itself; capped by Lane's fairness guard (see header)
 }
 
@@ -166,6 +169,9 @@ local TINT_GOLD = Color3.new(1, 0.88, 0.35) -- FlyRock: golden, so it differs fr
 local TINT_PINK = Color3.new(1, 0.55, 0.78) -- SlowFallRock
 local TINT_BISCUIT = Color3.new(0.88, 0.7, 0.45) -- CrumblyRock (Kitchen): toasty, so it differs from the untinted CrumbleRock
 
+-- ExplodeAfterGrab params for the pebble-cluster rocks: the burst is grey rock chunks (Effects.client).
+local PEBBLE_BURST = { burst = "Pebble" }
+
 local StepKinds: { [string]: Kind } = {
 	-- Pot (Level2) pools (doc 11 §2a)
 	-- Unity: CrumbleAfterRelease; the port explodes 1 s after the grab (owner's
@@ -230,13 +236,21 @@ local StepKinds: { [string]: Kind } = {
 	},
 
 	-- Kitchen (Level3) pools add these (doc 11 §2a)
-	Shelf = { behavior = "None", sprite = "Shelf", spawnProbability = 0.5, size = ART_SHELF, hitSize = HIT_SHELF },
+	Shelf = {
+		behavior = "None",
+		sprite = "Shelf",
+		spawnProbability = 0.5,
+		size = ART_SHELF,
+		hitSize = HIT_SHELF,
+		spin = false,
+	},
 	ShelfWithFork = {
 		behavior = "SplashFlinging",
 		sprite = "Shelf",
 		spawnProbability = 0.5,
 		size = ART_SHELF,
 		hitSize = HIT_SHELF,
+		spin = false,
 		flingeeSprite = "Fork",
 	},
 	ShelfWithSpoon = {
@@ -245,6 +259,7 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.5,
 		size = ART_SHELF,
 		hitSize = HIT_SHELF,
+		spin = false,
 		flingeeSprite = "Spoon",
 	},
 	LeftRock = {
@@ -366,14 +381,20 @@ local StepKinds: { [string]: Kind } = {
 	},
 	-- CrumblyRock.prefab ships with actionType=0 (None), not Crumble (doc 12's own
 	-- "Notable/surprising findings" section) -- Unity never actually spawns a
-	-- crumbling CrumblyRock. Preserved here: behavior stays "None" on purpose.
+	-- crumbling CrumblyRock, and this kind used to stay "None" to match. The owner
+	-- overrode that (b-20261021-095009-vou1: the pebble-cluster rocks should shake
+	-- and turn into a spray of pebbles, like the Potato): it now runs the Potato's
+	-- ExplodeAfterGrab with a pebble burst, so it is a hazard (never the only
+	-- thing on offer, never swapped for a Halloween pumpkin).
 	CrumblyRock = {
-		behavior = "None",
+		behavior = "ExplodeAfterGrab",
 		sprite = "CrumblyRock",
 		spawnProbability = 0.5,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
 		color = TINT_BISCUIT,
+		params = PEBBLE_BURST,
+		hazard = true,
 	},
 	-- Country hazard in its later stages (Levels), own pink tint.
 	SlowFallRock = {
@@ -537,15 +558,16 @@ local StepKinds: { [string]: Kind } = {
 		tapSize = Vector2.new(8, 3.6),
 		params = { pull = 8 },
 	},
-	-- CrumblyRock's art with the Crumble behaviour Unity wrote but never put on
-	-- a prefab (see CrumblyRock above, which stays "None"): explodes
-	-- Config.CRUMBLE_FUSE seconds after the grab.
+	-- CrumblyRock's art, untinted. Same shake-then-pebble-burst life as
+	-- CrumblyRock above (b-20261021-095009-vou1); it was StepBehaviors.Crumble
+	-- (Unity's never-used 1.5 s fuse), now the Potato's Config.EXPLODE_FUSE.
 	CrumbleRock = {
-		behavior = "Crumble",
+		behavior = "ExplodeAfterGrab",
 		sprite = "CrumblyRock",
 		spawnProbability = 0.1,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
+		params = PEBBLE_BURST,
 		hazard = true,
 	},
 

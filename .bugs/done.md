@@ -2874,3 +2874,36 @@ files: none
 test: none
 verified: see b-20261021-091554-9pz1
 review: n/a
+
+## b-20261021-094844-4kya  fixed  2026-10-21 10:01
+note: shelves shouldn't rotate like other steps
+cause: GameServer.acquireStep rolled an idle spin (owner request b-20260922-194446-knoi) for every kind except PotRim and the arrows, so the shelf steps tilted.
+change: new optional StepKinds field `spin`; Shelf, ShelfWithFork and ShelfWithSpoon (the only kinds on the Shelf sprite) set `spin = false` and acquireStep skips rollSpin for them, so they never get a spinRate; a re-acquired pooled part gets a fresh StepState at angle 0. Toaster (shelf canvas, own art), Pumpkins and rocks still tumble. Doc 17 idle-spin row and doc 18 updated.
+files: src/shared/StepKinds.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md, docs/roblox-port/18-step-kinds-by-level.md
+test: stylua --check, selene src/ 0/0, tools/luau_check.sh on the changed files, rojo build ok.
+verified: no — Studio is in the owner's session; the loop's check b-20261021-100046-k6c8 runs it
+review: looks-right; checked: spin skip is nil-safe (advanceStep guards the rate, grab clears it), menu rungs never go through acquireStep; stylua/selene/luau_check clean.
+leftover: b-20261021-100046-k99v (stale "steps never rotate" comment in GameClient)
+owed: none
+
+## b-20261021-094526-pbfk  fixed  2026-10-21 10:01
+note: there's z fighting happening between steps
+cause: every step sat at exactly Z 0, so overlapping step decals were coplanar and flickered (the checker's four StudioSpawnKind steps stacked at (3,5,0) in the owner's session at 09:45 would show exactly this).
+change: acquireStep stamps a fixed per-spawn `zBias` (new StepState field in Lane.luau; nextZBias cycles 16 slots inside +-0.05 studs, stepping by 7) that shownPosition adds, the one point behind placeStep, queueStep and the batched CFrame write; base, rest, spacing, hit tests, reach and grip maths read X/Y only, and the limb keeps its own Z, so the hand (+0.3) and arm (-0.2) are unaffected. New doc 17 row "Step depth bias".
+files: src/server/GameServer.server.luau, src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/ 0/0, tools/luau_check.sh, rojo build ok.
+verified: no — Studio is in the owner's session; the loop's check b-20261021-100046-k6c8 runs it
+review: looks-right; checked: every step CFrame write goes through shownPosition, zBias stamped on every acquire and never read back into base, gripPos Z discarded by the limb CFrame (GameServer ~1800), downstream reach/distance maths planar.
+leftover: none — natural spawns were not found to overlap (the Pumpkin swap is spaced at its own, smaller size)
+owed: none
+
+## b-20261021-095009-vou1  fixed  2026-10-21 10:01
+note: these rocks that look like a collection of pebbles should shake and turn into a spray of pebbles just like potatoes
+cause: the pebble-cluster art is used by CrumblyRock (behaviour None, kept on purpose to match Unity's prefab) and CrumbleRock (Crumble, which only shed small pebbles with no shake or burst).
+change: both kinds now run the Potato's ExplodeAfterGrab (jitter from the grab, burst after Config.EXPLODE_FUSE 1 s, held or not) with params.burst = "Pebble" and hazard = true (CrumblyRock newly a hazard, so it is no longer Pumpkin-swapped and counts toward the hazard cap; weights unchanged). ctx.blast passes the style through StepExploded as an optional 2nd argument; Effects.client draws small grey/dark chunks in three shades with no hot flash, and nil or an unknown style keeps the potato blast. StepBehaviors.Crumble stays registered but unused. StepKinds comment cites the owner override; Tips (now 1 s), doc 18 and doc 17 (Crumble and CrumblyRock rows) updated.
+files: src/shared/StepKinds.luau, src/shared/StepBehaviors.luau, src/server/GameServer.server.luau, src/client/Effects.client.luau, src/shared/Tips.luau, docs/roblox-port/17-status-and-known-gaps.md, docs/roblox-port/18-step-kinds-by-level.md
+test: stylua --check, selene src/ 0/0, tools/luau_check.sh, rojo build ok.
+verified: no — Studio is in the owner's session; the loop's check b-20261021-100046-k6c8 runs it
+review: looks-right; checked: StepExploded has one listener (Effects) and an unknown style falls back; role maps, Halloween tint (keyed by sprite stem), Levels lists and Lane hazard caps unaffected beyond the intended cap.
+leftover: none — Ember (FlingingRock, Pot) shares the art but is orange-tinted and flings a harmless flame, left as is on purpose
+owed: none

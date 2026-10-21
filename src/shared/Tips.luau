@@ -13,9 +13,9 @@ Tips.list = {
 	"Tap right on a step's grip point for a Perfect grab. The farther off, the lower the grade.",
 	-- GameServer frog sim: death needs the lava line reached with nothing held.
 	"The frog only dies when it sinks into the lava with nothing held. Keep a hand on a step.",
-	-- Config.CRUMBLE_FUSE = 1.5 (StepBehaviors.Crumble): StepKinds.CrumbleRock, the
-	-- CrumblyRock pebble-cluster art, spawned in Kitchen and Country (Levels heightStages).
-	"Pebbly rock clusters in the Kitchen and Country burst 1.5 seconds after you grab them.",
+	-- Config.EXPLODE_FUSE = 1 (StepBehaviors.ExplodeAfterGrab, params.burst "Pebble"):
+	-- StepKinds.CrumbleRock and CrumblyRock, the pebble-cluster art, in Kitchen and Country.
+	"Pebbly rock clusters in the Kitchen and Country shake, then burst 1 second after you grab them.",
 	-- Config.EXPLODE_FUSE = 1 (StepBehaviors.ExplodeAfterGrab): StepKinds.Potato, Pot only.
 	"Potatoes in the Pot shake when you grab them and explode 1 second later.",
 	-- StepBehaviors.Vanish (StepKinds.BlinkRock, violet tint, Country and Space;
