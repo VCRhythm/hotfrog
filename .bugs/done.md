@@ -2503,3 +2503,14 @@ files: none
 test: none
 verified: see b-20261020-205326-jmsu
 review: n/a
+
+## b-20261020-211557-qfs4  fixed  2026-10-20 21:36
+note: Studio Play check for b-20261020-205326-jmsu: grab and climb an OakTree in Country, try a grab on the leaves, check the leaves don't overlap other steps.
+cause: Verification only. The OakTree step works as built: the server accepts a trunk grab, pulls the step, and the run carries on.
+change: none (verification only)
+files: none
+test: none
+verified: partly. A bot reached Country naturally at ~100 score. It grabbed an OakTree at its trunk, the server pulled the step from (15.4, 17.4) to (2.9, -2.1) lane-relative, and RunState stayed Playing for ~40 more grabs with the score rising. A GrabStep fired at Position + 4 studs X (on the leaves) was also accepted: GameServer uses the tap point only for grab quality (PullMath.gradeGrab), so the trunk-only hit box is a client-side hit test, as for every step kind. Leaf overlap was not judged: screen_capture stayed zoomed on the frog and showed only trunk edges with a few twigs. Runtime threshold edits from execute_luau did not reach the live Lane modules, so none were made or saved.
+review: n/a
+studio: Hot Frog (placeId 114911935371092); canary found "OakTree" in StepKinds .Source; the checker started Play and stopped it; console clean apart from CorePackages UIBlox warnings.
+leftover: b-20261020-213634-p1sp (full-lane leaf-overlap look, after the txe8 skip-ahead tool lands)
