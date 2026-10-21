@@ -2522,6 +2522,7 @@ change: Redrew both 512 px sprites procedurally in PIL on the same footprints (t
 files: Sprites/Scenery/Ghost.png, Sprites/Scenery/JackOLantern.png, src/shared/SkinAssets.luau, tools/write_asset_ids.py
 test: stylua --check SkinAssets.luau pass; selene src/ clean; tools/luau_check.sh SkinAssets.luau clean; rojo build pass.
 verified: partly — a comparison sheet (carrot, potato, old/new ghost, old/new pumpkin) was checked and sent to the owner; the Edit-datamodel canary found both new ids in SkinAssets .Source. Not seen in Play (another fixer held Studio Play) and moderation of the new images was not confirmed.
-review: n/a (art plus pipeline-generated ids; the script change is one argument)
-studio: Hot Frog (placeId 114911935371092); Edit-datamodel canary only, no Play.
+review: looks-right; checked: git show 0516a4c; SkinAssets diff is only the two ids and they match tools/asset_ids.json (both moderation Approved, automated Green); committed SkinAssets.luau has no CR; read rewrite_file in tools/write_asset_ids.py (newline="
+" covers both generated files, line-ending-only differences still count as unchanged); PIL on old vs new PNGs: 512x512 RGBA, pumpkin opaque bbox (62,87)-(450,429) -> (70,90)-(446,433), ghost ~6% shorter; cosmetic note: the ghost's body sides keep a fairly crisp edge.
+studio: Hot Frog (placeId 114911935371092); Edit-datamodel canary only; this check started no Play (Studio was in Edit), so none to stop: Play stopped.
 leftover: b-20261020-214145-hx6a (render check in Play with ForceHalloween)
