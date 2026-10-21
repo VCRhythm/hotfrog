@@ -119,7 +119,7 @@ local Ids: { [string]: number } = {
 	-- Re-running regenerates this block; hand-organize above the sentinel if you want a key to stay put. ====
 
 	-- Steps (auto)
-	Asteroid = 120245558309804,
+	Asteroid = 117816191369346,
 	Balloon = 104096570008422,
 	Beetle = 71126449712806,
 	CarLeft = 115985994454882,
@@ -130,9 +130,9 @@ local Ids: { [string]: number } = {
 	PotRim = 140153915656484,
 	RockShadow = 72804718225774,
 	Satellite = 111127348014648,
-	Toaster = 92363138729606,
+	Toaster = 95319685951365,
 	Trampoline = 121599542769912,
-	TreeTrunk = 126874102114421,
+	TreeTrunk = 114351914010357,
 	UFO = 97702199269176,
 
 	-- Entities (auto)

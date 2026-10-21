@@ -2951,3 +2951,36 @@ verified: no — not seen in Studio yet; the chef integration check b-20261021-0
 review: looks-right (orchestrator read the diff); checked: every potato/arrow CFrame write carries the new Z, no other client part draws at +1.
 leftover: none — in-game look is b-20261021-091555-rjh8
 owed: none
+
+## b-20261021-094832-hwef  fixed  2026-10-21 10:19
+note: toasters need less detail to fit the existing sprite work. blurrier
+cause: the Ludo art for this step was detailed and crisp (texture, grain, sharp highlights) next to the soft, flat-coloured hand-made sprites such as the potato.
+change: Sprites/Rocks/Toaster.png restyled with PIL: Gaussian blur, k-means colour flattening to a few large flat regions, a second blur, original alpha restored; re-uploaded and written by tools/write_asset_ids.py (Toaster 92363138729606 -> 95319685951365 in src/shared/SkinAssets.luau). music1 and music5 restored after the write; SoundAssets has no content diff.
+files: Sprites/Rocks/Toaster.png, src/shared/SkinAssets.luau
+test: before/after contact sheets beside the potato reference; upload Approved/Green.
+verified: partly — contact sheet only; the in-game look is held by b-20261021-101926-frao
+review: looks-right (orchestrator viewed the contact sheets)
+leftover: none — in-game look is b-20261021-101926-frao
+owed: none
+
+## b-20261021-094658-0y0b  fixed  2026-10-21 10:19
+note: the asteroids need less detail to match the other sprite work. blurrier
+cause: the Ludo art for this step was detailed and crisp (texture, grain, sharp highlights) next to the soft, flat-coloured hand-made sprites such as the potato.
+change: Sprites/Rocks/Asteroid.png restyled with PIL: Gaussian blur, k-means colour flattening to a few large flat regions, a second blur, original alpha restored; re-uploaded and written by tools/write_asset_ids.py (Asteroid 120245558309804 -> 117816191369346 in src/shared/SkinAssets.luau). music1 and music5 restored after the write; SoundAssets has no content diff.
+files: Sprites/Rocks/Asteroid.png, src/shared/SkinAssets.luau
+test: before/after contact sheets beside the potato reference; upload Approved/Green.
+verified: partly — contact sheet only; the in-game look is held by b-20261021-101926-frao
+review: looks-right (orchestrator viewed the contact sheets)
+leftover: none — in-game look is b-20261021-101926-frao
+owed: none
+
+## b-20261021-094632-s2rb  fixed  2026-10-21 10:19
+note: the trees don't fit the existing sprite work. less detail (large swaths of a single color).. more blurry
+cause: the Ludo art for this step was detailed and crisp (texture, grain, sharp highlights) next to the soft, flat-coloured hand-made sprites such as the potato.
+change: Sprites/Rocks/TreeTrunk.png restyled with PIL: Gaussian blur, k-means colour flattening to a few large flat regions, a second blur, original alpha restored; re-uploaded and written by tools/write_asset_ids.py (TreeTrunk 126874102114421 -> 114351914010357 (second pass: the first restyle kept grain and crisp twigs) in src/shared/SkinAssets.luau). music1 and music5 restored after the write; SoundAssets has no content diff.
+files: Sprites/Rocks/TreeTrunk.png, src/shared/SkinAssets.luau
+test: before/after contact sheets beside the potato reference; upload Approved/Green.
+verified: partly — contact sheet only; the in-game look is held by b-20261021-101926-frao
+review: looks-right (orchestrator viewed the contact sheets)
+leftover: none — in-game look is b-20261021-101926-frao
+owed: none
