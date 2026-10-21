@@ -29,7 +29,16 @@ local CHEF_SIZE = 20
 local CHEF_Z = Config.PLANE_Z - 0.8 -- in front of WorldScenery's dressing (-1), behind the steps
 local MARK_Z = Config.PLANE_Z - 0.6 -- the target ring, just behind the step
 local FX_Z = Config.PLANE_Z + 1 -- knife, potato, hand: in front of the step they hit
-local SHOULDER = Vector3.new(4.5, -2, 0) -- from the chef part's centre (X mirrored by side)
+local SHOULDER = Vector3.new(3.5, -4, 0) -- from the chef part's centre (X mirrored by side)
+-- Body: Chef.png is a head and hat only (its art ends at about 2.6 studs below the
+-- part's centre), so a coat and legs hang from there, posed from the chef part's own
+-- CFrame so they follow every step, lean and bob of the head.
+local NECK_Y = -2.6
+local TORSO_SIZE = Vector3.new(7, 7, 0.3)
+local LEG_SIZE = Vector3.new(1.8, 3, 0.3)
+local LEG_X = 1.6
+local COAT = Color3.fromRGB(245, 245, 245)
+local TROUSERS = Color3.fromRGB(70, 75, 90)
 local SKIN = Color3.fromRGB(240, 128, 120)
 local MARK_COLOR = Color3.fromRGB(255, 40, 40)
 
@@ -44,6 +53,9 @@ type View = {
 	folder: Folder,
 	model: Folder,
 	chef: BasePart,
+	torso: BasePart,
+	legL: BasePart,
+	legR: BasePart,
 	arm: BasePart,
 	blade: BasePart,
 	handle: BasePart,
@@ -129,6 +141,9 @@ local function onLaneAdded(folder: Folder)
 	local model = Instance.new("Folder")
 	model.Name = "Chef_" .. folder.Name
 	model.Parent = workspace
+	local torso = block(model, "ChefTorso", TORSO_SIZE, COAT)
+	local legL = block(model, "ChefLegL", LEG_SIZE, TROUSERS)
+	local legR = block(model, "ChefLegR", LEG_SIZE, TROUSERS)
 	local chef = sprite(model, "Chef", "Chef", CHEF_SIZE)
 	local mark = sprite(model, "ChefMark", "Circle", 6, MARK_COLOR)
 	local arrow, arrowDecal = sprite(model, "ChefArrow", "ArrowRight", 4, MARK_COLOR)
@@ -137,6 +152,9 @@ local function onLaneAdded(folder: Folder)
 		folder = folder,
 		model = model,
 		chef = chef,
+		torso = torso,
+		legL = legL,
+		legR = legR,
 		arm = block(model, "ChefArm", Vector3.new(0.9, 1, 0.2), SKIN),
 		blade = block(model, "ChefKnifeBlade", Vector3.new(0.9, 4.2, 0.2), Color3.fromRGB(205, 210, 220)),
 		handle = block(model, "ChefKnifeHandle", Vector3.new(0.6, 1.6, 0.3), Color3.fromRGB(90, 60, 40)),
@@ -183,7 +201,21 @@ local function findTarget(userId: any): BasePart?
 end
 
 local function hideAll(view: View)
-	for _, part in { view.chef, view.arm, view.blade, view.handle, view.hand, view.potato, view.mark, view.arrow } do
+	for _, part in
+		{
+			view.chef,
+			view.torso,
+			view.legL,
+			view.legR,
+			view.arm,
+			view.blade,
+			view.handle,
+			view.hand,
+			view.potato,
+			view.mark,
+			view.arrow,
+		}
+	do
 		setShown(part, view, false)
 	end
 end
@@ -285,6 +317,23 @@ local function update(view: View, dt: number, now: number)
 	local lean = math.clamp((view.pos.X - before.X) / math.max(dt, 1e-3) * -0.02, -0.15, 0.15)
 	view.chef.CFrame = CFrame.new(chefCenter.X, chefCenter.Y, CHEF_Z) * CFrame.Angles(0, 0, lean)
 	setShown(view.chef, view, true)
+	-- the body: coat under the neck, legs stepping while he moves
+	local body = view.chef.CFrame
+	-- 0.3 back: its front face (-0.95) stays behind the head art's (-0.75), no z-fight
+	view.torso.CFrame = body * CFrame.new(0, NECK_Y - TORSO_SIZE.Y / 2 + 0.4, -0.3)
+	local hipY = NECK_Y - TORSO_SIZE.Y + 0.4
+	local stride = math.sin(now * 9) * math.clamp(speed / 6, 0, 1) * 0.5
+	view.legL.CFrame = body
+		* CFrame.new(-LEG_X, hipY, -0.05)
+		* CFrame.Angles(0, 0, stride)
+		* CFrame.new(0, -LEG_SIZE.Y / 2, 0)
+	view.legR.CFrame = body
+		* CFrame.new(LEG_X, hipY, -0.05)
+		* CFrame.Angles(0, 0, -stride)
+		* CFrame.new(0, -LEG_SIZE.Y / 2, 0)
+	setShown(view.torso, view, true)
+	setShown(view.legL, view, true)
+	setShown(view.legR, view, true)
 	-- the shoulder facing the target (or the lane centre while idle)
 	local facing = if target then (if target.Position.X >= chefCenter.X then 1 else -1) else 1
 	local shoulder = Vector3.new(chefCenter.X + SHOULDER.X * facing, chefCenter.Y + SHOULDER.Y, FX_Z)
