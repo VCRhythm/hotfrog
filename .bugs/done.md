@@ -2494,6 +2494,7 @@ verified: partly — Studio Play: an OakTree step spawned in Country with the ri
 review: looks-right; checked: git diff of the three files; read TreeTrunk, Tutorial tree kinds and OakTree in StepKinds, OUTDOOR_KINDS/withOutdoor/withDynamic and the Space pools in Levels, SkinAssets Ids; confirmed withOutdoor feeds only Country's four pools and TutorialTreeMid's id resolves; measured TutorialTreeMid.png trunk column (~440-590 of 1024 px, near centre). Cosmetic risk noted: the 12-stud leafy sprite overhangs its 2.2-stud hit box.
 studio: Hot Frog (placeId 114911935371092); the fixer started Play and stopped it; runtime threshold edits were in memory only.
 leftover: b-20261020-211557-qfs4 (grab and climb an OakTree in Country Play)
+leftover: none — its Play check b-20261020-211557-qfs4 and the leaf follow-up b-20261020-213634-p1sp are closed
 
 ## b-20261020-205449-vnng  answered  2026-10-20 21:15
 note: DECISION: this works. use the trees from tutorial too
@@ -2514,6 +2515,7 @@ verified: partly. A bot reached Country naturally at ~100 score. It grabbed an O
 review: n/a
 studio: Hot Frog (placeId 114911935371092); canary found "OakTree" in StepKinds .Source; the checker started Play and stopped it; console clean apart from CorePackages UIBlox warnings.
 leftover: b-20261020-213634-p1sp (full-lane leaf-overlap look, after the txe8 skip-ahead tool lands)
+leftover: none — b-20261020-213634-p1sp closed (leaves sparse, neighbours visible)
 
 ## b-20261020-213335-g57k  fixed  2026-10-20 21:42
 note: remove the detailing from the ghosts and jack o lanterns to more closely match the "blurred" look of carrots, potatoes, etc
@@ -2550,6 +2552,7 @@ review: concern: ProcessReceipt could acknowledge a paid purchase up to 7 s befo
 re-review: concern: with Studio API access off saveNow failed, so Fly packs were never granted; a repeat ProcessReceipt mid-save could acknowledge a grant the rollback then undid. Both fixed in f816cde (saveNow counts API-off as saved; in-flight PurchaseIds answer NotProcessedYet). checked: git show 668d7e6, doSave/withRetry/apiAccessDisabled in Profiles, ProcessReceipt in SkinService. The f816cde change was static-checked, not re-reviewed again. Play check b-20261020-214944-nzdy passed (no queue warning over 150+ bot grabs, API access on).
 studio: not run (static only); no Play started, so none to stop: Play stopped.
 leftover: b-20261020-214944-nzdy (Play check with StudioBot: no queue warning; a test Fly-pack purchase grants and persists)
+leftover: none — b-20261020-214944-nzdy passed in Play (no queue warning); the purchase half needs a person
 
 ## b-20261020-213524-zhza  fixed  2026-10-20 21:49
 note: give the chef a body that follows along with him
@@ -2584,7 +2587,7 @@ test: none
 verified: partly. Over about 6 StudioBot runs and 150+ fast grabs there was no queue warning: the server LogService history held only "[BugReport] ready" and the client only UIBlox warnings. DataStore API access was on (a GetAsync probe succeeded; profile Best 291, Flys 605), so the check is conclusive. No purchase was attempted, so the Fly-pack half is unchecked (Studio test purchases need a person at the prompt).
 review: n/a
 studio: Hot Frog (placeId 114911935371092), never Centralia; canaries StudioSkipTo (GameServer), ChefTorso (WorldChef), saveNow (Profiles) found in the Edit datamodel; the verifier started Play and stopped it: Play stopped.
-owed: none (the receipt path has the f816cde static fix; a real Fly-pack test is left to normal play)
+leftover: none — a Studio test purchase needs a person at the prompt; the receipt path has the f816cde static fix
 
 ## b-20261020-214945-tkhv  fixed  2026-10-20 22:01
 note: Studio Play check for b-20261020-213524-zhza: the Chef's coat and legs follow him in Kitchen, no neck z-fight, legs swing
@@ -2605,7 +2608,7 @@ test: none
 verified: partly. OakTree steps are 12x12 studs and render as a trunk with sparse small leaf sprigs and thin branches. In one capture, neighbouring Lillipad, TreeTrunk and BobRock steps stayed fully visible beside it. The camera stays tight on the frog and the verifier's zoom-out attempt was unusable, so there was no true full-lane view.
 review: n/a
 studio: Hot Frog (placeId 114911935371092); same Play session as b-20261020-214944-nzdy, canaries found; the verifier started Play and stopped it: Play stopped.
-owed: none (the owner sees the trees in normal play; leaves read as sparse, so no further check filed)
+leftover: none — the game camera can't show a full lane; leaves read as sparse and neighbours stayed visible
 
 ## b-20261020-214145-hx6a  fixed  2026-10-20 22:01
 note: Check the softened Halloween Ghost and JackOLantern art renders in Play (ForceHalloween): new ids 99143787431972 / 135228146455303
