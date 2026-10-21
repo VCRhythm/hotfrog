@@ -2631,3 +2631,13 @@ review: n/a
 studio: Hot Frog (placeId 114911935371092); same Play session as b-20261020-214944-nzdy, canaries found; the verifier started Play and stopped it: Play stopped.
 leftover: b-20261020-220122-w9qy (Country lane runs out of steps; reopens k25y)
 followups: the verifier also saw the HUD score (234, 336) differ from the bot's runSteps (124, 141), which is the combo/score vs steps split by design (ruling b426), not filed
+
+## b-20261020-215825-bmrz  answered  2026-10-20 23:08
+note: do an audit of what step types are used for what theme.
+cause: Question; answered from the code at commit 6645c92 (Levels.luau, StepKinds.luau, StepBehaviors.luau canSpawn gates, Lane.luau pickKind / Halloween swap, Config.luau).
+finding: Read at commit 6645c92, the levels use these numbers of distinct step kinds, not counting the Halloween Pumpkin: Tutorial 3 (three Acorn-art trees, one look), Pot 7, Kitchen 14, Country 18, Space 13. Six of the 35 kinds are in no pool and no pattern (dead): StillRock, CrumblyRock, SlowFallRock, FallingRock, FlingingRock and Beetle. These are legacy Unity data. The main mismatches are rock art on a stove-and-shelf Kitchen (arrows, BobRock, SpringRock, BlinkRock, CrumbleRock), the pond-plant Lillipad in Pot, Kitchen, Country and Space, and Space having only Asteroid as a themed foothold (the rest is Lillipad, tinted rocks and rock arrows). Country has no plain rock or shelf, so its plain footholds are the two trees (about 25-40% of the Down pool), and Space's Rocket spawner only fires when the lane scrolls left. At 25% of ordinary picks outside the Tutorial, Pumpkin replaces non-arrow, non-hazard kinds during Halloween. The full per-level tables (weights, shares by stage and pool, patterns, events, per-kind usage) are in docs/roblox-port/18-step-kinds-by-level.md.
+change: New doc docs/roblox-port/18-step-kinds-by-level.md (audit only; no code changed). The Country pools may change again with b-20261020-220122-w9qy, which is being fixed in this tick.
+files: docs/roblox-port/18-step-kinds-by-level.md
+test: none
+verified: yes. This is a doc-only audit read straight from the source at 6645c92, and there is nothing to run.
+review: n/a
