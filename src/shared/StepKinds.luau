@@ -132,6 +132,16 @@ local GRIP_CARROT = Vector2.new(-3.7009, -2.0918)
 -- the hit box entirely (b-20260921-142133-wica).
 local HIT_OFFSET_CARROT = GRIP_CARROT + Vector2.new(-0.091, 0.547) * (55 / 175) -- Config.UNITY_TO_STUDS
 
+-- Grab at the TOP of the tall steps, not the canvas centre (b-20261020-215647-efp2;
+-- a deliberate deviation, Unity's colliders sit at the art centre -- doc 17).
+-- Rocket.png is upright: the yellow nose cone spans px y 80-310 of 1024 and is
+-- centred at px x 500, so the point is the cone's middle, (512-210)/1024 of the
+-- 32.183 canvas up, so the 7.8-stud hit box ends at the nose tip.
+local GRIP_ROCKET = Vector2.new(-0.38, 9.5)
+-- Castle.png (8 x 32): the battlements fill the top 60 px; the 8.17-stud hit
+-- circle's box is placed flush with the canvas top (16.09 - 8.17/2).
+local GRIP_CASTLE = Vector2.new(0, 12)
+
 -- Very generous tap rectangle (owner: b-20261001-141720-tfkt): about 2x the
 -- Collider2D in each axis, covering the whole visible carrot art plus margin.
 -- Deliberate deviation from Unity (doc 17 "Carrot tap area").
@@ -254,6 +264,8 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 1.0,
 		size = ART_ROCKET,
 		hitSize = HIT_ROCKET,
+		gripOffset = GRIP_ROCKET,
+		hitOffset = GRIP_ROCKET,
 	},
 	Balloon = {
 		behavior = "None",
@@ -399,6 +411,8 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.5,
 		size = ART_CASTLE,
 		hitSize = HIT_CASTLE,
+		gripOffset = GRIP_CASTLE,
+		hitOffset = GRIP_CASTLE,
 		color = TINT_SALMON,
 	},
 

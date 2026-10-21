@@ -1282,14 +1282,23 @@ local function sweepOf(kindName: string, params: StepBehaviors.Params?): Vector2
 	return if sweep then sweep(params) else Vector2.zero
 end
 
+-- Where the hand lands on a `kindName` step resting at angle 0: its StepKinds
+-- `gripOffset` (zero for every kind without one), so reach is judged where the
+-- frog actually grabs, same as GameServer's GrabStep.
+local function gripOf(kindName: string): Vector3
+	local kind = StepKinds[kindName]
+	local grip = if kind then kind.gripOffset else nil
+	return if grip then Vector3.new(grip.X, grip.Y, 0) else Vector3.zero
+end
+
 local function planarDistance(self: Lane, pos: Vector3): number
 	return Vector2.new(pos.X - self.origin.X, pos.Y - self.origin.Y).Magnitude
 end
 
 -- The fairness guard's reach rule: a step resting at `pos` can be grabbed
 -- anywhere in its sweep (GameServer's GrabStep measures from the lane origin).
-local function withinReach(self: Lane, pos: Vector3, sweep: Vector2): boolean
-	return planarDistance(self, pos) + math.max(sweep.X, sweep.Y) <= Config.MAX_GRAB_DISTANCE
+local function withinReach(self: Lane, pos: Vector3, sweep: Vector2, kindName: string): boolean
+	return planarDistance(self, pos + gripOf(kindName)) + math.max(sweep.X, sweep.Y) <= Config.MAX_GRAB_DISTANCE
 end
 
 -- Fit a lane-relative staging `offset` to the kind about to spawn there.
@@ -1308,11 +1317,13 @@ local function fitStaging(offset: Vector3, def: Levels.StepSpawnerDef, kindName:
 		x = math.clamp(x, -limit, limit)
 	end
 	local reach = Config.MAX_GRAB_DISTANCE - math.max(sweep.X, sweep.Y)
-	local planar = Vector2.new(x, y)
+	-- clamp the grip point, not the centre (a tall step's hand lands off-centre)
+	local grip = gripOf(kindName)
+	local planar = Vector2.new(x + grip.X, y + grip.Y)
 	if planar.Magnitude > reach then
 		planar = planar.Unit * reach
 	end
-	return Vector3.new(planar.X, planar.Y, 0)
+	return Vector3.new(planar.X - grip.X, planar.Y - grip.Y, 0)
 end
 
 -- Find where a `kindName` step meant to rest at `rest` can actually go, and
@@ -1354,7 +1365,7 @@ local function placeStep(
 		credit += shift
 	end
 	local pos = self:clearSpot(rest, kindName, travel, sweep, if slack > 0 then travel * slack else nil)
-	if not pos or (strict and not withinReach(self, pos + travel * credit, sweep)) then
+	if not pos or (strict and not withinReach(self, pos + travel * credit, sweep, kindName)) then
 		return nil, 0
 	end
 	return pos - pending, (wanted - pos):Dot(travel)
@@ -1800,13 +1811,13 @@ function Lane.scaffold(self: Lane, anchor: Vector3, spawnFn: SpawnFn)
 		local params = if kind then kind.params else nil
 		local sweep = sweepOf(kindName, params)
 		local want = anchor + heading * (Config.SCAFFOLD_SPACING * i) + rise * i
-		if planarDistance(self, want) > Config.MAX_GRAB_DISTANCE then
+		if planarDistance(self, want + gripOf(kindName)) > Config.MAX_GRAB_DISTANCE then
 			return -- every further rung is further out still
 		end
 		-- nil means the spot is already taken by live steps (which then serve as
 		-- this rung) or would leave the lane, so skip the rung
 		local pos = self:clearSpot(want, kindName, nudge, sweep)
-		if pos and withinReach(self, pos, sweep) then
+		if pos and withinReach(self, pos, sweep, kindName) then
 			emit(self, spawnFn, kindName, params, pos - pending, nil, "scaffold")
 		end
 	end

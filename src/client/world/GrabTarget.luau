@@ -68,7 +68,10 @@ function GrabTarget.nearestStep(
 			and child:GetAttribute("LaneUserId") == laneUserId
 			and not (exclude and exclude[child])
 		then
-			local d = (child.Position - from).Magnitude
+			-- measured to the grip point, so a tall step held at its top counts
+			local grip = child:GetAttribute("GripOffset") :: Vector2?
+			local at = if grip then child.Position + Vector3.new(grip.X, grip.Y, 0) else child.Position
+			local d = (at - from).Magnitude
 			if d < bestDist then
 				bestDist = d
 				best = child

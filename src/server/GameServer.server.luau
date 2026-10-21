@@ -961,7 +961,12 @@ local function hasFoothold(lane: Lane.Lane, f: FrogState): boolean
 	local shared = lane:sharedPending()
 	for step, st in lane.states do
 		if not st.dropElapsed and not isHeldBy(f, step) then
+			-- judged at the grip point (a tall step's hand lands off-centre)
+			local grip = step:GetAttribute("GripOffset") :: Vector2?
 			local rel = lane:restPosition(step, shared) - lane.origin
+			if grip then
+				rel += Vector3.new(grip.X, grip.Y, 0)
+			end
 			if
 				math.abs(rel.Y) <= Config.VIEW_HALF_HEIGHT
 				and Vector2.new(rel.X, rel.Y).Magnitude <= Config.MAX_GRAB_DISTANCE
@@ -1915,7 +1920,10 @@ GrabStep.OnServerEvent:Connect(function(player, step, tapPos, limbIndex)
 	-- while holding, so it can drift far from the origin. Unity has no reach
 	-- limit at all, and Lane.luau keeps every spawn within MAX_GRAB_DISTANCE of
 	-- the origin, so that is the anchor this sanity bound is measured from.
-	local reach = (Vector2.new(step.Position.X, step.Position.Y) - Vector2.new(lane.origin.X, lane.origin.Y)).Magnitude
+	-- Measured to the grip point (a tall step's GripOffset), where the hand lands.
+	local reachGrip = (step:GetAttribute("GripOffset") :: Vector2?) or Vector2.zero
+	local reachPos = step.Position + CFrame.Angles(0, 0, st.angle) * Vector3.new(reachGrip.X, reachGrip.Y, 0)
+	local reach = (Vector2.new(reachPos.X, reachPos.Y) - Vector2.new(lane.origin.X, lane.origin.Y)).Magnitude
 	if reach > Config.MAX_GRAB_DISTANCE then
 		ForceRelease:FireClient(player, step)
 		return

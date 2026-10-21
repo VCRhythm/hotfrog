@@ -760,7 +760,9 @@ local function nearestOwnStep(worldPos: Vector3): BasePart?
 			and inst:GetAttribute("Kind") == "Step"
 			and inst:GetAttribute("LaneUserId") == player.UserId
 		then
-			local d = (inst.Position - worldPos).Magnitude
+			local grip = inst:GetAttribute("GripOffset") :: Vector2?
+			local at = if grip then inst.Position + Vector3.new(grip.X, grip.Y, 0) else inst.Position
+			local d = (at - worldPos).Magnitude
 			if d < bestDist then
 				bestDist, best = d, inst
 			end
