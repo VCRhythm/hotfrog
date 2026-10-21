@@ -192,6 +192,8 @@ OTHER_TABLE = {
     "Speck": "entities",
     "Bubble": "scenery",
     "Chef": "scenery",
+    "ChefArm": "scenery",
+    "ChefBody": "scenery",
     "Cloud": "scenery",
     "Cloud2": "scenery",
     "Cloud3": "scenery",

@@ -2818,7 +2818,7 @@ files: src/shared/Config.luau, src/server/Chef.luau, docs/roblox-port/17-status-
 test: stylua --check on Chef.luau and Config.luau pass; selene src/ 0/0; tools/luau_check.sh on Chef.luau, Config.luau, GameServer.server.luau clean; rojo build ok.
 verified: no — Studio Play held (Hot Frog in Play since 08:47, possibly the owner's); the integration check b-20261021-091555-rjh8 covers the swing in Play
 review: looks-right; checked: diff vs claim; strike fires exactly once (contacted flag, contact at 0.72 s precedes the 1.2 s finish even on one long dt; land failure finishes); fizzle check runs before the contact test each tick using the same chefIsHeld predicate as candidate selection; new attributes cleared via setPhase(Idle) on every finish/reset path (death, level change, run reset); combo scaling only exempts Strike and Swing; WorldChef cannot error on "Swing" or the new attributes; luau_check and selene clean.
-leftover: none (part 3 b-20261021-091554-9pz1 animates the swing from ChefPhaseStart/ChefPhaseDuration/ChefSwingContact on a real-time clock)
+leftover: none — the integration check b-20261021-091555-rjh8 runs the swing in Play
 owed: none
 
 ## b-20261021-091519-wu4e  fixed  2026-10-21 09:38
@@ -2830,4 +2830,15 @@ test: stylua --check SkinAssets.luau ok; tools/luau_check.sh SkinAssets.luau rc 
 verified: partly — uploads Approved/Green and the final PNGs viewed on a contact sheet by the loop; not seen in Studio (Play held)
 review: looks-right; checked by the loop: SkinAssets diff is the six generated id lines only; alpha bounding boxes of the six PNGs; contact sheet of the final art (inked-painterly style, slightly different from the glossy TreeTrunk/CarRight).
 leftover: b-20261021-093703-adx9 (held: the upload run re-uploaded music1/music5 on a cache mismatch; SoundAssets.luau was put back to its committed ids, so tools/asset_ids.json now disagrees with it)
+owed: none
+
+## b-20261021-091553-8ai3  fixed  2026-10-21 09:58
+note: Chef part 1: generate with Ludo a chef body sprite (white coat, apron and trousers, no head or hat, sized to sit under the existing Chef.png head) and a frog-arm-style chef arm sprite (sleeve, forearm, hand holding a knife), save as Sprites/Other/ChefBody.png and ChefArm.png, add them to the build_manifest scenery list, upload them and let write_asset_ids write their ids into SkinAssets.
+cause: there was no chef body or arm art, only the Chef.png head, so the Kitchen chef drew placeholder blocks.
+change: two Ludo sprites (Western Cartoon, thick black outlines, flat colours; front view to match the head). ChefBody.png 1024x1024, content flush to the top and centred (visible x 309-827, y 0-652): headless double-breasted coat, apron, checkered trousers, shoes, collar at y=0 for the head. ChefArm.png 256x1024 (visible x 51-204, y 0-934): straight vertical limb, shoulder = top (white sleeve and cuff), pink forearm, fist at the bottom gripping a knife whose blade tip is the sprite's bottom end. Both added to build_manifest OTHER_TABLE as scenery, uploaded alone via --keys, ids written by write_asset_ids (ChefArm, ChefBody). Part 3 must scale the body to the head (the head art is wider).
+files: Sprites/Other/ChefBody.png, Sprites/Other/ChefArm.png, tools/build_manifest.py, src/shared/SkinAssets.luau
+test: stylua --check SkinAssets.luau ok; tools/luau_check.sh SkinAssets.luau clean; rojo build ok; upload_to_roblox --status ChefArm/ChefBody Approved/Green.
+verified: partly — both PNGs viewed by the loop beside Chef.png (styles match) and uploads Approved/Green; not used in game until part 3 b-20261021-091554-9pz1, whose integration check b-20261021-091555-rjh8 sees them in Play
+review: looks-right; checked by the loop: diff is the two generated SkinAssets id lines plus two OTHER_TABLE entries; SoundAssets.luau left with no content diff (write_asset_ids rewrote music1/music5 again and the fixer put the committed ids back, see b-20261021-093703-adx9); preview of head + body + arm.
+leftover: none — the in-game look is checked by b-20261021-091555-rjh8
 owed: none
