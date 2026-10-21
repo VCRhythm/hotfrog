@@ -72,6 +72,8 @@ Built on top of the basic version from the original project's prefab data:
 16. **[17-status-and-known-gaps.md](17-status-and-known-gaps.md)** — **start
     here for what is done, what is untested, the remaining gaps and every
     deliberate deviation from Unity.**
+17. **[19-level-theming.md](19-level-theming.md)** — proposed per-level step
+    theming and rosters (design; builds on the audit in [18](18-step-kinds-by-level.md)).
 
 Throughout, each Roblox system is cross-referenced to the original Unity source
 file (e.g. `Player/Frog.cs`) so contributors can trace behavior back to the

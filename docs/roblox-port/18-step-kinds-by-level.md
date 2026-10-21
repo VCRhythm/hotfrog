@@ -105,3 +105,5 @@ Look clashes (from the art each kind names): Shelf/Fork/Spoon appear only in the
 - Rocket/Balloon (Country) and Rocket (Space) come from a left-scrolling spawner only; Country starts scrolling left, but Space starts scrolling straight down, so rockets show only after a turn to the left.
 - Pumpkin and PotRim have spawnProbability 0 by design; Asteroid carries 1.5 to stand in for three shelves. LeftRock/RightRock appear in no Unity pool.
 - Suggestions (not changes): a Space-specific mover art in place of Lillipad and the tinted rocks; non-rock looks for the Kitchen's dynamic kinds; themed arrow art per level; either use the six dead kinds somewhere or remove them; if Country still starves after the in-flight fix, add a plain outdoor foothold (for example a boulder) beside the trees.
+
+The design that follows from this audit is in [19-level-theming.md](19-level-theming.md).
