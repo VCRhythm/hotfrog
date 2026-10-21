@@ -281,6 +281,19 @@ local StepKinds: { [string]: Kind } = {
 		hitOffset = Vector2.new(-0.63, 0),
 		tapSize = Vector2.new(4, 8.8),
 	},
+	-- The Tutorial's oak (b-20261020-205449-vnng, owner: "use the trees from
+	-- tutorial too"): its Sprites/Scenery/TutorialTreeMid.png tile (1024 px, a
+	-- trunk with leafy branches, already uploaded) as a static climbable trunk
+	-- beside TreeTrunk. The trunk is x 430-590 px of 1024, so at 12 studs the
+	-- hit box is ~2.2 studs wide and runs the canvas height.
+	OakTree = {
+		behavior = "None",
+		sprite = "TutorialTreeMid",
+		spawnProbability = 0.4,
+		size = Vector3.new(12, 12, 1),
+		hitSize = Vector2.new(2.2, 11.5),
+		tapSize = Vector2.new(4, 11.5),
+	},
 	-- Cars (StepBehaviors.Drive): each drives its row at the kind's own fixed
 	-- speed and knocks a frog that rides it too long off (a forced release).
 	-- CarRight.png / CarLeft.png (mirrored) are 512x256 px; the body spans x

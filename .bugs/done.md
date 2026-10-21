@@ -2483,3 +2483,23 @@ test: none
 verified: yes — SendUserFile delivered all six images; bugloop.py ask filed b-20261020-205326-jmsu with the attachments.
 review: n/a
 followups: b-20261020-205326-jmsu
+
+## b-20261020-205326-jmsu  fixed  2026-10-20 21:15
+note: Here is the new Ludo art for the outdoor Country and Space (b-20261020-200915-5ju4): TreeTrunk, CarRight, CarLeft, Asteroid steps and the CountryBack/SpaceBack backdrops. Do they fit your sprite style?
+cause: Ruling b-20261020-205449-vnng: "this works. use the trees from tutorial too" — the Ludo art is accepted as is, and Country should also use the Tutorial's tree art.
+change: Added an OakTree step kind in src/shared/StepKinds.luau (static climbable trunk, behaviour None, weight 0.4) reusing the uploaded TutorialTreeMid sprite at 12 studs with a ~2.2-stud trunk hit box, appended to OUTDOOR_KINDS in src/shared/Levels.luau so it spawns in Country's four pools beside TreeTrunk (not Space or earlier levels); noted in doc 17's Country row. Read "the trees from tutorial" as the oak as a climbable step; the Tutorial's acorn-and-tile oak (WorldTutorialTrunk) is anchored to its three acorns and is unchanged.
+files: src/shared/StepKinds.luau, src/shared/Levels.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check pass; selene src/ 0 warnings; tools/luau_check.sh clean on StepKinds.luau and Levels.luau; rojo build pass; Edit-datamodel canary found OakTree in both scripts' .Source.
+verified: partly — Studio Play: an OakTree step spawned in Country with the right texture (rbxassetid 75319101709073, Sprite=TutorialTreeMid, 12x12x1) and a screenshot shows the oak trunk with a leaf twig; Country was reached by lowering Config.LEVEL_THRESHOLDS in the Server datamodel at runtime only (bot kept dying in Pot); the oak was not grabbed or climbed.
+review: looks-right; checked: git diff of the three files; read TreeTrunk, Tutorial tree kinds and OakTree in StepKinds, OUTDOOR_KINDS/withOutdoor/withDynamic and the Space pools in Levels, SkinAssets Ids; confirmed withOutdoor feeds only Country's four pools and TutorialTreeMid's id resolves; measured TutorialTreeMid.png trunk column (~440-590 of 1024 px, near centre). Cosmetic risk noted: the 12-stud leafy sprite overhangs its 2.2-stud hit box.
+studio: Hot Frog (placeId 114911935371092); the fixer started Play and stopped it; runtime threshold edits were in memory only.
+leftover: b-20261020-211557-qfs4 (grab and climb an OakTree in Country Play)
+
+## b-20261020-205449-vnng  answered  2026-10-20 21:15
+note: DECISION: this works. use the trees from tutorial too
+cause: The owner's ruling on b-20261020-205326-jmsu.
+change: see b-20261020-205326-jmsu
+files: none
+test: none
+verified: see b-20261020-205326-jmsu
+review: n/a

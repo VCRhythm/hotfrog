@@ -261,7 +261,7 @@ end
 -- Country's outdoor footholds (b-20261020-200915-5ju4, owner's ruling
 -- b-20261020-201705-zwi7): tree trunks and cars, appended to each Country
 -- rock/shelf pool on top of the dynamic kinds.
-local OUTDOOR_KINDS = { "TreeTrunk", "CarRight", "CarLeft" }
+local OUTDOOR_KINDS = { "TreeTrunk", "OakTree", "CarRight", "CarLeft" }
 
 local function withOutdoor(pool: { string }): { string }
 	local out = withDynamic(pool)
