@@ -3140,3 +3140,14 @@ verified: n/a — a link hand-off; curl showed the dashboard cannot serve the mp
 review: n/a
 leftover: none — the taste judgement is owed to the user
 owed: o-20261021-112201-7cyi
+
+## b-20261021-112652-q8b6  fixed  2026-10-21 11:42
+note: It's suitable starting at 16 seconds to the end, but the first 15 seconds need to be chopped off. (owner's answer to owed step o-20261021-112201-7cyi, listening to the Kitchen track)
+cause: KitchenBounce.mp3 opened with about 15 s the owner does not want; it only suits the Kitchen from about 0:15 on.
+change: Cut the first 14.87 s off Sounds/Music/KitchenBounce.mp3, snapped from 15.0 s to the onset after a near-silent gap so the track and its loop start on a beat, with no fade. Re-encoded at 192 kbps and 44.1 kHz; it is now 49.13 s. Re-uploaded through the pipeline, so music6 is now 117737777986047 (Approved/Green), written by tools/write_asset_ids.py with the music1/music5 drift restored. The original is kept outside the repo at C:/Users/Tristan/.claude/jobs/3a15407a/tmp/KitchenBounce.orig.mp3. ludo-assets.json notes the trim, and docs 16 and 17 give the new length and id.
+files: Sounds/Music/KitchenBounce.mp3, Sounds/Music/ludo-assets.json, src/shared/SoundAssets.luau, docs/roblox-port/16-audio-and-badges.md, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check SoundAssets.luau pass; selene src/ 0 warnings, 0 errors; tools/luau_check.sh SoundAssets.luau exit 0; ffprobe 49.131 s; upload_to_roblox.py --status: music6 117737777986047 Approved Green
+verified: partly — the upload is moderation-approved and the reviewer cross-correlated the new file against the original at 14.87 s (0.9992 at lag 0); nobody has heard the trimmed track or its loop seam, which only a person can judge (owed)
+review: looks-right; checked: git diff -w of the four text files (only music6 changes; music1/music5 intact), ffprobe of both mp3s (64.001 -> 49.131 s, same bitrate and rate), PCM cross-correlation of the new start vs the original at 14.87 s, asset_ids.json music6 matches SoundAssets, Music.client still maps [5] = music6
+leftover: none — the only remaining check is the owner's listen, owed as o-20261021-114200-7965
+owed: o-20261021-114200-7965 — listen to the trimmed Kitchen track and its loop seam

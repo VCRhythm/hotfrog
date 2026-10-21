@@ -49,7 +49,7 @@ local Ids: { [string]: number } = {
 	-- music (auto)
 	music4 = 116586551716598,
 	music5 = 70897771387242,
-	music6 = 111453159554462,
+	music6 = 117737777986047,
 }
 
 local SoundAssets = {}
