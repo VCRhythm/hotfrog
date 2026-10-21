@@ -2709,3 +2709,15 @@ studio: Hot Frog (placeId 114911935371092), never Centralia; StepKinds constants
 owed: none
 leftover: b-20261020-235314-k0ex (Studio-only spawn-a-kind hook, then confirm the hand lands at the Castle top and Rocket nose)
 followups: b-20261020-235314-h5lo (bot rejects on a restarted stalled lane)
+
+## b-20261020-235314-k0ex  fixed  2026-10-21 00:06
+note: Studio tool: add a StudioSpawnKind hook (spawn a named step kind at a reachable spot in a lane) and use it to confirm the hand lands on the Castle top and Rocket nose when grabbed
+cause: Feature. There was no way to place a rare or level-bound kind (Castle; Country-only Rocket) on demand, so the grip-point change of b-20261020-215647-efp2 (0189035) could never be seen with a hand on it.
+change: Studio-only `ServerStorage.StudioSpawnKind:Invoke(kindName, player?)` in GameServer, created beside StudioSkipTo under RunService:IsStudio(). It goes through the normal acquireStep path (pool, Gen, LaneUserId, attributes, trackStep, onSpawn, placeStep) with the grip 3 studs right of and 5 above the lane origin, and returns {name, kind, position, grip}, or an error string for an unknown kind or a player with no lane. A .bugs/README.md bullet under Studio-only playtest tools documents it.
+files: src/server/GameServer.server.luau, .bugs/README.md
+enforced-by: .bugs/README.md Verification bullet "Studio-only playtest tools" (every fixer reads it before a Studio check)
+test: stylua --check pass; selene src/ clean; tools/luau_check.sh GameServer clean; rojo build pass.
+verified: yes. In Studio Play, after StudioSkipTo("Country", 2) and StudioSpawnKind, each spawned step carried GripOffset = HitOffset (Castle (0,12)), Gen 1 and the lane's LaneUserId. Grabbed through the real GrabStep remote fired from the client: Castle with limb 1, hand 0.00 studs from the grip, local (0, 12.0) at the battlements, steady for 2 s (that Castle had spun to ~187°, so the battlement end was lowest in world space); Rocket with limb 2, hand 0.00 studs from the grip, local (-0.38, 9.5), and the capture shows the hand on the nose cone. Not driven by StudioBot or a tap.
+review: looks-right; checked: git diff of GameServer and README; acquireStep, releaseStep, spawnStep, placeStep, the StudioSkipTo block, Lane.get; IsStudio-only, no new remote; same state as a natural spawn and recycles normally; spawner state untouched; bad kind / nil player / no lane handled; README accurate.
+studio: Hot Frog (placeId 114911935371092, studio 034d9972-550c-43ec-a923-0ae3c9bac1fd), never Centralia; hook name found in the synced GameServer source in the Edit datamodel before Play; the fixer started Play and stopped it (get_studio_state Edit): Play stopped.
+owed: none

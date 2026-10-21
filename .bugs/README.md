@@ -23,6 +23,9 @@ original**: Luau files cite the C# file they port — read it for "how should th
   `local b = game.Players.LocalPlayer.StudioBot; return b:Invoke("start", {steps = 5})`,
   then `return game.Players.LocalPlayer.StudioBot:Invoke("wait", 40)` (blocks <= 45 s) until
   it reads STOPPED: grabs, rejects, deaths, levels passed, score. Also `"status"`, `"stop"`.
+  Server: `return game.ServerStorage.StudioSpawnKind:Invoke("Castle")` -- places one step of
+  that StepKinds name in the lane with its grip point near the origin (normal spawn path), returns
+  `{name, kind, position, grip}`; then fire the real `GrabStep` remote from the client on it.
 - Headless Luau in the published place: `python tools/luau_exec.py --script "..."`.
 - Owed "open Studio" / "switch rojo serve" steps use `bash tools/studio_ready.sh` as the
   done-check, never a `MainWindowTitle -match` window-title match. Once a Play check passes in

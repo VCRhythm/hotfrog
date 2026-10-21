@@ -2392,6 +2392,39 @@ if RunService:IsStudio() then
 		skipFn.Parent = ServerStorage
 	end
 	(skipFn :: BindableFunction).OnInvoke = skipTo
+
+	-- Studio-only: place one step of a named kind in a player's lane, through
+	-- acquireStep (so GripOffset / HitOffset / LaneUserId / Gen are set as for a
+	-- natural spawn), with its grip point 5 studs above and 3 beside the lane
+	-- origin: well inside MAX_GRAB_DISTANCE. Rare or level-bound kinds (Castle,
+	-- Rocket) can then be grabbed on demand (b-20261020-235314-k0ex):
+	--   game.ServerStorage.StudioSpawnKind:Invoke("Castle", player?)
+	--     -> { name, kind, position, grip } (grip: world position of the grip point)
+	local function spawnKind(kindName: any, who: any): any
+		if typeof(kindName) ~= "string" or not StepKinds[kindName] then
+			return "unknown step kind " .. tostring(kindName)
+		end
+		local player: Player? = if typeof(who) == "Instance" and who:IsA("Player") then who else Players:GetPlayers()[1]
+		local lane = if player then Lane.get(player) else nil
+		if not player or not lane then
+			return "player has no lane yet"
+		end
+		local grip = StepKinds[kindName].gripOffset or Vector2.zero
+		local want = lane.origin + Vector3.new(3, 5, 0)
+		local step = acquireStep(lane, kindName, want - Vector3.new(grip.X, grip.Y, 0))
+		local st = lane.states[step]
+		local angle = if st then st.angle else 0
+		local gripWorld = step.Position + CFrame.Angles(0, 0, angle) * Vector3.new(grip.X, grip.Y, 0)
+		return { name = step.Name, kind = kindName, position = step.Position, grip = gripWorld }
+	end
+
+	local spawnFn = ServerStorage:FindFirstChild("StudioSpawnKind")
+	if not spawnFn then
+		spawnFn = Instance.new("BindableFunction")
+		spawnFn.Name = "StudioSpawnKind"
+		spawnFn.Parent = ServerStorage
+	end
+	(spawnFn :: BindableFunction).OnInvoke = spawnKind
 end
 
 -- Global top-scores boards (doc 15 item 5; daily/weekly per doc 17):
