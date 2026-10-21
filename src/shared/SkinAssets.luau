@@ -121,13 +121,19 @@ local Ids: { [string]: number } = {
 	-- Steps (auto)
 	Asteroid = 120245558309804,
 	Balloon = 104096570008422,
+	Beetle = 71126449712806,
 	CarLeft = 115985994454882,
 	CarRight = 85583338720193,
 	CarrotStalk = 114500582490557,
+	IceCube = 83493672664928,
 	LillipadShadow = 71795008144326,
 	PotRim = 140153915656484,
 	RockShadow = 72804718225774,
+	Satellite = 111127348014648,
+	Toaster = 92363138729606,
+	Trampoline = 121599542769912,
 	TreeTrunk = 126874102114421,
+	UFO = 97702199269176,
 
 	-- Entities (auto)
 	Wing1 = 135317432340005,

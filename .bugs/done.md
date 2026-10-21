@@ -2820,3 +2820,14 @@ verified: no — Studio Play held (Hot Frog in Play since 08:47, possibly the ow
 review: looks-right; checked: diff vs claim; strike fires exactly once (contacted flag, contact at 0.72 s precedes the 1.2 s finish even on one long dt; land failure finishes); fizzle check runs before the contact test each tick using the same chefIsHeld predicate as candidate selection; new attributes cleared via setPhase(Idle) on every finish/reset path (death, level change, run reset); combo scaling only exempts Strike and Swing; WorldChef cannot error on "Swing" or the new attributes; luau_check and selene clean.
 leftover: none (part 3 b-20261021-091554-9pz1 animates the swing from ChefPhaseStart/ChefPhaseDuration/ChefSwingContact on a real-time clock)
 owed: none
+
+## b-20261021-091519-wu4e  fixed  2026-10-21 09:38
+note: Theming part 1 (ruling 1B, first batch): generate Ludo sprites for Toaster, IceCube, Trampoline, Satellite, UFO and Beetle sized per doc 19 section 4, then run build_manifest, upload_to_roblox and write_asset_ids so SkinAssets has non-zero ids for them; Dandelion, Butterfly, Bird, Plate, FryingPan and CabbageLeaf are out of scope.
+cause: Toaster, IceCube, Trampoline, Satellite, UFO and Beetle had no sprites, so SkinAssets had no ids for them.
+change: six Ludo sprites (Illustration style, transparent, trimmed and centred with ~4 px margin) on doc 19 canvases: Toaster 512x512 (visible ~501x357), IceCube 128x128, Beetle 256x256 (red ladybug facing right, ~247x134), Trampoline/Satellite/UFO 512x256 (visible heights ~113/100/164); uploaded and written into SkinAssets.Ids by write_asset_ids (six non-zero ids). Parts 5/6 should size hit boxes to the visible extent.
+files: Sprites/Rocks/Toaster.png, Sprites/Rocks/IceCube.png, Sprites/Rocks/Trampoline.png, Sprites/Rocks/Satellite.png, Sprites/Rocks/UFO.png, Sprites/Rocks/Beetle.png, src/shared/SkinAssets.luau
+test: stylua --check SkinAssets.luau ok; tools/luau_check.sh SkinAssets.luau rc 0; rojo build ok; upload_to_roblox --status shows all six Approved/Green.
+verified: partly — uploads Approved/Green and the final PNGs viewed on a contact sheet by the loop; not seen in Studio (Play held)
+review: looks-right; checked by the loop: SkinAssets diff is the six generated id lines only; alpha bounding boxes of the six PNGs; contact sheet of the final art (inked-painterly style, slightly different from the glossy TreeTrunk/CarRight).
+leftover: b-20261021-093703-adx9 (held: the upload run re-uploaded music1/music5 on a cache mismatch; SoundAssets.luau was put back to its committed ids, so tools/asset_ids.json now disagrees with it)
+owed: none
