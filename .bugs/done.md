@@ -2577,6 +2577,7 @@ verified: partly; static only, not run in Play.
 review: looks-right; checked: Levels diff is Country-only (Tutorial/Pot/Kitchen/Space untouched); all kind names exist in StepKinds; arrows only bias spawn direction (StepBehaviors onGrab -> setSpawnBias), are grabbable, not hazards; arrow share ~17-33% by stage; trees/Lillipad/BobRock/SpringRock remain as plain footholds; Lane.pickKind's Pumpkin swap still has ordinary kinds; doc nit (sentence spliced mid-row) fixed by orchestrator.
 studio: not run (static only); no Play started, so none to stop: Play stopped.
 leftover: b-20261020-214946-mowo (Play check in Country: no shelves, arrows appear, bot climbs 30+ grabs)
+leftover: none — the Play check ran: mowo saw no shelves and the arrows in Country; the stall it found was fixed in b-20261020-220122-w9qy, which the bot verified in Play (verified: yes).
 
 ## b-20261020-214944-nzdy  fixed  2026-10-20 22:01
 note: Studio Play check for b-20261020-213710-3823: no "DataStore request was added to queue" warning during fast bot play; a test Fly-pack purchase still grants and persists
@@ -2683,6 +2684,7 @@ re-review: looks-right; checked: Lane gripOf/withinReach/scaffold/fitStaging/pla
 studio: not run (static only); no Play started, so none to stop: Play stopped.
 owed: none
 leftover: b-20261020-233708-esmz (Play check: hand lands on the castle top / rocket nose, bot climbs Country and Space without stalls)
+leftover: none — the Play check ran: b-20261020-235314-k0ex verified it in Play (verified: yes): hand 0.00 studs from the Castle (0,12) and Rocket (-0.38,9.5) grips; w9qy covered the Country stalls.
 
 ## b-20261020-230842-3skp  fixed  2026-10-20 23:53
 note: Studio Play check for b-20261020-215940-pyvu: in Kitchen the Chef's new 18x14 coat and legs look in proportion to his head and the arm reaches the target
