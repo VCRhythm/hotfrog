@@ -2864,6 +2864,7 @@ test: stylua --check WorldChef ok; selene src/ 0/0; tools/luau_check.sh WorldChe
 verified: no — Studio was in Play (checker plus owner), so nothing was run; the integration check b-20261021-091555-rjh8 covers the look and timing
 review: looks-right; checked: diff vs claim, nil/zero attribute fallbacks (local clock, Config contact, clamps), no NaN at a step on the shoulder, nothing created per action and lane removal cleaned up, only client parts moved, lane-relative so other lanes draw, Z layers, strict typing; stylua/selene/luau_check clean.
 leftover: b-20261021-095805-o1t7 (Food arm, potato and arrow share Z 1); other notes are tuning for the owner's taste check under b-20261021-091555-rjh8
+leftover: none — the deferred Studio check ran under b-20261021-091555-rjh8 (recorded 10:26)
 owed: none
 
 ## b-20261021-094407-vr3s  duplicate  2026-10-21 09:58
@@ -2884,6 +2885,7 @@ test: stylua --check, selene src/ 0/0, tools/luau_check.sh on the changed files,
 verified: no — Studio is in the owner's session; the loop's check b-20261021-100046-k6c8 runs it
 review: looks-right; checked: spin skip is nil-safe (advanceStep guards the rate, grab clears it), menu rungs never go through acquireStep; stylua/selene/luau_check clean.
 leftover: b-20261021-100046-k99v (stale "steps never rotate" comment in GameClient)
+leftover: none — the deferred Studio check ran under b-20261021-100046-k6c8 (recorded 10:26)
 owed: none
 
 ## b-20261021-094526-pbfk  fixed  2026-10-21 10:01
