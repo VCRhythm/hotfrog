@@ -27,6 +27,10 @@ itself, only consumes what it already publishes.
 | 2 | `Audio/Music/Opening.mp3` | `music3` |
 | 3 | `Audio/Music/Adenine.mp3` | `music4` |
 | 4 | `Audio/Music/Two Wrongs.wav` (Multiplayer.unity override) | `music5` |
+| 5 | `Sounds/Music/KitchenBounce.mp3` (port-only, Ludo-generated) | `music6` |
+
+Port levels: Kitchen = 5 (`music6`), Space = 3 (`music4`, Kitchen's former
+track); `music3` (Opening) is unused (owner b-20261021-094437-1mnh).
 
 Per `src/shared/Levels.luau` / doc 11 §1: Menu=1, Tutorial=1, Pot=0,
 Kitchen=1 — so in practice the base 4 levels only ever alternate between

@@ -629,9 +629,10 @@ list[Levels.KITCHEN] = {
 	name = "Kitchen",
 	roles = KITCHEN_ROLES,
 	-- PORT DEVIATION: Unity plays musicIndex 1 (FrogSounds, the menu track) here;
-	-- 3 = Adenine, a beat-driven track as groovy as Pot's BrusselSprouts and
-	-- unused by the base game (b-20261010-192146-ml2d, doc 17 "Kitchen music").
-	musicIndex = 3,
+	-- 5 = music6, a Ludo-generated kitchen chiptune (owner b-20261021-094437-1mnh;
+	-- Adenine, the earlier pick from b-20261010-192146-ml2d, moved to Space).
+	-- doc 17 "Kitchen music".
+	musicIndex = 5,
 	background = "KitchenTile",
 	overlay = nil,
 	initialSpawnDirection = Vector2.new(0, -1),
@@ -1100,7 +1101,7 @@ list[Levels.COUNTRY] = {
 list[Levels.SPACE] = {
 	name = "Space",
 	roles = SPACE_ROLES,
-	musicIndex = 2, -- music3 "Opening", otherwise unused in-game
+	musicIndex = 3, -- music4 "Adenine", Kitchen's old track (owner b-20261021-094437-1mnh)
 	background = "SpaceBack",
 	overlay = nil,
 	initialSpawnDirection = Vector2.new(0, -1),

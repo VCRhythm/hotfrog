@@ -3067,3 +3067,14 @@ studio: loop checker started Play on Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac
 review: n/a (check only)
 leftover: b-20261021-102627-iae5 (patterns) and b-20261021-102559-xryp (CashPile); none for the weights — they are guesses, and matching them needs long bot runs the owner's own play replaces
 owed: none
+
+## b-20261021-094437-1mnh  fixed  2026-10-21 10:35
+note: use the current kitchen music for the space level and make new music for the kitchen
+cause: Kitchen played musicIndex 3 (music4, Adenine) and Space musicIndex 2 (music3, Opening); there was no other Kitchen track.
+change: Space now plays musicIndex 3 (Adenine, Kitchen's old track). Kitchen plays musicIndex 5, a new Ludo-generated kitchen chiptune (Sounds/Music/KitchenBounce.mp3, 64 s; prompt and job id in Sounds/Music/ludo-assets.json) mapped to `music6` in Music.client's MUSIC_STEMS. tools/build_manifest.py scans the new in-repo Sounds/Music folder (REPO_MUSIC) beside the ambience loops, so the track needs no external Unity dir. Uploaded (music6 = 111453159554462, Approved/Green) and written by tools/write_asset_ids.py; music1/music5 restored, the only SoundAssets change is the music6 line. music3 (Opening) is now unused. Docs 16 (index table) and 17 ("Kitchen and Space music") updated.
+files: Sounds/Music/KitchenBounce.mp3, Sounds/Music/ludo-assets.json, tools/build_manifest.py, src/shared/Levels.luau, src/client/Music.client.luau, src/shared/SoundAssets.luau, docs/roblox-port/16-audio-and-badges.md, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/ 0/0, tools/luau_check.sh on the changed files; ffprobe: valid mp3, 64.0 s.
+verified: no — nobody has heard the track; the Studio MCP cannot play audio
+review: looks-right (orchestrator read the diff); checked: MUSIC_STEMS has index 5, SoundAssets ignore-whitespace diff is the single music6 line, build_manifest skips the file cleanly when absent.
+leftover: none — whether the track fits and loops cleanly is a taste call owed as o-20261021-103548-zf5x
+owed: o-20261021-103548-zf5x — listen to the Kitchen track and its loop seam

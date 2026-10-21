@@ -422,6 +422,13 @@ AMBIENCE = [
     ("kitchenRoomTone", "KitchenRoomTone.wav"),  # Kitchen level: quiet room-tone loop
 ]
 
+# In-repo music (generated with the Ludo AI CLI, b-20261021-094437-1mnh), scanned with
+# the ambience loops so it needs no external Unity Audio dir.
+REPO_MUSIC_DIR = REPO_ROOT / "Sounds" / "Music"
+REPO_MUSIC = [
+    ("music6", "KitchenBounce.mp3"),  # Kitchen level track (musicIndex 5)
+]
+
 AUDIO_SKIP_REASONS = {
     "MegaManDeath.wav": "third-party copyrighted audio (Mega Man death jingle) — excluded from the port",
     "MegaManDeath2.wav": "third-party copyrighted audio (Mega Man death jingle) — excluded from the port",
@@ -491,6 +498,12 @@ def collect_ambience() -> tuple[list[dict], list[dict]]:
     skips: list[dict] = []
     for key, filename in AMBIENCE:
         path = AMBIENCE_DIR / filename
+        if not path.is_file():
+            skips.append(skipped(key, path, "expected file not found on disk", kind="audio"))
+            continue
+        entries.append(audio_entry(key, path, "sound"))
+    for key, filename in REPO_MUSIC:
+        path = REPO_MUSIC_DIR / filename
         if not path.is_file():
             skips.append(skipped(key, path, "expected file not found on disk", kind="audio"))
             continue

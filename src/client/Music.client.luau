@@ -14,17 +14,19 @@
 --   2            Audio/Music/Opening.mp3          music3
 --   3            Audio/Music/Adenine.mp3          music4
 --   4            Audio/Music/Two Wrongs.wav       music5  (Multiplayer.unity override)
+--   5            Sounds/Music/KitchenBounce.mp3   music6  (port-only, Ludo-generated; Kitchen)
 --
 -- (Per doc 11 §1 Unity has Menu=1, Tutorial=1, Pot=0, Kitchen=1, so the base
--- game only ever plays music2 and music1. The port gives Kitchen 3 (music4,
--- Adenine) instead; see Levels.luau and doc 17 "Kitchen music".)
+-- game only ever plays music2 and music1. The port gives Kitchen 5 (music6, a
+-- generated track) and Space 3 (music4, Adenine); see Levels.luau and doc 17
+-- "Kitchen music".)
 --
 -- Country's musicIndex is 4: the base AudioManager prefab only has 4 clips, but
 -- Multiplayer.unity (the only scene that has the Country level) overrides
 -- musicClips[] with a fifth entry, Audio/Music/Two Wrongs.wav -> music5. An
 -- index with no mapped stem just fades the current track out to silence (see
--- `playIndex` below). Space (a port-only level) uses index 2, music3 (Opening),
--- which no other level plays.
+-- `playIndex` below). Space (a port-only level) uses index 3, music4 (Adenine),
+-- Kitchen's former track. music3 (Opening) is now unused by any level.
 --
 -- Respects the `MusicOn` player Attribute (server sets it; per this phase's
 -- contract it may not exist yet -- nil means ON, mirroring `SfxOn` in
@@ -48,6 +50,7 @@ local MUSIC_STEMS: { [number]: string } = {
 	[2] = "music3",
 	[3] = "music4",
 	[4] = "music5",
+	[5] = "music6",
 }
 
 -- AudioPlayer.cs: musicOnAwakeVolume = .7f, fadeAmount = .01f applied once per

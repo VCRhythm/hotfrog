@@ -1,0 +1,16 @@
+{
+  "assets": [
+    {
+      "file": "createMusic-3f1ac97b.mp3",
+      "command": "audio music",
+      "operation_id": "createMusic",
+      "body": {
+        "description": "Upbeat, playful cartoon chiptune for a frog climbing out of a busy kitchen: bouncy swung rhythm, pizzicato strings, clanking pots and pans percussion, wooden spoon taps, bubbly synth bass, cheeky whistle melody, seamless loop, around 120 BPM",
+        "duration": 80
+      },
+      "job_id": "3f1ac97b-71f7-4560-ae8b-7f20befe4f3d",
+      "credits": 3,
+      "created_at": "2026-10-21T14:28:22.069Z"
+    }
+  ]
+}
