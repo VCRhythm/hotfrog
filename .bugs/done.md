@@ -3115,7 +3115,7 @@ review: n/a (check only)
 leftover: none — every pattern was seen laying its role kind
 owed: none
 
-## b-20261021-103630-zqh2  fixed  2026-10-21 10:44
+## b-20261021-103630-zqh2  fixed  2026-10-21 10:38
 note: Studio check screenshots show the run camera zoomed so far in that the frog's head fills the screen
 cause: not a bug. The run camera is the intended framing: GameClient.client.luau:128-137,191-195 holds a Scriptable camera at origin + (0, 0, 43.2), FOV 40, which shows a fixed 31.4-stud vertical view (Unity's ortho size 50 at the port scale), and the frog model is 40.2 x 60.8 studs, so the head fills the view on purpose (owner decisions mvso / bshn: "the frog should take up practically the whole screen"). Steps spawned at the grip spot by the checker overlap the face because the lane origin is the head. StudioSkipTo touches no camera state; arrivalZoom and chainPunch were both 1.
 change: none
