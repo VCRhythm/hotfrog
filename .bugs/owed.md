@@ -237,3 +237,17 @@ step: Stop Play in the Hot Frog Studio when you're finished with it; the loop's 
 done-check: cd "$LOCALAPPDATA/Roblox/logs" && f=$(ls -t *Studio*_last.log | head -3 | xargs grep -a -l 114911935371092 | head -1) && [ -n "$f" ] && grep -a -o "WaypointTelemetry\] \(PSMStartPlaySolo\|StopPlaySoloEnd\)" "$f" | tail -1 | grep -q StopPlaySoloEnd
 evidence: none, the user sent it back to the loop as b-20261021-100120-anmj
 cleared: 2026-10-21 10:01 sent back to loop as b-20261021-100120-anmj: you are starting studio yourself. you need to be able to end it yourself
+
+## o-20261021-103548-zf5x  done  2026-10-21 10:35
+for: b-20261021-094437-1mnh
+kind: taste
+step: Listen to the new Kitchen track (Sounds/Music/KitchenBounce.mp3, 64 s, plays in Kitchen) and its loop seam; say if it fits or should be regenerated
+no-check: only a person can judge whether music fits and loops cleanly; the Studio MCP cannot play audio
+evidence: none, the user sent it back to the loop as b-20261021-111751-ivdz
+cleared: 2026-10-21 11:17 sent back to loop as b-20261021-111751-ivdz: link me
+
+## o-20261021-112201-7cyi  open  2026-10-21 11:22
+for: b-20261021-094437-1mnh
+kind: taste
+step: Listen to the new Kitchen track and its loop seam, then say if it fits or should be regenerated. Local file: file:///H:/Roblox%20Projects/hotfrog/Sounds/Music/KitchenBounce.mp3 (also sent to your Claude app). Roblox asset: https://create.roblox.com/dashboard/creations/store/111453159554462/configure
+no-check: only a person can judge whether music fits and loops cleanly; the Studio MCP cannot play audio

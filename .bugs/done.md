@@ -3128,3 +3128,15 @@ studio: the investigating agent started Play on Hot Frog (034d9972-550c-43ec-a92
 review: n/a (no change)
 leftover: none — by design; a wider run view would be a design change to CAMERA_DISTANCE (with WorldBackdrop.refitWidth and MenuClient.layoutMainPanel) that the owner has not asked for
 owed: none
+
+## b-20261021-111751-ivdz  answered  2026-10-21 11:22
+note: link me (sent back from owed step o-20261021-103548-zf5x: listen to the new Kitchen track)
+cause: the owed listening step named only the repo path Sounds/Music/KitchenBounce.mp3, with nothing to click; the dashboard's /file/ route serves text files only (404 for the mp3)
+change: none in code. Sent the mp3 to the user's Claude app, and re-owed the listening step as o-20261021-112201-7cyi with a file:/// link to the local mp3 and the Roblox asset page for music6 (111453159554462)
+finding: listen at file:///H:/Roblox%20Projects/hotfrog/Sounds/Music/KitchenBounce.mp3, or on the Creator Dashboard: https://create.roblox.com/dashboard/creations/store/111453159554462/configure
+files: none
+test: none
+verified: n/a — a link hand-off; curl showed the dashboard cannot serve the mp3, the file exists (1.5 MB, tracked in git)
+review: n/a
+leftover: none — the taste judgement is owed to the user
+owed: o-20261021-112201-7cyi
