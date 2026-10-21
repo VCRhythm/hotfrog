@@ -2747,3 +2747,32 @@ verified: no — static audit only; nothing changed and the audit found no path 
 review: n/a
 leftover: none — nothing was changed and the audit found no desyncing path, so there is no fix to check in Play. The reverse case, where the server holds and the client thinks the limb is free (silent return at ~2111), comes only from a stale client; h5lo (4461a16) covers its one real instance, StudioBot.
 owed: none
+
+## b-20261021-074242-z0a9  split  2026-10-21 09:16
+note: let's design more intentional theming with each level and the steps included
+cause: owner ruling b-20261021-091240-39xn: "1B 2A 3C 4(all six) 5B 6B" — existing art now, then a Ludo batch (Toaster, IceCube, Trampoline, Satellite, UFO, Beetle first; Dandelion, Butterfly, Bird, Plate, FryingPan, CabbageLeaf optional later); new-art kinds replace the rock in their role/level and inherit its weights; Lillipad stays Patrol everywhere, Satellite (and later Plate/Bird/CabbageLeaf) split that level's Patrol weight beside it; arrows stay white; all six dead kinds go in after a StudioSpawnKind check (StillRock Country 0.4 with FlyRock retinted, FlingingRock as the Pot Ember, Beetle Country hazard from stage 2, CrumblyRock Kitchen plain with its own tint, SlowFallRock Country later-stage hazard, FallingRock Kitchen later-stage hazard sinking faster); no Meteor/BoostRocket, rockets left-scroll-only; Halloween Pumpkin swap skips Patrol, RiseAndFall and Launch kinds. Design in docs/roblox-port/19-level-theming.md.
+change: split into six parts and an integration check by the planner; the optional-later art kinds are out of scope for this build.
+parts: b-20261021-091519-wu4e, b-20261021-091520-sh6c, b-20261021-091536-8ayk, b-20261021-091536-2ymu, b-20261021-091537-rv4a, b-20261021-091537-xh0w, b-20261021-091538-mio4
+files: none
+test: none
+verified: no — the integration check b-20261021-091538-mio4 runs the whole feature
+review: n/a
+
+## b-20261021-091240-39xn  fixed  2026-10-21 09:16
+note: DECISION: 1B 2A 3C 4(all six) 5B 6B (full ruling text quoted in b-20261021-074242-z0a9's cause)
+cause: owner ruling on b-20261021-074242-z0a9; applied there.
+change: see b-20261021-074242-z0a9
+files: see b-20261021-074242-z0a9
+test: none
+verified: see b-20261021-074242-z0a9
+review: n/a
+
+## b-20261021-090826-iuhy  split  2026-10-21 09:16
+note: I want the chef body to actually look like a chef's body and for the arm to look more like the frog's arms. when the chef is going to strike a step, he should come in from the side *in front* of the frog's layer and swing horizontally (as if a 2d sidescroller) in slow motion towards a step that breaks immediately on contact
+cause: the Kitchen Chef uses placeholder coat/trouser boxes and a plain skin-coloured arm bar, and its Knife chops down with a WindUp-to-Strike hand-off not tied to a visible contact moment.
+change: split by the planner into new chef body/arm art, server Swing phase timing (break at contact), and the client side-entry, in-front, slow horizontal swing.
+parts: b-20261021-091553-8ai3, b-20261021-091553-sxgl, b-20261021-091554-9pz1, b-20261021-091555-rjh8
+files: none
+test: none
+verified: no — the integration check b-20261021-091555-rjh8 runs the whole feature
+review: n/a
