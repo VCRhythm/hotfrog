@@ -2854,3 +2854,23 @@ studio: Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd, placeId 114911935371092)
 review: looks-right; reviewer checked diff vs claim, weights carried from the replaced rocks, role maps, Halloween keep list still covers Launch kinds; selene re-run clean.
 leftover: b-20261021-094516-9uqb (owner wants trampolines removed, maybe a pile of cash instead) and b-20261021-091555-mio4 (theming integration check in Play)
 owed: none
+
+## b-20261021-091554-9pz1  fixed  2026-10-21 09:58
+note: Chef part 3: draw the chef with the ChefBody and ChefArm sprites (body sized to the head, arm stretched like the frog's), and for the Knife enter from the lane's side edge in front of the steps and swing horizontally, timed off the server's ChefPhaseStart / ChefPhaseDuration / ChefSwingContact so the blade crosses the step at the contact moment.
+cause: WorldChef still drew placeholder coat and trouser blocks with a plain bar arm, and its Knife chopped down from behind the steps on a combo-scaled clock, ignoring the server's real-time Swing and its contact moment.
+change: placeholder blocks removed; body = ChefBody sprite on a 38-stud canvas (about 19 studs wide, 24 neck to feet), shifted 2.08 left, collar at -4.8 under the head, rocking while walking; every arm = ChefArm sprite stretched from the shoulder (+-6.42, 3.5 below the collar) to the blade tip (Knife) or the fist at 66% (Food/Shove), 4-stud canvas. Knife: he dashes behind the steps to the far lane edge, switches to the front layer (head +1.5, body +1.4, arm +1.7) and eases in to a stance about 13 studs off centre, pulls the knife back with a growing tremble, then swings the tip on a flattened ellipse (0.32R) round the shoulder from the server clock ((GetServerTimeNow - ChefPhaseStart) / ChefPhaseDuration, a^1.6 into the hit), R (7-18) and the stance solved so the blade middle meets the step at ChefSwingContact; stance freezes and the red ring hides at contact; no StreakSpeed scaling during Swing; walks back out and drops behind afterwards. Food/Shove keep their motion with longer hand offsets. Doc 17 Chef row rewritten.
+files: src/client/WorldChef.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check WorldChef ok; selene src/ 0/0; tools/luau_check.sh WorldChef clean; rojo build ok; geometry hand-checked for a step at relX +5 (R 13.65, blade middle on the step at contact).
+verified: no — Studio was in Play (checker plus owner), so nothing was run; the integration check b-20261021-091555-rjh8 covers the look and timing
+review: looks-right; checked: diff vs claim, nil/zero attribute fallbacks (local clock, Config contact, clamps), no NaN at a step on the shoulder, nothing created per action and lane removal cleaned up, only client parts moved, lane-relative so other lanes draw, Z layers, strict typing; stylua/selene/luau_check clean.
+leftover: b-20261021-095805-o1t7 (Food arm, potato and arrow share Z 1); other notes are tuning for the owner's taste check under b-20261021-091555-rjh8
+owed: none
+
+## b-20261021-094407-vr3s  duplicate  2026-10-21 09:58
+note: the chef's body shouldn't just be a big square. it should be a sprite that looks like a chef's body (like how the frogs are constructed)
+cause: already being fixed by the chef split b-20261021-090826-iuhy; the report came in while part 3 b-20261021-091554-9pz1 (body and arm sprites, frog-style stretched arm) was in progress, and the screenshot predates it.
+change: see b-20261021-091554-9pz1
+files: none
+test: none
+verified: see b-20261021-091554-9pz1
+review: n/a
