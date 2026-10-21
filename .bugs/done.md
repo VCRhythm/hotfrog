@@ -2787,3 +2787,14 @@ verified: no — Studio Play held: Hot Frog (placeId 114911935371092) has been i
 review: looks-right; checked: git diff of Levels/Lane/Config, Lane.spawnPattern and StepKinds behaviours; per-level pools and pattern members compared with HEAD (Pot/Tutorial set no roles and use no role members); Halloween skip reads kind.behavior and keeps the arrow/hazard checks; luau_check, selene and stylua on the three files clean.
 leftover: Studio Play check b-20261021-092032-44by
 owed: o-20261021-092031-ss9x stop Play in the Hot Frog Studio
+
+## b-20261021-091536-8ayk  fixed  2026-10-21 09:25
+note: Theming part 3 (ruling 4, Pot/Country): StillRock becomes a Country plain step at weight 0.4 and FlyRock gets its own tint so the two differ; FlingingRock becomes the Pot Ember (orange-tinted CrumblyRock art, Flame flingee, not a hazard, Halloween-swappable); SlowFallRock becomes a tinted Country hazard in later stages; spawn each with StudioSpawnKind and fix misbehaviour before pooling.
+cause: FlingingRock, StillRock and SlowFallRock were in no level pool, and FlyRock shared StillRock's untinted art, so the two could not be told apart.
+change: FlingingRock is now the Pot Ember (orange-tinted CrumblyRock art, Flame flingee, not a hazard) in all 3 Pot spawners at stage weights 0/0.3/0.4; StillRock joins every Country stage at 0.4 and SlowFallRock (pink, hazard) Country stages 3-4 at 0.2/0.3, both through Levels.withOutdoor; FlyRock gets a gold tint; new doc 17 row (tints are guesses).
+files: src/shared/StepKinds.luau, src/shared/Levels.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check on both .luau files passes; selene src/ clean; tools/luau_check.sh rc 0 (strict); rojo build ok. (stylua --check src/ also flags Ambience.client.luau, SfxEvents.client.luau, Chef.luau and PullMath.luau, but only for CRLF in this working copy: autocrlf=true vs stylua line_endings Unix; the HEAD blobs pass.)
+verified: no — Studio Play held (Hot Frog in Play since 08:47, possibly the owner's)
+review: looks-right; checked: git diff vs fixer summary; luau_check on both files; Ember uses the existing SplashFlinging + flingeeSprite path (GameServer stamps FlingeeSprite, spawnFlingee reads it) and color via acquireStep; Lane.pickKind Halloween swap still applies to Ember (SplashFlinging not in HALLOWEEN_KEEP_BEHAVIORS), Halloween tint skips kinds with their own color; withOutdoor only called in the Country block, all four Country stages have explicit weights, other weights unchanged; Behaviors.Fall exists and hazard is read only by Lane's fairness/safe/pattern/Halloween checks. Note: SlowFallRock (pink) and FallingRock (salmon) share WhiteRock art and may look alike.
+leftover: Studio Play check b-20261021-092339-6q9n
+owed: o-20261021-092031-ss9x stop Play in the Hot Frog Studio

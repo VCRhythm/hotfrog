@@ -158,6 +158,10 @@ local TINT_BLACK = Color3.new(0, 0, 0) -- Beetle
 local TINT_SKY = Color3.new(0.45, 0.75, 1) -- BobRock
 local TINT_LIME = Color3.new(0.6, 0.95, 0.3) -- SpringRock
 local TINT_VIOLET = Color3.new(0.78, 0.55, 1) -- BlinkRock
+-- Dead-kind revival (b-20261021-091536-8ayk, doc 19 ruling 4): one tint each.
+local TINT_EMBER = Color3.new(1, 0.5, 0.12) -- FlingingRock (Pot Ember): orange coals
+local TINT_GOLD = Color3.new(1, 0.88, 0.35) -- FlyRock: golden, so it differs from the plain StillRock
+local TINT_PINK = Color3.new(1, 0.55, 0.78) -- SlowFallRock
 
 local StepKinds: { [string]: Kind } = {
 	-- Pot (Level2) pools (doc 11 §2a)
@@ -344,8 +348,11 @@ local StepKinds: { [string]: Kind } = {
 		hitSize = HIT_ROCK,
 	},
 
-	-- Legacy `General/Spawners/*` pool (doc 11 §2b) -- not referenced by any live
-	-- level's spawners, but kept as data in case a future level wants them.
+	-- Legacy `General/Spawners/*` pool (doc 11 §2b). StillRock, FlingingRock and
+	-- SlowFallRock are live again (b-20261021-091536-8ayk, doc 19 ruling 4, doc 17);
+	-- CrumblyRock, FallingRock and Beetle are still in no pool.
+	-- Country plain rock (weight 0.4 per stage in Levels); untinted mossy
+	-- WrappedRock, so FlyRock wears a tint to differ.
 	StillRock = {
 		behavior = "None",
 		sprite = "WrappedRock",
@@ -363,12 +370,14 @@ local StepKinds: { [string]: Kind } = {
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
 	},
+	-- Country hazard in its later stages (Levels), own pink tint.
 	SlowFallRock = {
 		behavior = "Fall",
 		sprite = "WhiteRock",
 		spawnProbability = 0.5,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
+		color = TINT_PINK,
 		hazard = true,
 	},
 	FallingRock = {
@@ -380,13 +389,17 @@ local StepKinds: { [string]: Kind } = {
 		color = TINT_SALMON,
 		hazard = true,
 	},
+	-- The Pot's Ember (PORT DEVIATION from Unity's WrappedRock prefab): orange-tinted
+	-- CrumblyRock art that flings a harmless Flame on grab. Not a hazard, so the
+	-- Halloween pumpkin swap may replace it.
 	FlingingRock = {
 		behavior = "SplashFlinging",
-		sprite = "WrappedRock",
+		sprite = "CrumblyRock",
 		spawnProbability = 0.5,
-		size = ART_WRAPPED,
+		size = ART_ROCK,
 		hitSize = HIT_ROCK,
 		flingeeSprite = "Flame",
+		color = TINT_EMBER,
 	},
 	FlyRock = {
 		behavior = "SpawnFly",
@@ -394,6 +407,7 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.5,
 		size = ART_WRAPPED,
 		hitSize = HIT_ROCK,
+		color = TINT_GOLD,
 	},
 	Beetle = {
 		behavior = "Beetle",

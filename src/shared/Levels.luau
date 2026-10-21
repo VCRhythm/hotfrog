@@ -280,7 +280,7 @@ end
 -- Country's outdoor footholds (b-20261020-200915-5ju4, owner's ruling
 -- b-20261020-201705-zwi7): tree trunks and cars, appended to each Country
 -- rock/shelf pool on top of the dynamic kinds.
-local OUTDOOR_KINDS = { "TreeTrunk", "OakTree", "CarRight", "CarLeft" }
+local OUTDOOR_KINDS = { "TreeTrunk", "OakTree", "StillRock", "SlowFallRock", "CarRight", "CarLeft" }
 
 local function withOutdoor(roles: { [string]: string }, pool: { string }): { string }
 	local out = withRoles(roles, pool)
@@ -474,7 +474,7 @@ list[Levels.POT] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 0.7,
 			spawnAllOnAwake = false,
-			pool = { "Potato", "Carrot", "UpRock", "Lillipad" },
+			pool = { "Potato", "Carrot", "UpRock", "Lillipad", "FlingingRock" },
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -489,7 +489,7 @@ list[Levels.POT] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 0.7,
 			spawnAllOnAwake = false,
-			pool = { "Carrot", "Potato", "UpRock", "Lillipad" },
+			pool = { "Carrot", "Potato", "UpRock", "Lillipad", "FlingingRock" },
 			movements = mv({ { -1.0, 0.5 }, { -1.0, 1.25 }, { 0.0, 1.25 } }),
 		},
 		{
@@ -504,7 +504,7 @@ list[Levels.POT] = {
 			spawningSpeedMin = 0.25,
 			spawningSpeedMax = 0.35,
 			spawnAllOnAwake = false,
-			pool = { "Potato", "Carrot", "UpLeftRock", "UpRightRock", "Lillipad" },
+			pool = { "Potato", "Carrot", "UpLeftRock", "UpRightRock", "Lillipad", "FlingingRock" },
 			movements = mv({ { -0.5, 1.25 }, { 1.5, 1.25 }, { 2.5, 1.25 } }),
 		},
 	},
@@ -550,17 +550,41 @@ list[Levels.POT] = {
 	heightStages = {
 		{
 			maxRunSteps = 15,
-			weights = { Carrot = 3, Potato = 0.4, UpRock = 0.2, UpLeftRock = 0.2, UpRightRock = 0.2, Lillipad = 0 },
+			weights = {
+				Carrot = 3,
+				Potato = 0.4,
+				UpRock = 0.2,
+				UpLeftRock = 0.2,
+				UpRightRock = 0.2,
+				Lillipad = 0,
+				FlingingRock = 0,
+			},
 			sceneryDensity = 1.75,
 		},
 		{
 			maxRunSteps = 35,
-			weights = { Carrot = 1, Potato = 1.5, UpRock = 0.5, UpLeftRock = 0.5, UpRightRock = 0.5, Lillipad = 0 },
+			weights = {
+				Carrot = 1,
+				Potato = 1.5,
+				UpRock = 0.5,
+				UpLeftRock = 0.5,
+				UpRightRock = 0.5,
+				Lillipad = 0,
+				FlingingRock = 0.3,
+			},
 			sceneryDensity = 1,
 		},
 		{
 			maxRunSteps = math.huge,
-			weights = { Carrot = 0.5, Potato = 0.7, UpRock = 1.6, UpLeftRock = 1.6, UpRightRock = 1.6, Lillipad = 0.5 },
+			weights = {
+				Carrot = 0.5,
+				Potato = 0.7,
+				UpRock = 1.6,
+				UpLeftRock = 1.6,
+				UpRightRock = 1.6,
+				Lillipad = 0.5,
+				FlingingRock = 0.4,
+			},
 			sceneryDensity = 0.4,
 			patternChance = 0.08,
 			patterns = { patterns.ZigZag },
@@ -880,6 +904,8 @@ list[Levels.COUNTRY] = {
 				CarRight = 0,
 				TreeTrunk = 0.6,
 				OakTree = 0.6,
+				StillRock = 0.4,
+				SlowFallRock = 0,
 				UpRock = 0.25,
 				UpLeftRock = 0.25,
 				UpRightRock = 0.25,
@@ -902,6 +928,8 @@ list[Levels.COUNTRY] = {
 				CarRight = 0.15,
 				TreeTrunk = 0.6,
 				OakTree = 0.6,
+				StillRock = 0.4,
+				SlowFallRock = 0,
 				UpRock = 0.25,
 				UpLeftRock = 0.25,
 				UpRightRock = 0.25,
@@ -924,6 +952,8 @@ list[Levels.COUNTRY] = {
 				CarRight = 0.2,
 				TreeTrunk = 0.6,
 				OakTree = 0.6,
+				StillRock = 0.4,
+				SlowFallRock = 0.2,
 				UpRock = 0.25,
 				UpLeftRock = 0.25,
 				UpRightRock = 0.25,
@@ -946,6 +976,8 @@ list[Levels.COUNTRY] = {
 				CarRight = 0.25,
 				TreeTrunk = 0.6,
 				OakTree = 0.6,
+				StillRock = 0.4,
+				SlowFallRock = 0.3,
 				UpRock = 0.25,
 				UpLeftRock = 0.25,
 				UpRightRock = 0.25,
