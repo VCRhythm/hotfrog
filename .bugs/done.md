@@ -2832,13 +2832,25 @@ review: looks-right; checked by the loop: SkinAssets diff is the six generated i
 leftover: b-20261021-093703-adx9 (held: the upload run re-uploaded music1/music5 on a cache mismatch; SoundAssets.luau was put back to its committed ids, so tools/asset_ids.json now disagrees with it)
 owed: none
 
-## b-20261021-091553-8ai3  fixed  2026-10-21 09:58
+## b-20261021-091553-8ai3  fixed  2026-10-21 09:50
 note: Chef part 1: generate with Ludo a chef body sprite (white coat, apron and trousers, no head or hat, sized to sit under the existing Chef.png head) and a frog-arm-style chef arm sprite (sleeve, forearm, hand holding a knife), save as Sprites/Other/ChefBody.png and ChefArm.png, add them to the build_manifest scenery list, upload them and let write_asset_ids write their ids into SkinAssets.
 cause: there was no chef body or arm art, only the Chef.png head, so the Kitchen chef drew placeholder blocks.
 change: two Ludo sprites (Western Cartoon, thick black outlines, flat colours; front view to match the head). ChefBody.png 1024x1024, content flush to the top and centred (visible x 309-827, y 0-652): headless double-breasted coat, apron, checkered trousers, shoes, collar at y=0 for the head. ChefArm.png 256x1024 (visible x 51-204, y 0-934): straight vertical limb, shoulder = top (white sleeve and cuff), pink forearm, fist at the bottom gripping a knife whose blade tip is the sprite's bottom end. Both added to build_manifest OTHER_TABLE as scenery, uploaded alone via --keys, ids written by write_asset_ids (ChefArm, ChefBody). Part 3 must scale the body to the head (the head art is wider).
 files: Sprites/Other/ChefBody.png, Sprites/Other/ChefArm.png, tools/build_manifest.py, src/shared/SkinAssets.luau
 test: stylua --check SkinAssets.luau ok; tools/luau_check.sh SkinAssets.luau clean; rojo build ok; upload_to_roblox --status ChefArm/ChefBody Approved/Green.
-verified: partly — both PNGs viewed by the loop beside Chef.png (styles match) and uploads Approved/Green; not used in game until part 3 b-20261021-091554-9pz1, whose integration check b-20261021-091555-rjh8 sees them in Play
+verified: partly — both PNGs viewed by the loop beside Chef.png (styles match) and uploads Approved/Green; not drawn in game until part 3 b-20261021-091554-9pz1; the integration check b-20261021-091555-rjh8 looks at them
 review: looks-right; checked by the loop: diff is the two generated SkinAssets id lines plus two OTHER_TABLE entries; SoundAssets.luau left with no content diff (write_asset_ids rewrote music1/music5 again and the fixer put the committed ids back, see b-20261021-093703-adx9); preview of head + body + arm.
 leftover: none — the in-game look is checked by b-20261021-091555-rjh8
+owed: none
+
+## b-20261021-091537-rv4a  fixed  2026-10-21 09:54
+note: Theming part 5 (rulings 1B, 2A, 4; Kitchen/Country new art): Toaster replaces SpringRock (Launch) and IceCube replaces BlinkRock (Vanish) in Kitchen, Trampoline replaces SpringRock in Country, Beetle joins Country as a hazard from stage 2, each with art id, canvas, hit box and tapSize per doc 19 section 4.
+cause: the new Toaster, IceCube, Trampoline and Beetle art had ids but no StepKinds entries, so Kitchen and Country still drew the plain rocks in those roles.
+change: StepKinds gets Toaster (Launch, ART_SHELF canvas 8.046, hit 7.1x5.3, tap 8x5.8), IceCube (Vanish, small-rock sizes), Trampoline (Launch, 8x4 canvas, hit 7.8x1.8, tap 8x3.6) and Beetle (hazard, sprite Beetle, hit 6.9x3.7, tap 7.3x5.5); KITCHEN_ROLES maps Launch=Toaster and Vanish=IceCube, COUNTRY_ROLES Launch=Trampoline; Levels renames the inherited weights (Kitchen Toaster 0/0/.2/.2, IceCube 0/0/0/.3; Country Trampoline .15/.25/.25/.3) and adds Beetle to OUTDOOR_KINDS at 0/.1/.15/.15; TINT_BLACK removed; Tips for Vanish and Beetle; doc 18 "Updates since the audit" and a doc 17 row.
+files: src/shared/StepKinds.luau, src/shared/Levels.luau, src/shared/Tips.luau, docs/roblox-port/17-status-and-known-gaps.md, docs/roblox-port/18-step-kinds-by-level.md
+test: stylua --check, selene src/ and tools/luau_check.sh pass; rojo build ok.
+verified: partly — the Studio checker saw Toaster and IceCube spawn naturally in Kitchen and Trampoline and Beetle in Country during its Play run (KindName samples); their art, hit boxes and grabs were not checked (owner joined that session)
+studio: Hot Frog (034d9972-550c-43ec-a923-0ae3c9bac1fd, placeId 114911935371092), never Centralia; the checker started Play at 09:42 and left it running because the owner was playing in it (F8 reports from 09:44): Play not stopped.
+review: looks-right; reviewer checked diff vs claim, weights carried from the replaced rocks, role maps, Halloween keep list still covers Launch kinds; selene re-run clean.
+leftover: b-20261021-094516-9uqb (owner wants trampolines removed, maybe a pile of cash instead) and b-20261021-091555-mio4 (theming integration check in Play)
 owed: none

@@ -18,9 +18,12 @@ Tips.list = {
 	"Pebbly rock clusters in the Kitchen and Country burst 1.5 seconds after you grab them.",
 	-- Config.EXPLODE_FUSE = 1 (StepBehaviors.ExplodeAfterGrab): StepKinds.Potato, Pot only.
 	"Potatoes in the Pot shake when you grab them and explode 1 second later.",
-	-- StepBehaviors.Vanish (StepKinds.BlinkRock, violet tint, Kitchen and Country):
-	-- shakes after 3 s in view, drops 1.5 s later. (No live level spawns the Fall kind.)
-	"Violet rocks start shaking after a few seconds on screen, then drop away.",
+	-- StepBehaviors.Vanish (StepKinds.BlinkRock, violet tint, Country and Space;
+	-- StepKinds.IceCube in the Kitchen): shakes after 3 s in view, drops 1.5 s later.
+	"Ice cubes and violet rocks start shaking after a few seconds on screen, then drop away.",
+	-- StepBehaviors.Beetle (StepKinds.Beetle, Country from its second stage): the
+	-- first grab is a forced release, later grabs hold.
+	"Ladybugs in the Country shrug off your first grab. Grab again and they hold.",
 	-- StepBehaviors.ChangeDirection*: grabbing sets the lane's scroll direction.
 	"Grabbing an arrow step changes the direction the world scrolls. Plan your next grab.",
 	-- Config.BUG_FLYS = 5.

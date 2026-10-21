@@ -2,6 +2,15 @@
 
 Entry `b-20261020-215825-bmrz`. Read at commit `6645c92` (`src/shared/Levels.luau`, `src/shared/StepKinds.luau` and `src/server/Lane.luau` had no uncommitted changes when read; another fixer may change Levels/Lane later, so re-check the Country tables). Facts from code only; suggestions are marked as such.
 
+## Updates since the audit (doc 19 rulings)
+
+The tables below are the audit as read at `6645c92`. Changes made since by the doc 19 parts (owner ruling `b-20261021-091240-39xn`):
+
+- **Role map** (`b-20261021-091520-sh6c`): `withDynamic` is now `withRoles(level roles, pool)`; each level's `roles` names its Patrol / Bob / Launch / Vanish / Crumble kind, and PadLadder / SpringStreak members name a role, not a kind. The Halloween swap skips Patrol, RiseAndFall and Launch kinds.
+- **Revived kinds**: Pot gains `FlingingRock` (the Ember, 0 / .3 / .4); Country gains `StillRock` (.4 every stage) and `SlowFallRock` (0 / 0 / .2 / .3) via `withOutdoor`; Kitchen gains `CrumblyRock` (.3 / .3 / .35 / .4) and `FallingRock` (0 / 0 / .2 / .3) in all five pools. FlyRock is gold-tinted.
+- **Themed kinds** (`b-20261021-091537-rv4a`): Kitchen's Launch role is `Toaster` and its Vanish role `IceCube`, at SpringRock's and BlinkRock's old Kitchen weights (Toaster 0 / 0 / .2 / .2, IceCube 0 / 0 / 0 / .3); the Kitchen SpringStreak lays Toasters. Country's Launch role is `Trampoline` at SpringRock's old weights (.15 / .25 / .25 / .3; SpringStreak lays Trampolines), and `Beetle` (new ladybug art, `hazard`, one forced release) joins `withOutdoor` at 0 / .1 / .15 / .15. Lillipad and BobRock stay in every level; BlinkRock stays Country's Vanish kind and Space keeps all five default roles. Read "Spring" and "Blink" in the Kitchen table, and "Spring" in the Country table, as these kinds.
+- Still dead: none of the six; still in no pool by design: PotRim, Castle, Pumpkin, FlyRock.
+
 ## How a pick works
 
 - Each level has step spawners with a `pool` (list of StepKinds names). `Lane.pickKind` does one weighted draw over the pool of the spawner active for the lane's current scroll direction (by sign): Down, DownLeft, DownRight, Left, Right, plus a themed Rocket spawner that scrolls left.
@@ -79,8 +88,13 @@ Menu: BackGrass, Cloud3, Grass. Tutorial: Stars. Pot: Flame, Bubble (client extr
 | LeftRock, RightRock | Kitchen (Down pool), Country, Space (Down pool) | no Unity pool; port addition |
 | Shelf, ShelfWithFork, ShelfWithSpoon | Kitchen | fits; none outdoors or in Space |
 | Lillipad | Pot (stage 3), Kitchen, Country, Space, PadLadder | pond art in a pot, kitchen, sky and space |
-| BobRock, SpringRock | Kitchen, Country, Space | tinted WhiteRock (sky, lime) |
-| BlinkRock, CrumbleRock | Kitchen (late), Country, Space | violet SmallRock / CrumblyRock art; hazards |
+| BobRock | Kitchen, Country, Space | tinted WhiteRock (sky) |
+| SpringRock | Space (Launch role) | lime WhiteRock (since `b-20261021-091537-rv4a`; was Kitchen and Country too) |
+| Toaster | Kitchen (Launch role) | own art, untinted (since `b-20261021-091537-rv4a`) |
+| Trampoline | Country (Launch role) | own art, untinted (since `b-20261021-091537-rv4a`) |
+| BlinkRock | Country, Space (Vanish role) | violet SmallRock; hazard (Kitchen until `b-20261021-091537-rv4a`) |
+| IceCube | Kitchen (Vanish role, stage 4) | own art, untinted; hazard (since `b-20261021-091537-rv4a`) |
+| CrumbleRock | Kitchen (late), Country, Space | CrumblyRock art; hazard |
 | Rocket | Country, Space | fits both |
 | Balloon | Country | fits |
 | TreeTrunk, OakTree | Country | fits |
@@ -89,7 +103,7 @@ Menu: BackGrass, Cloud3, Grass. Tutorial: Stars. Pot: Flame, Bubble (client extr
 | Castle | Country event (CastleKeep) | salmon-tinted castle, in no pool |
 | FlyRock | BugChain in Kitchen (stage 3+), Country (stage 2+), Space (stage 2+) | wrapped-rock art |
 | Pumpkin | non-Tutorial levels during Halloween | weight 0, in no pool |
-| StillRock, CrumblyRock, SlowFallRock, FallingRock, FlingingRock, Beetle | **no level (dead)** | legacy Unity `General/Spawners` data, per the StepKinds comment |
+| StillRock, CrumblyRock, SlowFallRock, FallingRock, FlingingRock, Beetle | **no level (dead)** at the audit | all six live since the doc 19 parts (see "Updates since the audit"); Beetle is a Country hazard with its own ladybug art |
 
 Dead: 6 of 35 kinds. In no pool but live by other routes: PotRim, Castle, Pumpkin, FlyRock.
 

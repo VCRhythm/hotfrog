@@ -155,7 +155,6 @@ local TAP_CARROT = Vector2.new(13, 10)
 local FALLING_ROCK_SPEED = 24
 
 local TINT_SALMON = Color3.new(1, 0.459, 0.395) -- FallingRock, Castle
-local TINT_BLACK = Color3.new(0, 0, 0) -- Beetle
 -- Port additions (no Unity prefab): one tint per moving / timed kind, so each
 -- reads at a glance against the white, salmon and black rocks above.
 local TINT_SKY = Color3.new(0.45, 0.75, 1) -- BobRock
@@ -353,8 +352,9 @@ local StepKinds: { [string]: Kind } = {
 	},
 
 	-- Legacy `General/Spawners/*` pool (doc 11 §2b). StillRock, FlingingRock and
-	-- SlowFallRock are live again (b-20261021-091536-8ayk, doc 19 ruling 4, doc 17);
-	-- CrumblyRock, FallingRock and Beetle are still in no pool.
+	-- SlowFallRock are live again (b-20261021-091536-8ayk, doc 19 ruling 4, doc 17),
+	-- CrumblyRock and FallingRock in Kitchen (b-20261021-091536-2ymu), Beetle in
+	-- Country with its own art (b-20261021-091537-rv4a).
 	-- Country plain rock (weight 0.4 per stage in Levels); untinted mossy
 	-- WrappedRock, so FlyRock wears a tint to differ.
 	StillRock = {
@@ -415,13 +415,21 @@ local StepKinds: { [string]: Kind } = {
 		hitSize = HIT_ROCK,
 		color = TINT_GOLD,
 	},
+	-- Country hazard from stage 2 (Levels; b-20261021-091537-rv4a, doc 19 ruling
+	-- 4). PORT DEVIATION from Unity's black-tinted WhiteRock: its own Beetle.png
+	-- (256 px, a red ladybug facing right, untinted) on the rock canvas. The bug
+	-- spans x 5-251, y 61-194 px (centred), so the hit box is that extent
+	-- (~7.0 x 3.8 studs) rather than the rock circle. `hazard`: its first grab
+	-- is always shrugged off (a forced release, like the cars), so it never
+	-- stands alone and Halloween never swaps it.
 	Beetle = {
 		behavior = "Beetle",
-		sprite = "WhiteRock",
+		sprite = "Beetle",
 		spawnProbability = 0.5,
 		size = ART_ROCK,
-		hitSize = HIT_ROCK,
-		color = TINT_BLACK,
+		hitSize = Vector2.new(6.9, 3.7),
+		tapSize = Vector2.new(7.3, 5.5),
+		hazard = true,
 	},
 	-- Castle.prefab also ships actionType=0 (None) -- ActionType.Castle (16) is
 	-- unused by any shipped prefab (doc 12); preserved as-is.
@@ -486,6 +494,48 @@ local StepKinds: { [string]: Kind } = {
 		color = TINT_VIOLET,
 		params = { delay = 3, warn = 1.5 },
 		hazard = true,
+	},
+	-- Themed replacements (b-20261021-091537-rv4a, doc 19 ruling 1B / section 4):
+	-- each copies the behaviour, weight and params of the rock it stands in for
+	-- in its level's role map (Levels), on its own Ludo art. Untinted: the art
+	-- reads on its own, where a lime / violet multiply would muddy it.
+	-- Kitchen's Launch kind (SpringRock elsewhere). Toaster.png is 512 px on
+	-- the shelf canvas; the toaster spans x 6-506, y 78-433 px (centred), the
+	-- body without the lever, knob and feet ~x 38-492, y 78-415, which is the
+	-- hit box; the tap pad covers the whole visible toaster.
+	Toaster = {
+		behavior = "Launch",
+		sprite = "Toaster",
+		spawnProbability = 0.1,
+		size = ART_SHELF,
+		hitSize = Vector2.new(7.1, 5.3),
+		tapSize = Vector2.new(8, 5.8),
+		params = { pull = 8 },
+	},
+	-- Kitchen's Vanish kind (BlinkRock elsewhere): an ice cube that melts away.
+	-- IceCube.png is 128 px and nearly fills it (x 4-124, y 4-123), so it takes
+	-- BlinkRock's small-rock canvas, hit box and tap pad.
+	IceCube = {
+		behavior = "Vanish",
+		sprite = "IceCube",
+		spawnProbability = 0.1,
+		size = ART_SMALL_ROCK,
+		hitSize = HIT_SMALL_ROCK,
+		tapSize = TAP_SMALL_ROCK,
+		params = { delay = 3, warn = 1.5 },
+		hazard = true,
+	},
+	-- Country's Launch kind. Trampoline.png is 512x256 px on an 8 x 4 canvas
+	-- (64 px/stud); the trampoline spans x 6-506, y 72-183 px (centred), so the
+	-- hit box is that thin extent and a taller tap pad keeps it thumb-sized.
+	Trampoline = {
+		behavior = "Launch",
+		sprite = "Trampoline",
+		spawnProbability = 0.1,
+		size = Vector3.new(8, 4, 1),
+		hitSize = Vector2.new(7.8, 1.8),
+		tapSize = Vector2.new(8, 3.6),
+		params = { pull = 8 },
 	},
 	-- CrumblyRock's art with the Crumble behaviour Unity wrote but never put on
 	-- a prefab (see CrumblyRock above, which stays "None"): explodes

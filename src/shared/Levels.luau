@@ -259,8 +259,10 @@ end
 local ROLES = { "Patrol", "Bob", "Launch", "Vanish", "Crumble" }
 Levels.ROLES = ROLES
 
--- Every level with dynamic steps uses the same kind per role today; later
--- themed levels swap a role's kind here (doc 19).
+-- The default kind per role (Space); themed levels swap a role's kind below
+-- (doc 19, ruling 1B on b-20261021-074242-z0a9). A themed kind inherits the
+-- stage weights of the kind it replaces, and SpringStreak / PadLadder members
+-- resolve through the lane level's map.
 local DYNAMIC_ROLES: { [string]: string } = {
 	Patrol = "Lillipad",
 	Bob = "BobRock",
@@ -268,6 +270,16 @@ local DYNAMIC_ROLES: { [string]: string } = {
 	Vanish = "BlinkRock",
 	Crumble = "CrumbleRock",
 }
+
+-- Kitchen: a Toaster springboard and a melting IceCube (b-20261021-091537-rv4a).
+local KITCHEN_ROLES: { [string]: string } = table.clone(DYNAMIC_ROLES)
+KITCHEN_ROLES.Launch = "Toaster"
+KITCHEN_ROLES.Vanish = "IceCube"
+
+-- Country: a Trampoline springboard; Vanish stays BlinkRock until the Dandelion
+-- has art (b-20261021-091537-rv4a).
+local COUNTRY_ROLES: { [string]: string } = table.clone(DYNAMIC_ROLES)
+COUNTRY_ROLES.Launch = "Trampoline"
 
 local function withRoles(roles: { [string]: string }, pool: { string }): { string }
 	local out = table.clone(pool)
@@ -279,8 +291,8 @@ end
 
 -- Country's outdoor footholds (b-20261020-200915-5ju4, owner's ruling
 -- b-20261020-201705-zwi7): tree trunks and cars, appended to each Country
--- rock/shelf pool on top of the dynamic kinds.
-local OUTDOOR_KINDS = { "TreeTrunk", "OakTree", "StillRock", "SlowFallRock", "CarRight", "CarLeft" }
+-- rock/shelf pool on top of the dynamic kinds. Beetle: a hazard from stage 2.
+local OUTDOOR_KINDS = { "TreeTrunk", "OakTree", "StillRock", "SlowFallRock", "CarRight", "CarLeft", "Beetle" }
 
 local function withOutdoor(roles: { [string]: string }, pool: { string }): { string }
 	local out = withRoles(roles, pool)
@@ -598,7 +610,7 @@ list[Levels.POT] = {
 -- ---------------------------------------------------------------------------
 list[Levels.KITCHEN] = {
 	name = "Kitchen",
-	roles = DYNAMIC_ROLES,
+	roles = KITCHEN_ROLES,
 	-- PORT DEVIATION: Unity plays musicIndex 1 (FrogSounds, the menu track) here;
 	-- 3 = Adenine, a beat-driven track as groovy as Pot's BrusselSprouts and
 	-- unused by the base game (b-20261010-192146-ml2d, doc 17 "Kitchen music").
@@ -620,7 +632,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = withRoles(
-				DYNAMIC_ROLES,
+				KITCHEN_ROLES,
 				{ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "CrumblyRock", "FallingRock" }
 			),
 			movements = mv({ { -1.0, 0.5 }, { -1.0, 1.25 }, { 0.0, 1.25 } }),
@@ -638,7 +650,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = withRoles(
-				DYNAMIC_ROLES,
+				KITCHEN_ROLES,
 				{ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "CrumblyRock", "FallingRock" }
 			),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
@@ -656,7 +668,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = withRoles(
-				DYNAMIC_ROLES,
+				KITCHEN_ROLES,
 				{ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock", "CrumblyRock", "FallingRock" }
 			),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
@@ -674,7 +686,7 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
 			pool = withRoles(
-				DYNAMIC_ROLES,
+				KITCHEN_ROLES,
 				{ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock", "CrumblyRock", "FallingRock" }
 			),
 			-- doc 13's worked example: this is the spawner whose Movements sit past the
@@ -696,7 +708,7 @@ list[Levels.KITCHEN] = {
 			-- PORT ADDITION: LeftRock/RightRock are in no shipped Unity pool, which left the
 			-- Left/Right spawners unreachable from a downward scroll; adding them here is
 			-- what makes sideways travel actually happen (doc 13).
-			pool = withRoles(DYNAMIC_ROLES, {
+			pool = withRoles(KITCHEN_ROLES, {
 				"ShelfWithSpoon",
 				"ShelfWithFork",
 				"Shelf",
@@ -732,8 +744,8 @@ list[Levels.KITCHEN] = {
 	-- four stages, counted from the lane's arrival (stagesFromEntry). The shelves and arrows
 	-- keep their StepKinds weights throughout (not listed = unchanged), so stage 1
 	-- is the Kitchen as it was; the dynamic kinds are then introduced a pair at a
-	-- time -- movers first, then the springboard and the crumbler, the timed
-	-- BlinkRock last -- and patterns grow more likely. For scale, the shelf and
+	-- time -- movers first, then the springboard (Toaster) and the crumbler, the
+	-- timed IceCube last -- and patterns grow more likely. For scale, the shelf and
 	-- arrow weights in a pool sum to 1.6-1.9.
 	stagesFromEntry = true,
 	heightStages = {
@@ -742,8 +754,8 @@ list[Levels.KITCHEN] = {
 			weights = {
 				Lillipad = 0,
 				BobRock = 0,
-				SpringRock = 0,
-				BlinkRock = 0,
+				Toaster = 0,
+				IceCube = 0,
 				CrumbleRock = 0,
 				CrumblyRock = 0.3,
 				FallingRock = 0,
@@ -755,8 +767,8 @@ list[Levels.KITCHEN] = {
 			weights = {
 				Lillipad = 0.35,
 				BobRock = 0.3,
-				SpringRock = 0,
-				BlinkRock = 0,
+				Toaster = 0,
+				IceCube = 0,
 				CrumbleRock = 0,
 				CrumblyRock = 0.3,
 				FallingRock = 0,
@@ -770,8 +782,8 @@ list[Levels.KITCHEN] = {
 			weights = {
 				Lillipad = 0.35,
 				BobRock = 0.3,
-				SpringRock = 0.2,
-				BlinkRock = 0,
+				Toaster = 0.2,
+				IceCube = 0,
 				CrumbleRock = 0.3,
 				CrumblyRock = 0.35,
 				FallingRock = 0.2,
@@ -785,8 +797,8 @@ list[Levels.KITCHEN] = {
 			weights = {
 				Lillipad = 0.4,
 				BobRock = 0.35,
-				SpringRock = 0.2,
-				BlinkRock = 0.3,
+				Toaster = 0.2,
+				IceCube = 0.3,
 				CrumbleRock = 0.35,
 				CrumblyRock = 0.4,
 				FallingRock = 0.3,
@@ -819,7 +831,7 @@ list[Levels.KITCHEN] = {
 -- ---------------------------------------------------------------------------
 list[Levels.COUNTRY] = {
 	name = "Country",
-	roles = DYNAMIC_ROLES,
+	roles = COUNTRY_ROLES,
 	musicIndex = 4,
 	-- PORT DEVIATION: Unity has none (doc 11: backgroundMaterial {fileID:0,pathID:0});
 	-- the port paints a sky (Sprites/Other/CountryBack.png).
@@ -860,7 +872,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withOutdoor(DYNAMIC_ROLES, { "UpRock", "UpLeftRock", "UpRightRock" }),
+			pool = withOutdoor(COUNTRY_ROLES, { "UpRock", "UpLeftRock", "UpRightRock" }),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -875,7 +887,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withOutdoor(DYNAMIC_ROLES, { "UpRock", "UpRightRock", "RightRock" }),
+			pool = withOutdoor(COUNTRY_ROLES, { "UpRock", "UpRightRock", "RightRock" }),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
@@ -890,7 +902,7 @@ list[Levels.COUNTRY] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withOutdoor(DYNAMIC_ROLES, { "UpRock", "UpLeftRock", "LeftRock" }),
+			pool = withOutdoor(COUNTRY_ROLES, { "UpRock", "UpLeftRock", "LeftRock" }),
 			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
 		},
 		{
@@ -908,7 +920,7 @@ list[Levels.COUNTRY] = {
 			-- PORT ADDITION: LeftRock/RightRock are in no shipped Unity pool, which left the
 			-- Left/Right spawners unreachable from a downward scroll; adding them here is
 			-- what makes sideways travel actually happen (doc 13).
-			pool = withOutdoor(DYNAMIC_ROLES, {
+			pool = withOutdoor(COUNTRY_ROLES, {
 				"UpLeftRock",
 				"UpRightRock",
 				"LeftRock",
@@ -930,8 +942,9 @@ list[Levels.COUNTRY] = {
 	-- PORT ADDITION: Country's ~150 steps (LEVEL_THRESHOLDS.Country to .Space)
 	-- ramp from "Kitchen's movers, no hazards" (a breather on arrival, no cars
 	-- yet) to a mix where roughly half the rock/shelf spawns are dynamic. Tree
-	-- trunks keep their StepKinds weight throughout; cars join after stage 1 and
-	-- grow more common (each stage lists both, so the stage tables match). The
+	-- trunks keep their StepKinds weight throughout; cars and the Beetle join
+	-- after stage 1 and grow more common (each stage lists them, so the stage
+	-- tables match). The Launch role is the Trampoline (COUNTRY_ROLES). The
 	-- themed Rocket/Balloon spawner is untouched. Shelves are gone from Country
 	-- (b-20261020-213556-k25y): the plain footholds are the trees, and every
 	-- stage weights the arrows (0.25 each) well above their 0.1 default.
@@ -944,7 +957,7 @@ list[Levels.COUNTRY] = {
 			weights = {
 				Lillipad = 0.35,
 				BobRock = 0.3,
-				SpringRock = 0.15,
+				Trampoline = 0.15,
 				BlinkRock = 0,
 				CrumbleRock = 0,
 				CarRight = 0,
@@ -958,6 +971,7 @@ list[Levels.COUNTRY] = {
 				LeftRock = 0.25,
 				RightRock = 0.25,
 				CarLeft = 0,
+				Beetle = 0,
 			},
 			sceneryDensity = 1,
 			patternChance = 0.1,
@@ -968,7 +982,7 @@ list[Levels.COUNTRY] = {
 			weights = {
 				Lillipad = 0.4,
 				BobRock = 0.35,
-				SpringRock = 0.25,
+				Trampoline = 0.25,
 				BlinkRock = 0.2,
 				CrumbleRock = 0.3,
 				CarRight = 0.15,
@@ -982,6 +996,7 @@ list[Levels.COUNTRY] = {
 				LeftRock = 0.25,
 				RightRock = 0.25,
 				CarLeft = 0.15,
+				Beetle = 0.1,
 			},
 			sceneryDensity = 1,
 			patternChance = 0.18,
@@ -992,7 +1007,7 @@ list[Levels.COUNTRY] = {
 			weights = {
 				Lillipad = 0.45,
 				BobRock = 0.4,
-				SpringRock = 0.25,
+				Trampoline = 0.25,
 				BlinkRock = 0.35,
 				CrumbleRock = 0.4,
 				CarRight = 0.2,
@@ -1006,6 +1021,7 @@ list[Levels.COUNTRY] = {
 				LeftRock = 0.25,
 				RightRock = 0.25,
 				CarLeft = 0.2,
+				Beetle = 0.15,
 			},
 			sceneryDensity = 1,
 			patternChance = 0.22,
@@ -1016,7 +1032,7 @@ list[Levels.COUNTRY] = {
 			weights = {
 				Lillipad = 0.5,
 				BobRock = 0.45,
-				SpringRock = 0.3,
+				Trampoline = 0.3,
 				BlinkRock = 0.45,
 				CrumbleRock = 0.45,
 				CarRight = 0.25,
@@ -1030,6 +1046,7 @@ list[Levels.COUNTRY] = {
 				LeftRock = 0.25,
 				RightRock = 0.25,
 				CarLeft = 0.25,
+				Beetle = 0.15,
 			},
 			sceneryDensity = 1,
 			patternChance = 0.25,
