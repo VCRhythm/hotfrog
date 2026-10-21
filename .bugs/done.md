@@ -2651,5 +2651,7 @@ test: stylua --check pass; selene src/ clean; tools/luau_check.sh on the file cl
 verified: partly. Static checks only; Studio was held by the w9qy fixer this tick, so the new look has not been seen in Play.
 review: concern: the 11/14-stud stand-offs put the Chef's centre up to 14 studs from the target, off-screen on a portrait or narrow view (half-width about 8.8 studs); fixed by the goal-x clamp to ±4 (CHEF_MAX_X). checked: WorldChef diff and the whole file, the Chef attributes set by server/Chef.luau (ChefAction, ChefPhase, ChefSeq, ChefShoveDir, ChefTarget), Config view and lane constants, the GameClient camera, Z layers, and that hideAll covers all 11 parts; luau_check and stylua run.
 re-review: looks-right. checked: the repair diff and the whole file. The GameClient camera is CFrame.lookAt on the lane origin and never follows the frog's x, so the clamp is valid. Arm and knife are placed from stepPos, so they reach edge targets. At the clamp the head spans out to about 9 studs, slightly past 8.8 but mostly visible. Poses for close same-side targets are odd but readable. No NaN: span floors at 0.1, and the shoulder is always about 11 studs below the target in y. hideAll covers all 11 parts. luau_check exit 0; stylua exit 0.
-owed: none. The owner's earlier taste step o-20261020-214949-7t5n was answered by this entry.
+studio: not run (static only); no Play started, so none to stop: Play stopped.
+owed: none
+note: this entry answers the owner's earlier taste step o-20261020-214949-7t5n (sent back to the loop).
 leftover: b-20261020-230842-3skp (a Studio Play check in Kitchen: body in proportion, coat behind the head, arm visibly reaching the targeted step)
