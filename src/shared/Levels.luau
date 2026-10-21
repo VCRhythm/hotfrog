@@ -619,7 +619,10 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withRoles(DYNAMIC_ROLES, { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
+			pool = withRoles(
+				DYNAMIC_ROLES,
+				{ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "CrumblyRock", "FallingRock" }
+			),
 			movements = mv({ { -1.0, 0.5 }, { -1.0, 1.25 }, { 0.0, 1.25 } }),
 		},
 		{
@@ -634,7 +637,10 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withRoles(DYNAMIC_ROLES, { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock" }),
+			pool = withRoles(
+				DYNAMIC_ROLES,
+				{ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "CrumblyRock", "FallingRock" }
+			),
 			movements = mv({ { 2.0, 1.25 }, { 3.0, 1.25 }, { 3.0, 0.5 } }),
 		},
 		{
@@ -649,7 +655,10 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withRoles(DYNAMIC_ROLES, { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock" }),
+			pool = withRoles(
+				DYNAMIC_ROLES,
+				{ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpRightRock", "CrumblyRock", "FallingRock" }
+			),
 			movements = mv({ { -1.5, 0.5 }, { -1.5, 0.0 }, { -1.5, -0.5 } }),
 		},
 		{
@@ -664,7 +673,10 @@ list[Levels.KITCHEN] = {
 			spawningSpeedMin = 0.5,
 			spawningSpeedMax = 1.0,
 			spawnAllOnAwake = false,
-			pool = withRoles(DYNAMIC_ROLES, { "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock" }),
+			pool = withRoles(
+				DYNAMIC_ROLES,
+				{ "ShelfWithSpoon", "ShelfWithFork", "Shelf", "UpRock", "UpLeftRock", "CrumblyRock", "FallingRock" }
+			),
 			-- doc 13's worked example: this is the spawner whose Movements sit past the
 			-- RIGHT edge despite a leftward spawnDirection (see "Direction / arrow semantics").
 			movements = mv({ { 1.5, 0.5 }, { 1.5, 0.0 }, { 1.5, -0.5 } }),
@@ -692,6 +704,8 @@ list[Levels.KITCHEN] = {
 				"UpRightRock",
 				"LeftRock",
 				"RightRock",
+				"CrumblyRock",
+				"FallingRock",
 			}),
 			movements = mv({ { 0.0, 1.25 }, { 1.5, 1.25 }, { 2.0, 1.25 } }),
 		},
@@ -725,26 +739,58 @@ list[Levels.KITCHEN] = {
 	heightStages = {
 		{
 			maxRunSteps = 12,
-			weights = { Lillipad = 0, BobRock = 0, SpringRock = 0, BlinkRock = 0, CrumbleRock = 0 },
+			weights = {
+				Lillipad = 0,
+				BobRock = 0,
+				SpringRock = 0,
+				BlinkRock = 0,
+				CrumbleRock = 0,
+				CrumblyRock = 0.3,
+				FallingRock = 0,
+			},
 			sceneryDensity = 1,
 		},
 		{
 			maxRunSteps = 26,
-			weights = { Lillipad = 0.35, BobRock = 0.3, SpringRock = 0, BlinkRock = 0, CrumbleRock = 0 },
+			weights = {
+				Lillipad = 0.35,
+				BobRock = 0.3,
+				SpringRock = 0,
+				BlinkRock = 0,
+				CrumbleRock = 0,
+				CrumblyRock = 0.3,
+				FallingRock = 0,
+			},
 			sceneryDensity = 1,
 			patternChance = 0.1,
 			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster },
 		},
 		{
 			maxRunSteps = 38,
-			weights = { Lillipad = 0.35, BobRock = 0.3, SpringRock = 0.2, BlinkRock = 0, CrumbleRock = 0.3 },
+			weights = {
+				Lillipad = 0.35,
+				BobRock = 0.3,
+				SpringRock = 0.2,
+				BlinkRock = 0,
+				CrumbleRock = 0.3,
+				CrumblyRock = 0.35,
+				FallingRock = 0.2,
+			},
 			sceneryDensity = 1,
 			patternChance = 0.15,
 			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain },
 		},
 		{
 			maxRunSteps = math.huge,
-			weights = { Lillipad = 0.4, BobRock = 0.35, SpringRock = 0.2, BlinkRock = 0.3, CrumbleRock = 0.35 },
+			weights = {
+				Lillipad = 0.4,
+				BobRock = 0.35,
+				SpringRock = 0.2,
+				BlinkRock = 0.3,
+				CrumbleRock = 0.35,
+				CrumblyRock = 0.4,
+				FallingRock = 0.3,
+			},
 			sceneryDensity = 1,
 			patternChance = 0.2,
 			patterns = { patterns.ZigZag, patterns.Staircase, patterns.Cluster, patterns.BugChain, patterns.PadLadder },

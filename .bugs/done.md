@@ -2797,4 +2797,15 @@ test: stylua --check on both .luau files passes; selene src/ clean; tools/luau_c
 verified: no — Studio Play held (Hot Frog in Play since 08:47, possibly the owner's)
 review: looks-right; checked: git diff vs fixer summary; luau_check on both files; Ember uses the existing SplashFlinging + flingeeSprite path (GameServer stamps FlingeeSprite, spawnFlingee reads it) and color via acquireStep; Lane.pickKind Halloween swap still applies to Ember (SplashFlinging not in HALLOWEEN_KEEP_BEHAVIORS), Halloween tint skips kinds with their own color; withOutdoor only called in the Country block, all four Country stages have explicit weights, other weights unchanged; Behaviors.Fall exists and hazard is read only by Lane's fairness/safe/pattern/Halloween checks. Note: SlowFallRock (pink) and FallingRock (salmon) share WhiteRock art and may look alike.
 leftover: Studio Play check b-20261021-092339-6q9n
-owed: o-20261021-092031-ss9x stop Play in the Hot Frog Studio
+owed: none
+
+## b-20261021-091536-2ymu  fixed  2026-10-21 09:30
+note: Theming part 4 (ruling 4, Kitchen): CrumblyRock becomes a Kitchen plain step with its own tint, distinct from CrumbleRock; FallingRock becomes a Kitchen hazard in later stages with a faster drift so it visibly sinks, keeping the salmon tint and hazard flag; neither goes to Space (5B); spawn each with StudioSpawnKind and fix misbehaviour before pooling.
+cause: CrumblyRock and FallingRock were in no level pool, CrumblyRock shared CrumbleRock's untinted art, and FallingRock drifted at the global Config.FALLING_DRIFT_SPEED (15 studs/s) with no per-kind override.
+change: both added to all five Kitchen spawner pools with explicit weights per height stage (CrumblyRock 0.3/0.3/0.35/0.4, FallingRock 0/0/0.2/0.3); CrumblyRock gets TINT_BISCUIT and stays a plain step; FallingRock keeps salmon + hazard and gets params.speed = 24 studs/s; Behaviors.Falling reads an optional numeric speed param, defaulting to Config.FALLING_DRIFT_SPEED, so other Falling kinds are unchanged; new doc 17 row (weights, speed and tint are guesses). Pot, Country and Space untouched.
+files: src/shared/Levels.luau, src/shared/StepKinds.luau, src/shared/StepBehaviors.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check on the 3 .luau files ok; selene src/ 0 errors 0 warnings; tools/luau_check.sh on the 3 files clean (strict); rojo build ok.
+verified: no — Studio Play held (Hot Frog in Play since 08:47, possibly the owner's)
+review: looks-right; checked: git diff vs claim (Kitchen hunks only); every Kitchen stage lists both kinds so none falls back to spawnProbability; params plumbing kind.params -> st.params (GameServer.acquireStep) -> ctx.params, nil speed keeps 15; FallingRock counted by HAZARD_WINDOW/HAZARD_MAX_RECENT and PATTERN_MAX_HAZARDS; faster drift only leaves the bottom sooner via ctx.moveBase; luau_check clean. Note: CrumblyRock's own tint now overrides GameServer HALLOWEEN_TINTS' candy-corn entry for it (as for the Ember and CrumbleRock).
+leftover: Studio Play check b-20261021-092756-3yan
+owed: none

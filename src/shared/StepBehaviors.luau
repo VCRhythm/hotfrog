@@ -240,17 +240,20 @@ Behaviors.Beetle = {
 -- kinematic (server-moved), so this is a flat drift of the step's base per tick
 -- rather than a simulated force/drag curve -- close enough for a step that's
 -- about to scroll off the bottom anyway. canSpawn mirrors Step.cs: it can't
--- appear among a spawner's first few steps.
+-- appear among a spawner's first few steps. Param `speed` (studs/s, default
+-- Config.FALLING_DRIFT_SPEED) lets a kind sink faster (FallingRock).
 Behaviors.Falling = {
 	canSpawn = function(_bias, spawnCount)
 		return spawnCount > Config.FALLING_MIN_SPAWN_COUNT
 	end,
 	onTick = function(ctx, dt)
+		local param = if ctx.params then ctx.params.speed else nil
+		local speed = if type(param) == "number" and param == param then param else Config.FALLING_DRIFT_SPEED
 		-- The base, not the visual offset: this is real travel, so where the step
 		-- will rest (spawn spacing, the recycle bound) has to follow it. World
 		-- space, so an idly spinning step (Config.STEP_SPIN_*, doc 17) still
 		-- falls straight down.
-		ctx.moveBase(Vector3.new(0, -Config.FALLING_DRIFT_SPEED * dt * ctx.getStreakSpeed(), 0))
+		ctx.moveBase(Vector3.new(0, -speed * dt * ctx.getStreakSpeed(), 0))
 	end,
 }
 

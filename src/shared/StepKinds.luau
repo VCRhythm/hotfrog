@@ -151,6 +151,9 @@ local TAP_CARROT = Vector2.new(13, 10)
 -- GameServer.acquireStep (see `color` in the `Kind` type above). WhiteRock.png
 -- is a blank white silhouette shared by several kinds -- untinted it renders
 -- white regardless of the kind, which is what b-20260921-164509-uork reported.
+-- Kitchen FallingRock drift (studs/s), above Config.FALLING_DRIFT_SPEED so it visibly sinks.
+local FALLING_ROCK_SPEED = 24
+
 local TINT_SALMON = Color3.new(1, 0.459, 0.395) -- FallingRock, Castle
 local TINT_BLACK = Color3.new(0, 0, 0) -- Beetle
 -- Port additions (no Unity prefab): one tint per moving / timed kind, so each
@@ -162,6 +165,7 @@ local TINT_VIOLET = Color3.new(0.78, 0.55, 1) -- BlinkRock
 local TINT_EMBER = Color3.new(1, 0.5, 0.12) -- FlingingRock (Pot Ember): orange coals
 local TINT_GOLD = Color3.new(1, 0.88, 0.35) -- FlyRock: golden, so it differs from the plain StillRock
 local TINT_PINK = Color3.new(1, 0.55, 0.78) -- SlowFallRock
+local TINT_BISCUIT = Color3.new(0.88, 0.7, 0.45) -- CrumblyRock (Kitchen): toasty, so it differs from the untinted CrumbleRock
 
 local StepKinds: { [string]: Kind } = {
 	-- Pot (Level2) pools (doc 11 §2a)
@@ -369,6 +373,7 @@ local StepKinds: { [string]: Kind } = {
 		spawnProbability = 0.5,
 		size = ART_ROCK,
 		hitSize = HIT_ROCK,
+		color = TINT_BISCUIT,
 	},
 	-- Country hazard in its later stages (Levels), own pink tint.
 	SlowFallRock = {
@@ -388,6 +393,7 @@ local StepKinds: { [string]: Kind } = {
 		hitSize = HIT_ROCK,
 		color = TINT_SALMON,
 		hazard = true,
+		params = { speed = FALLING_ROCK_SPEED },
 	},
 	-- The Pot's Ember (PORT DEVIATION from Unity's WrappedRock prefab): orange-tinted
 	-- CrumblyRock art that flings a harmless Flame on grab. Not a hazard, so the
