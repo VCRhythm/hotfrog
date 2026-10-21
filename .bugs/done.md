@@ -2655,6 +2655,7 @@ studio: not run (static only); no Play started, so none to stop: Play stopped.
 owed: none
 note: this entry answers the owner's earlier taste step o-20261020-214949-7t5n (sent back to the loop).
 leftover: b-20261020-230842-3skp (a Studio Play check in Kitchen: body in proportion, coat behind the head, arm visibly reaching the targeted step)
+leftover: none — Play check b-20261020-230842-3skp confirmed proportions and arm reach from sampled positions; the look itself is the owner's call in normal play
 
 ## b-20261020-220122-w9qy  fixed  2026-10-20 23:33
 note: Country lane runs out of steps: after ~18-44 grabs in Country the StudioBot stalls (nothing grabbable for 10 s), lane holds only 3-7 stationary steps and no new spawns while PullCount stays frozen; 3 of 5 runs from StudioSkipTo("Kitchen", 3)
