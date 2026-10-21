@@ -2641,3 +2641,15 @@ files: docs/roblox-port/18-step-kinds-by-level.md
 test: none
 verified: yes. This is a doc-only audit read straight from the source at 6645c92, and there is nothing to run.
 review: n/a
+
+## b-20261020-215940-pyvu  fixed  2026-10-20 23:09
+note: the chef should have a huge body, sized correctly to his head. and currently his arm isn't viewable in a way that shows which step he's about to break (the owner's answer to taste step o-20261020-214949-7t5n for b-20261020-213524-zhza)
+cause: The placeholder body from zhza was sized for a small figure (a 7x7 coat) against a head about 10 wide and 12 tall. The thin arm started near the neck, with the Chef standing close to the target, so the swing didn't read as reaching any particular step.
+change: WorldChef.client.luau now builds an 18x14 coat and two 6x13 legs from block(), about 2 head widths across the shoulders and 2.3 head heights from neck to feet, with less leg swing. The arm is now 2.2 wide, starts at the coat's shoulder edge and is drawn on the FX plane (Z +1), in front of the steps. During the Knife Walk phase the arm and knife already point at the chosen step. The Chef aims to stand 11 (Knife) or 14 (Shove) studs off the target, but his goal x is clamped to 4 studs either side of the lane origin, where the camera centres, so his head stays on a portrait screen; the arm stretches the rest of the way, placed from the step's position. This is client cosmetics only; no server change. Doc 17's Kitchen Chef row is updated.
+files: src/client/WorldChef.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check pass; selene src/ clean; tools/luau_check.sh on the file clean; rojo build pass.
+verified: partly. Static checks only; Studio was held by the w9qy fixer this tick, so the new look has not been seen in Play.
+review: concern: the 11/14-stud stand-offs put the Chef's centre up to 14 studs from the target, off-screen on a portrait or narrow view (half-width about 8.8 studs); fixed by the goal-x clamp to ±4 (CHEF_MAX_X). checked: WorldChef diff and the whole file, the Chef attributes set by server/Chef.luau (ChefAction, ChefPhase, ChefSeq, ChefShoveDir, ChefTarget), Config view and lane constants, the GameClient camera, Z layers, and that hideAll covers all 11 parts; luau_check and stylua run.
+re-review: looks-right. checked: the repair diff and the whole file. The GameClient camera is CFrame.lookAt on the lane origin and never follows the frog's x, so the clamp is valid. Arm and knife are placed from stepPos, so they reach edge targets. At the clamp the head spans out to about 9 studs, slightly past 8.8 but mostly visible. Poses for close same-side targets are odd but readable. No NaN: span floors at 0.1, and the shoulder is always about 11 studs below the target in y. hideAll covers all 11 parts. luau_check exit 0; stylua exit 0.
+owed: none. The owner's earlier taste step o-20261020-214949-7t5n was answered by this entry.
+leftover: b-20261020-230842-3skp (a Studio Play check in Kitchen: body in proportion, coat behind the head, arm visibly reaching the targeted step)

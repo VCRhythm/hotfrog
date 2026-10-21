@@ -213,3 +213,11 @@ step: Look over the new Ludo art for style fit and car feel: Sprites/Rocks/TreeT
 no-check: style and feel are a judgement only the owner can make
 evidence: none, the user sent it back to the loop as b-20261020-205151-b1ob
 cleared: 2026-10-20 20:51 sent back to loop as b-20261020-205151-b1ob: show me
+
+## o-20261020-214949-7t5n  done  2026-10-20 21:49
+for: b-20261020-213524-zhza
+kind: taste
+step: Look at the Chef's placeholder coat and legs in Kitchen; say if they're fine or if you want a painted body sprite instead
+no-check: only the owner can judge the look
+evidence: none, the user sent it back to the loop as b-20261020-215940-pyvu
+cleared: 2026-10-20 21:59 sent back to loop as b-20261020-215940-pyvu: the chef should have a huge body, sized correctly to his head. and currently his arm isn't viewable in a way that shows which step he's about to break

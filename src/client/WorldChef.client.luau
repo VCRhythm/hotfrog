@@ -29,14 +29,21 @@ local CHEF_SIZE = 20
 local CHEF_Z = Config.PLANE_Z - 0.8 -- in front of WorldScenery's dressing (-1), behind the steps
 local MARK_Z = Config.PLANE_Z - 0.6 -- the target ring, just behind the step
 local FX_Z = Config.PLANE_Z + 1 -- knife, potato, hand: in front of the step they hit
-local SHOULDER = Vector3.new(3.5, -4, 0) -- from the chef part's centre (X mirrored by side)
+local SHOULDER = Vector3.new(8, -5, 0) -- from the chef part's centre (X mirrored by side): the coat's edge
+local ARM_WIDTH = 2.2
+-- The camera centres on the lane origin and a portrait view is only ~8.8 studs to a
+-- side, so the chef's centre never goes further than this from it: the arm stretches
+-- the rest of the way to the target.
+local CHEF_MAX_X = 4
 -- Body: Chef.png is a head and hat only (its art ends at about 2.6 studs below the
 -- part's centre), so a coat and legs hang from there, posed from the chef part's own
 -- CFrame so they follow every step, lean and bob of the head.
 local NECK_Y = -2.6
-local TORSO_SIZE = Vector3.new(7, 7, 0.3)
-local LEG_SIZE = Vector3.new(1.8, 3, 0.3)
-local LEG_X = 1.6
+-- Sized to the head (about 10 studs wide, 12 tall with the hat): shoulders two head
+-- widths, neck to feet about 2.3 head heights.
+local TORSO_SIZE = Vector3.new(18, 14, 0.3)
+local LEG_SIZE = Vector3.new(6, 13, 0.3)
+local LEG_X = 4.5
 local COAT = Color3.fromRGB(245, 245, 245)
 local TROUSERS = Color3.fromRGB(70, 75, 90)
 local SKIN = Color3.fromRGB(240, 128, 120)
@@ -123,7 +130,7 @@ end
 local function span(part: BasePart, a: Vector3, b: Vector3)
 	local d = b - a
 	local length = math.max(d.Magnitude, 0.1)
-	part.Size = Vector3.new(0.9, length, 0.2)
+	part.Size = Vector3.new(ARM_WIDTH, length, 0.2)
 	part.CFrame = CFrame.new((a + b) / 2) * CFrame.Angles(0, 0, math.atan2(d.Y, d.X) - math.pi / 2)
 end
 
@@ -155,7 +162,7 @@ local function onLaneAdded(folder: Folder)
 		torso = torso,
 		legL = legL,
 		legR = legR,
-		arm = block(model, "ChefArm", Vector3.new(0.9, 1, 0.2), SKIN),
+		arm = block(model, "ChefArm", Vector3.new(ARM_WIDTH, 1, 0.2), SKIN),
 		blade = block(model, "ChefKnifeBlade", Vector3.new(0.9, 4.2, 0.2), Color3.fromRGB(205, 210, 220)),
 		handle = block(model, "ChefKnifeHandle", Vector3.new(0.6, 1.6, 0.3), Color3.fromRGB(90, 60, 40)),
 		hand = block(model, "ChefHand", Vector3.new(1.6, 1.6, 1.6), SKIN, Enum.PartType.Ball),
@@ -294,12 +301,20 @@ local function update(view: View, dt: number, now: number)
 	-- Where the chef wants to be.
 	local chasing = false
 	if target and action == "Knife" then
-		view.goal = Vector3.new(target.Position.X + side * 5 - origin.X, target.Position.Y - 6 - origin.Y, 0)
+		view.goal = Vector3.new(
+			math.clamp(target.Position.X + side * 11 - origin.X, -CHEF_MAX_X, CHEF_MAX_X),
+			target.Position.Y - 6 - origin.Y,
+			0
+		)
 		chasing = true
 	elseif target and action == "Shove" then
 		side = -shoveDir -- behind the step, pushing it away from himself
 		view.side = side
-		view.goal = Vector3.new(target.Position.X + side * 7 - origin.X, target.Position.Y - 3 - origin.Y, 0)
+		view.goal = Vector3.new(
+			math.clamp(target.Position.X + side * 14 - origin.X, -CHEF_MAX_X, CHEF_MAX_X),
+			target.Position.Y - 3 - origin.Y,
+			0
+		)
 		chasing = true
 	elseif not action then
 		view.wanderTimer -= dt
@@ -323,7 +338,7 @@ local function update(view: View, dt: number, now: number)
 	-- scenery's front (-0.9), so it neither z-fights the head nor hides behind scenery
 	view.torso.CFrame = body * CFrame.new(0, NECK_Y - TORSO_SIZE.Y / 2 + 0.4, -0.2)
 	local hipY = NECK_Y - TORSO_SIZE.Y + 0.4
-	local stride = math.sin(now * 9) * math.clamp(speed / 6, 0, 1) * 0.5
+	local stride = math.sin(now * 9) * math.clamp(speed / 6, 0, 1) * 0.3
 	view.legL.CFrame = body
 		* CFrame.new(-LEG_X, hipY, -0.05)
 		* CFrame.Angles(0, 0, stride)
@@ -352,7 +367,11 @@ local function update(view: View, dt: number, now: number)
 	if action == "Knife" then
 		showArm, showKnife = true, true
 		local tell = math.clamp(clock / Config.CHEF_WINDUP_TIME, 0, 1)
-		if phase == "Walk" or not stepPos then
+		if phase == "Walk" and stepPos then
+			-- already reaching toward the step he has picked
+			local toStep = stepPos - shoulder
+			placeKnife(view, shoulder + toStep.Unit * math.min(toStep.Magnitude, 5) + Vector3.new(0, 2, 0), 0)
+		elseif phase == "Walk" or not stepPos then
 			placeKnife(view, shoulder + Vector3.new(facing * 1.5, 2, 0), 0)
 		elseif phase == "WindUp" then
 			-- raised high over the step, shaking harder as the chop nears
