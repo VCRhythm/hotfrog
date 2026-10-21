@@ -319,8 +319,9 @@ local function update(view: View, dt: number, now: number)
 	setShown(view.chef, view, true)
 	-- the body: coat under the neck, legs stepping while he moves
 	local body = view.chef.CFrame
-	-- 0.3 back: its front face (-0.95) stays behind the head art's (-0.75), no z-fight
-	view.torso.CFrame = body * CFrame.new(0, NECK_Y - TORSO_SIZE.Y / 2 + 0.4, -0.3)
+	-- 0.2 back: its front face (-0.85) sits between the head art (-0.75) and the
+	-- scenery's front (-0.9), so it neither z-fights the head nor hides behind scenery
+	view.torso.CFrame = body * CFrame.new(0, NECK_Y - TORSO_SIZE.Y / 2 + 0.4, -0.2)
 	local hipY = NECK_Y - TORSO_SIZE.Y + 0.4
 	local stride = math.sin(now * 9) * math.clamp(speed / 6, 0, 1) * 0.5
 	view.legL.CFrame = body
