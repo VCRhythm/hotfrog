@@ -3443,3 +3443,13 @@ test: stylua --check, selene src/ (0/0), tools/luau_check.sh on the file (0 erro
 verified: no — needs two real touches; the Studio MCP cannot drive multi-touch
 review: looks-right
 owed: o-20261022-142137-ufk7
+
+## b-20261022-140736-kuj4  ignored  2026-10-22 14:22
+note: AUTO warning (server): [Profiles] FrequencyGames (4272203669): session lock still held by a2e95b54-24ce-46db-91bd-40289fba39bb after waiting -- proceeding anyway.
+cause: The lock owner has no Studio prefix (Profiles.luau already skips stale Studio locks), so it was a live game server's session. That fits the phone play-through that filed lhat, c2tq and k146 around 14:00, still holding the profile when Studio Play started at 14:07. The warning is the designed signal for two sessions sharing one profile, not a defect.
+change: none
+files: none
+test: none
+verified: n/a
+review: n/a
+leftover: none — the warning fires only when a non-Studio session holds the lock, which is the case it exists to report; muting it would hide real double-session saves
