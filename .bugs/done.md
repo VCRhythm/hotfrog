@@ -3378,3 +3378,13 @@ note: Studio check: Kitchen Chef blow on a step the frog is HOLDING knocks the f
 cause: filed with prose as its --after shell check, so it could never pass.
 change: none; re-filed without a gate as b-20261022-135703-1p95.
 files: none
+
+## b-20261022-134614-myqm  cannot-reproduce  2026-10-22 13:58
+note: On short landscape viewports (GUI height < ~415) the store-view Flys line (gui y=190) collides with the swatch row/Robux button; Settings and Top Scores panels may overlap the Menu stat column at y=96 (reopens b-20261022-134308-ayzz)
+cause: The premise doesn't hold. Every ScreenGui (HUD, MenuGui, StoreGui) comes from UIKit.screenGui, whose UIScale is short side / 600 clamped to 0.55..1.35. That keeps the GUI height at about 500-600 on every phone: 640x360 H≈540-565, 844x390 H≈515-545, and even below a 330 short side it stays above 500. The swatch row (H-192) and the Robux button (H-176) therefore stay at least 130 px below the Flys line (y 190..222).
+change: none. Settings and Top Scores are centred on MenuGui (DisplayOrder 5, above the HUD's 0), so they draw over the column. Only the top of the Score line peeks above the Top Scores panel edge, at every size; that is cosmetic and not a short-viewport effect.
+files: none
+test: static read of UIKit.screenGui, StoreUI.client.luau, MenuClient.client.luau and GameClient.client.luau, with the rects computed at 640x360, 667x375, 740x360 and 844x390
+verified: no — the Studio MCP cannot emulate a phone viewport. The phone-size look is part of the owed device check o-20261022-135611-obdo.
+review: n/a
+leftover: none — the Studio MCP cannot set a phone viewport, and o-20261022-135611-obdo covers the phone-size pass
