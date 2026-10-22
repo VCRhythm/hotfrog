@@ -3257,3 +3257,83 @@ files: src/client/MenuClient.client.luau, src/client/PotAtmosphere.client.luau, 
 test: selene src/ exit 0; tools/luau_check.sh on MenuClient clean; rojo build ok; stylua --check clean (LF-normalised)
 verified: no; static checks only, covered by the loop's Studio pass this tick
 review: looks-right; checked: the three diffs, UIKit.screenGui (sets IgnoreGuiInset=false and a UIScale, never ScreenInsets; the overrides come after it), showDailyPopup close paths and its popupOpen re-open guard (no leak or double-create), grep of src/client for other full-screen dark frames (none), no interactive content under the vignette or flash; nit: DisplayOrder tied with the lifted MenuGui at 10, which the fixer then set to 11 with the lift removed
+
+## b-20261022-122337-ejon  fixed  2026-10-22 13:43
+note: Studio Play check: Hot Lawyer's tongue leaves the frown and Hot Frog's is unchanged (reopens b-20261022-121451-wkhn)
+cause: check of b-20261022-121451-wkhn (HOT_LAWYER_MOUTH_DROP in src/client/GameClient.client.luau).
+change: none; verification only.
+files: none
+test: Studio Play pass; the Tongue part was spawned from a real mouse click on a stand-in bug
+verified: yes — the tongue origin in head-local space was y=-2.52 with Hot Lawyer (skin 7) and y=-3.52 with Hot Frog (skin 1), so Hot Frog's is unchanged and Hot Lawyer's moves up to the mouth. The origin is off-frame on camera, so it was not captured against the frown art. The selected skin was restored to Business Frog afterwards.
+studio: Hot Frog, Play stopped
+review: n/a
+leftover: none — measured live
+
+## b-20261022-122605-0neo  fixed  2026-10-22 13:43
+note: Studio Play check: HUD stat column clear of the chat window while Playing, and of the menu panel in Menu/Dead (reopens b-20261022-122038-fzr6)
+cause: check of b-20261022-122038-fzr6 (top-centre StatColumn in src/client/GameClient.client.luau).
+change: none; verification only.
+files: none
+test: Studio Play pass at desktop size 1048x955, Absolute rects read via execute_luau, plus captures
+verified: partly — on desktop, Playing puts the StatColumn at x 348-699 and y 16-313, with the text at about x 445-610; the chat rect was unreadable (0,0), so chat clearance is inferred from the centred position. In Menu the column starts at y 130 and the panel at x 662: the frames overlap 37 px, but the text ends near x 600, so nothing collides. Phone size was not run. The Frogs view collides (filed b-20261022-134308-ayzz).
+studio: Hot Frog, Play stopped
+review: n/a
+leftover: phone-size check owed to the user as o-20261022-134308-45zy; the Frogs-view overlap is b-20261022-134308-ayzz
+
+## b-20261022-123327-vq6p  fixed  2026-10-22 13:43
+note: Studio Play check: Country rock pools spawn only TreeTrunk trees, no OakTree (reopens b-20261022-122127-bu3j)
+cause: check of b-20261022-122127-bu3j.
+change: none; verification only.
+files: none
+test: Studio Play pass with StudioSkipTo and StudioBot, from late Kitchen through Country
+verified: yes — over about 60 grabs the lane spawned TreeTrunk 25 times and OakTree 0 times
+studio: Hot Frog, Play stopped
+review: n/a
+leftover: none — measured live
+
+## b-20261022-123600-6tse  fixed  2026-10-22 13:43
+note: Studio Play check: Kitchen shows no toaster; a lime SpringRock springboard appears (reopens b-20261022-122133-om8p)
+cause: check of b-20261022-122133-om8p.
+change: none; verification only.
+files: none
+test: Studio Play pass over Pot -> Kitchen -> Country runs, plus StudioSpawnKind("SpringRock")
+verified: partly — no Toaster spawned across the runs, and SpringRock renders as the lime springboard. The sampled run did not reach a natural stage 3-4 SpringRock spawn, so SpringStreak was not seen live.
+studio: Hot Frog, Play stopped
+review: n/a
+leftover: none — the stage weights are the Toaster's former values on the same key path, which the review checked; a longer sampled run adds little
+
+## b-20261022-133647-9w0z  fixed  2026-10-22 13:43
+note: Studio Play check: on touch, switching fingers between grabbed steps shows no red X; an empty tap still does (reopens b-20261022-132811-yde1)
+cause: check of b-20261022-132811-yde1 (src/client/WorldTouchIndicator.client.luau).
+change: none; verification only.
+files: none
+test: Studio Play pass, mouse only
+verified: partly — on the mouse path, an empty click showed the X (TextTransparency 0), a click on a Lillipad did not (stayed 1), and a second miss still showed it. Multi-touch cannot be driven from the Studio MCP.
+studio: Hot Frog, Play stopped
+review: n/a
+owed: o-20261022-134308-45zy (phone or emulator touch check)
+leftover: the touch path waits on o-20261022-134308-45zy
+
+## b-20261022-133647-vlh0  fixed  2026-10-22 13:43
+note: Studio Play check: HOTFROG menu title readable at phone size, clear of the HUD stat column, Frogs-view name and the menu panel (reopens b-20261022-132934-sgr2)
+cause: check of b-20261022-132934-sgr2 (src/client/MenuClient.client.luau).
+change: none; verification only.
+files: none
+test: Studio Play pass at desktop size 1048x955, Absolute rects plus captures
+verified: partly — on desktop the title spans x 281-767, y 11-87 and is readable in the capture. It clears the HUD column (from y 130), the menu panel (from y 209) and the Frogs-view name (y ~200+). Phone size was not run.
+studio: Hot Frog, Play stopped
+review: n/a
+owed: o-20261022-134308-45zy
+leftover: phone-size check waits on o-20261022-134308-45zy
+
+## b-20261022-133648-pk61  fixed  2026-10-22 13:43
+note: Studio Play check: Daily Streak dim, Pot vignette and level-transition flash reach the very top edge (reopens b-20261022-132723-mxjm)
+cause: check of b-20261022-132723-mxjm.
+change: none; verification only.
+files: none
+test: Studio Play pass, gui properties and Absolute rects at desktop size
+verified: partly — the PotVignette and TransitionFlash frames sit at AbsolutePosition.Y=-58 with AbsoluteSize.Y=955, the full viewport height, so both start at the screen's top edge. The DailyRewardGui popup was not triggered live.
+studio: Hot Frog, Play stopped
+review: n/a
+owed: o-20261022-134308-45zy
+leftover: the Daily Streak dim at phone size waits on o-20261022-134308-45zy

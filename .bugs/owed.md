@@ -262,14 +262,24 @@ no-check: only a person can judge whether music fits and loops cleanly; the Stud
 evidence: marked done by the user, no check
 cleared: 2026-10-21 11:59 marked done on the fleet dashboard
 
-## o-20261022-120651-zei7  open  2026-10-22 12:06
+## o-20261022-120651-zei7  done  2026-10-22 12:06
 for: b-20261022-115819-ktdq
 kind: approval
 step: Upload the launch kit to the Hot Frog experience page: Creator Hub (create.roblox.com) -> Creations -> Hot Frog -> Configure -> Icon: marketing/icon-512.png; Places -> start place -> Thumbnails: marketing/thumb-1.png .. thumb-5.png; paste title, description, genre and maturity answers from marketing/store-page.md under Settings
 no-check: the experience page lives on roblox.com; nothing on this host shows what was uploaded
+evidence: marked done by the user, no check
+cleared: 2026-10-22 13:22 marked done on the fleet dashboard
 
-## o-20261022-122336-c92z  open  2026-10-22 12:23
+## o-20261022-122336-c92z  done  2026-10-22 12:23
 for: b-20261022-121451-wkhn
 kind: restart
 step: Open the Hot Frog place in Roblox Studio with rojo serve connected (Studio checks for the Hot Lawyer tongue and later fixes wait on it)
 done-check: bash tools/studio_ready.sh
+evidence: done-check passed: 34872
+cleared: 2026-10-22 13:28 marked done on the dashboard
+
+## o-20261022-134308-45zy  open  2026-10-22 13:43
+for: b-20261022-133647-9w0z
+kind: device
+step: On a phone (or Studio's device emulator with touch), play a run: switch fingers between grabbed steps (no red X; an empty tap still shows it), check the HOTFROG title is readable and clear of the score column and menu panel, and that the Daily Streak dim reaches the very top edge
+no-check: needs a person's real or emulated multi-touch and eyes at phone size; the Studio MCP cannot drive touch or the emulator
