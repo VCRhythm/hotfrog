@@ -3527,3 +3527,14 @@ files: none
 test: none
 verified: n/a
 review: n/a
+
+## b-20261022-145200-qx08  answered  2026-10-22 14:53
+note: Find out why the music1 and music5 source audio hashes changed in tools/asset_ids.json, which made the upload run re-upload them (read-only investigation; tools/ belongs to the upload session)
+cause: In tools/upload_to_roblox.py, sourceHash is the sha256 of the converted mp3 (tools/.asset_cache/converted_audio/<key>.mp3), not of the Unity .wav (sha256_file(upload_path) around line 569). Every real run transcodes again with ffmpeg libmp3lame 192k (convert_to_mp3, around line 260). The source wavs, BrusselSprouts.wav and Two Wrongs.wav, have not changed since 2015, so the hash moved because the transcode output changed, most likely an ffmpeg version difference (ffmpeg 9.0.2, installed 2026-10-12). The old hashes cannot be recovered, because the cache is gitignored and the mp3s were overwritten at 2026-10-21 15:32Z.
+finding: The music ids drifted because the asset pipeline hashes its own ffmpeg output instead of the source file, so a re-encode that is not byte-identical looks like changed audio and triggers a re-upload. The source audio never changed, and the restored committed ids are correct. The cached hashes now match the mp3s on disk. Hardening the pipeline is filed in the backlog as b-20261022-145310-ukbf, because tools/ belongs to the upload session.
+change: none
+files: none
+test: sha256 of the raw wavs and of the cached mp3s; the mp3 hashes equal the cache's sourceHash values
+verified: n/a
+review: n/a
+followups: b-20261022-145310-ukbf (held in backlog)
