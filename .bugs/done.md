@@ -3543,3 +3543,16 @@ test: sha256 of the raw wavs and of the cached mp3s; the mp3 hashes equal the ca
 verified: n/a
 review: n/a
 followups: b-20261022-145310-ukbf (held in backlog)
+
+## b-20261022-145536-i6g3  fixed  2026-10-22 15:17
+note: there are still moments when going sideways that the screen is very empty of steps (sent back from owed step o-20261022-144035-4c1q for b-20261022-140225-lhat)
+cause: Side and diagonal spawners clamped their staging X to the lane edge + 3 (25 studs), and Lane.entryShift used the 15.71-stud vertical half-extent as the sideways entry band. Because a sideways grab pulls only the grabbed step's X (at most about 8.84 on a phone), new steps came to rest at x 9 to 19, past a portrait phone's edge, after almost every grab.
+change: src/server/Lane.luau clamps staging X to Config.SPAWN_VIEW_HALF_WIDTH for spawners with a sideways component, and entryShift's pure-sideways band uses the same half-width, so steps still slide in from just off a portrait screen. Vertical spawners are unchanged. The trade-off, that a landscape view sees sideways steps appear nearer its sides, is recorded in the doc 17 rows "Spawner Movements offsets", "Spawner time per grab, and the pull", "Direction-change scaffold" and "Starvation scaffold". The SPAWN_EDGE_MARGIN comment in Config.luau was updated.
+files: src/server/Lane.luau, src/shared/Config.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/ (0/0), tools/luau_check.sh on both files, rojo build ok
+verified: partly — fixer's Studio bot run in Kitchen Normal, counting steps inside the portrait bound after each pull. After a RightRock turn, grabs with no visible step ahead fell from 8/18 to 1/13, and mean visible steps rose from 1.8 to about 2.6. After an UpRightRock turn, the run starved at grab 4 before the fix and at grab 7 after. A vertical run shows the same density, which comes from Unity's cadence (about 1.3 spawns per grab), not from placement. No real portrait viewport was used.
+studio: Hot Frog (6c5b1067-e703-41fc-92c3-f0370f5a71ec), Play stopped
+review: looks-right; checked: the diff, Lane.luau clampToLane/entryShift/placeStep/fitStaging/scaffoldSpotInView, GameServer slideIn and hasFoothold, GameClient camera, luau_check (notes: steps on a landscape screen pop in nearer the edges, by design; the procedural no-Movements fallback still stages at the lane edge, and no current spawner uses it)
+leftover: none — the placement was measured against the portrait bound in a real Studio run; the remaining sparsity is Unity's spawn cadence, put to the owner as b-20261022-151623-k8sg
+followups: b-20261022-151623-k8sg
+finding: Country's sideways start stages Balloons and Halloween Pumpkin swaps below the view, filed by the fixer as b-20261022-151506-m7pq.

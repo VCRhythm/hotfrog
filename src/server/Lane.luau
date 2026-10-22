@@ -621,8 +621,16 @@ end
 -- whole sweep instead -- its min..max X maps linearly onto the view less a margin of half
 -- the widest grab box (StepKinds hitSize.X) in its pool, so every step sits fully on a
 -- portrait screen and the sweep (and its tweens) spreads steps across the middle. A
--- sweep with no X range (min == max) is centred. Diagonal/sideways spawners keep the
--- lane bound, because their travel carries a step in from the side (b-20260921-112713-7mxu).
+-- sweep with no X range (min == max) is centred.
+--
+-- A diagonal/sideways spawner's travel carries a step in from the side, so its X is
+-- clamped to the portrait view's edge (b-20260921-112713-7mxu; b-20261022-145536-i6g3).
+-- Unity stages those points 1-3 half-widths out because its per-frame pull drags them
+-- in continuously. The port pulls once per grab, and a sideways grab only pulls by the
+-- grabbed step's own X, at most ~8.84 on a phone. From the lane edge (25), or even
+-- Kitchen's 1.5 half-widths (13.3), new steps came to rest past a phone's edge after
+-- every grab, so the screen stayed nearly empty. Lane.entryShift still starts each one
+-- outside the portrait view, so it slides in.
 type ViewSweep = { lo: number, hi: number, half: number }
 local viewSweeps: { [Levels.StepSpawnerDef]: ViewSweep } = {}
 
@@ -656,7 +664,7 @@ local function viewX(x: number, def: Levels.StepSpawnerDef): number
 end
 
 local function clampToLane(offset: Vector3, def: Levels.StepSpawnerDef): Vector3
-	local edge = Config.LANE_HALF_WIDTH + Config.SPAWN_EDGE_MARGIN
+	local edge = Config.SPAWN_VIEW_HALF_WIDTH
 	local x = if signOf(def.direction.X) == 0 then viewX(offset.X, def) else math.clamp(offset.X, -edge, edge)
 	local y = math.clamp(offset.Y, Config.DESPAWN_Y, Config.SPAWN_Y)
 	local planar = Vector2.new(x, y)
@@ -987,9 +995,12 @@ end
 -- `pos`, so its whole extent is outside the camera band (Config.VIEW_HALF_HEIGHT)
 -- on the side it enters from. Motion along `travel` then carries it into view:
 -- it slides in rather than popping up (owner's ruling, b-20260921-164429-ee9c).
--- Any vertical component decides it (steps entering from the top); pure sideways
--- travel uses the same half-extent as an assumed half-width, since the server
--- can't see the client's aspect ratio. Config.ENTRY_MARGIN is the slack past
+-- Any vertical component decides it (steps entering from the top). Pure sideways
+-- travel uses the portrait view's half-width (Config.SPAWN_VIEW_HALF_WIDTH), the
+-- narrowest view the camera shows. The server can't see the client's aspect ratio,
+-- and a sideways grab pulls only a few studs, so a step started outside a wider
+-- band came to rest past a phone's edge (b-20261022-145536-i6g3). A wider view
+-- sees it appear near its sides instead. Config.ENTRY_MARGIN is the slack past
 -- the band edge.
 function Lane.entryShift(self: Lane, pos: Vector3, size: Vector3, travel: Vector3): number
 	local rel = pos - self.origin
@@ -999,7 +1010,7 @@ function Lane.entryShift(self: Lane, pos: Vector3, size: Vector3, travel: Vector
 		local need = if travel.Y < 0 then clear - rel.Y else rel.Y + clear
 		return math.max(0, need / math.abs(travel.Y))
 	elseif math.abs(travel.X) > 1e-4 then
-		local clear = h + size.X / 2 + Config.ENTRY_MARGIN
+		local clear = Config.SPAWN_VIEW_HALF_WIDTH + size.X / 2 + Config.ENTRY_MARGIN
 		local need = if travel.X < 0 then clear - rel.X else rel.X + clear
 		return math.max(0, need / math.abs(travel.X))
 	end

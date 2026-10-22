@@ -294,38 +294,50 @@ no-check: needs a person's real or emulated multi-touch and eyes at phone size; 
 evidence: marked done by the user, no check
 cleared: 2026-10-22 14:02 marked done on the dashboard
 
-## o-20261022-141404-k6j6  open  2026-10-22 14:14
+## o-20261022-141404-k6j6  done  2026-10-22 14:14
 for: b-20261022-135157-8qux
 kind: device
 step: On a portrait phone (or a portrait device emulator), start a run: the opening steps should sit well inside the screen, not at the edge; do it with the o-20261022-135611-obdo phone pass
 no-check: only a person on a portrait phone can judge where the steps sit
+evidence: marked done by the user, no check
+cleared: 2026-10-22 14:54 marked done on the fleet dashboard
 
-## o-20261022-142137-ufk7  open  2026-10-22 14:21
+## o-20261022-142137-ufk7  done  2026-10-22 14:21
 for: b-20261022-140440-c2tq
 kind: device
 step: On a phone in Normal mode, hold two steps with two fingers, let one step be knocked off or fall while its finger stays down, grab a new step with the other finger, then lift the old finger: the new step should stay held
 no-check: needs two real fingers on a touch screen; the Studio MCP cannot drive multi-touch
+evidence: marked done by the user, no check
+cleared: 2026-10-22 14:54 marked done on the fleet dashboard
 
-## o-20261022-144016-c0ap  open  2026-10-22 14:40
+## o-20261022-144016-c0ap  done  2026-10-22 14:40
 for: b-20261022-140925-k146
 kind: device
 step: On a portrait phone, start the Tutorial and check the second and third acorns are on screen and easy to reach, and the squashed oak looks acceptable
 no-check: needs a real portrait phone and a judgement of reach and looks
+evidence: marked done by the user, no check
+cleared: 2026-10-22 14:54 marked done on the fleet dashboard
 
-## o-20261022-144035-4c1q  open  2026-10-22 14:40
+## o-20261022-144035-4c1q  done  2026-10-22 14:40
 for: b-20261022-140225-lhat
 kind: device
 step: On a portrait phone in Kitchen or Country, grab a sideways or diagonal arrow and check at least one new step appears on screen toward the new direction within about a second
 no-check: needs a real portrait phone; Studio MCP cannot set a phone viewport
+evidence: none, the user sent it back to the loop as b-20261022-145536-i6g3
+cleared: 2026-10-22 14:55 sent back to loop as b-20261022-145536-i6g3: there are still moments when going sideways that the screen is very empty of steps
 
-## o-20261022-144409-zqd5  open  2026-10-22 14:44
+## o-20261022-144409-zqd5  done  2026-10-22 14:44
 for: b-20261022-143822-gemh
 kind: device
 step: Play a Kitchen run on a portrait phone through several Chef attacks, including after a sideways pull
 no-check: the risk is a portrait viewport, which the Studio MCP cannot set, and the Chef's picks are random
+evidence: marked done by the user, no check
+cleared: 2026-10-22 14:54 marked done on the fleet dashboard
 
-## o-20261022-144410-edgi  open  2026-10-22 14:44
+## o-20261022-144410-edgi  done  2026-10-22 14:44
 for: b-20261022-141339-w3jk
 kind: device
 step: Play a Kitchen run on a portrait phone through several Chef Knife Swings
 no-check: needs a portrait viewport and repeated random Chef picks
+evidence: marked done by the user, no check
+cleared: 2026-10-22 14:54 marked done on the fleet dashboard
