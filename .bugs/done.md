@@ -3171,3 +3171,17 @@ test: selene src/ clean; tools/luau_check.sh src/shared/SkinAssets.luau exit 0; 
 verified: yes — Studio Play run: on the server, SpriteSkin.apply(frog, "Invisible Man") set Accessory to Hawt Frog's accessory id (rbxassetid://92072401896151) with Body and both limbs textured and the head, face and hands blank; a capture of the menu frog in Play showed black sunglasses floating over the body with no head. The run camera was not captured.
 review: looks-right; checked: diff, SpriteSkin.luau in full (Accessory branch keeps the image, ZIndex 6 above head/eyes, no tint), SkinAssets part/lookup/hidden, FrogModel Accessory decal on the Head canvas, grep of src for Accessory/hidden/ONLY_PARTS/BORROWED (no other consumers); Hawt Frog keeps its own accessory
 studio: Hot Frog (placeId 114911935371092), Play stopped
+
+## b-20261022-115819-ktdq  fixed  2026-10-22 12:07
+note: I need marketing assets for roblox.com for the launch of this game
+cause: the repo had no launch marketing kit (experience icon, 16:9 thumbnails, store-page copy or upload checklist).
+change: New tools/make_marketing.py (Pillow, reads Sprites/, writes marketing/; Impact font with a load_default fallback) builds marketing/icon-512.png (the original Unity Sprites/Other/Icon.png at 512) and thumb-1..5.png at 1920x1080 (title shot, Kitchen and the Chef, Country, Space, skin cards), composed from game sprites, not gameplay captures. marketing/store-page.md has the title, a ~1000-char description, feature bullets, controls (hold-to-grab, mouse buttons per hand, touch, gamepad; no keyboard), genre/tags, conservative maturity notes (the Chef's look disclosed), a launch post and the Creator Hub upload checklist. Nothing was uploaded.
+files: tools/make_marketing.py, marketing/icon-512.png, marketing/thumb-1.png, marketing/thumb-2.png, marketing/thumb-3.png, marketing/thumb-4.png, marketing/thumb-5.png, marketing/store-page.md
+test: python tools/make_marketing.py ran; Pillow confirmed icon 512x512 and thumbs 1920x1080; the font fallback branch was not run
+verified: partly — every output PNG was opened and inspected and store-page.md re-read against the code, but the thumbnails are composed sprite art, not real gameplay: Studio captures (Hot Frog place, Play stopped) came out 1920x761 JPGs in the Invisible Man skin and Halloween theme. Real captures are filed as b-20261022-120651-mtww.
+review: concern store-page.md controls wrong (tap/click vs hold, no keyboard), unverified claims, hard-coded Impact font, title overlaps in thumb-1/thumb-4, thumb-5 off-centre; checked: store-page.md and make_marketing.py in full, GameClient input code, SkinCatalog, Config, Levels, Chef, DailyService, MissionService, all six PNGs
+re-review: looks-right; checked: store-page.md and make_marketing.py in full, thumb-1/4/5 opened, GameClient 620-660 and 834-850, GiftService (gift is a fixed 100 Flys, GiftService.server.luau:13), Config Halloween dates 509-510, SkinCatalog 30-33
+studio: Hot Frog (placeId 114911935371092), Play stopped
+owed: upload the kit in Creator Hub (o-20261022-120651-zei7)
+leftover: real gameplay thumbnails, b-20261022-120651-mtww (after the Halloween window)
+note: includes pre-existing uncommitted changes in .bugs/owed.md (o-20261021-114200-7965 marked done on the dashboard)

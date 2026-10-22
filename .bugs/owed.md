@@ -254,8 +254,16 @@ no-check: only a person can judge whether music fits and loops cleanly; the Stud
 evidence: none, the user sent it back to the loop as b-20261021-112652-q8b6
 cleared: 2026-10-21 11:26 sent back to loop as b-20261021-112652-q8b6: link me
 
-## o-20261021-114200-7965  open  2026-10-21 11:42
+## o-20261021-114200-7965  done  2026-10-21 11:42
 for: b-20261021-112652-q8b6
 kind: taste
 step: Listen to the trimmed Kitchen track (now starts at the old 0:14.87, 49 s) and its loop seam, then say if it fits. Local file: file:///H:/Roblox%20Projects/hotfrog/Sounds/Music/KitchenBounce.mp3 (also sent to your Claude app); in game it plays on the Kitchen level as asset 117737777986047
 no-check: only a person can judge whether music fits and loops cleanly; the Studio MCP cannot play audio
+evidence: marked done by the user, no check
+cleared: 2026-10-21 11:59 marked done on the fleet dashboard
+
+## o-20261022-120651-zei7  open  2026-10-22 12:06
+for: b-20261022-115819-ktdq
+kind: approval
+step: Upload the launch kit to the Hot Frog experience page: Creator Hub (create.roblox.com) -> Creations -> Hot Frog -> Configure -> Icon: marketing/icon-512.png; Places -> start place -> Thumbnails: marketing/thumb-1.png .. thumb-5.png; paste title, description, genre and maturity answers from marketing/store-page.md under Settings
+no-check: the experience page lives on roblox.com; nothing on this host shows what was uploaded
