@@ -3462,7 +3462,8 @@ files: src/shared/Levels.luau, src/client/WorldTutorialTrunk.client.luau, docs/r
 test: stylua --check, selene src/ (0/0), tools/luau_check.sh on both files, rojo build ok
 verified: partly — Studio desktop Tutorial (StudioSkipTo "Tutorial"): acorns rest at (4.82,-3.14), (-4.82,9.11), (4.82,15.09) as computed; the four TutorialTree tiles are 15.6 tall at y -31.02/-15.42/0.18/15.78, abutting; the screenshot shows each twig ending at its acorn. A portrait phone was not tested.
 studio: Hot Frog, Play stopped
-review: concern (tree art ACORN_AT/TILES still at the old heights), fixed; re-review: one wrong doc number (acorn 3 after two grabs is about 6, not 8), corrected by the orchestrator
+review: concern (tree art ACORN_AT/TILES still at the old heights), fixed
+re-review: one wrong doc number (acorn 3 after two grabs is about 6, not 8), corrected by the orchestrator
 owed: o-20261022-144016-c0ap
 
 ## b-20261022-140225-lhat  fixed  2026-10-22 14:40
@@ -3473,7 +3474,8 @@ files: src/server/Lane.luau, src/shared/Config.luau, src/server/GameServer.serve
 test: stylua --check, selene src/ (0/0), tools/luau_check.sh, rojo build ok
 verified: partly — Studio desktop (fixer's run, Kitchen Normal, StudioSpawnKind RightRock grip 3,5 + GrabStep). Before: no new step after the grab. After: two new rungs resting in view within 1.2 s, at (3,8) and (5,-10) in run A, and at (5,-7) and (5,-12) in run B. A follow-up grab of a rung worked and did not refire the scaffold while a foothold was on screen. Not checked at a portrait viewport.
 studio: Hot Frog, Play stopped
-review: concern (pre-nudge view check could yield zero rungs), reworked; re-review concern (stacked fallback could land above the view), then the Studio check failed (no rungs at all), escalated to an opus fixer who found the real cause and rewrote it; fresh review looks-right (notes: the grid can fall back to rungs below the frog; bias toward +Y is optional hardening)
+review: concern (pre-nudge view check could yield zero rungs), reworked
+re-review: concern (stacked fallback could land above the view), then the Studio check failed (no rungs at all), escalated to an opus fixer who found the real cause and rewrote it; fresh review looks-right (notes: the grid can fall back to rungs below the frog; bias toward +Y is optional hardening)
 owed: o-20261022-144035-4c1q
 finding: The Chef can strike a phone's last on-screen free step mid-pull, filed as b-20261022-143822-gemh.
 
