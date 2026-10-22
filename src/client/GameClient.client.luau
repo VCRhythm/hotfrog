@@ -520,6 +520,10 @@ end
 -- from the head to the tap point, then retracts. Pure local cosmetics -- the
 -- server is authoritative on whether the catch actually scored (doc 06).
 local TONGUE_MOUTH_DROP = 3.5
+-- Hot Lawyer's frown is drawn higher on the canvas (Mouth sprite y 570-608 of 1024, vs
+-- Hot Frog's 602-626), so his tongue starts about 1 stud higher (b-20261022-121451-wkhn).
+local HOT_LAWYER_SKIN_ID = 7
+local HOT_LAWYER_MOUTH_DROP = 2.5
 local function expandTongue(targetPos: Vector3)
 	local head = myFrog:FindFirstChild("Head")
 	if not (head and head:IsA("BasePart")) then
@@ -528,7 +532,10 @@ local function expandTongue(targetPos: Vector3)
 	-- The Head part is the whole 1024px sprite canvas; every skin's mouth sits
 	-- ~x 512, y 590-610 (centre 512), i.e. ~3.5 studs below the part centre.
 	-- Offset in head-local space so it follows the head's rotation.
-	local from = head.CFrame:PointToWorldSpace(Vector3.new(0, -TONGUE_MOUTH_DROP, 0))
+	local mouthDrop = if latestProfile and latestProfile.selected == HOT_LAWYER_SKIN_ID
+		then HOT_LAWYER_MOUTH_DROP
+		else TONGUE_MOUTH_DROP
+	local from = head.CFrame:PointToWorldSpace(Vector3.new(0, -mouthDrop, 0))
 	local length = (targetPos - from).Magnitude
 	if length < 0.5 then
 		return

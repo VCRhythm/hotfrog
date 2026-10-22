@@ -3185,3 +3185,15 @@ studio: Hot Frog (placeId 114911935371092), Play stopped
 owed: upload the kit in Creator Hub (o-20261022-120651-zei7)
 leftover: real gameplay thumbnails, b-20261022-120651-mtww (after the Halloween window)
 note: includes pre-existing uncommitted changes in .bugs/owed.md (o-20261021-114200-7965 marked done on the dashboard)
+
+## b-20261022-121451-wkhn  fixed  2026-10-22 12:24
+note: the hot lawyer's tongue needs to come out slightly higher where his mouth is
+related: b-20261012-135650-hhny
+cause: expandTongue started the tongue at head-local y -3.5 (TONGUE_MOUTH_DROP), tuned to Hot Frog's mouth (Mouth sprite rows 602-625 of 1024); Hot Lawyer's frown sits higher (rows 570-608).
+change: Added HOT_LAWYER_SKIN_ID = 7 and HOT_LAWYER_MOUTH_DROP = 2.5 next to TONGUE_MOUTH_DROP; expandTongue uses 2.5 when latestProfile.selected is Hot Lawyer, else 3.5. Only the local frog draws a tongue, so no other path changes.
+files: src/client/GameClient.client.luau
+test: selene src/ clean; tools/luau_check.sh on the file clean; rojo build ok; stylua --check clean (LF-normalised)
+verified: no — the Hot Frog place was not open in Studio (only Centralia (Staging) and Tactics); 2.5 comes from measuring the two Mouth PNGs' alpha (centres 24.5 px = ~0.96 studs apart on the 40.23-stud head canvas)
+review: looks-right; checked: diff, SkinCatalog (Hot Lawyer is [7]), latestProfile set in applyProfile from ProfileChanged/GetProfile with selected typed number in Profiles.luau, grep of src for tongue (only expandTongue on myFrog), Pillow bbox of both Mouth sprites (3.5 - 0.96 = 2.54)
+owed: open Hot Frog in Studio with rojo serve (o-20261022-122336-c92z)
+leftover: Studio Play check, b-20261022-122337-ejon (after Studio is open)

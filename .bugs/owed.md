@@ -267,3 +267,9 @@ for: b-20261022-115819-ktdq
 kind: approval
 step: Upload the launch kit to the Hot Frog experience page: Creator Hub (create.roblox.com) -> Creations -> Hot Frog -> Configure -> Icon: marketing/icon-512.png; Places -> start place -> Thumbnails: marketing/thumb-1.png .. thumb-5.png; paste title, description, genre and maturity answers from marketing/store-page.md under Settings
 no-check: the experience page lives on roblox.com; nothing on this host shows what was uploaded
+
+## o-20261022-122336-c92z  open  2026-10-22 12:23
+for: b-20261022-121451-wkhn
+kind: restart
+step: Open the Hot Frog place in Roblox Studio with rojo serve connected (Studio checks for the Hot Lawyer tongue and later fixes wait on it)
+done-check: bash tools/studio_ready.sh
