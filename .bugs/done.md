@@ -3586,3 +3586,13 @@ files: none
 test: none
 verified: n/a
 review: n/a
+
+## b-20261022-152028-ungd  fixed  2026-10-22 15:22
+note: Studio check for the m7pq fix: in Country with a sideways start (StudioSkipTo Country 40), get a Balloon from Level4RightStepSpawner and confirm it rests near y -9.4 relative to lane Origin, inside the view, and can be grabbed
+cause: This is the verification follow-up for b-20261022-151506-m7pq (535bde6), whose own Studio run spawned no Balloon.
+change: none (verification only)
+files: none
+test: none
+verified: yes — Studio Play, StudioSkipTo("Country",40) with natural spawning (StudioSpawnKind bypasses fitStaging). A Balloon rested at (-15.16, -9.43) relative to Origin, steady over 6 one-second samples and inside VIEW_HALF_HEIGHT 15.71. A GrabStep with limb 1 was accepted: RightLimb Held went from false to true.
+studio: Hot Frog (placeId 114911935371092), Play stopped
+review: n/a
