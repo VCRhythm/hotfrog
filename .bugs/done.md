@@ -3423,3 +3423,13 @@ test: Studio Play, StudioSkipTo Kitchen 40, bot grabs to arm the Chef, then Grab
 verified: yes — a Food action: the target was grabbed with the left limb during WindUp (limb on it, d=0.0). At Strike the step dropped (y 0.4 to -33.1) and the left limb let go (Held false), while the right limb kept its own step and the run stayed Playing. A second try with a Knife fizzled with no break: after the grab its target sat at y -21.7, out of view, which is the documented fizzle. That pull is filed as b-20261022-141339-w3jk. Shove was not drawn in either try.
 studio: Hot Frog, Play stopped
 leftover: none — the held-step knock-off is seen for Food, and Knife breaks through the same dropAway path; the odd Knife pull is its own item, b-20261022-141339-w3jk
+
+## b-20261022-140448-5vm1  answered  2026-10-22 14:15
+note: DECISION: what's your recommendation? (reopens b-20261021-093703-adx9)
+cause: The user asked for advice on the open music-id question rather than choosing.
+change: see b-20261021-093703-adx9 (a recommendation: line was added to its needs-decision.md block; no code change)
+files: none
+test: none
+verified: n/a
+review: n/a
+finding: Keep the committed music1/music5 ids, and set the two tools/asset_ids.json entries back to them, keeping their new sourceHash so nothing re-uploads.
