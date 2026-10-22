@@ -3508,3 +3508,22 @@ test: stylua --check, selene src/ (0/0), tools/luau_check.sh, rojo build ok
 verified: no — needs a portrait viewport and repeated random Chef picks
 review: looks-right (shared review with b-20261022-143822-gemh)
 owed: o-20261022-144410-edgi
+
+## b-20261021-093703-adx9  fixed  2026-10-22 14:52
+note: Asset id cache drift: tools/asset_ids.json holds re-uploaded music1/music5 ids that differ from src/shared/SoundAssets.luau (the wu4e upload run re-uploaded them on a cache mismatch, and the file was put back to its committed ids). Next write_asset_ids run will swap them; decide which ids to keep and find why the cache mismatched.
+cause: The user's ruling (b-20261022-144636-m3mv) was "DECISION: keep them", so the committed ids stay. The upload run had re-uploaded music1/music5 because their sourceHash no longer matched the cache, and the new ids it cached would have replaced the committed ones on the next write_asset_ids run.
+change: In tools/asset_ids.json (gitignored), set music1 assetId back to 77652599137287 and music5 back to 70897771387242, keeping the new sourceHash so the next upload run neither re-uploads them nor rewrites src/shared/SoundAssets.luau. The website re-uploads 89807132444823 and 105962262612155 are no longer referenced. Backup at the job tmp folder (asset_ids.before.json).
+files: tools/asset_ids.json (gitignored, not committed)
+test: python tools/write_asset_ids.py run against copies of SkinAssets.luau and SoundAssets.luau: both "already up to date", and diff -q matches the committed files
+verified: yes — the real write_asset_ids.py run on the edited cache produced byte-identical SkinAssets.luau and SoundAssets.luau
+review: n/a
+leftover: why the two source hashes changed is filed as b-20261022-145200-qx08
+
+## b-20261022-144636-m3mv  answered  2026-10-22 14:52
+note: DECISION: keep them (reopens b-20261021-093703-adx9)
+cause: The user's ruling on b-20261021-093703-adx9: keep the committed music ids.
+change: see b-20261021-093703-adx9
+files: none
+test: none
+verified: n/a
+review: n/a
