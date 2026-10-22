@@ -1020,6 +1020,7 @@ end
 
 local function chefStrike(lane: Lane.Lane, step: BasePart, st: StepState, action: Chef.Action, shoveDir: number)
 	if action == "Shove" then
+		ctxOf(lane, step, st).forceRelease() -- a shove on a held step knocks the frog off it
 		lane:addMotion(
 			Vector3.new(shoveDir * Config.CHEF_SHOVE_DISTANCE, 0, 0),
 			Config.CHEF_SHOVE_TIME,

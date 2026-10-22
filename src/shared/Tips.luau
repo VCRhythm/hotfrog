@@ -38,8 +38,8 @@ Tips.list = {
 	"After 50 steps the pot rim appears: grab it to reach the Kitchen. Country starts at 100, Space at 250.",
 	-- StepBehaviors.Drive + Config.CAR_KNOCK_TIME (Country cars).
 	"Cars in the Country keep driving. Hop off before they shake you loose.",
-	-- Chef.luau: the tell, then a blow that fizzles if the target is grabbed first.
-	"In the Kitchen, the Chef shows his move first. Grab the step he targets to save it.",
+	-- Chef.luau: the tell, then a blow that lands on the target even if it is held.
+	"In the Kitchen, the Chef shows his move first. Stay off the step he targets.",
 	-- Chef.luau actions: Knife / Food / Shove.
 	"The Chef can chop a step, throw a potato at it, or shove it sideways. Watch his wind-up.",
 }

@@ -3348,3 +3348,15 @@ verified: no — static checks only; the Studio check is b-20261022-134614-myqm
 review: concern the first version hid the whole column, which removed the Flys balance from the store (StoreUI relies on the HUD FlysLabel, b-20260921-112735-t2ly); checked: the diff against StoreUI and MenuClient open/close paths (Frogs button, Dead gift prompt, Shop toggle, Back, run start); no stuck-hidden path
 re-review: concern the Flys line at y=190..222 clears SkinName and Selected everywhere, but on short landscape viewports (GUI height < ~415) it overlaps the swatch row (H-192) and Robux button (H-176); checked: the new diff, the StoreUI layout, combo label/bar (cannot show while the store is open), restore on StoreClosed and Playing
 leftover: short-viewport overlap and the Settings/Top Scores overlap with the y=96 column, b-20261022-134614-myqm
+
+## b-20261022-135113-xwjx  fixed  2026-10-22 13:55
+note: for the chef- the tip says "grab the step he targets to save it". that shouldn't be a strategy. the player should *avoid* any targeted steps
+cause: The Chef is a port-only hazard (Unity's Chef is scenery only). src/server/Chef.luau deliberately called the blow off when the frog grabbed the target, and src/shared/Tips.luau told players to do exactly that.
+change: The held-step fizzle is removed, so Knife and Food land on a held target and drop it via dropAway, which force-releases the frog. chefStrike's Shove now calls forceRelease before its 4-stud slide, which knocks the holder off. The Chef still picks only un-held steps when he starts. The tip now reads "Stay off the step he targets." The CHEF_STRIKE_GRACE comments and the doc 17 Kitchen Chef row are updated.
+files: src/server/Chef.luau, src/server/GameServer.server.luau, src/shared/Config.luau, src/shared/Tips.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: selene src/ exit 0; tools/luau_check.sh on Chef/GameServer/Config/Tips clean; rojo build ok; stylua --check clean
+verified: partly — the Studio Play run in the Kitchen (StudioSkipTo, a bot with 40 grabs) had about 8 Chef target/strike cycles with no errors, and the live Tips module returns the new wording. The bot never held a targeted step at the blow, so knock-off-while-held was not observed.
+studio: Hot Frog, Play stopped
+review: concern Shove on a held step only dragged it (no release), and the CHEF_STRIKE_GRACE comments in Config.luau:498 and Chef.luau still said a grab saves the step; checked: dropAway → forceReleaseStep path, the land() foothold gate, a grep for leftover "save" text
+re-review: looks-right; checked: forceRelease scoped to the owning lane's frog and matching held slot, a silent no-op when nobody holds it, release before addMotion, comment/doc accuracy
+leftover: the held-target hit was not observed live; it needs a scripted hold on the ChefTarget step during the tell. Filed as a follow-up.

@@ -8,10 +8,11 @@
 --            in slow motion (Config.CHEF_SWING_TIME); the step breaks at contact
 --   Food  -- winds back a potato (the tell), throws it: the step is knocked loose
 --   Shove -- walks over, sets his hands (the tell), shoves: the step slides sideways
--- If the player grabs the target (or it leaves the lane or the view) before the
--- blow lands, the action fizzles -- the held step is never hit. The blow is
--- shown Config.CHEF_STRIKE_GRACE before it is applied, so a grab already on its
--- way when the player saw it still saves the step. Knife and Food only take a
+--            (a frog holding it is knocked off)
+-- If the target leaves the lane or the view before the blow lands, the action
+-- fizzles. Grabbing the target does NOT save it: the blow lands on a held step
+-- too (the player should avoid the step he targets). He only picks a step the
+-- player isn't holding when he starts. Knife and Food only take a
 -- step while another un-held foothold is left in view (in Normal mode nothing
 -- spawns until the player grabs, so cutting the last one would strand them),
 -- and a Shove only lands on a spot clear of every other step (Lane.clearSpot's
@@ -34,8 +35,8 @@
 -- exactly that moment (ChefTarget is still set until then); the remainder is
 -- follow-through. Swing runs in REAL time: unlike Walk / WindUp / Flight it is
 -- NOT sped by the lane's StreakSpeed, so the client must not scale its clock.
--- If the player grabs the target before contact the action fizzles: ChefAction
--- and ChefPhase clear mid-Swing with no break. Unknown phases should be drawn
+-- If the target leaves the lane or the view before contact the action fizzles:
+-- ChefAction and ChefPhase clear mid-Swing with no break. Unknown phases should be drawn
 -- as the last known pose or hidden, never errored on.
 
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
@@ -59,7 +60,7 @@ type ChefState = {
 	target: BasePart?,
 	targetState: Lane.StepState?, -- the target's generation (lane.states[target] == targetState)
 	shoveDir: number,
-	pending: boolean, -- Strike shown, effect not yet applied (CHEF_STRIKE_GRACE)
+	pending: boolean, -- Strike shown, effect not yet applied (CHEF_STRIKE_GRACE, the shown beat before it lands)
 	contacted: boolean, -- Swing: the blade has met the step (the strike was attempted)
 	seq: number,
 }
@@ -259,10 +260,10 @@ end
 
 -- One server tick for `lane`. `active` is the caller's gate (Playing, frog
 -- armed and alive); the Kitchen check is made here. `strike` applies the
--- effect to a still-live, un-held target.
+-- effect to a still-live target (held or not).
 -- `speed` (optional, default 1) is the combo streak speed-up
 -- (b-20261010-192608-4bs3 ruling 8zmn): it shortens every wait except the Strike
--- phase, so CHEF_STRIKE_GRACE (the fairness window) is never shortened.
+-- phase, so CHEF_STRIKE_GRACE (the beat between the shown blow and its effect) is never shortened.
 function Chef.tick(lane: Lane.Lane, dt: number, active: boolean, isHeld: IsHeld, strike: Strike, speed: number?)
 	if not active or lane.levelIndex ~= Levels.KITCHEN then
 		Chef.reset(lane)
@@ -270,17 +271,12 @@ function Chef.tick(lane: Lane.Lane, dt: number, active: boolean, isHeld: IsHeld,
 	end
 	local s = stateOf(lane)
 
-	-- Until the effect is applied the target must stay the same live step,
-	-- un-held and not already dropping; otherwise the action fizzles.
+	-- Until the effect is applied the target must stay the same live step and
+	-- not already dropping; otherwise the action fizzles. Being held does not
+	-- save it.
 	if s.action and ((s.phase ~= "Strike" and not s.contacted) or s.pending) then
 		local target, targetState = s.target, s.targetState
-		if
-			not target
-			or not targetState
-			or lane.states[target] ~= targetState
-			or targetState.dropElapsed
-			or isHeld(lane, target)
-		then
+		if not target or not targetState or lane.states[target] ~= targetState or targetState.dropElapsed then
 			finish(lane, s, interval()) -- a fizzle still counts as his action
 			return
 		end
@@ -291,7 +287,7 @@ function Chef.tick(lane: Lane.Lane, dt: number, active: boolean, isHeld: IsHeld,
 	s.timer -= if realTime then dt else dt * (speed or 1)
 
 	-- The Swing's contact: the blade meets the step and it breaks right now (the
-	-- validity check above has just confirmed it is still live and un-held).
+	-- validity check above has just confirmed it is still live).
 	if
 		s.phase == "Swing"
 		and not s.contacted
