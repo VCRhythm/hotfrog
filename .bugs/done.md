@@ -3516,7 +3516,7 @@ change: In tools/asset_ids.json (gitignored), set music1 assetId back to 7765259
 files: tools/asset_ids.json (gitignored, not committed)
 test: python tools/write_asset_ids.py run against copies of SkinAssets.luau and SoundAssets.luau: both "already up to date", and diff -q matches the committed files
 verified: yes — the real write_asset_ids.py run on the edited cache produced byte-identical SkinAssets.luau and SoundAssets.luau
-review: n/a
+review: none — a two-number data edit to a gitignored cache, checked by the write_asset_ids.py run above
 leftover: why the two source hashes changed is filed as b-20261022-145200-qx08
 
 ## b-20261022-144636-m3mv  answered  2026-10-22 14:52
