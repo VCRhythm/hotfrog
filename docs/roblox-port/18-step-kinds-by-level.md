@@ -8,7 +8,7 @@ The tables below are the audit as read at `6645c92`. Changes made since by the d
 
 - **Role map** (`b-20261021-091520-sh6c`): `withDynamic` is now `withRoles(level roles, pool)`; each level's `roles` names its Patrol / Bob / Launch / Vanish / Crumble kind, and PadLadder / SpringStreak members name a role, not a kind. The Halloween swap skips Patrol, RiseAndFall and Launch kinds.
 - **Revived kinds**: Pot gains `FlingingRock` (the Ember, 0 / .3 / .4); Country gains `StillRock` (.4 every stage) and `SlowFallRock` (0 / 0 / .2 / .3) via `withOutdoor`; Kitchen gains `CrumblyRock` (.3 / .3 / .35 / .4) and `FallingRock` (0 / 0 / .2 / .3) in all five pools. FlyRock is gold-tinted.
-- **Themed kinds** (`b-20261021-091537-rv4a`): Kitchen's Launch role is `Toaster` and its Vanish role `IceCube`, at SpringRock's and BlinkRock's old Kitchen weights (Toaster 0 / 0 / .2 / .2, IceCube 0 / 0 / 0 / .3); the Kitchen SpringStreak lays Toasters. Country's Launch role is `CashPile` (replaced the Trampoline, owner request `b-20261021-094516-9uqb`) at SpringRock's old weights (.15 / .25 / .25 / .3; SpringStreak lays CashPiles), and `Beetle` (new ladybug art, `hazard`, one forced release) joins `withOutdoor` at 0 / .1 / .15 / .15. Lillipad and BobRock stay in every level; BlinkRock stays Country's Vanish kind and Space keeps all five default roles. Read "Spring" and "Blink" in the Kitchen table, and "Spring" in the Country table, as these kinds.
+- **Themed kinds** (`b-20261021-091537-rv4a`): Kitchen's Vanish role is `IceCube` at BlinkRock's old Kitchen weights (0 / 0 / 0 / .3); its Launch role is the default `SpringRock` again (0 / 0 / .2 / .2; the Toaster was removed, `b-20261022-om8p`), and the Kitchen SpringStreak lays SpringRocks. Country's Launch role is `CashPile` (replaced the Trampoline, owner request `b-20261021-094516-9uqb`) at SpringRock's old weights (.15 / .25 / .25 / .3; SpringStreak lays CashPiles), and `Beetle` (new ladybug art, `hazard`, one forced release) joins `withOutdoor` at 0 / .1 / .15 / .15. Lillipad and BobRock stay in every level; BlinkRock stays Country's Vanish kind and Space keeps all five default roles. Read "Spring" and "Blink" in the Kitchen table, and "Spring" in the Country table, as these kinds.
 - **Space movers** (`b-20261021-091537-xh0w`): Space's Bob role is `UFO` (BobRock's `RiseAndFall` params and weights, .3 / .45) and `Satellite` (`Patrol`) joins beside Lillipad, splitting the Patrol weight (Lillipad .175 / .25, Satellite .175 / .25). Space keeps its rock steps (no Meteor, BoostRocket or DriftAsteroid; Rocket stays out of the Down pool). Read "Bob" in the Space rows as UFO; Lily's Space share is now halved.
 - Still dead: none of the six; still in no pool by design: PotRim, Castle, Pumpkin, FlyRock.
 
@@ -17,10 +17,10 @@ The tables below are the audit as read at `6645c92`. Changes made since by the d
 - Each level has step spawners with a `pool` (list of StepKinds names). `Lane.pickKind` does one weighted draw over the pool of the spawner active for the lane's current scroll direction (by sign): Down, DownLeft, DownRight, Left, Right, plus a themed Rocket spawner that scrolls left.
 - Weight = the current height stage's `weights[kind]` if listed, else `StepKinds[kind].spawnProbability`. Shares below are weight / pool total, before gating.
 - Gates: an arrow whose `canSpawn` says the bias already points that way is skipped (`UpRock` never on a straight-down scroll; `LeftRock`/`RightRock` only when not already horizontal). Kinds flagged `hazard` (Crumble, Blink, cars) are capped at 2 of the last 6 spawns.
-- `withDynamic` adds Lillipad, BobRock, SpringRock, BlinkRock, CrumbleRock to a pool (weight comes from the stage). `withOutdoor` = withDynamic + TreeTrunk, OakTree, CarRight, CarLeft.
+- `withDynamic` adds Lillipad, BobRock, SpringRock, BlinkRock, CrumbleRock to a pool (weight comes from the stage). `withOutdoor` = withDynamic + TreeTrunk, CarRight, CarLeft.
 - Patterns (`patternChance` per stage) replace one spawn with a formation. Members with no `kind` are plain picks (no arrows, no hazards). Named members: FlyRock (BugChain), Lillipad (PadLadder), SpringRock (SpringStreak), Castle (CastleKeep).
 - Thresholds: Kitchen 50, Country 100, Space 250 run steps. Stage counts are steps since level entry (Kitchen, Country, Space) or whole-run (Pot).
-- StepKinds default weights: arrows 0.1; Shelf kinds, Potato, Carrot 0.5; Rocket, Balloon 1.0; Asteroid 1.5; TreeTrunk, OakTree 0.4; cars 0.2; Lillipad 0.15, BobRock 0.15, SpringRock/BlinkRock/CrumbleRock 0.1.
+- StepKinds default weights: arrows 0.1; Shelf kinds, Potato, Carrot 0.5; Rocket, Balloon 1.0; Asteroid 1.5; TreeTrunk 0.8; cars 0.2; Lillipad 0.15, BobRock 0.15, SpringRock/BlinkRock/CrumbleRock 0.1.
 
 ## 1. Per level
 
@@ -53,7 +53,7 @@ Down pool shares (shelves = the three shelf kinds together, a third each; arrows
 Stage weights Lily/Bob/Spring/Blink/Crumble: 1: 0/0/0/0/0; 2: .35/.3/0/0/0; 3: .35/.3/.2/0/.3; 4: .4/.35/.2/.3/.35. Sideways pools have one arrow, so at stage 4 shelves are ~46% and dynamics ~48%.
 
 ### Country (18 kinds incl. Castle and FlyRock; 4 stages since entry: 0-10 / 10-30 / 30-60 / 60+)
-Pools: Down `UpLeftRock, UpRightRock, LeftRock, RightRock`+outdoor; DownLeft `UpRock, UpLeftRock, UpRightRock`+outdoor; Right `UpRock, UpRightRock, RightRock`+outdoor; Left `UpRock, UpLeftRock, LeftRock`+outdoor. Themed `Level4RightStepSpawner` (scrolls left, no patterns): `Rocket`, `Balloon`, 50/50. Shelves were removed (b-20261020-213556-k25y). Every stage weights the 5 arrows 0.25 and TreeTrunk/OakTree 0.6. Events: CastleKeep (4%, from step 5, cooldown 20; Castle is in no pool), SpringStreak (3%, from step 25).
+Pools: Down `UpLeftRock, UpRightRock, LeftRock, RightRock`+outdoor; DownLeft `UpRock, UpLeftRock, UpRightRock`+outdoor; Right `UpRock, UpRightRock, RightRock`+outdoor; Left `UpRock, UpLeftRock, LeftRock`+outdoor. Themed `Level4RightStepSpawner` (scrolls left, no patterns): `Rocket`, `Balloon`, 50/50. Shelves were removed (b-20261020-213556-k25y). Every stage weights the 5 arrows 0.25 and TreeTrunk 1.2. Events: CastleKeep (4%, from step 5, cooldown 20; Castle is in no pool), SpringStreak (3%, from step 25).
 
 | Stage | Lily | Bob | Spring | Blink | Crumble | CarR / CarL | Patterns (chance) |
 |---|---|---|---|---|---|---|---|
@@ -91,7 +91,7 @@ Menu: BackGrass, Cloud3, Grass. Tutorial: Stars. Pot: Flame, Bubble (client extr
 | Lillipad | Pot (stage 3), Kitchen, Country, Space, PadLadder | pond art in a pot, kitchen, sky and space |
 | BobRock | Kitchen, Country, Space | tinted WhiteRock (sky) |
 | SpringRock | Space (Launch role) | lime WhiteRock (since `b-20261021-091537-rv4a`; was Kitchen and Country too) |
-| Toaster | Kitchen (Launch role) | own art, untinted (since `b-20261021-091537-rv4a`) |
+| Toaster | none (no longer spawned, `b-20261022-om8p`) | own art, untinted; kind kept, unused |
 | CashPile | Country (Launch role) | own art, untinted (replaced the Trampoline, `b-20261021-094516-9uqb`) |
 | BlinkRock | Country, Space (Vanish role) | violet SmallRock; hazard (Kitchen until `b-20261021-091537-rv4a`) |
 | IceCube | Kitchen (Vanish role, stage 4) | own art, untinted; hazard (since `b-20261021-091537-rv4a`) |
@@ -99,7 +99,7 @@ Menu: BackGrass, Cloud3, Grass. Tutorial: Stars. Pot: Flame, Bubble (client extr
 | CrumblyRock | Kitchen, Country (weights unchanged) | the same pebble-cluster art tinted biscuit; now a hazard that shakes then bursts like CrumbleRock and the Potato (`b-20261021-095009-vou1`; was a plain step, and so could be swapped for a Halloween Pumpkin). The Pot's Ember (FlingingRock) shares the art but stays a harmless flame-flinger |
 | Rocket | Country, Space | fits both |
 | Balloon | Country | fits |
-| TreeTrunk, OakTree | Country | fits |
+| TreeTrunk | Country (OakTree no longer spawned, `b-20261022-122127-bu3j`) | fits |
 | CarRight, CarLeft | Country | fits; hazards, weight 0 in stage 1 |
 | Asteroid | Space | the only Space-themed foothold |
 | Castle | Country event (CastleKeep) | salmon-tinted castle, in no pool |

@@ -521,7 +521,8 @@ local StepKinds: { [string]: Kind } = {
 	-- each copies the behaviour, weight and params of the rock it stands in for
 	-- in its level's role map (Levels), on its own Ludo art. Untinted: the art
 	-- reads on its own, where a lime / violet multiply would muddy it.
-	-- Kitchen's Launch kind (SpringRock elsewhere). Toaster.png is 512 px on
+	-- NO LONGER SPAWNED (b-20261022-om8p: toaster sprites removed; Kitchen's Launch
+	-- is SpringRock again). Was Kitchen's Launch kind. Toaster.png is 512 px on
 	-- the shelf canvas; the toaster spans x 6-506, y 78-433 px (centred), the
 	-- body without the lever, knob and feet ~x 38-492, y 78-415, which is the
 	-- hit box; the tap pad covers the whole visible toaster.

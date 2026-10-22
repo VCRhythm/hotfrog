@@ -100,6 +100,12 @@ def steps(canvas, spots, size=200):
         paste(canvas, sprite(f"Rocks/{arrows[i % 5]}.png", height=size), x, y)
 
 
+def lime(img):
+    """SpringRock's lime tint (StepKinds TINT_LIME) on a WhiteRock sprite."""
+    r, g, b, a = img.split()
+    return Image.merge("RGBA", (r.point(lambda v: v * 0.6), g.point(lambda v: v * 0.95), b.point(lambda v: v * 0.3), a))
+
+
 def make_icon():
     img = Image.open(os.path.join(ROOT, "Sprites/Other/Icon.png")).convert("RGB")
     img.resize((512, 512), Image.LANCZOS).save(os.path.join(OUT, "icon-512.png"))
@@ -120,7 +126,7 @@ def thumb2():
     c = vgrad((60, 40, 35), (150, 95, 60))
     sh = sprite("Other/Shelf.png", width=1300)
     paste(c, sh, 960, 760, shadow=False)
-    paste(c, sprite("Rocks/Toaster.png", width=520), 1500, 420)
+    paste(c, lime(sprite("Rocks/WhiteRock.png", width=300)), 1560, 225)
     paste(c, sprite("Other/Chef.png", height=620), 1560, 700)
     steps(c, [(1000, 330), (1150, 150), (760, 560)], 200)
     frog(c, 330, 760, 520)

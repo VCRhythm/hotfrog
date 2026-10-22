@@ -271,9 +271,9 @@ local DYNAMIC_ROLES: { [string]: string } = {
 	Crumble = "CrumbleRock",
 }
 
--- Kitchen: a Toaster springboard and a melting IceCube (b-20261021-091537-rv4a).
+-- Kitchen: a melting IceCube (b-20261021-091537-rv4a). Its Launch role is the default
+-- SpringRock again: the Toaster is no longer spawned (b-20261022-om8p).
 local KITCHEN_ROLES: { [string]: string } = table.clone(DYNAMIC_ROLES)
-KITCHEN_ROLES.Launch = "Toaster"
 KITCHEN_ROLES.Vanish = "IceCube"
 
 -- Country: a CashPile launch step (9uqb); Vanish stays BlinkRock until the Dandelion
@@ -762,7 +762,7 @@ list[Levels.KITCHEN] = {
 	-- four stages, counted from the lane's arrival (stagesFromEntry). The shelves and arrows
 	-- keep their StepKinds weights throughout (not listed = unchanged), so stage 1
 	-- is the Kitchen as it was; the dynamic kinds are then introduced a pair at a
-	-- time -- movers first, then the springboard (Toaster) and the crumbler, the
+	-- time -- movers first, then the springboard (SpringRock) and the crumbler, the
 	-- timed IceCube last -- and patterns grow more likely. For scale, the shelf and
 	-- arrow weights in a pool sum to 1.6-1.9.
 	stagesFromEntry = true,
@@ -772,7 +772,7 @@ list[Levels.KITCHEN] = {
 			weights = {
 				Lillipad = 0,
 				BobRock = 0,
-				Toaster = 0,
+				SpringRock = 0,
 				IceCube = 0,
 				CrumbleRock = 0,
 				CrumblyRock = 0.3,
@@ -785,7 +785,7 @@ list[Levels.KITCHEN] = {
 			weights = {
 				Lillipad = 0.35,
 				BobRock = 0.3,
-				Toaster = 0,
+				SpringRock = 0,
 				IceCube = 0,
 				CrumbleRock = 0,
 				CrumblyRock = 0.3,
@@ -800,7 +800,7 @@ list[Levels.KITCHEN] = {
 			weights = {
 				Lillipad = 0.35,
 				BobRock = 0.3,
-				Toaster = 0.2,
+				SpringRock = 0.2,
 				IceCube = 0,
 				CrumbleRock = 0.3,
 				CrumblyRock = 0.35,
@@ -815,7 +815,7 @@ list[Levels.KITCHEN] = {
 			weights = {
 				Lillipad = 0.4,
 				BobRock = 0.35,
-				Toaster = 0.2,
+				SpringRock = 0.2,
 				IceCube = 0.3,
 				CrumbleRock = 0.35,
 				CrumblyRock = 0.4,

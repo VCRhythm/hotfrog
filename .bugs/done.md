@@ -3218,3 +3218,14 @@ test: selene src/ clean; tools/luau_check.sh Levels.luau clean; rojo build ok; s
 verified: no — the Hot Frog place is not open in Studio (tools/studio_ready.sh: no Roblox Studio window titled Hot Frog); static checks only
 review: looks-right; checked: the three diffs, grep of src for tree/oak/pine (TreeTrunk, OakTree, the Tutorial oak in WorldTutorialTrunk.client.luau; no tree scenery), both PNGs compared, Lane.pickWeighted normalises weights, no remaining OakTree spawn reference; the stale older doc 17 row it flagged was then corrected (doc only)
 leftover: Studio Play check, b-20261022-123327-vq6p (waits on the open-Studio step o-20261022-122336-c92z)
+
+## b-20261022-122133-om8p  fixed  2026-10-22 12:36
+note: remove the toaster sprites
+cause: Kitchen's Launch role was mapped to the Toaster kind (KITCHEN_ROLES.Launch), so the toaster spawned as the springboard step and in the SpringStreak pattern; doc 18 and the marketing thumbnail still showed it.
+change: Removed the Kitchen Launch override so Launch falls back to the default lime SpringRock, and renamed the Kitchen stage weight keys Toaster -> SpringRock at the same values (0/0/0.2/0.2), so density and SpringStreak are unchanged. The Toaster kind stays defined, unspawned. Docs 17 and 18 are updated (doc 18's stale OakTree mentions too, after 0028314). tools/make_marketing.py draws a lime WhiteRock instead of the Toaster, and marketing/thumb-2.png is regenerated. Judgment call: Kitchen keeps a springboard (as SpringRock) instead of losing it.
+files: src/shared/Levels.luau, src/shared/StepKinds.luau, docs/roblox-port/17-status-and-known-gaps.md, docs/roblox-port/18-step-kinds-by-level.md, tools/make_marketing.py, marketing/thumb-2.png
+test: selene src/ clean; tools/luau_check.sh on Levels.luau and StepKinds.luau clean; rojo build ok; stylua --check clean (LF-normalised); python tools/make_marketing.py ran (only thumb-2.png changed)
+verified: no — the Hot Frog place is not open in Studio (tools/studio_ready.sh fails); static checks, and marketing/thumb-2.png inspected by the fixer and the reviewer
+review: looks-right; checked: diffs of Levels/StepKinds/doc 17, grep -i toaster of src (only comments, the kept kind and the generated SkinAssets id), KITCHEN_ROLES cloned from DYNAMIC_ROLES (Launch = SpringRock), withRoles puts SpringRock in every Kitchen pool so the renamed weight keys apply, SpringStreak resolves Launch via level.roles (Lane.luau:1503); flagged stale doc 18 and make_marketing.py:123
+re-review: looks-right; checked: make_marketing.py and doc 18 diffs, thumb-2.png against the HEAD copy (rock clear of the chef, arrows and title; no gap), lime() tint 0.6/0.95/0.3 matches StepKinds TINT_LIME, doc 18 against Levels.luau (no Toaster or OakTree in pools, TreeTrunk 1.2)
+leftover: Studio Play check, b-20261022-123600-6tse (waits on the open-Studio step o-20261022-122336-c92z)
