@@ -3568,3 +3568,21 @@ verified: partly — fixer's Studio run, StudioSkipTo("Country",40). Before: Bal
 studio: Hot Frog (6c5b1067), Play stopped
 review: looks-right; checked: the diff, Lane.luau fitStaging/clampToLane/clearSpot/placeStep/spawnSingle/scaffold, StepKinds, Levels, StepBehaviors, Config, luau_check (Balloon computes to -9.43; Rocket is under its 11.8 limit and so unchanged; Halloween swaps use the swapped kind's box)
 leftover: Balloon rest position checked in Studio, filed as b-20261022-152028-ungd
+
+## b-20261022-151623-k8sg  closed-by-user  2026-10-22 15:21
+note: On a portrait phone, steps are still a little sparse even going straight up: should the port spawn more steps per grab than Unity's cadence (about 1.3 per grab), or keep it?
+cause: The user's ruling (b-20261022-151922-2bjc) was "Keep Unity's cadence. I haven't had any issues climbing straight vertical. the only sparseness hit me when going left or right or diagonal." The sideways and diagonal sparseness was placement, not cadence, and it is fixed by b-20261022-145536-i6g3 (ec263a1) and b-20261022-151506-m7pq (535bde6).
+change: none; Unity's spawn cadence stays
+files: none
+test: none
+verified: n/a
+review: n/a
+
+## b-20261022-151922-2bjc  answered  2026-10-22 15:21
+note: DECISION: Keep Unity's cadence. I haven't had any issues climbing straight vertical. the only sparseness hit me when going left or right or diagonal
+cause: The user's ruling on b-20261022-151623-k8sg.
+change: see b-20261022-151623-k8sg
+files: none
+test: none
+verified: n/a
+review: n/a
