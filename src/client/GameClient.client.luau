@@ -888,13 +888,34 @@ local hud = UIKit.screenGui("HUD")
 -- (up to ~480 px wide when open), so the stat column sits top-centre instead.
 -- The menu/dead "HOTFROG" title also lives top-centre, so outside a run the
 -- column drops below it (HUD_COLUMN_Y_*).
-local HUD_COLUMN_Y_PLAYING = 12
 local HUD_COLUMN_Y_MENU = 96
+-- b-20261022-135019-jlhg: while Playing the column is anchored bottom-centre
+-- (clear of the Shop/Gift corner buttons) and stacked combo-first, with the
+-- combo slot always reserved so showing/hiding it never moves the other lines.
+local HUD_COLUMN_BOTTOM_MARGIN = 24
+-- ComboLabel is bottom-anchored (its y is its bottom edge) so its UIScale grows
+-- upward only; ComboTimer is a sibling under it so it is not scaled with it.
+local HUD_PLAY_ROWS: { [string]: number } = {
+	SpeedCueLabel = -96,
+	ComboLabel = 44,
+	ComboTimer = 46,
+	ScoreLabel = 56,
+	HighScoreLabel = 92,
+	FlysLabel = 128,
+	BugsLabel = 164,
+}
+local HUD_MENU_ROWS: { [string]: number } = {
+	ScoreLabel = 12,
+	HighScoreLabel = 48,
+	FlysLabel = 84,
+	BugsLabel = 120,
+	ComboLabel = 212,
+	ComboTimer = 214,
+	SpeedCueLabel = 244,
+}
 local hudColumn = Instance.new("Frame")
 hudColumn.Name = "StatColumn"
-hudColumn.AnchorPoint = Vector2.new(0.5, 0)
 hudColumn.Size = UDim2.fromOffset(260, 220)
-hudColumn.Position = UDim2.new(0.5, 0, 0, if runState == "Playing" then HUD_COLUMN_Y_PLAYING else HUD_COLUMN_Y_MENU)
 hudColumn.BackgroundTransparency = 1
 hudColumn.Parent = hud
 -- b-20261022-134308-ayzz: the Frogs/store view has no Flys balance of its own
@@ -907,11 +928,22 @@ local HUD_STORE_HIDDEN = { "ScoreLabel", "HighScoreLabel", "BugsLabel" }
 local storeShown = false
 local function refreshHudColumn(state: string)
 	local inStore = storeShown and state ~= "Playing"
-	local y = if state == "Playing"
-		then HUD_COLUMN_Y_PLAYING
-		elseif inStore then HUD_COLUMN_Y_STORE
-		else HUD_COLUMN_Y_MENU
-	hudColumn.Position = UDim2.new(0.5, 0, 0, y)
+	if state == "Playing" then
+		hudColumn.AnchorPoint = Vector2.new(0.5, 1)
+		hudColumn.Size = UDim2.fromOffset(260, 200)
+		hudColumn.Position = UDim2.new(0.5, 0, 1, -HUD_COLUMN_BOTTOM_MARGIN)
+	else
+		hudColumn.AnchorPoint = Vector2.new(0.5, 0)
+		hudColumn.Size = UDim2.fromOffset(260, 220)
+		hudColumn.Position = UDim2.new(0.5, 0, 0, if inStore then HUD_COLUMN_Y_STORE else HUD_COLUMN_Y_MENU)
+	end
+	local rows: { [string]: number } = if state == "Playing" then HUD_PLAY_ROWS else HUD_MENU_ROWS
+	for name, y in pairs(rows) do
+		local row = hudColumn:FindFirstChild(name)
+		if row and row:IsA("GuiObject") then
+			row.Position = UDim2.new(0.5, 0, 0, y)
+		end
+	end
 	for _, name in HUD_STORE_HIDDEN do
 		local child = hudColumn:FindFirstChild(name)
 		if child and child:IsA("GuiObject") then
@@ -1038,13 +1070,15 @@ end)
 -- Combo streak HUD (b-20261010-192608-4bs3, owner's ruling b-20261012-160551-8zmn;
 -- both run modes, b-20261012-203452-bisk). Purely cosmetic: it
 -- reads the replicated `Streak` / `StreakSpeed` attributes on my lane folder.
--- Sits under the Bugs label, clear of the world-space "Perfect xN"
+-- Tops the stat column while Playing, clear of the world-space "Perfect xN"
 -- popup, which floats at the grab point.
 local COMBO_COLD = Color3.fromRGB(255, 255, 255)
 local COMBO_HOT = Color3.fromRGB(255, 120, 40)
 local comboLabel = makeLabel("ComboLabel", 168, "")
 comboLabel.Size = UDim2.fromOffset(260, 44)
+comboLabel.AnchorPoint = Vector2.new(0.5, 1)
 comboLabel.Visible = false
+refreshHudColumn(runState) -- applies the Playing/Menu row order to every column row
 local comboScale = Instance.new("UIScale")
 comboScale.Parent = comboLabel
 -- Combo timeout bar (b-20261012-205417-kzbm): drains over Config.STREAK_TIMEOUT
@@ -1053,11 +1087,10 @@ local COMBO_TIMER_WIDTH = 150
 local comboTimer = Instance.new("Frame")
 comboTimer.Name = "ComboTimer"
 comboTimer.AnchorPoint = Vector2.new(0.5, 0)
-comboTimer.Position = UDim2.new(0.5, 0, 1, 2)
 comboTimer.Size = UDim2.fromOffset(COMBO_TIMER_WIDTH, 6)
 comboTimer.BorderSizePixel = 0
 comboTimer.Visible = false
-comboTimer.Parent = comboLabel
+comboTimer.Parent = hudColumn
 UIKit.corner(comboTimer, 3)
 local comboTimerTween: Tween? = nil
 
@@ -1086,6 +1119,7 @@ local speedLabel = makeLabel("SpeedCueLabel", 244, "SPEED UP!")
 speedLabel.Size = UDim2.fromOffset(220, 30)
 speedLabel.TextColor3 = UIKit.GOOD
 speedLabel.TextTransparency = 1
+refreshHudColumn(runState) -- positions the combo timer and speed cue too
 local speedStroke = speedLabel:FindFirstChildOfClass("UIStroke")
 if speedStroke then
 	speedStroke.Transparency = 1

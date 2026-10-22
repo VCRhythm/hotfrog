@@ -3360,3 +3360,15 @@ studio: Hot Frog, Play stopped
 review: concern Shove on a held step only dragged it (no release), and the CHEF_STRIKE_GRACE comments in Config.luau:498 and Chef.luau still said a grab saves the step; checked: dropAway → forceReleaseStep path, the land() foothold gate, a grep for leftover "save" text
 re-review: looks-right; checked: forceRelease scoped to the owning lane's frog and matching held slot, a silent no-op when nobody holds it, release before addMotion, comment/doc accuracy
 leftover: the held-target hit was not observed live; it needs a scripted hold on the ChefTarget step during the tell. Filed as a follow-up.
+
+## b-20261022-135019-jlhg  fixed  2026-10-22 13:56
+note: I want the info towards the buttom of the screen during a run (it's in the way being right in the top center). once it's all at the bottom, the combo text should be at the *top* of the stack (reopens b-20261022-133647-9w0z)
+cause: While Playing, the HUD StatColumn was anchored top-centre (y=12) with the combo as its bottom row, which put it in the way at the top of the screen.
+change: While Playing, src/client/GameClient.client.luau anchors the column at bottom-centre (AnchorPoint 0.5,1, 24px margin). From the top down it shows the combo label (bottom-anchored, so its scale grows upward), the combo timer (now an unscaled sibling), then Score, Best, Flys and Bugs at fixed rows. The speed cue sits above the combo. Menu, Dead and the store view keep their earlier layout through per-state row tables in refreshHudColumn.
+files: src/client/GameClient.client.luau
+test: selene src/ exit 0; tools/luau_check.sh on the file clean; rojo build ok; stylua --check clean
+verified: partly — in the Studio Play run in the Kitchen at 1048x955 with COMBO x42 active, the column ends about 33px above the bottom. ComboLabel spans y 573-654, the timer 657-665 and Score 670-713. Best, Flys and Bugs follow down to 859. SpeedCueLabel sits at y 465-505, above the combo, with no overlaps. Phone size and the home-bar margin were not run.
+studio: Hot Frog, Play stopped
+review: concern SpeedCueLabel stayed at column y=244 (off-screen when bottom-anchored), and the combo UIScale (up to ~1.96x about the centre) plus its child timer spilled onto Score; checked: every state transition through refreshHudColumn, the Shop/Gift buttons (hidden while Playing), the race rail, the HUD inset (IgnoreGuiInset=false)
+re-review: looks-right; checked: the Menu/Dead positions are identical (combo bottom 212, timer 214, cue 244), the timer sibling is hidden on every combo-hide path, and the punch/LOST tweens are intact
+owed: o-20261022-135611-obdo (phone/emulator: bottom stack clear of the home bar, plus the touch red-X, title and Daily-dim checks carried over from o-20261022-134308-45zy, which this send-back cleared)

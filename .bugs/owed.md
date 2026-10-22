@@ -278,8 +278,16 @@ done-check: bash tools/studio_ready.sh
 evidence: done-check passed: 34872
 cleared: 2026-10-22 13:28 marked done on the dashboard
 
-## o-20261022-134308-45zy  open  2026-10-22 13:43
+## o-20261022-134308-45zy  done  2026-10-22 13:43
 for: b-20261022-133647-9w0z
 kind: device
 step: On a phone (or Studio's device emulator with touch), play a run: switch fingers between grabbed steps (no red X; an empty tap still shows it), check the HOTFROG title is readable and clear of the score column and menu panel, and that the Daily Streak dim reaches the very top edge
+no-check: needs a person's real or emulated multi-touch and eyes at phone size; the Studio MCP cannot drive touch or the emulator
+evidence: none, the user sent it back to the loop as b-20261022-135019-jlhg
+cleared: 2026-10-22 13:50 sent back to loop as b-20261022-135019-jlhg: I want the info towards the buttom of the screen during a run (it's in the way being right in the top center). once it's all at the bottom, the combo text should be at the *top* of the stack
+
+## o-20261022-135611-obdo  open  2026-10-22 13:56
+for: b-20261022-135019-jlhg
+kind: device
+step: On a phone (or Studio's device emulator with touch), play a run: the score/combo stack sits at the bottom clear of the home bar with the combo on top; switching fingers between grabbed steps shows no red X (an empty tap still does); the HOTFROG title is readable; the Daily Streak dim reaches the top edge
 no-check: needs a person's real or emulated multi-touch and eyes at phone size; the Studio MCP cannot drive touch or the emulator
