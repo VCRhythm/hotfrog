@@ -96,6 +96,7 @@ steamPart.Parent = folder
 local gui = Instance.new("ScreenGui")
 gui.Name = "PotVignette"
 gui.IgnoreGuiInset = true
+gui.ScreenInsets = Enum.ScreenInsets.None -- cover the notch/topbar too (phones)
 gui.DisplayOrder = -5
 gui.ResetOnSpawn = false
 local function vignetteEdge(anchor: Vector2, size: UDim2, rotation: number): Frame

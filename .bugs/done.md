@@ -3248,3 +3248,12 @@ test: selene src/ clean; tools/luau_check.sh on the file clean; rojo build ok; s
 verified: no — static checks only; covered by the loop's Studio pass this tick
 review: concern the first version placed the title at GuiInset.Y + 4, double-counting the inset in MenuGui (IgnoreGuiInset=false), which put it about 120px down on phones, overlapping the HUD stat column; the inset was also read once at load; checked: the diff, MenuClient, UIKit screenGui/label/safeAreaTopPadding, the GameClient HUD column, the screenshot
 re-review: looks-right; checked: the new diff; in gui space the title spans 8-64 against the HUD score label at 108 and the Frogs-view SkinName at 96 (StoreUI.client.luau), both in inset-relative guis, so the clearance holds at any inset; menu-panel overlap in portrait not computed (Studio pass)
+
+## b-20261022-132723-mxjm  fixed  2026-10-22 13:36
+note: the "dark" filter doesn't go all the way to the top of the screen, doesn't cover full screen on a phone
+cause: The full-screen dim overlays sat in ScreenGuis that stop below the topbar or notch on phones. The Daily Streak dim ("DailyReward") was in MenuGui, which has IgnoreGuiInset=false, and the Pot vignette and level-transition flash kept the default ScreenInsets.
+change: The Daily Streak dim and its card now live in their own UIKit.screenGui("DailyRewardGui"). It sets IgnoreGuiInset=true, ScreenInsets=None and DisplayOrder 11, and keeps the same UIScale, so the card scales as before. close() destroys the gui, and MenuGui's temporary DisplayOrder lift is removed. PotVignette and TransitionFlash get ScreenInsets=None too.
+files: src/client/MenuClient.client.luau, src/client/PotAtmosphere.client.luau, src/client/WorldBackdrop.client.luau
+test: selene src/ exit 0; tools/luau_check.sh on MenuClient clean; rojo build ok; stylua --check clean (LF-normalised)
+verified: no; static checks only, covered by the loop's Studio pass this tick
+review: looks-right; checked: the three diffs, UIKit.screenGui (sets IgnoreGuiInset=false and a UIScale, never ScreenInsets; the overrides come after it), showDailyPopup close paths and its popupOpen re-open guard (no leak or double-create), grep of src/client for other full-screen dark frames (none), no interactive content under the vignette or flash; nit: DisplayOrder tied with the lifted MenuGui at 10, which the fixer then set to 11 with the lift removed

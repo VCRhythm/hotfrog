@@ -1039,12 +1039,17 @@ local function showDailyPopup(r: DailyResult)
 	popupOpen = true
 	-- b-20261016-124204-f68f: the popup cancels a start queued while Dead; Play again after collecting.
 	pendingStart = false
-	-- b-20261016-123559-s03q: StoreGui (Gift/Shop) shares DisplayOrder 5, so lift
-	-- this gui above it while the popup is up; close() restores it.
-	gui.DisplayOrder = 10
 	SoundFX.play("highScore")
 
 	-- Full-screen dim layer that also swallows clicks meant for the menu below.
+	-- Own ScreenGui (same UIKit scale as MenuGui, so the card scales the same) with
+	-- no inset, so the dim reaches the very top and the phone notch/safe area
+	-- (b-20261022-132723-mxjm).
+	local dimGui = UIKit.screenGui("DailyRewardGui")
+	dimGui.IgnoreGuiInset = true
+	dimGui.ScreenInsets = Enum.ScreenInsets.None
+	-- b-20261016-123559-s03q: above StoreGui (Gift/Shop) and MenuGui, both at 5.
+	dimGui.DisplayOrder = 11
 	local overlay = Instance.new("TextButton")
 	overlay.Name = "DailyReward"
 	overlay.Text = ""
@@ -1054,7 +1059,8 @@ local function showDailyPopup(r: DailyResult)
 	overlay.BackgroundColor3 = Color3.new(0, 0, 0)
 	overlay.BackgroundTransparency = 1
 	overlay.ZIndex = 20
-	overlay.Parent = gui
+	overlay.Parent = dimGui
+	dimGui.Parent = player:WaitForChild("PlayerGui")
 	TweenService:Create(overlay, TweenInfo.new(0.25), { BackgroundTransparency = 0.4 }):Play()
 
 	-- Spinning sunburst behind the panel. Each bar spins on its own: a
@@ -1217,9 +1223,8 @@ local function showDailyPopup(r: DailyResult)
 			:Play()
 		TweenService:Create(overlay, TweenInfo.new(0.25), { BackgroundTransparency = 1 }):Play()
 		task.wait(0.25)
-		overlay:Destroy()
+		dimGui:Destroy()
 		popupOpen = false
-		gui.DisplayOrder = 5
 		if mainPanel.Visible then
 			focusFirst(playButton)
 		end

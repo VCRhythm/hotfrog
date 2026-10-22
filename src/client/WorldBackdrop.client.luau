@@ -384,6 +384,7 @@ end
 local flashGui = Instance.new("ScreenGui")
 flashGui.Name = "TransitionFlash"
 flashGui.IgnoreGuiInset = true
+flashGui.ScreenInsets = Enum.ScreenInsets.None
 flashGui.DisplayOrder = 100
 
 local flashFrame = Instance.new("Frame")
