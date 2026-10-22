@@ -1778,11 +1778,69 @@ end
 -- arrows, no hazards).
 -- Each spot goes through Lane.clearSpot (spacing incl. the kind's sweep, lane
 -- bounds, the PlayerList keep-out) and must be within Config.MAX_GRAB_DISTANCE
--- of the origin (GameServer's GrabStep reach check). A rung whose spot is already taken is
--- skipped (the live steps there are that rung); the chain ends at the first rung
--- beyond reach. `spawnFn` gets the position to create the
--- part at now (rest less the lane's running pulls, like prefill); GameServer
--- then slides the batch down in from above the view.
+-- of the origin (GameServer's GrabStep reach check).
+--   * Straight up (the Up arrow): a rung whose spot is already taken is skipped
+--     (the live steps there are that rung); the chain ends at the first rung
+--     beyond reach.
+--   * A heading with any sideways part (Left/Right/UpLeft/UpRight): the line
+--     leaves a portrait phone's view (Config.SPAWN_VIEW_HALF_WIDTH) after one
+--     rung, so each rung is laid at the clear spot inside that view nearest its
+--     point on the line, the line bent straight up where it meets the view edge
+--     (scaffoldSpotInView). Rungs laid off-screen left the new direction looking
+--     empty on a phone (b-20261022-140225-lhat).
+-- `spawnFn` gets the position to create the part at now (rest less the lane's
+-- running pulls, like prefill); GameServer then slides the batch down in from
+-- above the view.
+
+-- How far (studs) a `kindName` step's centre may rest from the lane centre and
+-- still have its whole grab box, sweep included, inside the portrait view:
+-- sideways, and vertically inside Config.VIEW_HALF_HEIGHT. Same bound
+-- fitStaging holds a straight-down spawn to.
+local function viewBox(kindName: string, sweep: Vector2): Vector2
+	local kind = StepKinds[kindName]
+	local hit = if kind and kind.hitSize then kind.hitSize else Vector2.new(DEFAULT_SIZE.X, DEFAULT_SIZE.Y)
+	return Vector2.new(
+		math.max(0, Config.SPAWN_VIEW_HALF_WIDTH - hit.X / 2 - sweep.X),
+		math.max(0, Config.VIEW_HALF_HEIGHT - hit.Y / 2 - sweep.Y)
+	)
+end
+
+-- The rest spot for a sideways / diagonal scaffold rung meant for `want`: the
+-- clear (Lane.clearSpot, no nudge) and reachable point inside the portrait view
+-- (viewBox, judged at the grip point) nearest `want` once `want` is bent onto
+-- the view -- the part of the line past the heading-side edge turned straight
+-- up the edge, so a ladder that runs out of width climbs instead. Searched on a
+-- SCAFFOLD_GRID grid over the heading half of the view (centre column
+-- included); nil when every point is crowded.
+local function scaffoldSpotInView(self: Lane, want: Vector3, side: number, kindName: string, sweep: Vector2): Vector3?
+	local box = viewBox(kindName, sweep)
+	local grip = gripOf(kindName)
+	local rel = want + grip - self.origin -- the grip point, lane-relative
+	local excess = math.abs(rel.X) - box.X
+	if excess > 0 then
+		rel = Vector3.new(math.sign(rel.X) * box.X, rel.Y + excess, 0)
+	end
+	local ideal = Vector2.new(rel.X, math.clamp(rel.Y, -box.Y, box.Y))
+	local spots: { Vector2 } = {}
+	local grid = Config.SCAFFOLD_GRID
+	for gx = 0, math.floor(box.X / grid) do
+		for gy = -math.floor(box.Y / grid), math.floor(box.Y / grid) do
+			table.insert(spots, Vector2.new(side * gx * grid, gy * grid))
+		end
+	end
+	table.sort(spots, function(a, b)
+		return (a - ideal).Magnitude < (b - ideal).Magnitude
+	end)
+	for _, spot in spots do
+		local pos = self.origin + Vector3.new(spot.X, spot.Y, want.Z) - grip
+		local clear = self:clearSpot(pos, kindName, Vector3.zero, sweep)
+		if clear and withinReach(self, clear, sweep, kindName) then
+			return clear
+		end
+	end
+	return nil
+end
+
 function Lane.scaffold(self: Lane, anchor: Vector3, spawnFn: SpawnFn)
 	local travel = self.travel
 	if travel == Vector3.zero or self:atPotTop() then
@@ -1790,6 +1848,7 @@ function Lane.scaffold(self: Lane, anchor: Vector3, spawnFn: SpawnFn)
 	end
 	local heading = -travel
 	local rise = if math.abs(travel.Y) < 1e-4 then Vector3.new(0, Config.SCAFFOLD_RISE, 0) else Vector3.zero
+	local side = signOf(heading.X) -- 0: straight up
 
 	local spawners: { SpawnerState } = {}
 	for _, state in self.activeSpawners do
@@ -1807,22 +1866,44 @@ function Lane.scaffold(self: Lane, anchor: Vector3, spawnFn: SpawnFn)
 	-- only SCAFFOLD_NUDGE studs)
 	local nudge = travel * (Config.SCAFFOLD_NUDGE / Config.SPAWN_NUDGE_MAX)
 	for i = 1, Config.SCAFFOLD_COUNT do
-		local kindName = self:pickKind(spawners[math.random(1, #spawners)], true)
-		if not kindName then
-			return
-		end
-		local kind = StepKinds[kindName]
-		local params = if kind then kind.params else nil
-		local sweep = sweepOf(kindName, params)
 		local want = anchor + heading * (Config.SCAFFOLD_SPACING * i) + rise * i
-		if planarDistance(self, want + gripOf(kindName)) > Config.MAX_GRAB_DISTANCE then
-			return -- every further rung is further out still
-		end
-		-- nil means the spot is already taken by live steps (which then serve as
-		-- this rung) or would leave the lane, so skip the rung
-		local pos = self:clearSpot(want, kindName, nudge, sweep)
-		if pos and withinReach(self, pos, sweep, kindName) then
-			emit(self, spawnFn, kindName, params, pos - pending, nil, "scaffold")
+		if side == 0 then
+			local kindName = self:pickKind(spawners[math.random(1, #spawners)], true)
+			if not kindName then
+				return
+			end
+			local kind = StepKinds[kindName]
+			local params = if kind then kind.params else nil
+			local sweep = sweepOf(kindName, params)
+			if planarDistance(self, want + gripOf(kindName)) > Config.MAX_GRAB_DISTANCE then
+				return -- every further rung is further out still
+			end
+			-- nil means the spot is already taken by live steps (which then serve
+			-- as this rung) or would leave the lane, so skip the rung
+			local pos = self:clearSpot(want, kindName, nudge, sweep)
+			if pos and withinReach(self, pos, sweep, kindName) then
+				emit(self, spawnFn, kindName, params, pos - pending, nil, "scaffold")
+			end
+		else
+			-- the view's heading half is narrow, and a mover's sweep (a Lillipad's
+			-- patrol) reserves most of it: a kind with no spot there is re-picked,
+			-- up to SCAFFOLD_PICKS kinds per rung, leaving the intro cursor as it was
+			for _ = 1, Config.SCAFFOLD_PICKS do
+				local introIndex = self.introIndex
+				local kindName = self:pickKind(spawners[math.random(1, #spawners)], true)
+				if not kindName then
+					return
+				end
+				local kind = StepKinds[kindName]
+				local params = if kind then kind.params else nil
+				local sweep = sweepOf(kindName, params)
+				local pos = scaffoldSpotInView(self, want, side, kindName, sweep)
+				if pos then
+					emit(self, spawnFn, kindName, params, pos - pending, nil, "scaffold")
+					break
+				end
+				self.introIndex = introIndex
+			end
 		end
 	end
 end

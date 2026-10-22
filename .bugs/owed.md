@@ -311,3 +311,9 @@ for: b-20261022-140925-k146
 kind: device
 step: On a portrait phone, start the Tutorial and check the second and third acorns are on screen and easy to reach, and the squashed oak looks acceptable
 no-check: needs a real portrait phone and a judgement of reach and looks
+
+## o-20261022-144035-4c1q  open  2026-10-22 14:40
+for: b-20261022-140225-lhat
+kind: device
+step: On a portrait phone in Kitchen or Country, grab a sideways or diagonal arrow and check at least one new step appears on screen toward the new direction within about a second
+no-check: needs a real portrait phone; Studio MCP cannot set a phone viewport

@@ -3464,3 +3464,15 @@ verified: partly — Studio desktop Tutorial (StudioSkipTo "Tutorial"): acorns r
 studio: Hot Frog, Play stopped
 review: concern (tree art ACORN_AT/TILES still at the old heights), fixed; re-review: one wrong doc number (acorn 3 after two grabs is about 6, not 8), corrected by the orchestrator
 owed: o-20261022-144016-c0ap
+
+## b-20261022-140225-lhat  fixed  2026-10-22 14:40
+note: when changing directions on vertical mobile, steps need to appear more quickly because there goes a long time when changing directions before a step appears
+cause: Lane.scaffold laid sideways/diagonal rungs on a straight line from the arrow (e.g. (9.5,1.5), (16,3), (22.5,4.5) for grip (3,5)), past a portrait phone's ±8.84-stud view, and the one in-view rung was crowded out, so no rung was placed at all (Studio: all 3 nil). Separately, GameServer.hasFoothold counted any step within MAX_GRAB_DISTANCE as a foothold, so the starvation scaffold never fired while the new direction's regular spawns (staged at Unity's 1.5 half-widths) rested off a phone's screen.
+change: New Lane.scaffoldSpotInView places each sideways/diagonal rung at the clear, reachable spot inside the portrait view nearest its point on the line: the line bends straight up the screen edge, box plus sweep is kept in view (viewBox, same bound as fitStaging), and the search is a 1-stud grid (Config.SCAFFOLD_GRID) over the heading half. Each rung re-picks its kind up to Config.SCAFFOLD_PICKS = 3 times, with introIndex restored for unplaced kinds. The Up arrow is unchanged. hasFoothold also requires |x| <= SPAWN_VIEW_HALF_WIDTH. Spawner staging was left at Unity's value. Doc 17 "Direction-change scaffold" and "Starvation scaffold" rows rewritten.
+files: src/server/Lane.luau, src/shared/Config.luau, src/server/GameServer.server.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/ (0/0), tools/luau_check.sh, rojo build ok
+verified: partly — Studio desktop (fixer's run, Kitchen Normal, StudioSpawnKind RightRock grip 3,5 + GrabStep). Before: no new step after the grab. After: two new rungs resting in view within 1.2 s, at (3,8) and (5,-10) in run A, and at (5,-7) and (5,-12) in run B. A follow-up grab of a rung worked and did not refire the scaffold while a foothold was on screen. Not checked at a portrait viewport.
+studio: Hot Frog, Play stopped
+review: concern (pre-nudge view check could yield zero rungs), reworked; re-review concern (stacked fallback could land above the view), then the Studio check failed (no rungs at all), escalated to an opus fixer who found the real cause and rewrote it; fresh review looks-right (notes: the grid can fall back to rungs below the frog; bias toward +Y is optional hardening)
+owed: o-20261022-144035-4c1q
+finding: The Chef can strike a phone's last on-screen free step mid-pull, filed as b-20261022-143822-gemh.

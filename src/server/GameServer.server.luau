@@ -979,6 +979,10 @@ end
 -- 45-degree arrow scroll), and with no further grab nothing ever brings them
 -- in. True while `f` has a step to grab next: one it isn't holding, not
 -- dropping away, resting in the camera band and within reach of the origin.
+-- The band is a portrait phone's (Config.SPAWN_VIEW_HALF_WIDTH sideways, the
+-- server can't see the client's aspect): under sideways or diagonal travel the
+-- new spawns rest past that edge for a grab or two, and a step a phone can't
+-- show is no foothold (b-20261022-140225-lhat).
 local function hasFoothold(lane: Lane.Lane, f: FrogState): boolean
 	local shared = lane:sharedPending()
 	for step, st in lane.states do
@@ -990,7 +994,8 @@ local function hasFoothold(lane: Lane.Lane, f: FrogState): boolean
 				rel += Vector3.new(grip.X, grip.Y, 0)
 			end
 			if
-				math.abs(rel.Y) <= Config.VIEW_HALF_HEIGHT
+				math.abs(rel.X) <= Config.SPAWN_VIEW_HALF_WIDTH
+				and math.abs(rel.Y) <= Config.VIEW_HALF_HEIGHT
 				and Vector2.new(rel.X, rel.Y).Magnitude <= Config.MAX_GRAB_DISTANCE
 			then
 				return true
