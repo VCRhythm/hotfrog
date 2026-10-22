@@ -3238,3 +3238,13 @@ files: src/client/WorldTouchIndicator.client.luau
 test: selene src/ clean; tools/luau_check.sh on the file clean; rojo build ok; stylua --check clean (LF-normalised)
 verified: no — needs real or emulated multi-touch; covered by the loop's Studio pass this tick
 review: looks-right; checked: the whole script and diff, GameClient stepAt/tryGrab/tryCatchBug and touch handlers (the indicator's hit test matches GameClient's tap box and bug ray; gamepad-only snap assist), multi-touch replacement of the tracked input, mouse path; noted a pre-existing ray-face vs plane-point difference at collider edges, not the cause
+
+## b-20261022-132934-sgr2  fixed  2026-10-22 13:34
+note: the HOTFROG logo is tiny and unreadable (.bugs/attachments/b-20261022-132934-sgr2-1.png)
+cause: The menu title used UIKit.safeAreaTopPadding(title, 0) inside a 64px TextScaled box, so on phones the ~58px top-bar inset left about 6px for the text.
+change: The title is now 70% width x 56px (UISizeConstraint max 360x56) at a fixed y = 8 with no padding. MenuGui already sits below the top-bar inset, so no inset term is needed. There is no logo sprite; it stays text.
+files: src/client/MenuClient.client.luau
+test: selene src/ clean; tools/luau_check.sh on the file clean; rojo build ok; stylua --check clean (LF-normalised)
+verified: no — static checks only; covered by the loop's Studio pass this tick
+review: concern the first version placed the title at GuiInset.Y + 4, double-counting the inset in MenuGui (IgnoreGuiInset=false), which put it about 120px down on phones, overlapping the HUD stat column; the inset was also read once at load; checked: the diff, MenuClient, UIKit screenGui/label/safeAreaTopPadding, the GameClient HUD column, the screenshot
+re-review: looks-right; checked: the new diff; in gui space the title spans 8-64 against the HUD score label at 108 and the Frogs-view SkinName at 96 (StoreUI.client.luau), both in inset-relative guis, so the clearance holds at any inset; menu-panel overlap in portrait not computed (Studio pass)

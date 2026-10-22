@@ -73,12 +73,16 @@ end
 local gui = UIKit.screenGui("MenuGui")
 gui.DisplayOrder = 5
 
-local title = UIKit.label("Title", "HOTFROG", UDim2.fromOffset(320, 64), UDim2.new(0.5, -160, 0, 24), gui)
+-- b-20261022-132934-sgr2: the title used to carry safeAreaTopPadding inside a
+-- 64px TextScaled box, so the top-bar inset (~58px on phones) left a ~6px text
+-- area. MenuGui already sits below the inset (IgnoreGuiInset=false), so y is a fixed 8; the box scales with the screen.
+local title = UIKit.label("Title", "HOTFROG", UDim2.new(0.7, 0, 0, 56), UDim2.new(0.5, 0, 0, 8), gui)
+title.AnchorPoint = Vector2.new(0.5, 0)
 title.TextColor3 = UIKit.TITLE
 UIKit.textStroke(title)
-title.Position = UDim2.new(0.5, -160, 0, 24)
-title.AnchorPoint = Vector2.new(0, 0)
-UIKit.safeAreaTopPadding(title, 0)
+local titleMax = Instance.new("UISizeConstraint")
+titleMax.MaxSize = Vector2.new(360, 56)
+titleMax.Parent = title
 
 -- ---------------------------------------------------------------------------
 -- Main menu panel (RunState.Menu)
