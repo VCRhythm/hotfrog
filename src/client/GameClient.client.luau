@@ -436,7 +436,21 @@ local function getFreeSlotIndex(): number?
 	return nil
 end
 
+-- Which limb each live input holds, so an input-up frees ITS OWN limb rather
+-- than the most recent one (Player.cs Update: !IsInputOn(i) -> FreeTouch(i)).
+-- Touches are distinct InputObjects; the two mouse buttons key off their type.
+local heldByInput: { [any]: number } = {}
+
 local function releaseSlot(index: number)
+	-- Whatever input owned this limb no longer does, however the slot was freed
+	-- (server ForceRelease, gamepad). Otherwise a finger still resting on a step
+	-- that was knocked off would, on lifting, free the limb a LATER finger had
+	-- since taken (b-20261022-140440-c2tq).
+	for key, owned in heldByInput do
+		if owned == index then
+			heldByInput[key] = nil
+		end
+	end
 	local step = slots[index].heldStep
 	if step then
 		slots[index].heldStep = nil
@@ -682,10 +696,6 @@ local function isGrabInput(input: InputObject): boolean
 		or input.UserInputType == Enum.UserInputType.Touch
 end
 
--- Which limb each live input holds, so an input-up frees ITS OWN limb rather
--- than the most recent one (Player.cs Update: !IsInputOn(i) -> FreeTouch(i)).
--- Touches are distinct InputObjects; the two mouse buttons key off their type.
-local heldByInput: { [any]: number } = {}
 local function inputKey(input: InputObject): any
 	return if input.UserInputType == Enum.UserInputType.Touch then input else input.UserInputType
 end

@@ -3433,3 +3433,13 @@ test: none
 verified: n/a
 review: n/a
 finding: Keep the committed music1/music5 ids, and set the two tools/asset_ids.json entries back to them, keeping their new sourceHash so nothing re-uploads.
+
+## b-20261022-140440-c2tq  fixed  2026-10-22 14:21
+note: I'm getting steps being let go even when my finger (touch screen) is still down on the screen and the step still exists
+cause: GameClient kept a finger's heldByInput entry after the server freed that limb slot (ForceRelease from a knock-off, despawn, lava/edge drop or rejected grab), so when that stale finger later lifted it released the slot again, by then holding a step another finger had grabbed and was still pressing.
+change: releaseSlot now clears every heldByInput entry pointing at the slot it frees, however it is freed (heldByInput is declared above it). Server release paths (step behaviours, Classic lava/edge drop, grab rejections) checked and left as intended.
+files: src/client/GameClient.client.luau
+test: stylua --check, selene src/ (0/0), tools/luau_check.sh on the file (0 errors), rojo build ok
+verified: no — needs two real touches; the Studio MCP cannot drive multi-touch
+review: looks-right
+owed: o-20261022-142137-ufk7

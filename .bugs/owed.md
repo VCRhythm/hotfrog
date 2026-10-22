@@ -299,3 +299,9 @@ for: b-20261022-135157-8qux
 kind: device
 step: On a portrait phone (or a portrait device emulator), start a run: the opening steps should sit well inside the screen, not at the edge; do it with the o-20261022-135611-obdo phone pass
 no-check: only a person on a portrait phone can judge where the steps sit
+
+## o-20261022-142137-ufk7  open  2026-10-22 14:21
+for: b-20261022-140440-c2tq
+kind: device
+step: On a phone in Normal mode, hold two steps with two fingers, let one step be knocked off or fall while its finger stays down, grab a new step with the other finger, then lift the old finger: the new step should stay held
+no-check: needs two real fingers on a touch screen; the Studio MCP cannot drive multi-touch
