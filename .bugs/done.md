@@ -3557,3 +3557,14 @@ review: looks-right; checked: the diff, Lane.luau clampToLane/entryShift/placeSt
 leftover: none — the placement was measured against the portrait bound in a real Studio run; the remaining sparsity is Unity's spawn cadence, put to the owner as b-20261022-151623-k8sg
 followups: b-20261022-151623-k8sg
 finding: Country's sideways start stages Balloons and Halloween Pumpkin swaps below the view, filed by the fixer as b-20261022-151506-m7pq.
+
+## b-20261022-151506-m7pq  fixed  2026-10-22 15:20
+note: Country sideways: Level4RightStepSpawner stages Balloons (and Halloween Pumpkin swaps) at y=-19.6, below the view, so under a sideways scroll they are never visible or reachable
+cause: Unity's literal Level4RightStepSpawner Movements Y (-1.25 x half-height, which is -19.6) only works in Unity because its continuous 2D pull drags steps up. The port's sideways travel never changes Y, and Lane.fitStaging/clampToLane clamped only X for sideways spawners.
+change: Lane.fitStaging now clamps the staging Y of pure-sideways spawners (direction.Y sign 0), so the kind's grab box (hitOffset included, minus sweep) lies within ±VIEW_HALF_HEIGHT, mirroring the X clamp. Movements data is unchanged. The doc 17 pull row has a trade-off note. Kitchen sideways spawners and diagonals are unaffected.
+files: src/server/Lane.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/ (0/0), tools/luau_check.sh Lane.luau, rojo build ok
+verified: partly — fixer's Studio run, StudioSkipTo("Country",40). Before: Balloon (-6.1,-19.6), Pumpkins (-18.2,-19.6) and (9.6,-19.6). After: Pumpkins (-15.2,-13.2) and (0,7.9); Rocket (1.5,-19.6) left unclamped, with its grip box at y -10.1. A 27-grab bot saw nothing from that spawner below the view. No Balloon spawned in that run.
+studio: Hot Frog (6c5b1067), Play stopped
+review: looks-right; checked: the diff, Lane.luau fitStaging/clampToLane/clearSpot/placeStep/spawnSingle/scaffold, StepKinds, Levels, StepBehaviors, Config, luau_check (Balloon computes to -9.43; Rocket is under its 11.8 limit and so unchanged; Halloween swaps use the swapped kind's box)
+leftover: Balloon rest position checked in Studio, filed as b-20261022-152028-ungd

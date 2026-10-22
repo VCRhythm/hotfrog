@@ -1320,6 +1320,8 @@ end
 --   * A spawner that travels straight down never moves a step sideways, so the
 --     grab box AND the whole sweep must sit inside the portrait view
 --     (Config.SPAWN_VIEW_HALF_WIDTH) from the start.
+--   * A spawner that travels straight sideways never moves a step vertically, so
+--     its grab box must sit inside the view (Config.VIEW_HALF_HEIGHT) in Y.
 --   * The step must be within reach of the lane origin at either end of its sweep.
 -- A no-op for a pool kind that stays put: clampToLane has already held it to
 -- the same bounds using the pool's widest grab box.
@@ -1330,6 +1332,15 @@ local function fitStaging(offset: Vector3, def: Levels.StepSpawnerDef, kindName:
 		local hitX = if kind then kind.hitSize.X else DEFAULT_SIZE.X
 		local limit = math.max(0, Config.SPAWN_VIEW_HALF_WIDTH - hitX / 2 - sweep.X)
 		x = math.clamp(x, -limit, limit)
+	end
+	if signOf(def.direction.Y) == 0 then
+		-- pure sideways travel never changes Y, so a Y staged outside the view stays out
+		-- (Country's Level4RightStepSpawner stages at -19.6): hold the grab box inside it
+		local kind = StepKinds[kindName]
+		local hitY = if kind then kind.hitSize.Y else DEFAULT_SIZE.Y
+		local hitOffsetY = if kind and kind.hitOffset then kind.hitOffset.Y else 0
+		local limit = math.max(0, Config.VIEW_HALF_HEIGHT - hitY / 2 - sweep.Y)
+		y = math.clamp(y + hitOffsetY, -limit, limit) - hitOffsetY
 	end
 	local reach = Config.MAX_GRAB_DISTANCE - math.max(sweep.X, sweep.Y)
 	-- clamp the grip point, not the centre (a tall step's hand lands off-centre)
