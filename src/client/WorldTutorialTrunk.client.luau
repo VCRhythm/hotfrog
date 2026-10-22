@@ -36,24 +36,36 @@ local SpriteSkin = require(ReplicatedStorage.Shared.SpriteSkin)
 
 local stepsFolder = workspace:WaitForChild("PlayField"):WaitForChild("Steps")
 
-local TILE_SIZE = Vector3.new(24, 24, 0.2) -- 1024px tile; Z thickness as the frog's art parts
+-- The art was drawn for acorns at y = -3.1429 / 15.7143 / 25 (Unity's Movements
+-- Y); b-20261022-140925-k146 lowered the Tutorial acorns for phones, so the whole
+-- tree is squashed vertically about the first acorn by ART_V_SCALE (x unchanged)
+-- to keep every twig under its acorn. Levels' Tutorial Y = -0.2 / 0.58 / 0.96
+-- of the half view (-3.14 / 9.11 / 15.09 studs) is what ART_V_SCALE is fitted to.
+local ART_V_SCALE = 0.65
+local ART_BASE_Y = -3.1429
+local function squash(y: number): number
+	return ART_BASE_Y + (y - ART_BASE_Y) * ART_V_SCALE
+end
+
+local TILE_SIZE = Vector3.new(24, 24 * ART_V_SCALE, 0.2) -- 1024px tile; Z thickness as the frog's art parts
 local TREE_Z = Config.PLANE_Z - 0.225
 
 -- Where the tree art puts each acorn, relative to the tree origin (= the lane
--- origin at rest). The tiles were drawn around these points: if Levels' Tutorial
--- Movements change, the art has to be redrawn to match.
+-- origin at rest). The tiles were drawn around these points (then squashed): if
+-- Levels' Tutorial Movements change, update ART_V_SCALE / these to match.
 local ACORN_AT: { [string]: Vector2 } = {
-	TutorialFirstTree = Vector2.new(4.8163, -3.1429),
-	TutorialSecondTree = Vector2.new(-4.8163, 15.7143),
-	TutorialLastTree = Vector2.new(4.8163, 25.0),
+	TutorialFirstTree = Vector2.new(4.8163, squash(-3.1429)),
+	TutorialSecondTree = Vector2.new(-4.8163, squash(15.7143)),
+	TutorialLastTree = Vector2.new(4.8163, squash(25.0)),
 }
 
--- Tile sprite and centre Y relative to the tree origin (tiles abut at 24 studs).
+-- Tile sprite and centre Y relative to the tree origin (tiles abut at 24 studs
+-- before the squash, 24 * ART_V_SCALE after).
 local TILES: { { sprite: string, y: number } } = {
-	{ sprite = "TutorialTreeTop", y = 26 },
-	{ sprite = "TutorialTreeMid", y = 2 },
-	{ sprite = "TutorialTreeTrunk", y = -22 },
-	{ sprite = "TutorialTreeTrunk", y = -46 },
+	{ sprite = "TutorialTreeTop", y = squash(26) },
+	{ sprite = "TutorialTreeMid", y = squash(2) },
+	{ sprite = "TutorialTreeTrunk", y = squash(-22) },
+	{ sprite = "TutorialTreeTrunk", y = squash(-46) },
 }
 
 local acorns: { [BasePart]: Vector2 } = {} -- live acorn step -> its ACORN_AT

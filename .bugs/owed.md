@@ -305,3 +305,9 @@ for: b-20261022-140440-c2tq
 kind: device
 step: On a phone in Normal mode, hold two steps with two fingers, let one step be knocked off or fall while its finger stays down, grab a new step with the other finger, then lift the old finger: the new step should stay held
 no-check: needs two real fingers on a touch screen; the Studio MCP cannot drive multi-touch
+
+## o-20261022-144016-c0ap  open  2026-10-22 14:40
+for: b-20261022-140925-k146
+kind: device
+step: On a portrait phone, start the Tutorial and check the second and third acorns are on screen and easy to reach, and the squashed oak looks acceptable
+no-check: needs a real portrait phone and a judgement of reach and looks

@@ -468,7 +468,10 @@ list[Levels.TUTORIAL] = {
 			-- Player1TreeDownStepSpawner's own Movements (doc 11 §2a); Player2's copy (a
 			-- purely x-shifted duplicate for split-screen) is dropped -- one lane per player
 			-- already gives everyone their own ladder (see the header comment above).
-			movements = mv({ { 2.5, -0.2 }, { -2.5, 1.0 }, { 2.5, 2.2 } }),
+			-- Unity's second/third Y (1.0, 2.2) are the very top of the view and past it, so
+			-- on a phone acorn 2 sat under the HUD / at the thumb's far edge
+			-- (b-20261022-140925-k146); lowered to 0.58 / 0.96 (doc 17; WorldTutorialTrunk's art is squashed to match).
+			movements = mv({ { 2.5, -0.2 }, { -2.5, 0.58 }, { 2.5, 0.96 } }),
 		},
 	},
 	scenerySpawners = {

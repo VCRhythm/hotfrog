@@ -3453,3 +3453,14 @@ test: none
 verified: n/a
 review: n/a
 leftover: none — the warning fires only when a non-Studio session holds the lock, which is the case it exists to report; muting it would hide real double-session saves
+
+## b-20261022-140925-k146  fixed  2026-10-22 14:40
+note: the second acorn is too high for a mobile device
+cause: The Tutorial TreeDownStepSpawner rests each acorn at its Unity Movements Y x MOVEMENTS_Y_SCALE (15.714), so Y -0.2 / 1.0 / 2.2 put acorn 2 at +15.7 (exactly the top edge of the vertical view, under the HUD on a phone) and acorn 3 past it (clamped to SPAWN_Y 25).
+change: Tutorial Movements Y are now -0.2 / 0.58 / 0.96 (rests -3.14 / 9.11 / 15.09). WorldTutorialTrunk squashes the oak art and its ACORN_AT anchors vertically by ART_V_SCALE 0.65 about the first acorn, so every twig still ends at its acorn (tiles 15.6 tall, abutting). Doc 17 row added.
+files: src/shared/Levels.luau, src/client/WorldTutorialTrunk.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/ (0/0), tools/luau_check.sh on both files, rojo build ok
+verified: partly — Studio desktop Tutorial (StudioSkipTo "Tutorial"): acorns rest at (4.82,-3.14), (-4.82,9.11), (4.82,15.09) as computed; the four TutorialTree tiles are 15.6 tall at y -31.02/-15.42/0.18/15.78, abutting; the screenshot shows each twig ending at its acorn. A portrait phone was not tested.
+studio: Hot Frog, Play stopped
+review: concern (tree art ACORN_AT/TILES still at the old heights), fixed; re-review: one wrong doc number (acorn 3 after two grabs is about 6, not 8), corrected by the orchestrator
+owed: o-20261022-144016-c0ap
