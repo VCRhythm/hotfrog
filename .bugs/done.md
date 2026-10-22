@@ -3414,6 +3414,7 @@ review: concern MenuClient read CameraFitZoom once, before GameClient set it, so
 re-review: looks-right; checked: the CameraFitZoom change hook in MenuClient, WorldBackdrop's refitWidth, the doc row, PotAtmosphere left alone (walls at 22 studs stay outside the view)
 owed: o-20261022-141404-k6j6 (portrait phone check, alongside o-20261022-135611-obdo)
 
+leftover: none — the portrait phone pass ran on a real device; owed step o-20261022-141404-k6j6 was marked done on the fleet dashboard at 2026-10-22 14:54
 ## b-20261022-135703-1p95  fixed  2026-10-22 14:13
 note: Studio check that a Chef blow on a HELD step knocks the frog off (reopens b-20261022-135113-xwjx)
 cause: Check of the b-20261022-135113-xwjx fix (Knife/Food go through dropAway, Shove force-releases first).
@@ -3444,6 +3445,7 @@ verified: no — needs two real touches; the Studio MCP cannot drive multi-touch
 review: looks-right
 owed: o-20261022-142137-ufk7
 
+leftover: none — the portrait phone pass ran on a real device; owed step o-20261022-142137-ufk7 was marked done on the fleet dashboard at 2026-10-22 14:54
 ## b-20261022-140736-kuj4  ignored  2026-10-22 14:22
 note: AUTO warning (server): [Profiles] FrequencyGames (4272203669): session lock still held by a2e95b54-24ce-46db-91bd-40289fba39bb after waiting -- proceeding anyway.
 cause: The lock owner has no Studio prefix (Profiles.luau already skips stale Studio locks), so it was a live game server's session. That fits the phone play-through that filed lhat, c2tq and k146 around 14:00, still holding the profile when Studio Play started at 14:07. The warning is the designed signal for two sessions sharing one profile, not a defect.
@@ -3466,6 +3468,7 @@ review: concern (tree art ACORN_AT/TILES still at the old heights), fixed
 re-review: one wrong doc number (acorn 3 after two grabs is about 6, not 8), corrected by the orchestrator
 owed: o-20261022-144016-c0ap
 
+leftover: none — the portrait phone pass ran on a real device; owed step o-20261022-144016-c0ap was marked done on the fleet dashboard at 2026-10-22 14:54
 ## b-20261022-140225-lhat  fixed  2026-10-22 14:40
 note: when changing directions on vertical mobile, steps need to appear more quickly because there goes a long time when changing directions before a step appears
 cause: Lane.scaffold laid sideways/diagonal rungs on a straight line from the arrow (e.g. (9.5,1.5), (16,3), (22.5,4.5) for grip (3,5)), past a portrait phone's ±8.84-stud view, and the one in-view rung was crowded out, so no rung was placed at all (Studio: all 3 nil). Separately, GameServer.hasFoothold counted any step within MAX_GRAB_DISTANCE as a foothold, so the starvation scaffold never fired while the new direction's regular spawns (staged at Unity's 1.5 half-widths) rested off a phone's screen.
@@ -3499,6 +3502,7 @@ verified: no — the risk needs a portrait viewport (which the Studio MCP cannot
 review: looks-right (minor: the CHEF_TARGET_MARGIN comment in src/shared/Config.luau still says "base")
 owed: o-20261022-144409-zqd5
 
+leftover: none — the portrait phone pass ran on a real device; owed step o-20261022-144409-zqd5 was marked done on the fleet dashboard at 2026-10-22 14:54
 ## b-20261022-141339-w3jk  fixed  2026-10-22 14:44
 note: Kitchen: grabbing a step below the frog moved it further down (y -12.4 -> -21.7)… Knife fizzled
 cause: Two parts. The pull itself is not a bug: PullMath.pullDistance clamps to PULL_MIN_DISTANCE 2, so grabbing a step below centre scrolls the field down. That is the owner ruling in the doc 17 "Spawner time per grab, and the pull" row (nkkh/ee9c/fzl6), and it matches Unity's PullMultiplier. The 9.3-stud move was most likely queued bot pulls stacking. The Knife fizzle was real: Chef's target choice (eligible) judged steps by st.base, so it picked a step pending pulls were carrying out of view, and the blow fizzled off-screen.
@@ -3509,6 +3513,7 @@ verified: no — needs a portrait viewport and repeated random Chef picks
 review: looks-right (shared review with b-20261022-143822-gemh)
 owed: o-20261022-144410-edgi
 
+leftover: none — the portrait phone pass ran on a real device; owed step o-20261022-144410-edgi was marked done on the fleet dashboard at 2026-10-22 14:54
 ## b-20261021-093703-adx9  fixed  2026-10-22 14:52
 note: Asset id cache drift: tools/asset_ids.json holds re-uploaded music1/music5 ids that differ from src/shared/SoundAssets.luau (the wu4e upload run re-uploaded them on a cache mismatch, and the file was put back to its committed ids). Next write_asset_ids run will swap them; decide which ids to keep and find why the cache mismatched.
 cause: The user's ruling (b-20261022-144636-m3mv) was "DECISION: keep them", so the committed ids stay. The upload run had re-uploaded music1/music5 because their sourceHash no longer matched the cache, and the new ids it cached would have replaced the committed ones on the next write_asset_ids run.
