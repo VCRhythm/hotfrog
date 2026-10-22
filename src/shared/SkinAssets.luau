@@ -392,6 +392,19 @@ local FALLBACK_SKIN = "HotFrog"
 -- untinted head and hands.
 local SUIT_ONLY_TINT: { [string]: boolean } = { BusinessFrog = true }
 
+-- Skins that draw ONLY these parts (b-20261022-115209-4qi7: the Invisible Man is
+-- just a body and arms, no head, face or hands). Every other suffix renders
+-- blank for them instead of falling back to Hot Frog's art. Port-only; doc 17.
+local ONLY_PARTS: { [string]: { [string]: boolean } } = {
+	InvisibleMan = { Body = true, LeftLimb = true, RightLimb = true },
+}
+
+-- True when `skinName` hides the part `suffix` entirely.
+function SkinAssets.hidden(skinName: string, suffix: string): boolean
+	local only = ONLY_PARTS[SkinAssets.prefix(skinName)]
+	return only ~= nil and not only[suffix]
+end
+
 local function lookup(prefix: string, suffix: string, tint: boolean?): (string?, boolean)
 	if tint then
 		local image = SkinAssets.image(prefix .. "Tint" .. suffix)

@@ -3151,3 +3151,13 @@ verified: partly — the upload is moderation-approved and the reviewer cross-co
 review: looks-right; checked: git diff -w of the four text files (only music6 changes; music1/music5 intact), ffprobe of both mp3s (64.001 -> 49.131 s, same bitrate and rate), PCM cross-correlation of the new start vs the original at 14.87 s, asset_ids.json music6 matches SoundAssets, Music.client still maps [5] = music6
 leftover: none — the only remaining check is the owner's listen, owed as o-20261021-114200-7965
 owed: o-20261021-114200-7965 — listen to the trimmed Kitchen track and its loop seam
+
+## b-20261022-115209-4qi7  fixed  2026-10-22 11:55
+note: invisible man frog is supposed to only show the body and arms (no hands or face)
+cause: SkinAssets.part() fell back to Hot Frog's art for every part Invisible Man doesn't ship (head, mouth, eyes, eyelids, pupils, sclera, hands, grab hands, accessory), so those rendered.
+change: Added ONLY_PARTS and SkinAssets.hidden(skin, suffix) (Invisible Man draws only Body, LeftLimb, RightLimb); SpriteSkin.apply blanks every other part for that skin, so the run frog, menu frog, other players' frogs and store previews (all via apply) lose the face and hands. Other skins keep the Hot Frog fallback; the skinless tongue sprite is unchanged. Doc 17's "inherits Hot Frog's head" row now records the change.
+files: src/shared/SkinAssets.luau, src/shared/SpriteSkin.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: selene src/ clean; tools/luau_check.sh on both Luau files clean; rojo build ok; stylua --check clean on both files (LF-normalised; the CRLF working copies trip it as at HEAD)
+verified: yes — Studio Play run: started a Classic run, applied "Invisible Man" to the server run frog; only Body and both limbs kept textures (Head, Mouth, Eyes, Pupils, Sclera, Accessory, Hands, HandGrabs, eyelids all blank) and the capture showed the suit body and arms with no head, face or hands. The menu frog was not looked at separately (same SpriteSkin.apply path).
+review: looks-right; checked: diff of the 3 files, SpriteSkin apply/paint/setTexture, SkinAssets prefix/part/hidden, SkinTints, every SpriteSkin.apply caller (SkinService, GameServer, StoreUI), grep for later .Image/.Texture writes (none), WorldFrogCosmetics only changes Transparency/Color/offsets, LeftLimb/RightLimb fall back to InvisibleManArm
+studio: Hot Frog (placeId 114911935371092), Play stopped

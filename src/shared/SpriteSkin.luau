@@ -99,6 +99,9 @@ function SpriteSkin.apply(root: Instance, skinName: string?, tint: boolean?)
 				and SkinAssets.image(SkinAssets.prefix(skinName) .. suffix) == nil
 				and string.sub(suffix, -4) == "Grab"
 			local image, tinted = SkinAssets.part(skinName, suffix, tint and not silhouette)
+			if SkinAssets.hidden(skinName, suffix) then
+				image, tinted = "", false -- blank, not Hot Frog's fallback art
+			end
 			obj:SetAttribute("Tinted", if tinted then true else nil)
 			obj:SetAttribute("Silhouette", if silhouette then true else nil)
 			if suffix == "Accessory" then
