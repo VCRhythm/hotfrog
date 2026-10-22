@@ -396,7 +396,13 @@ local SUIT_ONLY_TINT: { [string]: boolean } = { BusinessFrog = true }
 -- just a body and arms, no head, face or hands). Every other suffix renders
 -- blank for them instead of falling back to Hot Frog's art. Port-only; doc 17.
 local ONLY_PARTS: { [string]: { [string]: boolean } } = {
-	InvisibleMan = { Body = true, LeftLimb = true, RightLimb = true },
+	InvisibleMan = { Body = true, LeftLimb = true, RightLimb = true, Accessory = true },
+}
+
+-- Parts a skin wears from another skin's art (b-20261022-115735-9t02: the Invisible
+-- Man wears Hawt Frog's sunglasses, floating where his head would be).
+local BORROWED_PARTS: { [string]: { [string]: string } } = {
+	InvisibleMan = { Accessory = "HawtFrogAccessory" },
 }
 
 -- True when `skinName` hides the part `suffix` entirely.
@@ -418,6 +424,10 @@ end
 function SkinAssets.part(skinName: string, suffix: string, tint: boolean?): (string?, boolean)
 	local prefix = SkinAssets.prefix(skinName)
 	local image, tinted = lookup(prefix, suffix, tint)
+	local borrowed = BORROWED_PARTS[prefix]
+	if not image and borrowed and borrowed[suffix] then
+		return SkinAssets.image(borrowed[suffix]), false
+	end
 	if not image and (suffix == "LeftLimb" or suffix == "RightLimb") then
 		image, tinted = lookup(prefix, "Arm", tint)
 	end

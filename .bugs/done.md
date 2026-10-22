@@ -3161,3 +3161,13 @@ test: selene src/ clean; tools/luau_check.sh on both Luau files clean; rojo buil
 verified: yes — Studio Play run: started a Classic run, applied "Invisible Man" to the server run frog; only Body and both limbs kept textures (Head, Mouth, Eyes, Pupils, Sclera, Accessory, Hands, HandGrabs, eyelids all blank) and the capture showed the suit body and arms with no head, face or hands. The menu frog was not looked at separately (same SpriteSkin.apply path).
 review: looks-right; checked: diff of the 3 files, SpriteSkin apply/paint/setTexture, SkinAssets prefix/part/hidden, SkinTints, every SpriteSkin.apply caller (SkinService, GameServer, StoreUI), grep for later .Image/.Texture writes (none), WorldFrogCosmetics only changes Transparency/Color/offsets, LeftLimb/RightLimb fall back to InvisibleManArm
 studio: Hot Frog (placeId 114911935371092), Play stopped
+
+## b-20261022-115735-9t02  fixed  2026-10-22 12:00
+note: give the invisible man frog skin the sunglasses from hawt frog
+cause: Invisible Man's body-and-arms-only rule (f1c5ba2, b-20261022-115209-4qi7) blanked Accessory, and SkinAssets.part had no way to borrow another skin's art.
+change: Added BORROWED_PARTS (InvisibleMan Accessory -> the existing HawtFrogAccessory id), checked by SkinAssets.part when the skin has no art of its own, and added Accessory to Invisible Man's ONLY_PARTS. No new art and no Ids-table edit. The doc 17 row mentions the glasses.
+files: src/shared/SkinAssets.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: selene src/ clean; tools/luau_check.sh src/shared/SkinAssets.luau exit 0; rojo build ok; stylua --check clean (LF-normalised)
+verified: yes — Studio Play run: on the server, SpriteSkin.apply(frog, "Invisible Man") set Accessory to Hawt Frog's accessory id (rbxassetid://92072401896151) with Body and both limbs textured and the head, face and hands blank; a capture of the menu frog in Play showed black sunglasses floating over the body with no head. The run camera was not captured.
+review: looks-right; checked: diff, SpriteSkin.luau in full (Accessory branch keeps the image, ZIndex 6 above head/eyes, no tint), SkinAssets part/lookup/hidden, FrogModel Accessory decal on the Head canvas, grep of src for Accessory/hidden/ONLY_PARTS/BORROWED (no other consumers); Hawt Frog keeps its own accessory
+studio: Hot Frog (placeId 114911935371092), Play stopped
