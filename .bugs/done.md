@@ -3208,6 +3208,7 @@ verified: no — the Hot Frog place was not open in Studio (only Centralia (Stag
 review: concern MenuClient's centred main panel may overlap the lowered column (y=96) on Menu/Dead in portrait or narrow windows; checked: diff, the screenshot .bugs/attachments/b-20261022-122038-fzr6-1.png, grep of src/client for every label name (only GameClient positions them), initial runState "Menu", HOTFROG title ends at y=88, race rail at the right edge, HUD ScreenGui respects the topbar inset
 re-review: not run; the concern can only be settled by a Studio Play check at phone size, filed as b-20261022-122605-0neo
 leftover: Studio Play check of the chat and Menu-panel overlap, b-20261022-122605-0neo (waits on the open-Studio step o-20261022-122336-c92z)
+leftover: none — the desktop check ran as b-20261022-122605-0neo; the top-centre layout it checked was replaced by b-20261022-135019-jlhg; the Studio MCP cannot drive touch or set a phone viewport; the phone/emulator pass is owed once as o-20261022-135611-obdo (for b-20261022-135019-jlhg, which also moved the run HUD to the bottom)
 
 ## b-20261022-122127-bu3j  fixed  2026-10-22 12:33
 note: remove the more detailed tree sprites and keep the less detailed ones
@@ -3229,6 +3230,7 @@ verified: no — the Hot Frog place is not open in Studio (tools/studio_ready.sh
 review: looks-right; checked: diffs of Levels/StepKinds/doc 17, grep -i toaster of src (only comments, the kept kind and the generated SkinAssets id), KITCHEN_ROLES cloned from DYNAMIC_ROLES (Launch = SpringRock), withRoles puts SpringRock in every Kitchen pool so the renamed weight keys apply, SpringStreak resolves Launch via level.roles (Lane.luau:1503); flagged stale doc 18 and make_marketing.py:123
 re-review: looks-right; checked: make_marketing.py and doc 18 diffs, thumb-2.png against the HEAD copy (rock clear of the chef, arrows and title; no gap), lime() tint 0.6/0.95/0.3 matches StepKinds TINT_LIME, doc 18 against Levels.luau (no Toaster or OakTree in pools, TreeTrunk 1.2)
 leftover: Studio Play check, b-20261022-123600-6tse (waits on the open-Studio step o-20261022-122336-c92z)
+leftover: held by b-20261022-135703-1p95 (that Kitchen Studio run also counts naturally spawned SpringRock/Toaster steps)
 
 ## b-20261022-132811-yde1  fixed  2026-10-22 13:34
 note: on touch, I'm seeing a red x when switching fingers on each step even when every touch is a proper grab
@@ -3238,6 +3240,7 @@ files: src/client/WorldTouchIndicator.client.luau
 test: selene src/ clean; tools/luau_check.sh on the file clean; rojo build ok; stylua --check clean (LF-normalised)
 verified: no — needs real or emulated multi-touch; covered by the loop's Studio pass this tick
 review: looks-right; checked: the whole script and diff, GameClient stepAt/tryGrab/tryCatchBug and touch handlers (the indicator's hit test matches GameClient's tap box and bug ray; gamepad-only snap assist), multi-touch replacement of the tracked input, mouse path; noted a pre-existing ray-face vs plane-point difference at collider edges, not the cause
+leftover: none — the mouse path was proven by b-20261022-133647-9w0z; the Studio MCP cannot drive touch or set a phone viewport; the phone/emulator pass is owed once as o-20261022-135611-obdo (for b-20261022-135019-jlhg, which also moved the run HUD to the bottom)
 
 ## b-20261022-132934-sgr2  fixed  2026-10-22 13:34
 note: the HOTFROG logo is tiny and unreadable (.bugs/attachments/b-20261022-132934-sgr2-1.png)
@@ -3248,6 +3251,7 @@ test: selene src/ clean; tools/luau_check.sh on the file clean; rojo build ok; s
 verified: no — static checks only; covered by the loop's Studio pass this tick
 review: concern the first version placed the title at GuiInset.Y + 4, double-counting the inset in MenuGui (IgnoreGuiInset=false), which put it about 120px down on phones, overlapping the HUD stat column; the inset was also read once at load; checked: the diff, MenuClient, UIKit screenGui/label/safeAreaTopPadding, the GameClient HUD column, the screenshot
 re-review: looks-right; checked: the new diff; in gui space the title spans 8-64 against the HUD score label at 108 and the Frogs-view SkinName at 96 (StoreUI.client.luau), both in inset-relative guis, so the clearance holds at any inset; menu-panel overlap in portrait not computed (Studio pass)
+leftover: none — desktop proven by b-20261022-133647-vlh0; the Studio MCP cannot drive touch or set a phone viewport; the phone/emulator pass is owed once as o-20261022-135611-obdo (for b-20261022-135019-jlhg, which also moved the run HUD to the bottom)
 
 ## b-20261022-132723-mxjm  fixed  2026-10-22 13:36
 note: the "dark" filter doesn't go all the way to the top of the screen, doesn't cover full screen on a phone
@@ -3257,6 +3261,7 @@ files: src/client/MenuClient.client.luau, src/client/PotAtmosphere.client.luau, 
 test: selene src/ exit 0; tools/luau_check.sh on MenuClient clean; rojo build ok; stylua --check clean (LF-normalised)
 verified: no; static checks only, covered by the loop's Studio pass this tick
 review: looks-right; checked: the three diffs, UIKit.screenGui (sets IgnoreGuiInset=false and a UIScale, never ScreenInsets; the overrides come after it), showDailyPopup close paths and its popupOpen re-open guard (no leak or double-create), grep of src/client for other full-screen dark frames (none), no interactive content under the vignette or flash; nit: DisplayOrder tied with the lifted MenuGui at 10, which the fixer then set to 11 with the lift removed
+leftover: none — desktop proven by b-20261022-133648-pk61; the Studio MCP cannot drive touch or set a phone viewport; the phone/emulator pass is owed once as o-20261022-135611-obdo (for b-20261022-135019-jlhg, which also moved the run HUD to the bottom)
 
 ## b-20261022-122337-ejon  fixed  2026-10-22 13:43
 note: Studio Play check: Hot Lawyer's tongue leaves the frown and Hot Frog's is unchanged (reopens b-20261022-121451-wkhn)
@@ -3279,6 +3284,7 @@ verified: partly — on desktop, Playing puts the StatColumn at x 348-699 and y 
 studio: Hot Frog, Play stopped
 review: n/a
 leftover: phone-size check owed to the user as o-20261022-134308-45zy; the Frogs-view overlap is b-20261022-134308-ayzz
+leftover: none — the Frogs-view overlap closed as b-20261022-134308-ayzz/b-20261022-134614-myqm; the Studio MCP cannot drive touch or set a phone viewport; the phone/emulator pass is owed once as o-20261022-135611-obdo (for b-20261022-135019-jlhg, which also moved the run HUD to the bottom)
 
 ## b-20261022-123327-vq6p  fixed  2026-10-22 13:43
 note: Studio Play check: Country rock pools spawn only TreeTrunk trees, no OakTree (reopens b-20261022-122127-bu3j)
@@ -3313,6 +3319,8 @@ studio: Hot Frog, Play stopped
 review: n/a
 owed: o-20261022-134308-45zy (phone or emulator touch check)
 leftover: the touch path waits on o-20261022-134308-45zy
+owed: none
+leftover: none — the Studio MCP cannot drive touch or set a phone viewport; the phone/emulator pass is owed once as o-20261022-135611-obdo (for b-20261022-135019-jlhg, which also moved the run HUD to the bottom)
 
 ## b-20261022-133647-vlh0  fixed  2026-10-22 13:43
 note: Studio Play check: HOTFROG menu title readable at phone size, clear of the HUD stat column, Frogs-view name and the menu panel (reopens b-20261022-132934-sgr2)
@@ -3325,6 +3333,8 @@ studio: Hot Frog, Play stopped
 review: n/a
 owed: o-20261022-134308-45zy
 leftover: phone-size check waits on o-20261022-134308-45zy
+owed: none
+leftover: none — the Studio MCP cannot drive touch or set a phone viewport; the phone/emulator pass is owed once as o-20261022-135611-obdo (for b-20261022-135019-jlhg, which also moved the run HUD to the bottom)
 
 ## b-20261022-133648-pk61  fixed  2026-10-22 13:43
 note: Studio Play check: Daily Streak dim, Pot vignette and level-transition flash reach the very top edge (reopens b-20261022-132723-mxjm)
@@ -3337,6 +3347,8 @@ studio: Hot Frog, Play stopped
 review: n/a
 owed: o-20261022-134308-45zy
 leftover: the Daily Streak dim at phone size waits on o-20261022-134308-45zy
+owed: none
+leftover: none — the Studio MCP cannot drive touch or set a phone viewport; the phone/emulator pass is owed once as o-20261022-135611-obdo (for b-20261022-135019-jlhg, which also moved the run HUD to the bottom)
 
 ## b-20261022-134308-ayzz  fixed  2026-10-22 13:46
 note: In the Menu Frogs view the HUD stat column (Best/Flys/Bugs) overlaps the skin name and 'Selected' label under the HOTFROG title (reopens b-20261022-122038-fzr6)
@@ -3372,6 +3384,7 @@ studio: Hot Frog, Play stopped
 review: concern SpeedCueLabel stayed at column y=244 (off-screen when bottom-anchored), and the combo UIScale (up to ~1.96x about the centre) plus its child timer spilled onto Score; checked: every state transition through refreshHudColumn, the Shop/Gift buttons (hidden while Playing), the race rail, the HUD inset (IgnoreGuiInset=false)
 re-review: looks-right; checked: the Menu/Dead positions are identical (combo bottom 212, timer 214, cue 244), the timer sibling is hidden on every combo-hide path, and the punch/LOST tweens are intact
 owed: o-20261022-135611-obdo (phone/emulator: bottom stack clear of the home bar, plus the touch red-X, title and Daily-dim checks carried over from o-20261022-134308-45zy, which this send-back cleared)
+leftover: none — the Studio MCP cannot set a phone viewport; the phone/emulator pass is owed as o-20261022-135611-obdo
 
 ## b-20261022-135622-v1c6  duplicate  2026-10-22 13:57
 note: Studio check: Kitchen Chef blow on a step the frog is HOLDING knocks the frog off (Knife/Food drop it, Shove releases then slides)
