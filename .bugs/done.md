@@ -3372,3 +3372,9 @@ studio: Hot Frog, Play stopped
 review: concern SpeedCueLabel stayed at column y=244 (off-screen when bottom-anchored), and the combo UIScale (up to ~1.96x about the centre) plus its child timer spilled onto Score; checked: every state transition through refreshHudColumn, the Shop/Gift buttons (hidden while Playing), the race rail, the HUD inset (IgnoreGuiInset=false)
 re-review: looks-right; checked: the Menu/Dead positions are identical (combo bottom 212, timer 214, cue 244), the timer sibling is hidden on every combo-hide path, and the punch/LOST tweens are intact
 owed: o-20261022-135611-obdo (phone/emulator: bottom stack clear of the home bar, plus the touch red-X, title and Daily-dim checks carried over from o-20261022-134308-45zy, which this send-back cleared)
+
+## b-20261022-135622-v1c6  duplicate  2026-10-22 13:57
+note: Studio check: Kitchen Chef blow on a step the frog is HOLDING knocks the frog off (Knife/Food drop it, Shove releases then slides)
+cause: filed with prose as its --after shell check, so it could never pass.
+change: none; re-filed without a gate as b-20261022-135703-1p95.
+files: none
