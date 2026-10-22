@@ -3208,3 +3208,13 @@ verified: no — the Hot Frog place was not open in Studio (only Centralia (Stag
 review: concern MenuClient's centred main panel may overlap the lowered column (y=96) on Menu/Dead in portrait or narrow windows; checked: diff, the screenshot .bugs/attachments/b-20261022-122038-fzr6-1.png, grep of src/client for every label name (only GameClient positions them), initial runState "Menu", HOTFROG title ends at y=88, race rail at the right edge, HUD ScreenGui respects the topbar inset
 re-review: not run; the concern can only be settled by a Studio Play check at phone size, filed as b-20261022-122605-0neo
 leftover: Studio Play check of the chat and Menu-panel overlap, b-20261022-122605-0neo (waits on the open-Studio step o-20261022-122336-c92z)
+
+## b-20261022-122127-bu3j  fixed  2026-10-22 12:33
+note: remove the more detailed tree sprites and keep the less detailed ones
+cause: Country's rock pools spawned two tree kinds: the simple TreeTrunk (Sprites/Rocks/TreeTrunk.png) and the port-added, heavily outlined and detailed OakTree (Sprites/Scenery/TutorialTreeMid.png).
+change: OakTree is out of Levels.withOutdoor and all four Country stage weight tables. TreeTrunk's stage weight goes 0.6 -> 1.2 and its fallback spawnProbability 0.4 -> 0.8, so tree density is unchanged (pickWeighted normalises). The OakTree kind stays defined, unspawned, and the Tutorial's own acorn-anchored oak is untouched. Doc 17 has a new deviation row and the older Country row is corrected.
+files: src/shared/Levels.luau, src/shared/StepKinds.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: selene src/ clean; tools/luau_check.sh Levels.luau clean; rojo build ok; stylua --check clean (LF-normalised)
+verified: no — the Hot Frog place is not open in Studio (tools/studio_ready.sh: no Roblox Studio window titled Hot Frog); static checks only
+review: looks-right; checked: the three diffs, grep of src for tree/oak/pine (TreeTrunk, OakTree, the Tutorial oak in WorldTutorialTrunk.client.luau; no tree scenery), both PNGs compared, Lane.pickWeighted normalises weights, no remaining OakTree spawn reference; the stale older doc 17 row it flagged was then corrected (doc only)
+leftover: Studio Play check, b-20261022-123327-vq6p (waits on the open-Studio step o-20261022-122336-c92z)

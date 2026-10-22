@@ -308,13 +308,14 @@ local StepKinds: { [string]: Kind } = {
 	TreeTrunk = {
 		behavior = "None",
 		sprite = "TreeTrunk",
-		spawnProbability = 0.4,
+		spawnProbability = 0.8,
 		size = Vector3.new(4.5, 9, 1),
 		hitSize = Vector2.new(2.2, 8.4),
 		gripOffset = Vector2.new(-0.63, 0),
 		hitOffset = Vector2.new(-0.63, 0),
 		tapSize = Vector2.new(4, 8.8),
 	},
+	-- NO LONGER SPAWNED (b-20261022-122127-bu3j: only the simpler TreeTrunk).
 	-- The Tutorial's oak (b-20261020-205449-vnng, owner: "use the trees from
 	-- tutorial too"): its Sprites/Scenery/TutorialTreeMid.png tile (1024 px, a
 	-- trunk with leafy branches, already uploaded) as a static climbable trunk

@@ -309,7 +309,7 @@ end
 -- Country's outdoor footholds (b-20261020-200915-5ju4, owner's ruling
 -- b-20261020-201705-zwi7): tree trunks and cars, appended to each Country
 -- rock/shelf pool on top of the dynamic kinds. Beetle: a hazard from stage 2.
-local OUTDOOR_KINDS = { "TreeTrunk", "OakTree", "StillRock", "SlowFallRock", "CarRight", "CarLeft", "Beetle" }
+local OUTDOOR_KINDS = { "TreeTrunk", "StillRock", "SlowFallRock", "CarRight", "CarLeft", "Beetle" }
 
 local function withOutdoor(roles: { [string]: string }, pool: { string }): { string }
 	local out = withRoles(roles, pool)
@@ -979,8 +979,7 @@ list[Levels.COUNTRY] = {
 				BlinkRock = 0,
 				CrumbleRock = 0,
 				CarRight = 0,
-				TreeTrunk = 0.6,
-				OakTree = 0.6,
+				TreeTrunk = 1.2,
 				StillRock = 0.4,
 				SlowFallRock = 0,
 				UpRock = 0.25,
@@ -1004,8 +1003,7 @@ list[Levels.COUNTRY] = {
 				BlinkRock = 0.2,
 				CrumbleRock = 0.3,
 				CarRight = 0.15,
-				TreeTrunk = 0.6,
-				OakTree = 0.6,
+				TreeTrunk = 1.2,
 				StillRock = 0.4,
 				SlowFallRock = 0,
 				UpRock = 0.25,
@@ -1029,8 +1027,7 @@ list[Levels.COUNTRY] = {
 				BlinkRock = 0.35,
 				CrumbleRock = 0.4,
 				CarRight = 0.2,
-				TreeTrunk = 0.6,
-				OakTree = 0.6,
+				TreeTrunk = 1.2,
 				StillRock = 0.4,
 				SlowFallRock = 0.2,
 				UpRock = 0.25,
@@ -1054,8 +1051,7 @@ list[Levels.COUNTRY] = {
 				BlinkRock = 0.45,
 				CrumbleRock = 0.45,
 				CarRight = 0.25,
-				TreeTrunk = 0.6,
-				OakTree = 0.6,
+				TreeTrunk = 1.2,
 				StillRock = 0.4,
 				SlowFallRock = 0.3,
 				UpRock = 0.25,
