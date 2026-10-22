@@ -3476,3 +3476,13 @@ studio: Hot Frog, Play stopped
 review: concern (pre-nudge view check could yield zero rungs), reworked; re-review concern (stacked fallback could land above the view), then the Studio check failed (no rungs at all), escalated to an opus fixer who found the real cause and rewrote it; fresh review looks-right (notes: the grid can fall back to rungs below the frog; bias toward +Y is optional hardening)
 owed: o-20261022-144035-4c1q
 finding: The Chef can strike a phone's last on-screen free step mid-pull, filed as b-20261022-143822-gemh.
+
+## b-20261022-143947-gz5q  ignored  2026-10-22 14:41
+note: AUTO warning (server): ContentId: rbxassetid://120304099926155 failed due to: HTTP 504
+cause: 120304099926155 is TutorialTreeTrunk (src/shared/SkinAssets.luau). HTTP 504 is a gateway timeout from Roblox's content CDN, and it fired during the k146 Studio check. In that same Play the screenshot showed the oak trunk textured, so the asset loads.
+change: none
+files: none
+test: none
+verified: n/a
+review: n/a
+leftover: none — a one-off gateway timeout on an asset that rendered in the same session; the game's id and asset are fine
