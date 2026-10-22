@@ -3486,3 +3486,23 @@ test: none
 verified: n/a
 review: n/a
 leftover: none — a one-off gateway timeout on an asset that rendered in the same session; the game's id and asset are fine
+
+## b-20261022-143822-gemh  fixed  2026-10-22 14:44
+note: Chef otherFoothold/inView read st.base, not the post-pull rest, so he can strike a phone's last on-screen free step mid-pull
+cause: Chef.otherFoothold counted every other step by its st.base inside a wide view, so a step that a pending sideways pull was about to carry off a portrait screen still counted as a foothold, and the Chef could Knife or Food the last step really left on screen.
+change: otherFoothold now mirrors GameServer.hasFoothold: rest position after the lane's shared pending pulls (lane:restPosition(step, lane:sharedPending())) minus origin plus GripOffset, within SPAWN_VIEW_HALF_WIDTH, VIEW_HALF_HEIGHT and MAX_GRAB_DISTANCE. land keeps its inView(st.base) fizzle check. The Chef header comment and the doc 17 Chef row were updated.
+files: src/server/Chef.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/ (0/0), tools/luau_check.sh src/server/Chef.luau, rojo build ok
+verified: no — the risk needs a portrait viewport (which the Studio MCP cannot set) and the Chef's picks are random
+review: looks-right (minor: the CHEF_TARGET_MARGIN comment in src/shared/Config.luau still says "base")
+owed: o-20261022-144409-zqd5
+
+## b-20261022-141339-w3jk  fixed  2026-10-22 14:44
+note: Kitchen: grabbing a step below the frog moved it further down (y -12.4 -> -21.7)… Knife fizzled
+cause: Two parts. The pull itself is not a bug: PullMath.pullDistance clamps to PULL_MIN_DISTANCE 2, so grabbing a step below centre scrolls the field down. That is the owner ruling in the doc 17 "Spawner time per grab, and the pull" row (nkkh/ee9c/fzl6), and it matches Unity's PullMultiplier. The 9.3-stud move was most likely queued bot pulls stacking. The Knife fizzle was real: Chef's target choice (eligible) judged steps by st.base, so it picked a step pending pulls were carrying out of view, and the blow fizzled off-screen.
+change: eligible now tests the step's post-pull rest position plus GripOffset with inView(lane, pos, CHEF_TARGET_MARGIN). This is the same edit and commit as b-20261022-143822-gemh. A grab made later, during the tell, can still carry the target out and fizzle it; the doc 17 Chef row says so.
+files: src/server/Chef.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: stylua --check, selene src/ (0/0), tools/luau_check.sh, rojo build ok
+verified: no — needs a portrait viewport and repeated random Chef picks
+review: looks-right (shared review with b-20261022-143822-gemh)
+owed: o-20261022-144410-edgi

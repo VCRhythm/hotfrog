@@ -317,3 +317,15 @@ for: b-20261022-140225-lhat
 kind: device
 step: On a portrait phone in Kitchen or Country, grab a sideways or diagonal arrow and check at least one new step appears on screen toward the new direction within about a second
 no-check: needs a real portrait phone; Studio MCP cannot set a phone viewport
+
+## o-20261022-144409-zqd5  open  2026-10-22 14:44
+for: b-20261022-143822-gemh
+kind: device
+step: Play a Kitchen run on a portrait phone through several Chef attacks, including after a sideways pull
+no-check: the risk is a portrait viewport, which the Studio MCP cannot set, and the Chef's picks are random
+
+## o-20261022-144410-edgi  open  2026-10-22 14:44
+for: b-20261022-141339-w3jk
+kind: device
+step: Play a Kitchen run on a portrait phone through several Chef Knife Swings
+no-check: needs a portrait viewport and repeated random Chef picks

@@ -13,7 +13,7 @@
 -- fizzles. Grabbing the target does NOT save it: the blow lands on a held step
 -- too (the player should avoid the step he targets). He only picks a step the
 -- player isn't holding when he starts. Knife and Food only take a
--- step while another un-held foothold is left in view (in Normal mode nothing
+-- step while another un-held foothold will still rest in view after pending pulls (in Normal mode nothing
 -- spawns until the player grabs, so cutting the last one would strand them),
 -- and a Shove only lands on a spot clear of every other step (Lane.clearSpot's
 -- spacing) and of the PlayerList keep-out.
@@ -132,15 +132,37 @@ local function eligible(lane: Lane.Lane, step: BasePart, st: Lane.StepState, isH
 	if kind and kind.isArrow then
 		return false
 	end
-	return inView(lane, st.base, Config.CHEF_TARGET_MARGIN)
+	-- judged where pending pulls will leave it (rest position plus grip), not
+	-- st.base, so a step about to scroll out of view is never picked
+	-- (b-20261022-141339-w3jk)
+	local grip = step:GetAttribute("GripOffset") :: Vector2?
+	local pos = lane:restPosition(step, lane:sharedPending())
+	if grip then
+		pos += Vector3.new(grip.X, grip.Y, 0)
+	end
+	return inView(lane, pos, Config.CHEF_TARGET_MARGIN)
 end
 
 -- Would the player still have somewhere to go without `target`: another live,
--- un-held, non-dropping step in view (any kind -- the rim and arrows count)?
+-- un-held, non-dropping step that will still rest in the portrait band after
+-- the pending pulls (any kind -- the rim and arrows count)? Judged like
+-- GameServer.hasFoothold: rest position plus the grip offset, within reach.
 local function otherFoothold(lane: Lane.Lane, target: BasePart, isHeld: IsHeld): boolean
+	local shared = lane:sharedPending()
 	for step, st in lane.states do
-		if step ~= target and not st.dropElapsed and not isHeld(lane, step) and inView(lane, st.base, 0) then
-			return true
+		if step ~= target and not st.dropElapsed and not isHeld(lane, step) then
+			local grip = step:GetAttribute("GripOffset") :: Vector2?
+			local rel = lane:restPosition(step, shared) - lane.origin
+			if grip then
+				rel += Vector3.new(grip.X, grip.Y, 0)
+			end
+			if
+				math.abs(rel.X) <= Config.SPAWN_VIEW_HALF_WIDTH
+				and math.abs(rel.Y) <= Config.VIEW_HALF_HEIGHT
+				and Vector2.new(rel.X, rel.Y).Magnitude <= Config.MAX_GRAB_DISTANCE
+			then
+				return true
+			end
 		end
 	end
 	return false
