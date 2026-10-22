@@ -208,7 +208,13 @@ local function worldPointFor(screenX: number, screenY: number): (Vector3?, boole
 	return unitRay.Origin + unitRay.Direction * t, hitBug
 end
 
-local activeInputType: Enum.UserInputType? = nil
+-- Only the finger that started the indicator is followed (b-20261022-132811-yde1):
+-- every other finger's InputChanged used to re-run show(), so the finger still
+-- resting on the step it just grabbed (the pull had since moved that step away)
+-- re-tested its position, hit no step, and flashed a red X on each finger switch.
+-- A tap that was a hit is also never re-tested as it moves: only a miss follows.
+local trackedInput: InputObject? = nil
+local trackedMissed = false
 
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	if gameProcessed then
@@ -219,15 +225,16 @@ UserInputService.InputBegan:Connect(function(input, gameProcessed)
 	end
 	local pos, hitBug = worldPointFor(input.Position.X, input.Position.Y)
 	if pos then
-		activeInputType = input.UserInputType
+		trackedInput = input
+		trackedMissed = not (hitBug or overOwnStep(pos))
 		show(pos, hitBug)
 	end
 end)
 
 -- Follow the finger while a touch is held (mouse taps don't drag in this game's
 -- input model, so only Touch needs live tracking here).
-UserInputService.InputChanged:Connect(function(input)
-	if input.UserInputType ~= Enum.UserInputType.Touch or activeInputType ~= Enum.UserInputType.Touch then
+UserInputService.InputChanged:Connect(function(input: InputObject)
+	if input.UserInputType ~= Enum.UserInputType.Touch or input ~= trackedInput or not trackedMissed then
 		return
 	end
 	local pos, hitBug = worldPointFor(input.Position.X, input.Position.Y)
@@ -236,9 +243,9 @@ UserInputService.InputChanged:Connect(function(input)
 	end
 end)
 
-UserInputService.InputEnded:Connect(function(input)
-	if input.UserInputType == activeInputType then
-		activeInputType = nil
+UserInputService.InputEnded:Connect(function(input: InputObject)
+	if input == trackedInput then
+		trackedInput = nil
 		hide()
 	end
 end)

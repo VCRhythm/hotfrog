@@ -3229,3 +3229,12 @@ verified: no — the Hot Frog place is not open in Studio (tools/studio_ready.sh
 review: looks-right; checked: diffs of Levels/StepKinds/doc 17, grep -i toaster of src (only comments, the kept kind and the generated SkinAssets id), KITCHEN_ROLES cloned from DYNAMIC_ROLES (Launch = SpringRock), withRoles puts SpringRock in every Kitchen pool so the renamed weight keys apply, SpringStreak resolves Launch via level.roles (Lane.luau:1503); flagged stale doc 18 and make_marketing.py:123
 re-review: looks-right; checked: make_marketing.py and doc 18 diffs, thumb-2.png against the HEAD copy (rock clear of the chef, arrows and title; no gap), lime() tint 0.6/0.95/0.3 matches StepKinds TINT_LIME, doc 18 against Levels.luau (no Toaster or OakTree in pools, TreeTrunk 1.2)
 leftover: Studio Play check, b-20261022-123600-6tse (waits on the open-Studio step o-20261022-122336-c92z)
+
+## b-20261022-132811-yde1  fixed  2026-10-22 13:34
+note: on touch, I'm seeing a red x when switching fingers on each step even when every touch is a proper grab
+cause: WorldTouchIndicator's InputChanged handler re-ran the "over a step?" test for any finger's movement, so the finger still resting on the step it had just grabbed was re-tested after the pull moved that step away, hit nothing and showed the X; InputEnded also hid the indicator for any finger.
+change: The script now tracks the InputObject that began the tap, re-tests only that finger and only when its first tap missed, and hides the indicator only when that tracked input ends. Mouse behaviour is unchanged.
+files: src/client/WorldTouchIndicator.client.luau
+test: selene src/ clean; tools/luau_check.sh on the file clean; rojo build ok; stylua --check clean (LF-normalised)
+verified: no — needs real or emulated multi-touch; covered by the loop's Studio pass this tick
+review: looks-right; checked: the whole script and diff, GameClient stepAt/tryGrab/tryCatchBug and touch handlers (the indicator's hit test matches GameClient's tap box and bug ray; gamepad-only snap assist), multi-touch replacement of the tracked input, mouse path; noted a pre-existing ray-face vs plane-point difference at collider edges, not the cause
