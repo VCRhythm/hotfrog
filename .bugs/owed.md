@@ -286,8 +286,16 @@ no-check: needs a person's real or emulated multi-touch and eyes at phone size; 
 evidence: none, the user sent it back to the loop as b-20261022-135019-jlhg
 cleared: 2026-10-22 13:50 sent back to loop as b-20261022-135019-jlhg: I want the info towards the buttom of the screen during a run (it's in the way being right in the top center). once it's all at the bottom, the combo text should be at the *top* of the stack
 
-## o-20261022-135611-obdo  open  2026-10-22 13:56
+## o-20261022-135611-obdo  done  2026-10-22 13:56
 for: b-20261022-135019-jlhg
 kind: device
 step: On a phone (or Studio's device emulator with touch), play a run: the score/combo stack sits at the bottom clear of the home bar with the combo on top; switching fingers between grabbed steps shows no red X (an empty tap still does); the HOTFROG title is readable; the Daily Streak dim reaches the top edge
 no-check: needs a person's real or emulated multi-touch and eyes at phone size; the Studio MCP cannot drive touch or the emulator
+evidence: marked done by the user, no check
+cleared: 2026-10-22 14:02 marked done on the dashboard
+
+## o-20261022-141404-k6j6  open  2026-10-22 14:14
+for: b-20261022-135157-8qux
+kind: device
+step: On a portrait phone (or a portrait device emulator), start a run: the opening steps should sit well inside the screen, not at the edge; do it with the o-20261022-135611-obdo phone pass
+no-check: only a person on a portrait phone can judge where the steps sit

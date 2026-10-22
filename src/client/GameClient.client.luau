@@ -136,6 +136,29 @@ camera.FieldOfView = 40 -- far + narrow FOV fakes an orthographic look
 -- ~1.4x too much world and left the frog far smaller on screen than Unity's.)
 local CAMERA_DISTANCE = 43.2
 
+-- Portrait fit (b-20261022-135157-8qux): the server lays steps out for a 9:16
+-- view (Config.SPAWN_VIEW_HALF_WIDTH ~8.84 studs a side). A phone taller than
+-- that (390x844 is 0.462) shows only 7.26 studs a side at the fixed vertical
+-- view, so steps staged near x = +-5 sat on the screen edge. On a narrower-than-
+-- 9:16 viewport the camera backs off just far enough that the horizontal view is
+-- still 9:16's; 9:16 and every landscape/desktop shape are untouched (zoom 1).
+-- Deliberate deviation from Unity's fixed ortho size 50 (doc 17).
+local PORTRAIT_FIT_ASPECT = Config.SPAWN_VIEW_HALF_WIDTH / Config.VIEW_HALF_HEIGHT -- 9/16
+local fitZoom = 1
+local function refitZoom()
+	local size = camera.ViewportSize
+	local zoom = 1
+	if size.X > 0 and size.Y > 0 then
+		zoom = math.max(1, PORTRAIT_FIT_ASPECT / (size.X / size.Y))
+	end
+	if math.abs(zoom - fitZoom) > 1e-4 then
+		fitZoom = zoom
+		player:SetAttribute("CameraFitZoom", zoom) -- MenuClient's face projection reads it
+		return true
+	end
+	return false
+end
+
 -- ---------------------------------------------------------------------------
 -- Spectate (doc 15 item 6): while not Playing, left/right buttons walk the
 -- camera through every OCCUPIED lane's Origin (read straight from
@@ -190,10 +213,19 @@ chainPunch.Value = 1
 
 local function updateCamera()
 	local origin = spectateOrigin()
-	camera.CFrame =
-		CFrame.lookAt(origin + Vector3.new(0, 0, CAMERA_DISTANCE * arrivalZoom.Value * chainPunch.Value), origin)
+	camera.CFrame = CFrame.lookAt(
+		origin + Vector3.new(0, 0, CAMERA_DISTANCE * fitZoom * arrivalZoom.Value * chainPunch.Value),
+		origin
+	)
 end
+refitZoom()
+player:SetAttribute("CameraFitZoom", fitZoom)
 updateCamera()
+camera:GetPropertyChangedSignal("ViewportSize"):Connect(function()
+	if refitZoom() then
+		updateCamera()
+	end
+end)
 chainPunch.Changed:Connect(updateCamera)
 myLane:GetAttributeChangedSignal("Origin"):Connect(updateCamera)
 arrivalZoom.Changed:Connect(updateCamera)

@@ -281,7 +281,11 @@ local function refitWidth()
 		return
 	end
 	local viewport = camera.ViewportSize
-	local distance = BACKDROP_CAMERA_DISTANCE * WorldConfig.ARRIVAL_CAMERA_ZOOM + math.abs(WorldConfig.BACKDROP_DEPTH)
+	local fit = player:GetAttribute("CameraFitZoom") -- GameClient's portrait fit
+	local distance = BACKDROP_CAMERA_DISTANCE
+			* (if type(fit) == "number" and fit >= 1 then fit else 1)
+			* WorldConfig.ARRIVAL_CAMERA_ZOOM
+		+ math.abs(WorldConfig.BACKDROP_DEPTH)
 	visibleWidth = math.max(
 		Config.LANE_HALF_WIDTH * 2,
 		2 * distance * math.tan(math.rad(BACKDROP_CAMERA_FOV / 2)) * (viewport.X / viewport.Y)
@@ -301,6 +305,7 @@ local function refitWidth()
 	overlayTexture.OffsetStudsU = centreOffsetU(BASE_WIDTH)
 end
 refitWidth()
+player:GetAttributeChangedSignal("CameraFitZoom"):Connect(refitWidth)
 do
 	local viewportConn: RBXScriptConnection? = nil
 	local function watchCamera()

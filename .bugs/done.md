@@ -3401,3 +3401,25 @@ test: static read of UIKit.screenGui, StoreUI.client.luau, MenuClient.client.lua
 verified: no — the Studio MCP cannot emulate a phone viewport. The phone-size look is part of the owed device check o-20261022-135611-obdo.
 review: n/a
 leftover: none — the Studio MCP cannot set a phone viewport, and o-20261022-135611-obdo covers the phone-size pass
+
+## b-20261022-135157-8qux  fixed  2026-10-22 14:13
+note: on vertical mobile, the steps still appear mostly on the very very edge of the screen at start instead of properly adjusting to be available in the center
+cause: The server lays out opening steps for a 9:16 view (Config.SPAWN_VIEW_HALF_WIDTH 8.84 studs a side), but the camera kept a fixed 31.43-stud vertical view, so a phone narrower than 9:16 (390x844) showed only 7.26 studs a side and those steps sat at the screen edge.
+change: src/client/GameClient.client.luau multiplies the camera distance by fitZoom = max(1, (9/16) / (viewport W/H)), recomputed on ViewportSize changes, and publishes it as the player attribute CameraFitZoom. src/client/MenuClient.client.luau divides its face-projection px-per-stud by it and re-lays the panel when it changes. src/client/WorldBackdrop.client.luau includes it in refitWidth. 9:16, landscape and desktop keep zoom 1. Server spawns are unchanged. Doc 17 gains a "Portrait camera fit" row.
+files: src/client/GameClient.client.luau, src/client/MenuClient.client.luau, src/client/WorldBackdrop.client.luau, docs/roblox-port/17-status-and-known-gaps.md
+test: selene src/ exit 0; tools/luau_check.sh clean on the three files; stylua --check (CR stripped) clean; rojo build ok. Computed at 390x844: zoom 1.217, a step at x=±5.2 moves from 72% to 59% of the half-screen (outer edge 96% to 79%).
+verified: partly — in Studio Play at 1048x955 the attribute CameraFitZoom = 1 and the camera sits at z 43.2, the same as before. The Studio MCP cannot set a portrait viewport, so the portrait framing was not seen.
+studio: Hot Frog, Play stopped
+review: concern MenuClient read CameraFitZoom once, before GameClient set it, so the portrait panel could stay mis-placed; the doc 17 row had 4 cells in a 2-column table; WorldBackdrop/PotAtmosphere ignored the fit; checked: updateCamera multiplies the fit with the arrival zoom and chain punch (no double apply), spectate and level transitions, the ViewportSize hookup, the ScreenPointToRay/WorldToViewportPoint users
+re-review: looks-right; checked: the CameraFitZoom change hook in MenuClient, WorldBackdrop's refitWidth, the doc row, PotAtmosphere left alone (walls at 22 studs stay outside the view)
+owed: o-20261022-141404-k6j6 (portrait phone check, alongside o-20261022-135611-obdo)
+
+## b-20261022-135703-1p95  fixed  2026-10-22 14:13
+note: Studio check that a Chef blow on a HELD step knocks the frog off (reopens b-20261022-135113-xwjx)
+cause: Check of the b-20261022-135113-xwjx fix (Knife/Food go through dropAway, Shove force-releases first).
+change: none (check only)
+files: none
+test: Studio Play, StudioSkipTo Kitchen 40, bot grabs to arm the Chef, then GrabStep on the ChefTarget step with the free limb during the tell.
+verified: yes — a Food action: the target was grabbed with the left limb during WindUp (limb on it, d=0.0). At Strike the step dropped (y 0.4 to -33.1) and the left limb let go (Held false), while the right limb kept its own step and the run stayed Playing. A second try with a Knife fizzled with no break: after the grab its target sat at y -21.7, out of view, which is the documented fizzle. That pull is filed as b-20261022-141339-w3jk. Shove was not drawn in either try.
+studio: Hot Frog, Play stopped
+leftover: none — the held-step knock-off is seen for Food, and Knife breaks through the same dropAway path; the odd Knife pull is its own item, b-20261022-141339-w3jk

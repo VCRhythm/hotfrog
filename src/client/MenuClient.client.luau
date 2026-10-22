@@ -146,7 +146,9 @@ local function layoutMainPanel()
 	end
 	local inset = GuiService:GetGuiInset().Y
 	local s = guiScale.Scale
-	local pxPerStud = view.Y / VIEW_STUDS
+	local fit = player:GetAttribute("CameraFitZoom")
+	-- GameClient backs the camera off on viewports narrower than 9:16 (portrait fit)
+	local pxPerStud = view.Y / (VIEW_STUDS * (if type(fit) == "number" and fit >= 1 then fit else 1))
 	local faceRight = view.X / 2 + FACE_HALF_W * pxPerStud
 	local faceBottom = view.Y / 2 - FACE_BOTTOM * pxPerStud
 	-- StoreUI's Gift (left, 150 wide) and Shop (right, 120 wide) toggles sit in the
@@ -193,6 +195,7 @@ local function layoutMainPanel()
 end
 task.defer(layoutMainPanel)
 player:GetAttributeChangedSignal("SpectateStripShown"):Connect(layoutMainPanel)
+player:GetAttributeChangedSignal("CameraFitZoom"):Connect(layoutMainPanel)
 -- GameClient shows its Spectate strip only while this panel is up.
 mainPanel:GetPropertyChangedSignal("Visible"):Connect(function()
 	player:SetAttribute("MainMenuOpen", mainPanel.Visible)
