@@ -3197,3 +3197,14 @@ verified: no — the Hot Frog place was not open in Studio (only Centralia (Stag
 review: looks-right; checked: diff, SkinCatalog (Hot Lawyer is [7]), latestProfile set in applyProfile from ProfileChanged/GetProfile with selected typed number in Profiles.luau, grep of src for tongue (only expandTongue on myFrog), Pillow bbox of both Mouth sprites (3.5 - 0.96 = 2.54)
 owed: open Hot Frog in Studio with rojo serve (o-20261022-122336-c92z)
 leftover: Studio Play check, b-20261022-122337-ejon (after Studio is open)
+
+## b-20261022-122038-fzr6  fixed  2026-10-22 12:32
+note: the score display is covered up by the roblox default chat location
+cause: the HUD stat labels (score, Best, Flys, Bugs, combo) were pinned top-left (x=12, y=12..168), where Roblox's default TextChatService window opens.
+change: The labels now sit in a transparent top-centre "StatColumn" frame, centre-aligned with the same fonts, strokes and colours; the combo timeout bar is centred under the combo label. The column is at y=12 while Playing and drops to y=96, below the HOTFROG title, in Menu/Dead (driven by RunStateChanged). Gift, Shop and the race rail are unmoved.
+files: src/client/GameClient.client.luau
+test: selene src/ clean; tools/luau_check.sh on the file clean; rojo build ok; stylua --check clean (LF-normalised)
+verified: no — the Hot Frog place was not open in Studio (only Centralia (Staging) and Tactics); static checks only
+review: concern MenuClient's centred main panel may overlap the lowered column (y=96) on Menu/Dead in portrait or narrow windows; checked: diff, the screenshot .bugs/attachments/b-20261022-122038-fzr6-1.png, grep of src/client for every label name (only GameClient positions them), initial runState "Menu", HOTFROG title ends at y=88, race rail at the right edge, HUD ScreenGui respects the topbar inset
+owed: open Hot Frog in Studio with rojo serve (o-20261022-122336-c92z)
+leftover: Studio Play check of the chat and Menu-panel overlap, the follow-up entry filed with --reopen b-20261022-122038-fzr6 (after Studio is open)

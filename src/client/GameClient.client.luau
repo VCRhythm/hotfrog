@@ -884,18 +884,36 @@ end)
 local playerGui = player:WaitForChild("PlayerGui")
 local hud = UIKit.screenGui("HUD")
 
+-- b-20261022-122038-fzr6: the default TextChatService window owns the top-left
+-- (up to ~480 px wide when open), so the stat column sits top-centre instead.
+-- The menu/dead "HOTFROG" title also lives top-centre, so outside a run the
+-- column drops below it (HUD_COLUMN_Y_*).
+local HUD_COLUMN_Y_PLAYING = 12
+local HUD_COLUMN_Y_MENU = 96
+local hudColumn = Instance.new("Frame")
+hudColumn.Name = "StatColumn"
+hudColumn.AnchorPoint = Vector2.new(0.5, 0)
+hudColumn.Size = UDim2.fromOffset(260, 220)
+hudColumn.Position = UDim2.new(0.5, 0, 0, if runState == "Playing" then HUD_COLUMN_Y_PLAYING else HUD_COLUMN_Y_MENU)
+hudColumn.BackgroundTransparency = 1
+hudColumn.Parent = hud
+RunStateChanged.OnClientEvent:Connect(function(state: string)
+	hudColumn.Position = UDim2.new(0.5, 0, 0, if state == "Playing" then HUD_COLUMN_Y_PLAYING else HUD_COLUMN_Y_MENU)
+end)
+
 local function makeLabel(name: string, posY: number, text: string): TextLabel
 	local label = Instance.new("TextLabel")
 	label.Name = name
+	label.AnchorPoint = Vector2.new(0.5, 0)
 	label.Size = UDim2.fromOffset(220, 32)
-	label.Position = UDim2.fromOffset(12, posY)
+	label.Position = UDim2.new(0.5, 0, 0, posY)
 	label.BackgroundTransparency = 1
-	label.TextXAlignment = Enum.TextXAlignment.Left
+	label.TextXAlignment = Enum.TextXAlignment.Center
 	label.TextScaled = true
 	label.FontFace = UIKit.FONT
 	label.TextColor3 = UIKit.HUD_TEXT
 	label.Text = text
-	label.Parent = hud
+	label.Parent = hudColumn
 	UIKit.textStroke(label, 2.5)
 	return label
 end
@@ -982,7 +1000,7 @@ end)
 -- Combo streak HUD (b-20261010-192608-4bs3, owner's ruling b-20261012-160551-8zmn;
 -- both run modes, b-20261012-203452-bisk). Purely cosmetic: it
 -- reads the replicated `Streak` / `StreakSpeed` attributes on my lane folder.
--- Sits under the Bugs label at the left, clear of the world-space "Perfect xN"
+-- Sits under the Bugs label, clear of the world-space "Perfect xN"
 -- popup, which floats at the grab point.
 local COMBO_COLD = Color3.fromRGB(255, 255, 255)
 local COMBO_HOT = Color3.fromRGB(255, 120, 40)
@@ -996,7 +1014,8 @@ comboScale.Parent = comboLabel
 local COMBO_TIMER_WIDTH = 150
 local comboTimer = Instance.new("Frame")
 comboTimer.Name = "ComboTimer"
-comboTimer.Position = UDim2.new(0, 2, 1, 2)
+comboTimer.AnchorPoint = Vector2.new(0.5, 0)
+comboTimer.Position = UDim2.new(0.5, 0, 1, 2)
 comboTimer.Size = UDim2.fromOffset(COMBO_TIMER_WIDTH, 6)
 comboTimer.BorderSizePixel = 0
 comboTimer.Visible = false
