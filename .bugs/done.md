@@ -3337,3 +3337,14 @@ studio: Hot Frog, Play stopped
 review: n/a
 owed: o-20261022-134308-45zy
 leftover: the Daily Streak dim at phone size waits on o-20261022-134308-45zy
+
+## b-20261022-134308-ayzz  fixed  2026-10-22 13:46
+note: In the Menu Frogs view the HUD stat column (Best/Flys/Bugs) overlaps the skin name and 'Selected' label under the HOTFROG title (reopens b-20261022-122038-fzr6)
+cause: The top-centre StatColumn drops to y=96 in Menu/Dead, which is where the store's SkinName (y=96..152) and "Selected" status (y=154..184) sit in StoreGui, so they drew over each other.
+change: While the store is open outside a run, GameClient hides the score, Best and Bugs lines. It keeps the Flys line, because StoreUI has no balance of its own, and moves it to gui y=190 under "Selected". The store state comes from MenuBridge OpenStore/StoreOpened/StoreClosed, and Playing resets it.
+files: src/client/GameClient.client.luau
+test: selene src/ exit 0; tools/luau_check.sh on the file clean; rojo build ok; stylua --check clean (LF-normalised)
+verified: no — static checks only; the Studio check is b-20261022-134614-myqm
+review: concern the first version hid the whole column, which removed the Flys balance from the store (StoreUI relies on the HUD FlysLabel, b-20260921-112735-t2ly); checked: the diff against StoreUI and MenuClient open/close paths (Frogs button, Dead gift prompt, Shop toggle, Back, run start); no stuck-hidden path
+re-review: concern the Flys line at y=190..222 clears SkinName and Selected everywhere, but on short landscape viewports (GUI height < ~415) it overlaps the swatch row (H-192) and Robux button (H-176); checked: the new diff, the StoreUI layout, combo label/bar (cannot show while the store is open), restore on StoreClosed and Playing
+leftover: short-viewport overlap and the Settings/Top Scores overlap with the y=96 column, b-20261022-134614-myqm

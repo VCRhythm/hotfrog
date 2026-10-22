@@ -897,8 +897,46 @@ hudColumn.Size = UDim2.fromOffset(260, 220)
 hudColumn.Position = UDim2.new(0.5, 0, 0, if runState == "Playing" then HUD_COLUMN_Y_PLAYING else HUD_COLUMN_Y_MENU)
 hudColumn.BackgroundTransparency = 1
 hudColumn.Parent = hud
+-- b-20261022-134308-ayzz: the Frogs/store view has no Flys balance of its own
+-- (it relies on FlysLabel) and shows the skin name + status at y=96..184, so
+-- while it is open outside a run only the Flys line stays, parked under them.
+-- A run starting under the store closes it without StoreClosed, so Playing
+-- resets the flag.
+local HUD_COLUMN_Y_STORE = 190 - 84 -- puts FlysLabel (column y=84) at gui y=190
+local HUD_STORE_HIDDEN = { "ScoreLabel", "HighScoreLabel", "BugsLabel" }
+local storeShown = false
+local function refreshHudColumn(state: string)
+	local inStore = storeShown and state ~= "Playing"
+	local y = if state == "Playing"
+		then HUD_COLUMN_Y_PLAYING
+		elseif inStore then HUD_COLUMN_Y_STORE
+		else HUD_COLUMN_Y_MENU
+	hudColumn.Position = UDim2.new(0.5, 0, 0, y)
+	for _, name in HUD_STORE_HIDDEN do
+		local child = hudColumn:FindFirstChild(name)
+		if child and child:IsA("GuiObject") then
+			child.Visible = not inStore
+		end
+	end
+end
 RunStateChanged.OnClientEvent:Connect(function(state: string)
-	hudColumn.Position = UDim2.new(0.5, 0, 0, if state == "Playing" then HUD_COLUMN_Y_PLAYING else HUD_COLUMN_Y_MENU)
+	if state == "Playing" then
+		storeShown = false
+	end
+	refreshHudColumn(state)
+end)
+task.spawn(function()
+	local bridge = player:WaitForChild("MenuBridge", math.huge)
+	local function watch(eventName: string, shown: boolean)
+		local event = bridge:WaitForChild(eventName, math.huge) :: BindableEvent
+		event.Event:Connect(function()
+			storeShown = shown
+			refreshHudColumn(runState)
+		end)
+	end
+	watch("OpenStore", true)
+	watch("StoreOpened", true)
+	watch("StoreClosed", false)
 end)
 
 local function makeLabel(name: string, posY: number, text: string): TextLabel
