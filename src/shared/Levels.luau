@@ -276,10 +276,10 @@ local DYNAMIC_ROLES: { [string]: string } = {
 local KITCHEN_ROLES: { [string]: string } = table.clone(DYNAMIC_ROLES)
 KITCHEN_ROLES.Vanish = "IceCube"
 
--- Country: a CashPile launch step (9uqb); Vanish stays BlinkRock until the Dandelion
--- has art (b-20261021-091537-rv4a).
+-- Country: Launch is the default SpringRock again (the CashPile was removed,
+-- b-20261023-ag53); Vanish stays BlinkRock until the Dandelion has art
+-- (b-20261021-091537-rv4a).
 local COUNTRY_ROLES: { [string]: string } = table.clone(DYNAMIC_ROLES)
-COUNTRY_ROLES.Launch = "CashPile"
 
 -- Space: a UFO bobs where BobRock did (b-20261021-091537-xh0w). Lillipad stays
 -- the Patrol kind; the Satellite joins beside it (SPACE_KINDS, split weight).
@@ -965,7 +965,7 @@ list[Levels.COUNTRY] = {
 	-- yet) to a mix where roughly half the rock/shelf spawns are dynamic. Tree
 	-- trunks keep their StepKinds weight throughout; cars and the Beetle join
 	-- after stage 1 and grow more common (each stage lists them, so the stage
-	-- tables match). The Launch role is the CashPile (COUNTRY_ROLES). The
+	-- tables match). The Launch role is the default SpringRock. The
 	-- themed Rocket/Balloon spawner is untouched. Shelves are gone from Country
 	-- (b-20261020-213556-k25y): the plain footholds are the trees, and every
 	-- stage weights the arrows (0.25 each) well above their 0.1 default.
@@ -978,7 +978,7 @@ list[Levels.COUNTRY] = {
 			weights = {
 				Lillipad = 0.35,
 				BobRock = 0.3,
-				CashPile = 0.15,
+				SpringRock = 0.15,
 				BlinkRock = 0,
 				CrumbleRock = 0,
 				CarRight = 0,
@@ -1002,7 +1002,7 @@ list[Levels.COUNTRY] = {
 			weights = {
 				Lillipad = 0.4,
 				BobRock = 0.35,
-				CashPile = 0.25,
+				SpringRock = 0.25,
 				BlinkRock = 0.2,
 				CrumbleRock = 0.3,
 				CarRight = 0.15,
@@ -1026,7 +1026,7 @@ list[Levels.COUNTRY] = {
 			weights = {
 				Lillipad = 0.45,
 				BobRock = 0.4,
-				CashPile = 0.25,
+				SpringRock = 0.25,
 				BlinkRock = 0.35,
 				CrumbleRock = 0.4,
 				CarRight = 0.2,
@@ -1050,7 +1050,7 @@ list[Levels.COUNTRY] = {
 			weights = {
 				Lillipad = 0.5,
 				BobRock = 0.45,
-				CashPile = 0.3,
+				SpringRock = 0.3,
 				BlinkRock = 0.45,
 				CrumbleRock = 0.45,
 				CarRight = 0.25,

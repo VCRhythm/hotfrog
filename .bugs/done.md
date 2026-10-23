@@ -3596,3 +3596,14 @@ test: none
 verified: yes — Studio Play, StudioSkipTo("Country",40) with natural spawning (StudioSpawnKind bypasses fitStaging). A Balloon rested at (-15.16, -9.43) relative to Origin, steady over 6 one-second samples and inside VIEW_HALF_HEIGHT 15.71. A GrabStep with limb 1 was accepted: RightLimb Held went from false to true.
 studio: Hot Frog (placeId 114911935371092), Play stopped
 review: n/a
+
+## b-20261023-090419-ag53  fixed  2026-10-23 09:10
+note: remove the dollar pile step type
+cause: The CashPile kind (a port-added Country Launch step, not a Unity prefab) was defined in StepKinds, mapped as COUNTRY_ROLES.Launch and weighted in all four Country height stages.
+change: Deleted the CashPile entry from StepKinds.luau and the COUNTRY_ROLES.Launch override, so Country's Launch role falls back to the default SpringRock (same as the Toaster removal, hotfrog b-20261022-122127-om8p); the four Country stage weight keys were renamed CashPile -> SpringRock at the same values, so density and SpringStreak are unchanged. Docs 17, 18 and 19 updated. The generated SkinAssets CashPile id is left (unused, pipeline-owned).
+files: src/shared/StepKinds.luau, src/shared/Levels.luau, docs/roblox-port/17-status-and-known-gaps.md, docs/roblox-port/18-step-kinds-by-level.md, docs/roblox-port/19-level-theming.md
+test: stylua --check on both Luau files (LF-normalised) clean; selene src/ 0 warnings; tools/luau_check.sh on Levels.luau and StepKinds.luau clean; rojo build ok
+verified: yes — Studio Play: StudioSkipTo("Country", 1) and ~15 s of natural spawning showed no PlayField part with a Cash name or kind, require(StepKinds).CashPile is nil, StudioSpawnKind:Invoke("CashPile") returned "unknown step kind CashPile", console had no errors
+review: looks-right; checked: git diff of all five files, grep -rni cashpile over src/ (only a Levels comment and the generated SkinAssets id), each Country heightStages table has exactly one SpringRock key, COUNTRY_ROLES = table.clone(DYNAMIC_ROLES) with Launch = SpringRock resolving via roles[role] (Levels.luau:293), docs 17/18/19 against code, tools/luau_check.sh StepKinds.luau exit 0
+studio: Hot Frog (placeId 114911935371092), Play started and stopped by the fixer
+before: src/shared/StepKinds.luau had a CashPile entry (~line 556) and Levels.luau set COUNTRY_ROLES.Launch = "CashPile" with weights .15/.25/.25/.3 in Country's stages (grep in this tick found StepKinds.luau:552-558)

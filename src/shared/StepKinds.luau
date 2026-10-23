@@ -548,20 +548,6 @@ local StepKinds: { [string]: Kind } = {
 		params = { delay = 3, warn = 1.5 },
 		hazard = true,
 	},
-	-- Country's Launch kind (replaced the Trampoline, owner request 9uqb): a
-	-- low pile of banknotes and coins. CashPile.png is 512x256 px on an 8 x 4
-	-- canvas (64 px/stud); the pile spans x 4-508, y 59-196 px (centred), about
-	-- 7.9 x 2.1 studs, so the hit box is that extent (a hair narrower, as the
-	-- top is a narrow mound) and a taller tap pad keeps it thumb-sized.
-	CashPile = {
-		behavior = "Launch",
-		sprite = "CashPile",
-		spawnProbability = 0.1,
-		size = Vector3.new(8, 4, 1),
-		hitSize = Vector2.new(7.8, 2),
-		tapSize = Vector2.new(8, 3.6),
-		params = { pull = 8 },
-	},
 	-- Space's RiseAndFall kind (BobRock elsewhere): a flying saucer that bobs.
 	-- UFO.png is 512x256 px on an 8 x 4 canvas (64 px/stud); the saucer spans
 	-- x 6-507, y 47-209 px (centred), 7.8 x 2.5 studs, which is the hit box; the

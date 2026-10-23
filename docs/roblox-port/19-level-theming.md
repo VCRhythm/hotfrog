@@ -76,7 +76,7 @@ Changes: Lillipad and BobRock leave the Kitchen; the pond pad and the sky rock b
 | Plain | TreeTrunk, OakTree | TreeTrunk, OakTree, **StillRock** (revived, `WrappedRock` mossy rock, `None`) | - | trees 0.6 each; StillRock 0.4 (new) |
 | Mover (Patrol) | Lillipad | **DriftBalloon** (`Balloon` on a ~12-stud canvas, Patrol; rides Country's wind theme) | `Bird` | .35 / .4 / .45 / .5 |
 | Mover (RiseAndFall) | BobRock | BobRock (unchanged) | `Butterfly` | .3 / .35 / .4 / .45 |
-| Mover (Launch) | SpringRock | SpringRock (unchanged) | `CashPile` (was `Trampoline`, owner request 9uqb) | .15 / .25 / .25 / .3 |
+| Mover (Launch) | SpringRock | SpringRock (unchanged) | SpringRock (CashPile removed, owner request ag53) | .15 / .25 / .25 / .3 |
 | Hazard (Vanish) | BlinkRock | BlinkRock (unchanged) | `Dandelion` (puffs away) | 0 / .2 / .35 / .45 |
 | Hazard (Crumble) | CrumbleRock | CrumbleRock, read as rubble | - | 0 / .3 / .4 / .45 |
 | Hazard (other) | CarRight, CarLeft | unchanged | **Beetle** (revived; shrugs you off once; flag `hazard`) | cars 0 / .15 / .2 / .25 each; Beetle 0 / .1 / .15 / .15 (new art only) |
@@ -124,7 +124,6 @@ Made with the `ludo` skill, matched to the existing step style, saved as `Sprite
 | `IceCube` | Kitchen | Vanish | 128 | 3.657 (`ART_SMALL_ROCK`) | 3.657, tap 6 |
 | `FryingPan` (optional) | Kitchen | RiseAndFall | 512 x 256 | 8 x 4 | ~7 x 2.5 |
 | `Plate` (optional) | Kitchen | Patrol | 512 x 256 | 8 x 4 | ~7 x 2.5 |
-| `CashPile` (replaced `Trampoline`, 9uqb) | Country | Launch | 512 x 256 | 8 x 4 | ~7.9 x 2.1 |
 | `Dandelion` | Country | Vanish | 128 | 3.657 | 3.657, tap 6 |
 | `Butterfly` | Country | RiseAndFall | 256 | 7.314 | ~5 |
 | `Bird` (optional) | Country | Patrol | 256 | 7.314 | ~5 |
