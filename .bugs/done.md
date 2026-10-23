@@ -3619,3 +3619,13 @@ review: concerns (minor). Docstring self-contradiction, fixed before commit. pot
 studio: Hot Frog (placeId 114911935371092), Play started and stopped by the fixer; the place still saves ForceHalloween = true (unchanged)
 re-review: docstring fix checked by the orchestrator (tools/make_marketing.py:5 now reads "These cards are composed from Sprites/, not Studio captures."); the other points are cosmetic and left for the owner
 side: filed b-20261023-091615-xm81 (frog pupils missing in Kitchen)
+
+## b-20261023-091615-xm81  cannot-reproduce  2026-10-23 09:26
+note: Kitchen: Hot Frog's pupils vanish (eyes show blank whites under half-closed lids) in Play captures
+cause: Not reproduced in normal gameplay. In a Kitchen climb the pupil Textures stayed set and visible, so the blank-white frames in marketing/captures/kitchen-chef.jpg and kitchen-knife.jpg look like an artefact of the capture session's manual re-skin (b-20261023-090444-59l4). The exact trigger was not found.
+change: none. Pupil offsets are clamped to PUPIL_MAX_OFFSET (0.9429 studs), so look-at-Chef tracking cannot push a pupil off the sclera, and SpriteSkin.apply(frog, "Hot Frog", false) leaves the pupil textures set.
+files: none
+test: none (no code changed)
+verified: yes. Studio Play on Hot Frog: StudioSkipTo("Kitchen", 40) and StudioBot climbing to about combo 99. LeftPupil and RightPupil kept their texture ids with Transparency 0 and ZIndex 4. A screen_capture showed pupils with the saved Halloween look, and another after a runtime ForceHalloween=false plus SpriteSkin.apply re-skin. Not recreated: the capture session's manual FrogTint=0 step, and blink or level-up frames.
+review: n/a
+studio: Hot Frog (placeId 114911935371092), Play started and stopped by the fixer
