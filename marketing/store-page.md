@@ -42,10 +42,12 @@ Hot Frog is out on Roblox! Grab steps, pull the world past you and climb out of 
 
 ## Files and where they go (Creator Hub)
 1. marketing/icon-512.png -> Creator Hub -> Creations -> Hot Frog -> Configure/Settings -> Icon (512x512 PNG or JPG; Roblox crops it to a rounded square, and the frog face is centred).
-2. marketing/thumb-1.png .. thumb-5.png -> Creator Hub -> Hot Frog -> Places -> (start place) -> Thumbnails (1920x1080, up to 10). Order: thumb-1 first (title shot), then thumb-2..5. Each is submitted for Roblox moderation after upload.
+2. marketing/gameplay-1.png .. gameplay-5.png -> Creator Hub -> Hot Frog -> Places -> (start place) -> Thumbnails (1920x1080, up to 10). Order: gameplay-1 first (Kitchen and the Chef), then gameplay-2..5 (Pot, Country, Space, Kitchen combo). Optional extras after them: marketing/thumb-1..5.png (composed sprite-art cards: title shot, Kitchen, Country, Space, skin cards). Each is submitted for Roblox moderation after upload.
 3. Title, description, genre, devices and the maturity questionnaire -> Creator Hub -> Hot Frog -> Settings (Basic Info / Access / Questionnaire).
 4. Optional: add a short gameplay video as a thumbnail after recording one in Studio or the Roblox client (not produced here).
 
 ## Notes
-- The thumbnails are composed from the project's own sprites (tools/make_marketing.py), not real in-game captures: Studio showed the owner's equipped Invisible Man skin and Halloween theme, which read as black shapes at thumbnail size. Replace them with real screenshots of a Hot Frog run if wanted.
+- gameplay-1..5.png are real Studio Play captures (2026-10-23, Hot Frog skin with no colourway, Halloween off, bot-driven climb; raw 1048x955 frames in marketing/captures/). Studio's viewport is portrait-ish, so tools/make_gameplay_thumbs.py scales each frame about 1.13x to the full 1080 px height, sets it on the right of the 16:9 canvas over a blurred, darkened copy of itself, and adds the title and a caption on the left; the gameplay pixels are not redrawn. The in-game HUD (combo, score, Best/Flys/Bugs, level track) is left as it appeared. Re-run: python tools/make_gameplay_thumbs.py.
+- thumb-1..5.png are composed from the project's own sprites (tools/make_marketing.py), not captures; keep them only as optional extra cards.
+- To recapture: Studio Play, server workspace:SetAttribute("ForceHalloween", false) (the place file currently saves it true) and dress the frog with SpriteSkin.apply(frog, "Hot Frog", false) plus FrogTint 0 after each StudioSkipTo, then StudioBot start and screen_capture.
 - Nothing was uploaded or published.

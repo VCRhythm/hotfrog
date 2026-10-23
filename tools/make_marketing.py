@@ -2,7 +2,10 @@
 
 Run from the repo root:  python tools/make_marketing.py
 Writes marketing/icon-512.png and marketing/thumb-1..5.png (1920x1080).
-Everything is composed from Sprites/ (the thumbnails are not Studio captures).
+These cards are composed from Sprites/, not Studio captures.
+The primary thumbnails are the real gameplay captures built by
+tools/make_gameplay_thumbs.py (marketing/gameplay-1..5.png); thumb-1..5 are
+optional extra cards (see marketing/store-page.md).
 Fonts: uses Impact (C:/Windows/Fonts/impact.ttf) if present, else Pillow's built-in
 default font (plain, but the script still runs on non-Windows machines).
 """
