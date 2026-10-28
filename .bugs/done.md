@@ -3664,3 +3664,12 @@ enforced-by: `bugloop.py rojo-check` (the Rojo hold in `pending`) and `python to
 studio: none (no Hot Frog place open; Centralia ignored; no Play started)
 owed: o-20261028-121545-wm5p (open Hot Frog in Studio, bind "Rojo: Connect" to Ctrl+Alt+Shift+F8, run `python tools/rojo_reconnect.py connect`; done-check `rojo_reconnect.py status`)
 hand-check: the watchdog is a detached hidden PowerShell and does not survive a reboot; restart it with the README command.
+
+## b-20261028-122107-1819  fixed  2026-10-28 12:21
+note: Live check: Rojo serves hotfrog-roblox on the pinned servePort 34873 (finishes the partly-verified pin)
+cause: b-20261028-114837-bdu6 pinned servePort 34873 but could only be verified `partly`: no rojo serve was running for hotfrog then; b-20261028-120418-kdg5 has since started one under tools/rojo_serve_watchdog.ps1.
+change: none (a live check of the pin)
+files: none
+test: none
+verified: yes. Live run: `bugloop.py rojo-check` exits 0 ("Rojo serves this project"), `curl 127.0.0.1:34873/api/rojo` returns projectName hotfrog-roblox, and netstat shows 127.0.0.1:34873 LISTENING (pid 39776). This proves b-20261028-114837-bdu6. The Studio plugin connect is a separate step, owed as o-20261028-121545-wm5p for b-20261028-120418-kdg5.
+review: n/a
