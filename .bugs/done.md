@@ -3633,8 +3633,9 @@ studio: Hot Frog (placeId 114911935371092), Play started and stopped by the fixe
 ## b-20261024-101154-lxd7  fixed  2026-10-28 11:47
 note: Feature: Turn on push for this list (user's ruling 'yes' on bugloop b-20261024-094801-cdx1): set "push": true in .bugs/config.json and commit only that file, then let ship push.
 cause: The list had no "push" key, so ship never pushed and the fleet design talks (which read the Pi mirror of the GitHub remote) saw stale code; ruling b-20261024-101012-gnis said yes.
-change: Added "push": true to .bugs/config.json and staged only that line (the user's uncommitted "autoStop": true stays in the working tree, uncommitted); ship then pushes master to origin. Branch checked before: 0 behind, 210 ahead of origin/master, not diverged.
+change: Added "push": true to .bugs/config.json and staged only that line (the user's uncommitted "autoStop": true stays in the working tree, uncommitted); committed in 972917f; ship then pushed master to origin. Branch checked before: 0 behind, 210 ahead of origin/master, not diverged.
 files: .bugs/config.json
 test: none
 verified: yes — live `bugloop.py ship` run: "pushed 211 commit(s) from H:/Roblox Projects/hotfrog"; afterwards `git rev-list --left-right --count origin/master...HEAD` printed 0 0
 review: n/a
+note: the config change landed in record commit 972917f (subject "bugloop: record b-20261024-101154-lxd7", no [id] tag), already pushed, so it cannot be renamed; the "no item commit" warning for this id is a naming gap, not uncommitted code.
