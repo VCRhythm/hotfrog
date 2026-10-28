@@ -3649,4 +3649,5 @@ test: python json parse OK; rojo build default.project.json --output build.rbxl 
 verified: partly. A live `bugloop.py pending` run no longer prints the servePort warning, and `bugloop.py rojo-check` now probes 34873 (it reports "hold: Rojo serve is not reachable on port 34873" because no rojo serve is running for Hot Frog yet).
 enforced-by: the `bugloop.py pending` servePort warning check, which flags a Roblox project with no servePort
 review: looks-right. Checked: the diff is one line in each file; servePort is a top-level key; no other project uses 34873; no 3487x port is hardcoded in tools/ or docs/.
-owed: o-20261028-115520-m88v (start rojo serve on 34873 and reconnect the Studio plugin)
+owed: o-20261028-115753-qe7r (start rojo serve on 34873 and reconnect the Studio plugin)
+note: the first owe, o-20261028-115520-m88v, was cleared by ship although nothing serves 34873. Its done-check passed `--repo '/h/...'`, which loop_shell's MSYS_NO_PATHCONV leaves unconverted, so rojo-check saw a non-Roblox root and exited 0. Re-owed as qe7r with a cwd-based rojo-check, which was confirmed to fail through the runner. Filed to bugloop as b-20261028-115739-1occ.
