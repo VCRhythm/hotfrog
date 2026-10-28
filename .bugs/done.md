@@ -3673,3 +3673,13 @@ files: none
 test: none
 verified: yes. Live run: `bugloop.py rojo-check` exits 0 ("Rojo serves this project"), `curl 127.0.0.1:34873/api/rojo` returns projectName hotfrog-roblox, and netstat shows 127.0.0.1:34873 LISTENING (pid 39776). This proves b-20261028-114837-bdu6. The Studio plugin connect is a separate step, owed as o-20261028-121545-wm5p for b-20261028-120418-kdg5.
 review: n/a
+
+## b-20261028-150203-i95v  fixed  2026-10-28 15:02
+note: Live check: Studio Rojo plugin connects to hotfrog's own rojo serve on 34873 (finishes the partly-verified kdg5)
+cause: b-20261028-120418-kdg5 could only verify the serve half; the Studio plugin connect waited on owed step o-20261028-121545-wm5p, since cleared (its done-check passed at 12:30).
+change: none (a live check)
+files: none
+test: none
+verified: yes. Live run at 2026-10-28 15:02: `python tools/rojo_reconnect.py status` exits 0 with "serve: hotfrog-roblox on port 34873", "studio: Hot Frog - Roblox Studio (pid 40636)", "plugin: socket ESTABLISHED (connected)"; `bugloop.py rojo-check` exits 0. This proves b-20261028-120418-kdg5.
+review: n/a
+studio: none (no Play run; only the plugin socket was read)
