@@ -3636,5 +3636,5 @@ cause: The list had no "push" key, so ship never pushed and the fleet design tal
 change: Added "push": true to .bugs/config.json and staged only that line (the user's uncommitted "autoStop": true stays in the working tree, uncommitted); ship then pushes master to origin. Branch checked before: 0 behind, 210 ahead of origin/master, not diverged.
 files: .bugs/config.json
 test: none
-verified: yes — see the ship output in the tick summary (push of master to origin/master)
+verified: yes — live `bugloop.py ship` run: "pushed 211 commit(s) from H:/Roblox Projects/hotfrog"; afterwards `git rev-list --left-right --count origin/master...HEAD` printed 0 0
 review: n/a
