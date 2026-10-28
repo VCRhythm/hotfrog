@@ -351,9 +351,18 @@ done-check: python ~/.claude/skills/bugloop/scripts/bugloop.py --repo '/h/Roblox
 evidence: done-check passed: exit 0, no output
 cleared: 2026-10-28 11:55 done-check passed
 
-## o-20261028-115753-qe7r  open  2026-10-28 11:57
+## o-20261028-115753-qe7r  done  2026-10-28 11:57
 for: b-20261028-114837-bdu6
 kind: restart
 step: Start rojo serve for Hot Frog on its pinned port 34873 and connect the Studio Rojo plugin
 command: cd '/h/Roblox Projects/hotfrog' && rojo serve --port 34873
 done-check: python "$USERPROFILE/.claude/skills/bugloop/scripts/bugloop.py" rojo-check >/dev/null 2>&1
+evidence: none, the user sent it back to the loop as b-20261028-120418-kdg5
+cleared: 2026-10-28 12:04 sent back to loop as b-20261028-120418-kdg5: you should be able to run your own server and connect, similar to how the scare repo does
+
+## o-20261028-121545-wm5p  open  2026-10-28 12:15
+for: b-20261028-120418-kdg5
+kind: app-setting
+step: Open the Hot Frog place in Studio (Edit mode) and bind "Rojo: Connect" (not "Rojo: Connect/Disconnect") to Ctrl+Alt+Shift+F8 under File > Customize Shortcuts; then run the command, or click Connect in the Rojo widget on localhost:34873. Hot Frog's rojo serve is already running.
+command: cd '/h/Roblox Projects/hotfrog' && python tools/rojo_reconnect.py connect
+done-check: python tools/rojo_reconnect.py status >/dev/null 2>&1

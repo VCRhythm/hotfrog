@@ -3651,3 +3651,16 @@ enforced-by: the `bugloop.py pending` servePort warning check, which flags a Rob
 review: looks-right. Checked: the diff is one line in each file; servePort is a top-level key; no other project uses 34873; no 3487x port is hardcoded in tools/ or docs/.
 owed: o-20261028-115753-qe7r (start rojo serve on 34873 and reconnect the Studio plugin)
 note: the first owe, o-20261028-115520-m88v, was cleared by ship although nothing serves 34873. Its done-check passed `--repo '/h/...'`, which loop_shell's MSYS_NO_PATHCONV leaves unconverted, so rojo-check saw a non-Roblox root and exited 0. Re-owed as qe7r with a cwd-based rojo-check, which was confirmed to fail through the runner. Filed to bugloop as b-20261028-115739-1occ.
+
+## b-20261028-120418-kdg5  fixed  2026-10-28 12:16
+note: you should be able to run your own server and connect, similar to how the scare repo does (sent back from owed step o-20261028-115753-qe7r, for b-20261028-114837-bdu6)
+cause: hotfrog had no supervised `rojo serve` starter and no way to reconnect the Studio Rojo plugin, so the loop could only owe both to the user (same gap as scare b-20261016-191633-vbp2 / b-20261017-035427-27io and throw_it b-20261026-151236-5usj, found with `bugloop.py recall`).
+change: Ported scare's watchdog and reconnect tool, using throw_it's thin-wrapper pattern. tools/rojo_serve_watchdog.ps1 supervises `rojo serve --port 34873` and restarts it on a crash. tools/rojo_reconnect.py wraps scare's tool, locked to the "Hot Frog" window and the hotfrog-roblox project (status, connect, click, fingerprint). .bugs/README.md drops "never start your own" and gives the detached start and connect commands. The watchdog was then started, hidden and detached.
+files: tools/rojo_serve_watchdog.ps1, tools/rojo_reconnect.py, .bugs/README.md
+test: python -m py_compile tools/rojo_reconnect.py OK (no unit suite; no .luau touched)
+verified: partly. The live serve is up: `curl 127.0.0.1:34873/api/rojo` returns projectName hotfrog-roblox, `bugloop.py rojo-check` exits 0 ("Rojo serves this project"), and `python tools/rojo_reconnect.py status` prints "serve: hotfrog-roblox on port 34873". The Studio plugin connect was not run, because no Hot Frog Studio is open (list_roblox_studios: Centralia, Iso, Throw.rbxl, one unnamed), so status exits 3.
+review: looks-right. Checked: both new files in full against scare's watchdog and throw_it's wrapper; the README diff; default.project.json; py_compile; `rojo_reconnect.py status` exits 3 with no Studio window; curl shows the hotfrog-roblox serve. No kill or Stop-Process in the watchdog, and the window title is locked to "Hot Frog". Notes: the README command is PowerShell syntax (stated); the Studio title match and the plugin port are unproven until a Hot Frog Studio is open.
+enforced-by: `bugloop.py rojo-check` (the Rojo hold in `pending`) and `python tools/rojo_reconnect.py status`, the checks the README tells fixers to run; the README rule itself is guidance
+studio: none (no Hot Frog place open; Centralia ignored; no Play started)
+owed: o-20261028-121545-wm5p (open Hot Frog in Studio, bind "Rojo: Connect" to Ctrl+Alt+Shift+F8, run `python tools/rojo_reconnect.py connect`; done-check `rojo_reconnect.py status`)
+hand-check: the watchdog is a detached hidden PowerShell and does not survive a reboot; restart it with the README command.

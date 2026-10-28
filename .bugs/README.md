@@ -1,9 +1,14 @@
 # hotfrog — notes for bug fixers
 
 Roblox (Luau, `--!strict`) port of HotFrog, a Unity 2D physics climber. Rojo syncs `src/` into
-Studio one-way (`rojo serve` is always already running, on this project's pinned `servePort` 34873 from
-`default.project.json`, i.e. `rojo serve --port 34873`; never start your own); edit files on disk
-only. Root-level `Core/ Player/ Entities/ Spawning/ Input/ ...` are the **read-only Unity C#
+Studio one-way (`rojo serve --port 34873`, this project's pinned `servePort`); edit files on disk
+only. If `python ~/.claude/skills/bugloop/scripts/bugloop.py rojo-check` fails, start hotfrog's own
+supervised serve, detached, from PowerShell (the inner quotes matter):
+`Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','"H:\Roblox Projects\hotfrog\tools\rojo_serve_watchdog.ps1"'`
+(log `%TEMP%\hotfrog_rojo_serve_watchdog.log`). Only port 34873; never touch other projects' serves
+or kill other rojo.exe. To connect/reconnect the Studio plugin (Hot Frog window, Edit mode):
+`python tools/rojo_reconnect.py status`, then `connect` if it exits 1 (wraps scare's tool; needs the
+user's one-time Studio binding of "Rojo: Connect" to Ctrl+Alt+Shift+F8); `fingerprint <file>` proves sync. Root-level `Core/ Player/ Entities/ Spawning/ Input/ ...` are the **read-only Unity C#
 original**: Luau files cite the C# file they port — read it for "how should this behave".
 `CLAUDE.md` has the full architecture map; read it first.
 
