@@ -1,7 +1,8 @@
 # hotfrog — notes for bug fixers
 
 Roblox (Luau, `--!strict`) port of HotFrog, a Unity 2D physics climber. Rojo syncs `src/` into
-Studio one-way (`rojo serve` is always already running; never start your own); edit files on disk
+Studio one-way (`rojo serve` is always already running, on this project's pinned `servePort` 34873 from
+`default.project.json`, i.e. `rojo serve --port 34873`; never start your own); edit files on disk
 only. Root-level `Core/ Player/ Entities/ Spawning/ Input/ ...` are the **read-only Unity C#
 original**: Luau files cite the C# file they port — read it for "how should this behave".
 `CLAUDE.md` has the full architecture map; read it first.

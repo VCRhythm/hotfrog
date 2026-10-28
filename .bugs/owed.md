@@ -341,3 +341,10 @@ step: Play a Kitchen run on a portrait phone through several Chef Knife Swings
 no-check: needs a portrait viewport and repeated random Chef picks
 evidence: marked done by the user, no check
 cleared: 2026-10-22 14:54 marked done on the fleet dashboard
+
+## o-20261028-115520-m88v  open  2026-10-28 11:55
+for: b-20261028-114837-bdu6
+kind: restart
+step: Start rojo serve for Hot Frog on its pinned port 34873 and connect the Studio Rojo plugin
+command: cd '/h/Roblox Projects/hotfrog' && rojo serve --port 34873
+done-check: python ~/.claude/skills/bugloop/scripts/bugloop.py --repo '/h/Roblox Projects/hotfrog' rojo-check >/dev/null 2>&1

@@ -3639,3 +3639,14 @@ test: none
 verified: yes — live `bugloop.py ship` run: "pushed 211 commit(s) from H:/Roblox Projects/hotfrog"; afterwards `git rev-list --left-right --count origin/master...HEAD` printed 0 0
 review: n/a
 note: the config change landed in record commit 972917f (subject "bugloop: record b-20261024-101154-lxd7", no [id] tag), already pushed, so it cannot be renamed; the "no item commit" warning for this id is a naming gap, not uncommitted code.
+
+## b-20261028-114837-bdu6  fixed  2026-10-28 11:56
+note: Pin a servePort in default.project.json so Hot Frog's rojo serve has its own port; stage only the servePort line.
+cause: default.project.json had no servePort, so `rojo serve` defaulted to 34872 (Iso's pinned port) and bugloop's rojo-check probed 34872 too, so it read another project's server.
+change: Added "servePort": 34873 (the port that is free among tactics 34875, scare 34871, throw_it 34874, iso 34872) after "name" in default.project.json; .bugs/README.md now names the pinned port and `rojo serve --port 34873`.
+files: default.project.json, .bugs/README.md
+test: python json parse OK; rojo build default.project.json --output build.rbxl OK
+verified: partly. A live `bugloop.py pending` run no longer prints the servePort warning, and `bugloop.py rojo-check` now probes 34873 (it reports "hold: Rojo serve is not reachable on port 34873" because no rojo serve is running for Hot Frog yet).
+enforced-by: the `bugloop.py pending` servePort warning check, which flags a Roblox project with no servePort
+review: looks-right. Checked: the diff is one line in each file; servePort is a top-level key; no other project uses 34873; no 3487x port is hardcoded in tools/ or docs/.
+owed: o-20261028-115520-m88v (start rojo serve on 34873 and reconnect the Studio plugin)
