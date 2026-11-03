@@ -257,6 +257,16 @@ def ffmpeg_available() -> bool:
     return shutil.which("ffmpeg") is not None
 
 
+# Conversion parameters; part of the cache key for converted audio so a settings change re-uploads.
+MP3_CONVERT_TAG = "libmp3lame-192k"
+
+
+def raw_source_hash(src: Path) -> str:
+    """Cache key for needs_conversion assets: hash of the raw source plus conversion params,
+    NOT of the transcoded bytes (a re-encode is not guaranteed byte-identical)."""
+    return f"{sha256_file(src)}:{MP3_CONVERT_TAG}"
+
+
 def convert_to_mp3(src: Path, key: str) -> Path | None:
     """Transcode an oversized audio file to mp3 (192kbps) via ffmpeg. Returns
     the converted path, or None if ffmpeg isn't available / conversion failed."""
@@ -554,7 +564,36 @@ def run_manifest(args: argparse.Namespace) -> int:
             continue
 
         upload_path = src
-        if entry.get("needs_conversion"):
+        cached = cache.get(key)
+        is_image = entry["kind"] == "image"
+        needs_conv = bool(entry.get("needs_conversion"))
+        has_id = bool(cached) and bool((is_image and cached.get("imageId")) or (not is_image and cached.get("assetId")))
+        raw_hash: str | None = None
+        cached_ok = False
+        if needs_conv:
+            raw_hash = raw_source_hash(src)
+            if has_id and cached.get("rawHash") == raw_hash:
+                cached_ok = True
+            elif has_id and not cached.get("rawHash"):
+                # Migration: legacy entries keyed sourceHash on the converted mp3. If that mp3 is still on
+                # disk and unchanged, trust it and backfill rawHash (assumes the source is unchanged since).
+                existing = CONVERTED_AUDIO_DIR / f"{key}.mp3"
+                if existing.exists() and cached.get("sourceHash") == sha256_file(existing):
+                    cached["rawHash"] = raw_hash
+                    cached_ok = True
+                    if not dry:
+                        save_cache(args.cache, cache)
+            file_hash = cached.get("sourceHash") if cached_ok else ""
+        else:
+            file_hash = sha256_file(src)
+            cached_ok = has_id and cached.get("sourceHash") == file_hash
+        if cached_ok:
+            id_shown = cached.get("imageId") if is_image else cached.get("assetId")
+            print(f"{tag}: cached, unchanged (id={id_shown})", file=sys.stderr)
+            skipped_unchanged += 1
+            continue
+
+        if needs_conv:
             if dry:
                 print(f"{tag}: DRY-RUN would convert {src.name} via ffmpeg (needs_conversion) then upload", file=sys.stderr)
                 converted += 1
@@ -565,18 +604,7 @@ def run_manifest(args: argparse.Namespace) -> int:
                 missing_ffmpeg += 1
                 continue
             upload_path = converted_path
-
-        file_hash = sha256_file(upload_path)
-        cached = cache.get(key)
-        is_image = entry["kind"] == "image"
-        cached_ok = cached and cached.get("sourceHash") == file_hash and (
-            (is_image and cached.get("imageId")) or (not is_image and cached.get("assetId"))
-        )
-        if cached_ok:
-            id_shown = cached.get("imageId") if is_image else cached.get("assetId")
-            print(f"{tag}: cached, unchanged (id={id_shown})", file=sys.stderr)
-            skipped_unchanged += 1
-            continue
+            file_hash = sha256_file(upload_path)
 
         if dry:
             state = "new" if not cached else "changed"
@@ -645,6 +673,8 @@ def run_manifest(args: argparse.Namespace) -> int:
                 "uploadedAt": time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime()),
                 "via": audio_via,
             }
+            if raw_hash:
+                cache[key]["rawHash"] = raw_hash
             print(f"{tag}: -> {asset_id} (via {audio_via})", file=sys.stderr)
 
         save_cache(args.cache, cache)  # persist after every success so a crash mid-run loses nothing

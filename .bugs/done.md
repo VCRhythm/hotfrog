@@ -3705,3 +3705,13 @@ verified: yes. The captures in marketing/captures/ (country.jpg and space.jpg op
 review: n/a
 leftover: none. There is no store-screen capture, but the owner's own follow-up request (b-20261023-090444-59l4) asked only for gameplay, and thumb-1..5 stay as optional extras.
 followups: b-20261023-090444-59l4
+
+## b-20261022-145310-ukbf  fixed  2026-11-03 06:33
+note: upload_to_roblox.py hashes the freshly re-transcoded mp3, so a non-byte-identical re-encode changes sourceHash and re-uploads unchanged audio
+cause: For needs_conversion audio, run_manifest transcoded with ffmpeg libmp3lame 192k on every real run and keyed the cache on the sha256 of that output, which isn't guaranteed byte-identical between encodes.
+change: Converted audio is now keyed on rawHash, the raw source's sha256 plus MP3_CONVERT_TAG ("libmp3lame-192k"), via raw_source_hash() in tools/upload_to_roblox.py (~line 260). The per-entry block (~line 567) checks the cache before transcoding, so ffmpeg runs only when an upload is needed, and it stores rawHash next to sourceHash on upload. Migration: an entry with no rawHash, whose sourceHash matches the converted mp3 still on disk, counts as cached and gets rawHash backfilled; the cache is saved only on a non-dry run. Non-converted assets hash exactly as before.
+files: tools/upload_to_roblox.py
+test: python -m py_compile tools/upload_to_roblox.py ok; --dry-run --kind audio: 32 cached/unchanged, 0 would-convert, 0 failed (music1-6 cached); full --dry-run: 295 cached/unchanged, 0 failed; tools/asset_ids.json byte-identical before and after (cmp)
+verified: partly. The migration path and dry-run caching were run. A real upload, and the rawHash write and backfill save outside dry-run, were not exercised (that would be a real upload or cache write).
+review: looks-right (orchestrator inline, no reviewer subagent); checked: full git diff of tools/upload_to_roblox.py. The cache lookup moved ahead of conversion, has_id keeps the old image/asset id rule, and the dry-run never saves. Minor: the migration trusts an old mp3 even if the wav changed since, and changing ffmpeg args needs MP3_CONVERT_TAG bumped by hand.
+leftover: none. The first real run backfills rawHash for all audio entries.
