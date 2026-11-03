@@ -3714,4 +3714,4 @@ files: tools/upload_to_roblox.py
 test: python -m py_compile tools/upload_to_roblox.py ok; --dry-run --kind audio: 32 cached/unchanged, 0 would-convert, 0 failed (music1-6 cached); full --dry-run: 295 cached/unchanged, 0 failed; tools/asset_ids.json byte-identical before and after (cmp)
 verified: partly. The migration path and dry-run caching were run. A real upload, and the rawHash write and backfill save outside dry-run, were not exercised (that would be a real upload or cache write).
 review: looks-right (orchestrator inline, no reviewer subagent); checked: full git diff of tools/upload_to_roblox.py. The cache lookup moved ahead of conversion, has_id keeps the old image/asset id rule, and the dry-run never saves. Minor: the migration trusts an old mp3 even if the wav changed since, and changing ffmpeg args needs MP3_CONVERT_TAG bumped by hand.
-leftover: none. The first real run backfills rawHash for all audio entries.
+leftover: none — the rawHash write runs only on a real upload, which publishes assets to Roblox and is the owner's call; the next real run backfills rawHash for all audio entries
