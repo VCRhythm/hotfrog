@@ -3683,3 +3683,25 @@ test: none
 verified: yes. Live run at 2026-10-28 15:02: `python tools/rojo_reconnect.py status` exits 0 with "serve: hotfrog-roblox on port 34873", "studio: Hot Frog - Roblox Studio (pid 40636)", "plugin: socket ESTABLISHED (connected)"; `bugloop.py rojo-check` exits 0. This proves b-20261028-120418-kdg5.
 review: n/a
 studio: none (no Play run; only the plugin socket was read)
+
+## b-20261020-205042-kryx  duplicate  2026-11-03 06:33
+note: Studio Play check: reach Country and Space with no Halloween overlay and the Daily Streak popup closed; confirm the CountryBack and SpaceBack backdrops render behind the steps
+cause: The b-20261023-090444-59l4 capture run already did this. It ran Studio Play on Hot Frog with ForceHalloween set to false at runtime and no popup open, and the bot climbed through Country into Space.
+change: none
+files: none
+test: none (no code changed)
+verified: yes. In marketing/captures/country.jpg the CountryBack state-map backdrop (maroon and blue states with borders) renders behind the car and lily-pad steps. In marketing/captures/space.jpg the Space starfield renders behind the asteroid steps. Neither frame shows a Halloween sky, ghosts, cobwebs or bats, and the HUD is clear of popups. Not covered: the place's natural November state, because the saved place still sets Workspace ForceHalloween = true (owed separately).
+review: n/a
+followups: b-20261023-090444-59l4
+side: owed clearing the saved ForceHalloween attribute in the Hot Frog place
+
+## b-20261022-120651-mtww  duplicate  2026-11-03 06:33
+note: Replace the composed marketing thumbnails with real gameplay captures (Hot Frog skin, after the Halloween window), 1920x1080 PNGs in marketing/
+cause: b-20261023-090444-59l4 already did this. It saved real Studio Play captures of Pot, Kitchen, Country and Space in the plain Hot Frog skin with Halloween off as marketing/gameplay-1..5.png (1920x1080), and marketing/store-page.md lists them as the thumbnails.
+change: none
+files: none
+test: none (no code changed)
+verified: yes. The captures in marketing/captures/ (country.jpg and space.jpg opened this tick) are real gameplay in the Hot Frog skin with no Halloween theme. The b-20261023-090444-59l4 record confirms gameplay-1..5 are 1920x1080.
+review: n/a
+leftover: none. There is no store-screen capture, but the owner's own follow-up request (b-20261023-090444-59l4) asked only for gameplay, and thumb-1..5 stay as optional extras.
+followups: b-20261023-090444-59l4

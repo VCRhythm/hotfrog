@@ -368,3 +368,9 @@ command: cd '/h/Roblox Projects/hotfrog' && python tools/rojo_reconnect.py conne
 done-check: python tools/rojo_reconnect.py status >/dev/null 2>&1
 evidence: done-check passed: exit 0, no output
 cleared: 2026-10-28 12:30 marked done on the fleet dashboard
+
+## o-20261103-063315-gnbz  open  2026-11-03 06:33
+for: b-20261020-205042-kryx
+kind: approval
+step: In Roblox Studio, open the Hot Frog place, select Workspace, delete its ForceHalloween attribute (it is saved as true, so every server forces the Halloween theme after the Nov 1 window), then File > Publish to Roblox
+no-check: the published place can't be read from this host: the Open Cloud key lacks the Luau Execution scope
