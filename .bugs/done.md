@@ -3715,3 +3715,17 @@ test: python -m py_compile tools/upload_to_roblox.py ok; --dry-run --kind audio:
 verified: partly. The migration path and dry-run caching were run. A real upload, and the rawHash write and backfill save outside dry-run, were not exercised (that would be a real upload or cache write).
 review: looks-right (orchestrator inline, no reviewer subagent); checked: full git diff of tools/upload_to_roblox.py. The cache lookup moved ahead of conversion, has_id keeps the old image/asset id rule, and the dry-run never saves. Minor: the migration trusts an old mp3 even if the wav changed since, and changing ffmpeg args needs MP3_CONVERT_TAG bumped by hand.
 leftover: none — the rawHash write runs only on a real upload, which publishes assets to Roblox and is the owner's call; the next real run backfills rawHash for all audio entries
+
+## b-20261104-164110-c303  blocked  2026-11-04 16:53
+note: i need to replace the thumbnails on roblox with in-game shots that look way better than what's currently up there
+cause: The thumbnails on Roblox are the composed sprite cards from b-20261022-115819-ktdq (thumb-1..5). The later gameplay set (b-20261023-090444-59l4) was small 1048x955 frames padded onto a blurred backdrop, dim, with the HUD over the frog. Halfway through the new captures this PC's display output lost its monitor (display hold), so the work stopped.
+change: none to code. Hot Frog was not open in Studio, so the loop opened it itself (RobloxStudioBeta -task EditPlace). The fixer found a way to get full-bleed 16:9 frames: a 1806x1016 viewport, with the HUD and topbar hidden locally and the plain Hot Frog skin. It saved three raw Play frames to marketing/captures/ingame/: pot-raw.jpg (too dark), kitchen-chef-hang-raw.jpg (frog cut off), kitchen-chef-reach-raw.jpg (the best). No finished ingame-*.png exists yet.
+files: marketing/captures/ingame/pot-raw.jpg, marketing/captures/ingame/kitchen-chef-hang-raw.jpg, marketing/captures/ingame/kitchen-chef-reach-raw.jpg
+test: none
+verified: no — the display hold (no monitor on \.\DISPLAY1) stopped the capture run before any thumbnail was made; three raw frames from that Studio Play were opened and judged not ready to ship
+review: n/a
+studio: Hot Frog (placeId 114911935371092), Play stopped, window restored
+seen: none (no finished thumbnails yet; raw frames in marketing/captures/ingame/)
+owed: none (the missing monitor is already owed as o-20261104-165034-8c9g on scare; the Creator Hub upload will be owed once the set exists)
+leftover: b-20261104-165256-ifaa, which waits on display-check, finishes the captures, writes marketing/ingame-1..N.png, and owes the upload
+note: bugloop.py studio-ready failed with "no frames reported" while Play drew; most likely the same missing monitor
