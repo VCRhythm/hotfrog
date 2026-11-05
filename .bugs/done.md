@@ -3729,3 +3729,17 @@ seen: none (no finished thumbnails yet; raw frames in marketing/captures/ingame/
 owed: none (the missing monitor is already owed as o-20261104-165034-8c9g on scare; the Creator Hub upload will be owed once the set exists)
 leftover: b-20261104-165256-ifaa, which waits on display-check, finishes the captures, writes marketing/ingame-1..N.png, and owes the upload
 note: bugloop.py studio-ready failed with "no frames reported" while Play drew; most likely the same missing monitor
+
+## b-20261104-165256-ifaa  blocked  2026-11-05 12:26
+note: Finish the in-game Roblox thumbnails: capture Pot (lava rising), Kitchen mid-grab with the Chef, Country, Space and a perfect-grab or fly catch; write tools/make_ingame_thumbs.py -> marketing/ingame-1..N.png at 1920x1080; update marketing/store-page.md; then owe the Creator Hub upload
+cause: bugloop.py studio-ready failed twice during a live Hot Frog Play ("no frames reported") with the window shown and the listener answering. Hotfrog's vendored bugloop/ modules (installed 2026-10-16) predate the template's __frames relay (grep __frames finds it only in ~/.claude/skills/bugloop/templates/roblox/), so studio-ready can never pass here. The missing monitor blamed in b-20261104-164110-c303 was probably this as well.
+change: none. The fixer opened Hot Frog in Studio itself, started Play, ran studio-ready (failed twice), stopped Play and put the window back. It took no captures and wrote no images.
+files: none
+test: none
+verified: no — studio-ready failed (no frames reported), so no capture was made
+review: n/a
+studio: Hot Frog (placeId 114911935371092), Play stopped, window restored, Studio left open in Edit
+seen: none (no images produced)
+owed: none
+leftover: b-20261105-122544-v3fr upgrades the bugloop modules so studio-ready can pass; b-20261105-122557-xv66 (waits on is-fixed of that) redoes the captures
+followups: b-20261105-122544-v3fr, b-20261105-122557-xv66
