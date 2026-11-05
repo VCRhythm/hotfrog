@@ -6,11 +6,14 @@ Reads marketing/captures/ingame/*.jpg and writes marketing/ingame-1..N.png (1920
 The captures are Studio Play screenshots (MCP screen_capture) taken with the
 Studio window set to 2221x1460, which gives a 1806x1016 (16:9) viewport, HUD and
 menus hidden locally, GameClient's native framing (FOV 40, 43.2 studs, centred
-on the lane), and local-only lighting tweaks (lighter Atmosphere, shadows off,
-+0.3..0.6 exposure); see marketing/store-page.md. Each frame is scaled (about
-1.06x) to fill the canvas and gets a small title and caption in the top-left
-corner. Nothing in the gameplay frame is redrawn. make_gameplay_thumbs.py (the
-older portrait captures set beside a caption panel) is separate.
+on the lane; the Pot frame dropped 1.5 studs so the lava shows) and local-only
+lighting tweaks; see marketing/store-page.md. Each frame is a real bot-driven
+climbing moment, picked so the frog is raised in the frame with its face clear
+and one hand on each arm, then frozen client-side for the screenshot. Each
+frame is scaled (about 1.06x) to fill the canvas and gets a small title and
+caption in the top-left corner. Nothing in the gameplay frame is redrawn.
+make_gameplay_thumbs.py (the older portrait captures set beside a caption
+panel) is separate.
 """
 
 import os
@@ -23,10 +26,10 @@ CAPTURES = os.path.join(OUT, "captures", "ingame")
 
 # (capture file, caption), in upload order
 SHOTS = [
-    ("kitchen-chef-grab.jpg", "DODGE THE CHEF"),
-    ("pot-lava-b.jpg", "CLIMB OUT OF THE POT"),
-    ("kitchen-chef-knife.jpg", "WATCH THE KNIFE"),
-    ("kitchen-fly-catch.jpg", "CATCH FLIES"),
+    ("pot-lava-raised.jpg", "CLIMB OUT OF THE POT"),
+    ("kitchen-climb-raised.jpg", "SNEAK PAST THE CHEF"),
+    ("country-climb-a.jpg", "CROSS THE COUNTRY"),
+    ("space-climb-a.jpg", "CLIMB INTO SPACE"),
 ]
 
 

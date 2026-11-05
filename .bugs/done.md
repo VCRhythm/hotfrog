@@ -3854,3 +3854,29 @@ verified: yes
 studio: Hot Frog 114911935371092, Edit (no Play)
 review: n/a
 owed: none
+
+## b-20261105-135904-fbjq  fixed  2026-11-05 15:10
+note: there are two hands in this shot on the same arm. is this a bug or just a bad composition? also all the shots should have the frog as visible as possible (raised up)
+cause: Composition, not a bug: the free hand eases back to rest in a straight line (as Unity's Controller.MoveLimbs SmoothDamp does) and in that frame was passing over the other arm while both arms were vertical; in a 60-grab Studio Play run (2877 frames) no limb ever showed both its open and grip sprites, and crossings lasted 2 to 4 frames.
+change: No game code changed. All four thumbnails recaptured as real bot-climb moments picked automatically when the frog's body is raised, its face clear of steps and arms, and each hand on its own arm (at least 8 studs apart), then frozen client-side for the screenshot; tools/make_ingame_thumbs.py SHOTS and docstring and marketing/store-page.md describe the method and answer the two-hands question.
+files: tools/make_ingame_thumbs.py, marketing/store-page.md, marketing/ingame-1.png, marketing/ingame-2.png, marketing/ingame-3.png, marketing/ingame-4.png, marketing/captures/ingame/pot-lava-raised.jpg, marketing/captures/ingame/kitchen-climb-raised.jpg, marketing/captures/ingame/country-climb-a.jpg, marketing/captures/ingame/space-climb-a.jpg
+test: python -m py_compile tools/make_ingame_thumbs.py passed; python tools/make_ingame_thumbs.py wrote ingame-1..4.png (1920x1080); no Luau touched
+verified: partly: the limb-sprite scan and all four frames were made in Studio Play, but Studio's asset cache was poisoned by the earlier DNS outage, so several step and scenery textures were served from a local rbxasset:// remap of the same approved images rather than the live CDN; the user's own look comes with the upload step
+studio: Hot Frog 114911935371092, Play stopped
+seen: marketing/ingame-1.png, marketing/ingame-2.png, marketing/ingame-3.png, marketing/ingame-4.png
+review: looks-right; checked: git diff of make_ingame_thumbs.py and store-page.md (SHOTS Pot/Kitchen/Country/Space matches the upload order, stand-in note gone), every SHOTS capture exists, py_compile, PIL sizes 1920x1080, opened all four pngs (one hand per arm, face clear, frog raised, captions clear of the frog and match the level); did not repeat the 2877-frame scan
+hand-check: in the Kitchen frame the Chef is mostly behind the frog (caption "SNEAK PAST THE CHEF"); five hunts never found him clear to the side while the frog was also clean
+owed: o-20261105-151017-pf9g (Creator Hub upload, new order; replaces o-20261105-135424-j2jp, which was sent back as this entry)
+leftover: none — old unused captures stay in marketing/captures/ingame/ by choice; the Studio cache poisoning clears on a Studio restart
+
+## b-20261105-135425-98f2  fixed  2026-11-05 15:10
+note: Recapture Country and Space in-game thumbnails (StudioSkipTo, re-dress frog, StudioBot) now that Studio fetches assets, add to SHOTS in tools/make_ingame_thumbs.py, replace gameplay-3/-4 in store-page.md
+cause: the ingame set had no Country or Space frame because Studio could not load the CountryBack/SpaceBack textures during the DNS outage.
+change: captured Country (country-climb-a.jpg) and Space (space-climb-a.jpg) via StudioSkipTo + StudioBot under the frog-visible rule of b-20261105-135904-fbjq; added to SHOTS as ingame-3/-4; marketing/store-page.md uploads ingame-1..4 in place of gameplay-3/-4.
+files: tools/make_ingame_thumbs.py, marketing/store-page.md, marketing/ingame-3.png, marketing/ingame-4.png, marketing/captures/ingame/country-climb-a.jpg, marketing/captures/ingame/space-climb-a.jpg
+test: python -m py_compile tools/make_ingame_thumbs.py passed; regenerated ingame-1..4.png
+verified: yes: both levels seen in Studio Play with their backdrops loaded and captured (some step/scenery art from the local rbxasset:// remap of the same approved images, see b-20261105-135904-fbjq)
+studio: Hot Frog 114911935371092, Play stopped
+seen: marketing/ingame-3.png, marketing/ingame-4.png
+review: looks-right; checked: same review as b-20261105-135904-fbjq (shared files)
+owed: o-20261105-151017-pf9g (shared upload step)

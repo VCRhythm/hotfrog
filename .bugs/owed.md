@@ -400,9 +400,18 @@ cleared: 2026-11-05 13:11 sent back to loop as b-20261105-131148-urte: use the t
 no-sample-check: rojo_reconnect.py status probes the plugin's live socket, not a file
 tried: python tools/rojo_reconnect.py connect, twice 15 s apart: plugin: no socket (disconnected, or a dialog is waiting), exit 1
 
-## o-20261105-135424-j2jp  open  2026-11-05 13:54
+## o-20261105-135424-j2jp  done  2026-11-05 13:54
 for: b-20261105-122557-xv66
 kind: approval
 step: Creator Hub (create.roblox.com) -> Creations -> Hot Frog -> Places -> start place -> Thumbnails: upload marketing/ingame-1.png, ingame-2.png, ingame-3.png, ingame-4.png in that order, then gameplay-3.png and gameplay-4.png (max 10 images, ingame-1 first); do the icon and settings per marketing/store-page.md 'Files and where they go'.
+no-check: the thumbnails live on the Creator Hub page, which the loop cannot read
+evidence: none, the user sent it back to the loop as b-20261105-135904-fbjq
+cleared: 2026-11-05 13:59 sent back to loop as b-20261105-135904-fbjq: there are two hands in this shot on the same arm. is this a bug or just a bad composition? also all the shots should have the frog as visible as possible (raised up)
+cannot: publishing on the user's Roblox account
+
+## o-20261105-151017-pf9g  open  2026-11-05 15:10
+for: b-20261105-135904-fbjq
+kind: approval
+step: Creator Hub (create.roblox.com) -> Creations -> Hot Frog -> Places -> start place -> Thumbnails: upload marketing/ingame-1.png (Pot), ingame-2.png (Kitchen), ingame-3.png (Country), ingame-4.png (Space) in that order, ingame-1 first; remove or move down older thumbnails; optionally add gameplay-1..5.png after them (max 10 images); do the icon and settings per marketing/store-page.md 'Files and where they go'.
 no-check: the thumbnails live on the Creator Hub page, which the loop cannot read
 cannot: publishing on the user's Roblox account
