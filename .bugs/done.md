@@ -3829,3 +3829,28 @@ test: none
 verified: n/a
 review: n/a
 owed: none
+
+## b-20261105-122557-xv66  fixed  2026-11-05 13:55
+note: Finish the in-game Roblox thumbnails: capture Pot (lava rising), Kitchen mid-grab with the Chef, Country, Space; compose them (reopens b-20261104-165256-ifaa)
+cause: the store page had only Unity-era art; in-game Roblox frames were never captured.
+change: Studio Play captures (StudioBot grab bot) of Kitchen with the Chef and Pot with the lava rising, saved under marketing/captures/ingame/; new tools/make_ingame_thumbs.py composes four 1920x1080 captioned thumbnails (scale-to-cover + centre crop, the make_marketing text helper); marketing/store-page.md upload order is now ingame-1..4, then gameplay-3/-4 as stand-ins for Country and Space.
+files: tools/make_ingame_thumbs.py, marketing/store-page.md, marketing/ingame-1.png, marketing/ingame-2.png, marketing/ingame-3.png, marketing/ingame-4.png, marketing/captures/ingame/kitchen-chef-grab.jpg, marketing/captures/ingame/kitchen-chef-climb.jpg, marketing/captures/ingame/kitchen-chef-knife.jpg, marketing/captures/ingame/kitchen-chef-hang.jpg, marketing/captures/ingame/kitchen-fly-catch.jpg, marketing/captures/ingame/pot-lava-a.jpg, marketing/captures/ingame/pot-lava-b.jpg
+test: python -m py_compile tools/make_ingame_thumbs.py; all 4 outputs measured 1920x1080 RGB
+verified: partly (Pot and Kitchen captured; Country and Space backdrops did not load in Studio during the host DNS outage, so no frames; a perfect-grab frame is not capturable because MCP screen_capture does not render BillboardGuis)
+studio: Hot Frog 114911935371092, Play stopped
+seen: marketing/ingame-1.png, marketing/ingame-2.png, marketing/ingame-3.png, marketing/ingame-4.png
+review: looks-right (sonnet/medium: read make_ingame_thumbs.py against make_gameplay_thumbs.py, crop under 1px, py_compile and PIL sizes, store-page.md order matches SHOTS and every named file exists)
+hand-check: ingame-4 (fly catch) is staged: the tongue was held locally toward a fly; drop it from the upload if it reads fake
+owed: o-20261105-135424-j2jp (Creator Hub thumbnail upload)
+leftover: b-20261105-135425-98f2 (Country and Space recapture)
+
+## b-20261105-134425-o59t  ignored  2026-11-05 13:55
+note: AUTO warning (server): ContentId: rbxassetid://114351282912359?r=205438 failed due to: Request asset was not found
+cause: 114351282912359 is CountryBack (SkinAssets.luau:153), Approved/Green in tools/asset_ids.json; the failure came during the same host DNS outage as b-20261105-133517-b87q (the log shows this id failing DnsResolve seconds earlier), so the asset CDN answered a partial request. Preloading it now in Studio Edit returns AssetFetchStatus.Success.
+change: none
+files: none
+test: ContentProvider:PreloadAsync on a Decal with rbxassetid://114351282912359 -> Success
+verified: yes
+studio: Hot Frog 114911935371092, Edit (no Play)
+review: n/a
+owed: none

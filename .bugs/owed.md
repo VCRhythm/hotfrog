@@ -388,12 +388,21 @@ cleared: 2026-11-05 10:11 marked done on the fleet dashboard
 no-sample-check: display-check probes the display outputs, not a file
 tried: bugloop.py display-check: FAIL, no monitor attached to \.\DISPLAY1 (RTX 3090); the loop cannot power on or plug in a monitor
 
-## o-20261105-122910-zrjo  open  2026-11-05 12:29
+## o-20261105-122910-zrjo  done  2026-11-05 12:29
 for: b-20261105-122544-v3fr
 kind: restart
 needs: studio
 step: In the Hot Frog Studio window, open the Rojo plugin widget and click Connect on localhost:34873, then Accept on any prompt it shows (the hotkey connect reaches no socket in this freshly opened Studio)
 command: cd '/h/Roblox Projects/hotfrog' && python tools/rojo_reconnect.py connect
 done-check: cd '/h/Roblox Projects/hotfrog' && python tools/rojo_reconnect.py status >/dev/null 2>&1
+evidence: none, the user sent it back to the loop as b-20261105-131148-urte
+cleared: 2026-11-05 13:11 sent back to loop as b-20261105-131148-urte: use the tools in H:/roblox projects/scare to be able to do this yourself
 no-sample-check: rojo_reconnect.py status probes the plugin's live socket, not a file
 tried: python tools/rojo_reconnect.py connect, twice 15 s apart: plugin: no socket (disconnected, or a dialog is waiting), exit 1
+
+## o-20261105-135424-j2jp  open  2026-11-05 13:54
+for: b-20261105-122557-xv66
+kind: approval
+step: Creator Hub (create.roblox.com) -> Creations -> Hot Frog -> Places -> start place -> Thumbnails: upload marketing/ingame-1.png, ingame-2.png, ingame-3.png, ingame-4.png in that order, then gameplay-3.png and gameplay-4.png (max 10 images, ingame-1 first); do the icon and settings per marketing/store-page.md 'Files and where they go'.
+no-check: the thumbnails live on the Creator Hub page, which the loop cannot read
+cannot: publishing on the user's Roblox account
