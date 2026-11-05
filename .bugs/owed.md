@@ -369,8 +369,19 @@ done-check: python tools/rojo_reconnect.py status >/dev/null 2>&1
 evidence: done-check passed: exit 0, no output
 cleared: 2026-10-28 12:30 marked done on the fleet dashboard
 
-## o-20261103-063315-gnbz  open  2026-11-03 06:33
+## o-20261103-063315-gnbz  done  2026-11-03 06:33
 for: b-20261020-205042-kryx
 kind: approval
 step: In Roblox Studio, open the Hot Frog place, select Workspace, delete its ForceHalloween attribute (it is saved as true, so every server forces the Halloween theme after the Nov 1 window), then File > Publish to Roblox
 no-check: the published place can't be read from this host: the Open Cloud key lacks the Luau Execution scope
+evidence: marked done by the user, no check
+cleared: 2026-11-03 10:33 marked done on the fleet dashboard
+
+## o-20261105-100344-xr5c  open  2026-11-05 10:03
+for: display
+kind: device
+needs: display
+step: Turn the PC's monitor on, or connect a dummy plug / virtual display
+done-check: python "C:/Users/Tristan/.claude/skills/bugloop/scripts/bugloop.py" display-check
+no-sample-check: display-check probes the display outputs, not a file
+tried: bugloop.py display-check: FAIL, no monitor attached to \.\DISPLAY1 (RTX 3090); the loop cannot power on or plug in a monitor
