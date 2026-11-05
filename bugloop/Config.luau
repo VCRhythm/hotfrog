@@ -28,6 +28,9 @@ return {
             "rbxassetid://203785492",
             "FoundationProvider not found",
             "Asset content representation is being generated",
+            "^%[Roblox%]%[CoreGui%.", -- Roblox's own CoreGui modules (e.g. GetGameName offline)
+            "^%[Roblox%]%[CorePackages%.", -- Roblox's own packages (unhandled Promise in CoreGui)
+            "HttpError: DnsResolve", -- the host lost DNS; environmental, not a game bug
         },
     },
 
