@@ -67,5 +67,6 @@ BugReportService.start({
     logLines = Config.logLines,
     enabledOutsideStudio = Config.enabledOutsideStudio,
     autoReport = Config.autoReport,
+    frames = Config.frames,
     collectContext = hookContext,
 })

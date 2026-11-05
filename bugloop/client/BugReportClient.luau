@@ -33,6 +33,7 @@ export type InitOptions = {
     enabledOutsideStudio: boolean?,
     collectContext: (() -> { [string]: any })?,
     autoReport: boolean?,  -- default true: forward client errors/warnings to the server
+    frames: boolean?,  -- default true: report frames drawn to the server once a second (bugloop.py studio-ready)
 }
 
 local _opts: InitOptions = {}
@@ -220,6 +221,25 @@ function BugReportClient.init(opts: InitOptions?)
             close()
         end
     end)
+
+    -- Count the frames this client draws and send the count once a second; the server relays
+    -- it to the listener's /api/frames for `bugloop.py studio-ready`. RenderStepped fires only
+    -- when the client renders, so a minimized or hidden Studio reports few or none.
+    local remoteForFrames = _remote
+    if _opts.frames ~= false and remoteForFrames then
+        local frames = 0
+        RunService.RenderStepped:Connect(function()
+            frames += 1
+        end)
+        task.spawn(function()
+            while true do
+                local seconds = task.wait(1)
+                local n = frames
+                frames = 0
+                remoteForFrames:FireServer("frames", { __frames = { frames = n, seconds = seconds } })
+            end
+        end)
+    end
 
     -- Forward client-side errors and warnings to the server, which dedupes and files them.
     if _opts.autoReport ~= false then

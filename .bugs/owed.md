@@ -377,11 +377,23 @@ no-check: the published place can't be read from this host: the Open Cloud key l
 evidence: marked done by the user, no check
 cleared: 2026-11-03 10:33 marked done on the fleet dashboard
 
-## o-20261105-100344-xr5c  open  2026-11-05 10:03
+## o-20261105-100344-xr5c  done  2026-11-05 10:03
 for: display
 kind: device
 needs: display
 step: Turn the PC's monitor on, or connect a dummy plug / virtual display
 done-check: python "C:/Users/Tristan/.claude/skills/bugloop/scripts/bugloop.py" display-check
+evidence: done-check passed: a monitor is attached to this PC's display
+cleared: 2026-11-05 10:11 marked done on the fleet dashboard
 no-sample-check: display-check probes the display outputs, not a file
 tried: bugloop.py display-check: FAIL, no monitor attached to \.\DISPLAY1 (RTX 3090); the loop cannot power on or plug in a monitor
+
+## o-20261105-122910-zrjo  open  2026-11-05 12:29
+for: b-20261105-122544-v3fr
+kind: restart
+needs: studio
+step: In the Hot Frog Studio window, open the Rojo plugin widget and click Connect on localhost:34873, then Accept on any prompt it shows (the hotkey connect reaches no socket in this freshly opened Studio)
+command: cd '/h/Roblox Projects/hotfrog' && python tools/rojo_reconnect.py connect
+done-check: cd '/h/Roblox Projects/hotfrog' && python tools/rojo_reconnect.py status >/dev/null 2>&1
+no-sample-check: rojo_reconnect.py status probes the plugin's live socket, not a file
+tried: python tools/rojo_reconnect.py connect, twice 15 s apart: plugin: no socket (disconnected, or a dialog is waiting), exit 1

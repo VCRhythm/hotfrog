@@ -23,6 +23,7 @@
 
 local HttpService = game:GetService("HttpService")
 local LogService = game:GetService("LogService")
+local Players = game:GetService("Players")
 local ReplicatedStorage = game:GetService("ReplicatedStorage")
 local RunService = game:GetService("RunService")
 
@@ -45,6 +46,7 @@ export type StartOptions = {
     enabledOutsideStudio: boolean?,
     collectContext: (() -> { [string]: any })?,
     autoReport: (AutoReportOptions | boolean)?,  -- false disables; default on
+    frames: boolean?,         -- false: never relay the client's frame counts to /api/frames; default on
 }
 
 local REMOTE_NAME = "BugReport"
@@ -68,14 +70,103 @@ local _snaps: { [Player]: string } = setmetatable({}, { __mode = "k" }) :: any
 local function snapEndpoint(): string
     return (string.gsub(_opts.endpoint or ENDPOINT, "/*$", "")) .. "/api/snap"
 end
+
+local function framesEndpoint(): string
+    return (string.gsub(_opts.endpoint or ENDPOINT, "/*$", "")) .. "/api/frames"
+end
+
+local FRAMES_MAX = 100000      -- the listener's bounds (CONTRACT.md "Frames"): 0..100000 frames
+local FRAMES_MAX_SECONDS = 60  -- and 0 < seconds <= 60
+local FRAMES_GAP = 0.5         -- at most two samples a second; extras are dropped
+local _framesLast = -math.huge
+local _framesBusy = false
+
+--- Relay one client frame count to the listener, for `bugloop.py studio-ready`. Only the
+--- first player's (Play Solo has one), validated and rate-limited, one request in flight at
+--- a time, and silent on failure: a warn here would be auto-filed as a bug every second
+--- while the listener is down.
+local function relayFrames(player: Player, sample: unknown)
+    if _opts.frames == false or type(sample) ~= "table" then
+        return
+    end
+    local frames, seconds = (sample :: any).frames, (sample :: any).seconds
+    if type(frames) ~= "number" or type(seconds) ~= "number" then
+        return
+    end
+    if frames ~= math.floor(frames) or frames < 0 or frames > FRAMES_MAX
+        or not (seconds > 0 and seconds <= FRAMES_MAX_SECONDS) then
+        return
+    end
+    if Players:GetPlayers()[1] ~= player then
+        return
+    end
+    local now = os.clock()
+    if _framesBusy or now - _framesLast < FRAMES_GAP then
+        return
+    end
+    _framesLast = now
+    _framesBusy = true
+    local body = string.format('{"frames":%d,"seconds":%.3f}', frames, seconds)
+    task.spawn(function()
+        pcall(function()
+            return HttpService:PostAsync(framesEndpoint(), body, Enum.HttpContentType.ApplicationJson)
+        end)
+        _framesBusy = false
+    end)
+end
+
 local _seenFingerprints: { [string]: number } = {}
 local _autoCount = 0
+
+--- Longest prefix of s of at most n bytes that is valid UTF-8 (never ends mid-character).
+local function cutUtf8(s: string, n: number): string
+    local cut = string.sub(s, 1, n)
+    while #cut > 0 and not utf8.len(cut) do
+        cut = string.sub(cut, 1, #cut - 1)
+    end
+    return cut
+end
+
+--- s with every invalid UTF-8 byte replaced by "?", so JSONEncode cannot choke on it.
+local function safeUtf8(s: string): string
+    local out = ""
+    while true do
+        local len, bad = utf8.len(s)
+        if len then
+            return out .. s
+        end
+        out ..= string.sub(s, 1, (bad :: number) - 1) .. "?"
+        s = string.sub(s, (bad :: number) + 1)
+    end
+end
+
+--- Deep copy of value with invalid UTF-8 repaired in every string key and value; cycles and
+--- tables nested deeper than 12 levels become nil, so one bad field cannot block JSONEncode.
+local function sanitize(value: any, depth: number?, seen: { [any]: boolean }?): any
+    if type(value) == "string" then
+        return safeUtf8(value)
+    elseif type(value) ~= "table" then
+        return value
+    end
+    local d = (depth or 0) + 1
+    local path = seen or {}
+    if d > 12 or path[value] then
+        return nil
+    end
+    path[value] = true
+    local out = {}
+    for k, v in value do
+        out[if type(k) == "string" then safeUtf8(k) else k] = sanitize(v, d, path)
+    end
+    path[value] = nil
+    return out
+end
 
 --- Stable key for "the same message": kind + first line with numbers blanked.
 function BugReportService.fingerprint(kind: string, message: string): string
     local first = string.match(message, "^[^\n]*") or message
     first = string.gsub(first, "%d+", "#")
-    return kind .. ":" .. string.sub(first, 1, 200)
+    return kind .. ":" .. cutUtf8(first, 200)
 end
 
 local function recentLog(limit: number): { string }
@@ -90,7 +181,7 @@ local function recentLog(limit: number): { string }
     for i = start, #history do
         local item = history[i]
         local tag = tostring(item.messageType):gsub("Enum%.MessageType%.", "")
-        table.insert(out, string.format("[%s] %s", tag, tostring(item.message)))
+        table.insert(out, string.format("[%s] %s", tag, safeUtf8(tostring(item.message))))
     end
     return out
 end
@@ -129,7 +220,7 @@ function BugReportService.report(
     playerName: string?,
     extra: { source: string?, fingerprint: string?, auto: { [string]: any }?, snap: string? }?
 ): (boolean, string)
-    note = string.sub(tostring(note), 1, MAX_NOTE)
+    note = cutUtf8(safeUtf8(tostring(note)), MAX_NOTE)
     local payload = {
         note = note,
         source = (extra and extra.source) or "roblox",
@@ -148,7 +239,7 @@ function BugReportService.report(
         },
         log = recentLog(_opts.logLines or 80),
     }
-    local body = HttpService:JSONEncode(payload)
+    local body = HttpService:JSONEncode(sanitize(payload))
 
     -- A listener restarting on new code is unreachable for a moment: retry before falling
     -- back to the console line. An HTTP 4xx answer is final. Automatic reports carry a
@@ -170,7 +261,7 @@ function BugReportService.report(
         if decoded and decoded.duplicate then
             print(string.format("[BugReport] already known as %s (%s)", id, tostring(decoded.duplicate)))
         else
-            print(string.format("[BugReport] sent %s: %s", id, string.sub(note, 1, 120)))
+            print(string.format("[BugReport] sent %s: %s", id, cutUtf8(note, 120)))
         end
         return true, id
     end
@@ -303,6 +394,11 @@ function BugReportService.start(opts: StartOptions?)
                     end
                 end
             end)
+            return
+        end
+        -- Frames drawn in the last second, counted by BugReportClient: relay, never file.
+        if ctx and ctx.__frames ~= nil then
+            relayFrames(player, ctx.__frames)
             return
         end
         -- Client-side automatic error/warning forwarded by BugReportClient

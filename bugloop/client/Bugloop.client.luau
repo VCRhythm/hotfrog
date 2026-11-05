@@ -47,5 +47,6 @@ BugReportClient.init({
     remoteParent = if type(remoteParent) == "function" then remoteParent() else remoteParent,
     enabledOutsideStudio = Config.enabledOutsideStudio,
     autoReport = Config.autoReport ~= false,
+    frames = Config.frames ~= false,
     collectContext = hookContext,
 })

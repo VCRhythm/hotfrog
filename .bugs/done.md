@@ -3743,3 +3743,15 @@ seen: none (no images produced)
 owed: none
 leftover: b-20261105-122544-v3fr upgrades the bugloop modules so studio-ready can pass; b-20261105-122557-xv66 (waits on is-fixed of that) redoes the captures
 followups: b-20261105-122544-v3fr, b-20261105-122557-xv66
+
+## b-20261105-122544-v3fr  blocked  2026-11-05 12:29
+note: Upgrade hotfrog's vendored bugloop/ capture modules to the current templates (they lack the __frames relay, so bugloop.py studio-ready always fails with 'no frames reported'), then sync them into the Hot Frog place and confirm studio-ready passes in Play
+cause: Hotfrog's vendored bugloop/ modules (installed 2026-10-16) predated the template's __frames relay, so nothing ever posted frames to the listener and studio-ready could not pass.
+change: bugloop.py upgrade overwrote the 4 unedited vendored copies with the current templates (BugReportClient now fires __frames at line 239) and updated .bugs/installed.json. The new code never reached the place: the Rojo plugin in the Studio the loop opened answers no socket.
+files: bugloop/client/BugReportClient.luau, bugloop/client/Bugloop.client.luau, bugloop/server/BugReportService.luau, bugloop/server/Bugloop.server.luau, .bugs/installed.json
+test: bash tools/luau_check.sh on the 4 files: pass; rojo build default.project.json: pass; bugloop.py rojo-check: serves this project on 34873; stylua --check bugloop/: 5 diffs in the verbatim template copies (bugloop/ is vendored and outside CI's stylua src/ scope; not hand-edited because upgrade overwrites them)
+verified: no — the Rojo plugin did not connect (rojo_reconnect.py connect run twice: no socket) and script_grep __frames in the place found nothing, so Play/studio-ready was not run against the new modules
+review: none
+studio: none (no Play ran; Hot Frog id 7eb04e55-f666-4ff6-87c6-86397beb22dd left in Edit mode)
+owed: o-20261105-122910-zrjo (click Connect in the Hot Frog Rojo widget)
+leftover: b-20261105-122915-vfbo waits on rojo_reconnect.py status, then syncs and runs studio-ready in Play; the thumbnail redo b-20261105-122557-xv66 waits on is-fixed of this item
