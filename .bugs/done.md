@@ -3755,3 +3755,27 @@ review: none
 studio: none (no Play ran; Hot Frog id 7eb04e55-f666-4ff6-87c6-86397beb22dd left in Edit mode)
 owed: o-20261105-122910-zrjo (click Connect in the Hot Frog Rojo widget)
 leftover: b-20261105-122915-vfbo waits on rojo_reconnect.py status, then syncs and runs studio-ready in Play; the thumbnail redo b-20261105-122557-xv66 waits on is-fixed of this item
+
+## b-20261105-131148-urte  fixed  2026-11-05 13:23
+note: use the tools in H:/roblox projects/scare to be able to do this yourself (sent back from owed step o-20261105-122910-zrjo: click Connect in the Hot Frog Rojo plugin widget)
+cause: tools/rojo_reconnect.py only wrapped scare's hotkey route (Ctrl+Alt+Shift+F8, needs a user keybinding and the window in front), which reached no socket in a freshly opened Studio; scare's unattended route (its patch_rojo_plugin.py adds a ServerStorage.RojoReconnectRequest watcher to the shared Rojo plugin install) was never exposed to hotfrog.
+change: tools/rojo_reconnect.py gains `request send [--accept]` and `request result --value`, reusing scare's tool (list scare, b-20261030-074705-ua8z) gated on hotfrog's own `status` exit 1 (refuses with exit 5 when already connected), with output naming Hot Frog; .bugs/README.md's connect paragraph now describes that route instead of the user's hotkey binding.
+files: tools/rojo_reconnect.py, .bugs/README.md
+test: python -m py_compile tools/rojo_reconnect.py: ok; `request send` while connected refuses with exit 5
+verified: yes — live run in the Hot Frog Studio (7eb04e55-f666-4ff6-87c6-86397beb22dd, placeId 114911935371092): status exit 1, `request send` + execute_luau answered "confirming", `request send --accept` answered "ok", then `python tools/rojo_reconnect.py status` exit 0 (plugin: socket ESTABLISHED); script_grep __frames found BugReportClient:239 and BugReportService:400-401 in the place; request/result values left nil afterwards
+review: looks-right; checked: full tools/rojo_reconnect.py and its diff, .bugs/README.md diff, scare's tools/rojo_reconnect.py (argparse, status, request_send/refusal/result, exit codes), py_compile and --help runs; minor: the `--accept` bypass after "confirming" does not check serve session or age as scare's does (low impact, port is hotfrog's)
+enforced-by: none — the README paragraph is a how-to; its one rule (send only on status 1) is enforced by the wrapper's exit-5 refusal
+studio: Hot Frog (placeId 114911935371092), no Play for this item, left in Edit
+owed: none
+leftover: none — the Play check b-20261105-122915-vfbo ran in the same session and is recorded below
+
+## b-20261105-122915-vfbo  fixed  2026-11-05 13:23
+note: Sync the upgraded bugloop/ modules into the Hot Frog place (script_grep __frames must match), start Play and confirm bugloop.py studio-ready passes
+cause: the upgraded modules from b-20261105-122544-v3fr had not reached the place because the Rojo plugin was disconnected; b-20261105-131148-urte connected it.
+change: none (check only)
+files: none
+test: none
+verified: yes — proves b-20261105-122544-v3fr: script_grep __frames matched BugReportClient line 239 and BugReportService lines 400-401 in the Hot Frog place; Studio Play started, then `bugloop.py studio-ready` printed "FAIL: only 3 frames in 3 s" during boot and then, three times about 5 s apart, "182 frames in the last 3 s; Studio window shown ('Hot Frog - Roblox Studio', process 25556)" exit 0; console showed "[BugReport] ready (F8 in game; auto-capture on)"
+review: n/a
+studio: Hot Frog (placeId 114911935371092), Play stopped, left in Edit
+owed: none

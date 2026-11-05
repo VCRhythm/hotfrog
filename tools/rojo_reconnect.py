@@ -8,9 +8,19 @@ window "Hot Frog", hotfrog's src mounts for `fingerprint`. Status exit codes and
 scare's .claude/skills/rojo-reconnect/SKILL.md.
 
     python tools/rojo_reconnect.py status    # 0 connected, 1 serve up/no socket, 2 no serve, 3 no window
-    python tools/rojo_reconnect.py connect   # only on status 1; Studio must be in Edit
+    python tools/rojo_reconnect.py request send [--accept]   # status 1: no keys, no focus (below)
+    python tools/rojo_reconnect.py request result --value "<what the result snippet returned>"
+    python tools/rojo_reconnect.py connect   # chord fallback, only on status 1; Studio must be in Edit
     python tools/rojo_reconnect.py click X Y # e.g. Accept on the plugin's confirm page
     python tools/rojo_reconnect.py fingerprint src/server/GameServer.server.luau
+
+`request` is the unattended path (scare's step 5b): the Rojo plugin install is shared by every
+Studio, and scare's tools/patch_rojo_plugin.py patched it with a watcher, so setting
+ServerStorage.RojoReconnectRequest in the Hot Frog Edit DataModel (execute_luau, snippet printed
+by `request send`) makes the plugin connect itself to localhost:34873; the second snippet's value
+goes to `request result` (0 ok, 1 read again, 6 `confirming`: `request send --accept` once, 7
+failed). Scare gates `send` on a stale canary verdict; here status 1 (no socket at all, a plainly
+dropped session) is the gate instead, `--accept` is allowed after a `confirming` answer.
 
 `canary` and `reconnect` are not supported (scare's canary file lives in a scare-only mount);
 prove sync with `fingerprint`.
@@ -18,7 +28,9 @@ prove sync with `fingerprint`.
 
 from __future__ import annotations
 
+import contextlib
 import importlib.util
+import io
 import os
 import sys
 import tempfile
@@ -58,7 +70,20 @@ def main() -> int:
         if title != TITLE:
             print(f"refused: --title is locked to {TITLE!r} (got {title!r})")
             return 2
-    return load().main(argv)
+    m = load()
+    if argv[:2] == ["request", "send"] and "--force" not in argv:
+        if "--accept" not in argv or (m.load_state().get("request") or {}).get("result") != "confirming":
+            code = m.status(TITLE)
+            if code != 1:
+                print("refused: `request send` needs status 1 (serve up, no plugin socket)")
+                return 5 if code == 0 else code
+        argv = argv + ["--force"]  # status 1 stands in for scare's stale-canary gate
+    out = io.StringIO()
+    try:
+        with contextlib.redirect_stdout(out):
+            return m.main(argv)
+    finally:  # scare's messages name its Studio; this wrapper only ever targets Hot Frog
+        print(out.getvalue().replace("Centralia (Staging)", TITLE).replace("Centralia", TITLE), end="")
 
 
 if __name__ == "__main__":

@@ -7,8 +7,12 @@ supervised serve, detached, from PowerShell (the inner quotes matter):
 `Start-Process powershell -WindowStyle Hidden -ArgumentList '-NoProfile','-ExecutionPolicy','Bypass','-File','"H:\Roblox Projects\hotfrog\tools\rojo_serve_watchdog.ps1"'`
 (log `%TEMP%\hotfrog_rojo_serve_watchdog.log`). Only port 34873; never touch other projects' serves
 or kill other rojo.exe. To connect/reconnect the Studio plugin (Hot Frog window, Edit mode):
-`python tools/rojo_reconnect.py status`, then `connect` if it exits 1 (wraps scare's tool; needs the
-user's one-time Studio binding of "Rojo: Connect" to Ctrl+Alt+Shift+F8); `fingerprint <file>` proves sync. Root-level `Core/ Player/ Entities/ Spawning/ Input/ ...` are the **read-only Unity C#
+`python tools/rojo_reconnect.py status`; on exit 1 run `request send`, execute_luau its first
+snippet in the Hot Frog Edit DM, ~5 s later its second, and pass the value to `request result
+--value "..."` (exit 6 `confirming` after a fresh Studio: `request send --accept` once, repeat).
+No keys or focus: scare's patched Rojo plugin (`python "H:/Roblox Projects/scare/tools/patch_rojo_plugin.py"
+--check`) watches ServerStorage.RojoReconnectRequest. `connect` (hotkey chord) is only a fallback;
+`fingerprint <file>` or `script_grep` proves sync. Root-level `Core/ Player/ Entities/ Spawning/ Input/ ...` are the **read-only Unity C#
 original**: Luau files cite the C# file they port — read it for "how should this behave".
 `CLAUDE.md` has the full architecture map; read it first.
 
