@@ -3779,3 +3779,53 @@ verified: yes — proves b-20261105-122544-v3fr: script_grep __frames matched Bu
 review: n/a
 studio: Hot Frog (placeId 114911935371092), Play stopped, left in Edit
 owed: none
+
+## b-20261105-133511-czwh  ignored  2026-11-05 13:43
+note: AUTO warning (client): [Roblox][CoreGui.RobloxGui.Modules.AvatarEditorPrompts.Thunks.GetGameName] Unable to get game name for Avatar Editor Prompts
+cause: Roblox's own CoreGui/CorePackages code failing to fetch the game name during Studio Play (stack is entirely CoreGui/CorePackages; no project script involved), at the same second as the DnsResolve failures, so the host lost network.
+change: none (an autoReport.ignore pattern for [CoreGui. and [CorePackages. is added to bugloop/Config.luau once the running Studio capture ends)
+files: none
+test: none
+verified: n/a
+review: n/a
+owed: none
+
+## b-20261105-133511-q0fl  ignored  2026-11-05 13:43
+note: AUTO warning (client): [Roblox][CoreGui.RobloxGui.Modules.TopBar.Thunks.GetGameName] Unable to get game name for Gamepad Menu
+cause: Roblox's own CoreGui/CorePackages code failing to fetch the game name during Studio Play (stack is entirely CoreGui/CorePackages; no project script involved), at the same second as the DnsResolve failures, so the host lost network.
+change: none (an autoReport.ignore pattern for [CoreGui. and [CorePackages. is added to bugloop/Config.luau once the running Studio capture ends)
+files: none
+test: none
+verified: n/a
+review: n/a
+owed: none
+
+## b-20261105-133511-7fns  ignored  2026-11-05 13:43
+note: AUTO warning (client): [Roblox][CorePackages...Promise] Unhandled Promise rejection: nil (from CoreGui TopBar.Thunks.GetGameName:33)
+cause: Roblox's own CoreGui/CorePackages code failing to fetch the game name during Studio Play (stack is entirely CoreGui/CorePackages; no project script involved), at the same second as the DnsResolve failures, so the host lost network.
+change: none (an autoReport.ignore pattern for [CoreGui. and [CorePackages. is added to bugloop/Config.luau once the running Studio capture ends)
+files: none
+test: none
+verified: n/a
+review: n/a
+owed: none
+
+## b-20261105-133517-b87q  ignored  2026-11-05 13:43
+note: AUTO warning (server): ContentId: rbxassetid://114222926282101 failed due to: HttpError: DnsResolve
+cause: the host could not resolve DNS during Studio Play, so an asset fetch failed; environmental, not a project bug (the asset id is not at fault: the error is name resolution).
+change: none (an autoReport.ignore pattern for "HttpError: DnsResolve" is added to bugloop/Config.luau once the running Studio capture ends)
+files: none
+test: none
+verified: n/a
+review: n/a
+owed: none
+
+## b-20261105-134110-vb13  ignored  2026-11-05 13:43
+note: AUTO warning (server): [Profiles] save for u_4272203669 failed after 3 attempt(s): HTTP unknown error (HttpError: DnsResolve)
+cause: the same host DNS outage during Studio Play made the DataStore save fail after its retries; Profiles retried and warned as designed, so this is the network, not the save path.
+change: none (covered by the "HttpError: DnsResolve" ignore pattern added once the running Studio capture ends)
+files: none
+test: none
+verified: n/a
+review: n/a
+owed: none
